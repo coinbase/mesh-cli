@@ -65,7 +65,7 @@ exit.
 The validator randomly checks the balances of accounts that aren't
 involved in any transactions. The balances of accounts could change
 on the blockchain node without being included in an operation
-returned by the Rosetta Server. Recall that ALL balance-changing
+returned by the Rosetta Server. Recall that **ALL** balance-changing
 operations must be returned by the Rosetta Server.
 
 ## Future Work
