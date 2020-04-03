@@ -18,15 +18,19 @@ and wallets to integrate with much less communication overhead
 and network-specific work.
 
 ## Run the Validator
+
+The validator needs the URL of the Rosetta server configured. This can be set
+as an environment variable named `SERVER_URL`, passed as an argument to make eg `make SERVER_URL=<server url> validate`
+or editing `Makefile` itself.
+
 1. Start your Rosetta Server (and the blockchain node it connects to if it is
 not a single binary.
-2. Modify the `Makefile` to point to the correct Rosetta Server port.
-3. Start the validator using `make validator`.
-4. Examine processed blocks using `make watch-blocks`. You can also print transactions
-by setting `LOG_TRANSACTIONS="true"` in the `Makefile`.
-5. Watch for errors in the processing logs. Any error will cause the validator to stop.
-6. Analyze benchmarks from `worker-data/block_benchmarks.csv` and
-  `worker-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in the `Makefile`.
+2. Start the validator using `make SERVER_URL=<server URL> validate`.
+3. Examine processed blocks using `make watch-blocks`. You can also print transactions
+by setting `LOG_TRANSACTIONS="true"` in the environment or as a `make` argument.
+4. Watch for errors in the processing logs. Any error will cause the validator to stop.
+5. Analyze benchmarks from `validator-data/block_benchmarks.csv` and
+  `validator-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in the environment or as a `make` argument.
 
 _There is no additional setting required to support blockchains with reorgs. This
 is handled automatically!_
