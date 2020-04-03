@@ -34,7 +34,7 @@ import (
 
 type config struct {
 	DataDir                string `env:"DATA_DIR,required"`
-	ServerAddr             string `env:"SERVER_ADDR,required"`
+	ServerURL              string `env:"SERVER_URL,required"`
 	BlockConcurrency       uint64 `env:"BLOCK_CONCURRENCY,required"`
 	TransactionConcurrency uint64 `env:"TRANSACTION_CONCURRENCY,required"`
 	AccountConcurrency     int    `env:"ACCOUNT_CONCURRENCY,required"`
@@ -52,7 +52,7 @@ func main() {
 
 	fetcher := fetcher.New(
 		ctx,
-		cfg.ServerAddr,
+		cfg.ServerURL,
 		"rosetta-validator",
 		&http.Client{
 			Timeout: 10 * time.Second,

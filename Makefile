@@ -1,7 +1,9 @@
 .PHONY: deps lint test add-license check-license circleci-local validator \
 	watch-blocks view-block-benchmarks view-account-benchmarks salus
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
-SERVER_ADDR=http://localhost:10000
+SERVER_URL?=http://localhost:10000
+LOG_TRANSACTIONS?=false
+LOG_BENCHMARKS?=true
 
 deps:
 	go get ./...
@@ -27,17 +29,17 @@ circleci-local:
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
 
-validator:
+validate:
 	docker build -t rosetta-validator .; \
 	docker run \
 		-v ${PWD}/validator-data:/data \
 		-e DATA_DIR="/data" \
-		-e SERVER_ADDR="${SERVER_ADDR}" \
+		-e SERVER_URL="${SERVER_URL}" \
 		-e BLOCK_CONCURRENCY="32" \
 		-e TRANSACTION_CONCURRENCY="8" \
 		-e ACCOUNT_CONCURRENCY="8" \
-		-e LOG_TRANSACTIONS="false" \
-		-e LOG_BENCHMARKS="true" \
+		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
+		-e LOG_BENCHMARKS="${LOG_BENCHMARKS}" \
 		--network host \
 		rosetta-validator \
 		rosetta-validator;
