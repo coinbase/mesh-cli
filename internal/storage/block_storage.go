@@ -18,15 +18,57 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
+	"os"
+	"path"
+	"strconv"
+	"strings"
 
 	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
 
 	"github.com/davecgh/go-spew/spew"
+)
+
+const (
+	// headBlockKey is used to lookup the head block identifier.
+	// The head block is the block with the largest index that is
+	// not orphaned.
+	headBlockKey = "head-block"
+
+	// blockHashNamespace is prepended to any stored block hash.
+	// We cannot just use the stored block key to lookup whether
+	// a hash has been used before because it is concatenated
+	// with the index of the stored block.
+	blockHashNamespace = "block-hash"
+
+	// transactionHashNamespace is prepended to any stored
+	// transaction hash.
+	transactionHashNamespace = "transaction-hash"
+
+	// balanceNamespace is prepended to any stored balance.
+	balanceNamespace = "balance"
+
+	// bootstrapBalancesFile is loaded to bootstrap the balance
+	// of a collection of accounts.
+	bootstrapBalancesFile = "bootstrap_balances.csv"
+
+	// bootstrapBalancesPermissions specifies that the user can
+	// read and write the file.
+	bootstrapBalancesPermissions = 0600
+
+	// bootstrapBalancesHeader is used as the CSV header
+	// in the bootstrapBalancesFile.
+	bootstrapBalancesHeader = "AccountIdentifier_address,Amount_value,Currency_symbol,Currency_decimals"
+	bootstrapAddressIndex   = 0
+	bootstrapValueIndex     = 1
+	bootstrapSymbolIndex    = 2
+	bootstrapDecimalsIndex  = 3
 )
 
 var (
@@ -53,26 +95,14 @@ var (
 	// ErrDuplicateTransactionHash is returned when a transaction
 	// hash cannot be stored because it is a duplicate.
 	ErrDuplicateTransactionHash = errors.New("Duplicate transaction hash")
-)
 
-const (
-	// headBlockKey is used to lookup the head block identifier.
-	// The head block is the block with the largest index that is
-	// not orphaned.
-	headBlockKey = "head-block"
+	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
+	// balances after syncing has started.
+	ErrAlreadyStartedSyncing = errors.New("already started syncing")
 
-	// blockHashNamespace is prepended to any stored block hash.
-	// We cannot just use the stored block key to lookup whether
-	// a hash has been used before because it is concatenated
-	// with the index of the stored block.
-	blockHashNamespace = "block-hash"
-
-	// transactionHashNamespace is prepended to any stored
-	// transaction hash.
-	transactionHashNamespace = "transaction-hash"
-
-	// balanceNamespace is prepended to any stored balance.
-	balanceNamespace = "balance"
+	// ErrIncorrectHeader is returned when a bootstrap file has an
+	// incorrect header.
+	ErrIncorrectHeader = errors.New("incorrect header")
 )
 
 /*
@@ -407,6 +437,7 @@ func (b *BlockStorage) UpdateBalance(
 		if !ok {
 			return fmt.Errorf("%s is not an integer", amount.Value)
 		}
+
 		if newVal.Sign() == -1 {
 			return fmt.Errorf(
 				"%w %+v for %+v at %+v",
@@ -495,4 +526,98 @@ func (b *BlockStorage) GetBalance(
 	}
 
 	return deserialBal.Amounts, deserialBal.Block, nil
+}
+
+// BootstrapBalances is utilized to set the balance of
+// any number of AccountIdentifiers at the genesis blocks.
+// This is particularly useful for setting the value of
+// accounts that received an allocation in the genesis block.
+func (b *BlockStorage) BootstrapBalances(
+	ctx context.Context,
+	dataDir string,
+	genesisBlockIdentifier *rosetta.BlockIdentifier,
+) error {
+	f, err := os.OpenFile(
+		path.Join(dataDir, bootstrapBalancesFile),
+		os.O_RDONLY,
+		bootstrapBalancesPermissions,
+	)
+	if err != nil {
+		return err
+	}
+
+	dbTransaction := b.NewDatabaseTransaction(ctx, true)
+	defer dbTransaction.Discard(ctx)
+
+	_, err = b.GetHeadBlockIdentifier(ctx, dbTransaction)
+	if err != ErrHeadBlockNotFound {
+		return ErrAlreadyStartedSyncing
+	}
+
+	csvReader := csv.NewReader(f)
+	rowsRead := 0
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+		rowsRead++
+
+		// Assert header is correct
+		if rowsRead == 1 {
+			if bootstrapBalancesHeader != strings.Join(record[:], ",") {
+				return ErrIncorrectHeader
+			}
+
+			continue
+		}
+
+		// Assert row column length correct
+		if len(record) != len(strings.Split(bootstrapBalancesHeader, ",")) {
+			return fmt.Errorf("row %d does not have expected fields: %s", rowsRead, record)
+		}
+
+		account := &rosetta.AccountIdentifier{
+			Address: record[bootstrapAddressIndex],
+		}
+
+		currencyDecimals, err := strconv.Atoi(record[bootstrapDecimalsIndex])
+		if err != nil {
+			return err
+		}
+
+		amount := &rosetta.Amount{
+			Value: record[bootstrapValueIndex],
+			Currency: &rosetta.Currency{
+				Symbol:   record[bootstrapSymbolIndex],
+				Decimals: int32(currencyDecimals),
+			},
+		}
+
+		log.Printf(
+			"Setting account %s balance to %s %+v\n",
+			account.Address,
+			amount.Value,
+			amount.Currency,
+		)
+
+		err = b.UpdateBalance(
+			ctx,
+			dbTransaction,
+			account,
+			amount,
+			genesisBlockIdentifier,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = dbTransaction.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%d Balances Bootstrapped\n", rowsRead-1)
+	return nil
 }

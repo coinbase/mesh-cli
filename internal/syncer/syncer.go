@@ -139,6 +139,7 @@ func (s *Syncer) storeBlockBalanceChanges(
 				Account:  op.Account,
 				Currency: amount.Currency,
 			}
+
 			if !reconciler.ContainsAccountAndCurrency(modifiedAccounts, accountAndCurrency) {
 				modifiedAccounts = append(modifiedAccounts, accountAndCurrency)
 			}
@@ -219,6 +220,7 @@ func (s *Syncer) AddBlock(
 // head should be orphaned.
 func (s *Syncer) ProcessBlock(
 	ctx context.Context,
+	genesisIndex int64,
 	currIndex int64,
 	block *rosetta.Block,
 ) ([]*reconciler.AccountAndCurrency, int64, error) {
@@ -233,8 +235,9 @@ func (s *Syncer) ProcessBlock(
 	var modifiedAccounts []*reconciler.AccountAndCurrency
 	var newIndex int64
 	if reorg {
-		if currIndex == 0 {
-			return nil, 0, errors.New("Can't reorg genesis block")
+		newIndex = currIndex - 1
+		if newIndex == genesisIndex {
+			return nil, 0, errors.New("cannot orphan genesis block")
 		}
 
 		head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
@@ -247,7 +250,6 @@ func (s *Syncer) ProcessBlock(
 			return nil, currIndex, err
 		}
 
-		newIndex = currIndex - 1
 		err = s.logger.BlockStream(ctx, block, true)
 		if err != nil {
 			log.Printf("Unable to log block %v\n", err)
@@ -274,9 +276,11 @@ func (s *Syncer) ProcessBlock(
 }
 
 // SyncBlockRange syncs blocks from startIndex to endIndex, inclusive.
-// This function handles re-orgs that may occur while syncing.
+// This function handles re-orgs that may occur while syncing as long
+// as the genesisIndex is not orphaned.
 func (s *Syncer) SyncBlockRange(
 	ctx context.Context,
+	genesisIndex int64,
 	startIndex int64,
 	endIndex int64,
 ) error {
@@ -318,6 +322,7 @@ func (s *Syncer) SyncBlockRange(
 		// Can't return modifiedAccounts without creating new variable
 		modifiedAccounts, newIndex, err := s.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			block.Block,
 		)
@@ -331,6 +336,37 @@ func (s *Syncer) SyncBlockRange(
 	}
 
 	return s.logger.BlockLatency(ctx, allBlocks)
+}
+
+// nextSyncableRange returns the next range of indexes to sync
+// based on what the last processed block in storage is and
+// the contents of the network status response.
+func (s *Syncer) nextSyncableRange(
+	ctx context.Context,
+	networkStatus *rosetta.NetworkStatusResponse,
+) (int64, int64, int64, error) {
+	tx := s.storage.NewDatabaseTransaction(ctx, false)
+	defer tx.Discard(ctx)
+
+	genesisBlockIdentifier := networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
+
+	var startIndex int64
+	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
+	if err == nil {
+		startIndex = head.Index + 1
+	} else if err == storage.ErrHeadBlockNotFound {
+		head = genesisBlockIdentifier
+		startIndex = head.Index
+	} else {
+		return -1, -1, -1, err
+	}
+
+	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
+	if endIndex-startIndex > maxSync {
+		endIndex = startIndex + maxSync
+	}
+
+	return genesisBlockIdentifier.Index, startIndex, endIndex, nil
 }
 
 // SyncCycle is a single iteration of processing up to maxSync blocks.
@@ -353,29 +389,23 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 		}
 	}
 
-	tx := s.storage.NewDatabaseTransaction(ctx, false)
-	defer tx.Discard(ctx)
-
-	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
-	if err == storage.ErrHeadBlockNotFound {
-		head = networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
-	} else if err != nil {
+	genesisIndex, startIndex, endIndex, err := s.nextSyncableRange(ctx, networkStatus)
+	if err != nil {
 		return err
 	}
 
-	currIndex := head.Index + 1
-	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
-	if endIndex-currIndex > maxSync {
-		endIndex = currIndex + maxSync
-	}
-
-	if currIndex > endIndex {
-		log.Printf("Next block %d > Blockchain Head %d", currIndex, endIndex)
+	if startIndex > endIndex {
+		log.Printf("Next block %d > Blockchain Head %d", startIndex, endIndex)
 		return nil
 	}
 
-	log.Printf("Syncing blocks %d-%d\n", currIndex, endIndex)
-	return s.SyncBlockRange(ctx, currIndex, endIndex)
+	log.Printf("Syncing blocks %d-%d\n", startIndex, endIndex)
+	return s.SyncBlockRange(
+		ctx,
+		genesisIndex,
+		startIndex,
+		endIndex,
+	)
 }
 
 // Sync cycles endlessly until there is an error.

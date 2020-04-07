@@ -69,7 +69,7 @@ const (
 
 	// inactiveReconciliationSleep is used as the time.Duration
 	// to sleep when there are no seen accounts to reconcile.
-	inactiveReconciliationSleep = 30 * time.Second
+	inactiveReconciliationSleep = 5 * time.Second
 )
 
 var (
@@ -421,26 +421,25 @@ func simpleAccountAndCurrency(acct *AccountAndCurrency) string {
 func (r *Reconciler) reconcileActiveAccounts(
 	ctx context.Context,
 ) error {
-	for acctIndex := range r.acctQueue {
-		if ctx.Err() != nil {
-			return nil
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case acctIndex := <-r.acctQueue:
+			if acctIndex.blockIndex < r.highWaterMark {
+				continue
+			}
 
-		if acctIndex.blockIndex < r.highWaterMark {
-			continue
-		}
-
-		err := r.accountReconciliation(
-			ctx,
-			acctIndex.accountAndCurrency,
-			false,
-		)
-		if err != nil {
-			return err
+			err := r.accountReconciliation(
+				ctx,
+				acctIndex.accountAndCurrency,
+				false,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
-
-	return nil
 }
 
 // reconcileInactiveAccounts selects a random account

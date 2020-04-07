@@ -17,6 +17,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
 	"testing"
 
 	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
@@ -614,4 +616,182 @@ func TestGetCurrencyKey(t *testing.T) {
 			assert.Equal(t, hashString(test.key), GetCurrencyKey(test.currency))
 		})
 	}
+}
+
+func createBootstrapBalancesFile(dataDir string) (*os.File, error) {
+	return os.OpenFile(
+		path.Join(dataDir, bootstrapBalancesFile),
+		os.O_CREATE|os.O_WRONLY,
+		0600,
+	)
+}
+
+func TestBootstrapBalances(t *testing.T) {
+	var (
+		genesisBlockIdentifier = &rosetta.BlockIdentifier{
+			Index: 0,
+			Hash:  "0",
+		}
+
+		account = &rosetta.AccountIdentifier{
+			Address: "hello",
+		}
+	)
+
+	ctx := context.Background()
+
+	newDir, err := CreateTempDir()
+	assert.NoError(t, err)
+	defer RemoveTempDir(*newDir)
+
+	database, err := NewBadgerStorage(ctx, *newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBlockStorage(ctx, database)
+
+	t.Run("File doesn't exist", func(t *testing.T) {
+		err = storage.BootstrapBalances(
+			ctx,
+			*newDir,
+			genesisBlockIdentifier,
+		)
+		assert.EqualError(t, err, fmt.Sprintf(
+			"open %s: no such file or directory",
+			path.Join(*newDir, bootstrapBalancesFile),
+		))
+	})
+
+	t.Run("Set balance successfully", func(t *testing.T) {
+		f, err := createBootstrapBalancesFile(*newDir)
+		defer f.Close()
+		assert.NoError(t, err)
+
+		_, err = f.WriteString(fmt.Sprintf(
+			"%s\n",
+			bootstrapBalancesHeader,
+		))
+		assert.NoError(t, err)
+
+		amount := &rosetta.Amount{
+			Value: "10",
+			Currency: &rosetta.Currency{
+				Symbol:   "BTC",
+				Decimals: 8,
+			},
+		}
+
+		_, err = f.WriteString(fmt.Sprintf(
+			"%s,%s,%s,%d\n",
+			account.Address,
+			amount.Value,
+			amount.Currency.Symbol,
+			amount.Currency.Decimals,
+		))
+		assert.NoError(t, err)
+
+		err = storage.BootstrapBalances(
+			ctx,
+			*newDir,
+			genesisBlockIdentifier,
+		)
+		assert.NoError(t, err)
+
+		tx := storage.NewDatabaseTransaction(ctx, false)
+		amountMap, blockIdentifier, err := storage.GetBalance(
+			ctx,
+			tx,
+			account,
+		)
+		tx.Discard(ctx)
+
+		assert.Equal(t, amount, amountMap[GetCurrencyKey(amount.Currency)])
+		assert.Equal(t, genesisBlockIdentifier, blockIdentifier)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Invalid file header", func(t *testing.T) {
+		f, err := createBootstrapBalancesFile(*newDir)
+		defer f.Close()
+		assert.NoError(t, err)
+
+		_, err = f.WriteString("bad header")
+		assert.NoError(t, err)
+
+		err = storage.BootstrapBalances(
+			ctx,
+			*newDir,
+			genesisBlockIdentifier,
+		)
+		assert.EqualError(t, err, ErrIncorrectHeader.Error())
+	})
+
+	t.Run("Invalid account row", func(t *testing.T) {
+		f, err := createBootstrapBalancesFile(*newDir)
+		defer f.Close()
+		assert.NoError(t, err)
+
+		_, err = f.WriteString(fmt.Sprintf(
+			"%s\n",
+			bootstrapBalancesHeader,
+		))
+		assert.NoError(t, err)
+
+		_, err = f.WriteString("bad row\n")
+		assert.NoError(t, err)
+
+		err = storage.BootstrapBalances(
+			ctx,
+			*newDir,
+			genesisBlockIdentifier,
+		)
+		assert.EqualError(t, err, "row 2 does not have expected fields: [bad row]")
+	})
+
+	t.Run("Invalid account value", func(t *testing.T) {
+		f, err := createBootstrapBalancesFile(*newDir)
+		defer f.Close()
+		assert.NoError(t, err)
+
+		_, err = f.WriteString(fmt.Sprintf(
+			"%s\n",
+			bootstrapBalancesHeader,
+		))
+		assert.NoError(t, err)
+
+		amount := &rosetta.Amount{
+			Value: "goodbye",
+			Currency: &rosetta.Currency{
+				Symbol:   "BTC",
+				Decimals: 8,
+			},
+		}
+
+		_, err = f.WriteString(fmt.Sprintf(
+			"%s,%s,%s,%d\n",
+			account.Address,
+			amount.Value,
+			amount.Currency.Symbol,
+			amount.Currency.Decimals,
+		))
+		assert.NoError(t, err)
+
+		err = storage.BootstrapBalances(
+			ctx,
+			*newDir,
+			genesisBlockIdentifier,
+		)
+		assert.EqualError(t, err, "goodbye is not an integer")
+	})
+
+	t.Run("Head block identifier already set", func(t *testing.T) {
+		tx := storage.NewDatabaseTransaction(ctx, true)
+		err := storage.StoreHeadBlockIdentifier(ctx, tx, genesisBlockIdentifier)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		// Use the created CSV file from the last test
+		err = storage.BootstrapBalances(ctx, *newDir, genesisBlockIdentifier)
+		assert.EqualError(t, err, ErrAlreadyStartedSyncing.Error())
+	})
 }
