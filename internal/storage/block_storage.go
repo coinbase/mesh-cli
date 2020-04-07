@@ -18,11 +18,17 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
+	"os"
+	"path"
+	"strconv"
+	"strings"
 
 	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
 
@@ -73,6 +79,18 @@ const (
 
 	// balanceNamespace is prepended to any stored balance.
 	balanceNamespace = "balance"
+
+	// bootstrapBalancesFile is loaded to bootstrap the balance
+	// of a collection of accounts.
+	bootstrapBalancesFile = "bootstrap_balances.csv"
+
+	// bootstrapBalancesHeader is used as the CSV header
+	// in the bootstrapBalancesFile.
+	bootstrapBalancesHeader = "AccountIdentifier_address,Amount_value,Currency_symbol,Currency_decimals"
+	bootstrapAddressIndex   = 0
+	bootstrapValueIndex     = 1
+	bootstrapSymbolIndex    = 2
+	bootstrapDecimalsIndex  = 3
 )
 
 /*
@@ -496,4 +514,89 @@ func (b *BlockStorage) GetBalance(
 	}
 
 	return deserialBal.Amounts, deserialBal.Block, nil
+}
+
+// BootstrapBalances is utilized to set the balance of
+// any number of AccountIdentifiers at the genesis blocks.
+// This is particularly useful for setting the value of
+// accounts that received an allocation in the genesis block.
+func (b *BlockStorage) BootstrapBalances(
+	ctx context.Context,
+	dataDir string,
+	genesisBlockIdentifier *rosetta.BlockIdentifier,
+) error {
+	f, err := os.Open(path.Join(dataDir, bootstrapBalancesFile))
+	if err != nil {
+		return err
+	}
+
+	dbTransaction := b.NewDatabaseTransaction(ctx, true)
+	defer dbTransaction.Discard(ctx)
+
+	_, err = b.GetHeadBlockIdentifier(ctx, dbTransaction)
+	if err != ErrHeadBlockNotFound {
+		return errors.New("cannot bootstrap accounts already started syncing")
+	}
+
+	csvReader := csv.NewReader(f)
+	rowsRead := 0
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+		rowsRead++
+
+		// Assert header is correct
+		if rowsRead == 1 {
+			if bootstrapBalancesHeader != strings.Join(record[:], ",") {
+				return errors.New("incorrect header on bootstrap file")
+			}
+
+			continue
+		}
+
+		account := &rosetta.AccountIdentifier{
+			Address: record[bootstrapAddressIndex],
+		}
+
+		currencyDecimals, err := strconv.Atoi(record[bootstrapDecimalsIndex])
+		if err != nil {
+			return err
+		}
+
+		amount := &rosetta.Amount{
+			Value: record[bootstrapValueIndex],
+			Currency: &rosetta.Currency{
+				Symbol:   record[bootstrapSymbolIndex],
+				Decimals: int32(currencyDecimals),
+			},
+		}
+
+		log.Printf(
+			"Setting account %s balance to %s %+v\n",
+			account.Address,
+			amount.Value,
+			amount.Currency,
+		)
+
+		err = b.UpdateBalance(
+			ctx,
+			dbTransaction,
+			account,
+			amount,
+			genesisBlockIdentifier,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = dbTransaction.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%d Balances Bootstrapped\n", rowsRead-1)
+	return nil
 }

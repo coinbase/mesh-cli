@@ -4,6 +4,7 @@ LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
 SERVER_URL?=http://localhost:10000
 LOG_TRANSACTIONS?=false
 LOG_BENCHMARKS?=true
+BOOTSTRAP_BALANCES?=false
 
 deps:
 	go get ./...
@@ -41,6 +42,7 @@ validate:
 		-e ACCOUNT_CONCURRENCY="8" \
 		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
 		-e LOG_BENCHMARKS="${LOG_BENCHMARKS}" \
+		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
 		--network host \
 		rosetta-validator \
 		rosetta-validator;

@@ -40,6 +40,7 @@ type config struct {
 	AccountConcurrency     int    `env:"ACCOUNT_CONCURRENCY,required"`
 	LogTransactions        bool   `env:"LOG_TRANSACTIONS,required"`
 	LogBenchmarks          bool   `env:"LOG_BENCHMARKS,required"`
+	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 }
 
 func main() {
@@ -78,6 +79,17 @@ func main() {
 	}
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore)
+	if cfg.BootstrapBalances {
+		err = blockStorage.BootstrapBalances(
+			ctx,
+			cfg.DataDir,
+			networkResponse.NetworkStatus.NetworkInformation.GenesisBlockIdentifier,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	logger := logger.NewLogger(cfg.DataDir, cfg.LogTransactions, cfg.LogBenchmarks)
 
 	g, ctx := errgroup.WithContext(ctx)
