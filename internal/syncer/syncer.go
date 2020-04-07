@@ -139,6 +139,7 @@ func (s *Syncer) storeBlockBalanceChanges(
 				Account:  op.Account,
 				Currency: amount.Currency,
 			}
+
 			if !reconciler.ContainsAccountAndCurrency(modifiedAccounts, accountAndCurrency) {
 				modifiedAccounts = append(modifiedAccounts, accountAndCurrency)
 			}
@@ -333,6 +334,35 @@ func (s *Syncer) SyncBlockRange(
 	return s.logger.BlockLatency(ctx, allBlocks)
 }
 
+// nextSyncableRange returns the next range of indexes to sync
+// based on what the last processed block in storage is and
+// the contents of the network status response.
+func (s *Syncer) nextSyncableRange(
+	ctx context.Context,
+	networkStatus *rosetta.NetworkStatusResponse,
+) (int64, int64, error) {
+	tx := s.storage.NewDatabaseTransaction(ctx, false)
+	defer tx.Discard(ctx)
+
+	var startIndex int64
+	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
+	if err == nil {
+		startIndex = head.Index + 1
+	} else if err == storage.ErrHeadBlockNotFound {
+		head = networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
+		startIndex = head.Index
+	} else {
+		return -1, -1, err
+	}
+
+	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
+	if endIndex-startIndex > maxSync {
+		endIndex = startIndex + maxSync
+	}
+
+	return startIndex, endIndex, nil
+}
+
 // SyncCycle is a single iteration of processing up to maxSync blocks.
 // SyncCycle is called repeatedly by Sync until there is an error.
 func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
@@ -353,29 +383,18 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 		}
 	}
 
-	tx := s.storage.NewDatabaseTransaction(ctx, false)
-	defer tx.Discard(ctx)
-
-	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
-	if err == storage.ErrHeadBlockNotFound {
-		head = networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
-	} else if err != nil {
+	startIndex, endIndex, err := s.nextSyncableRange(ctx, networkStatus)
+	if err != nil {
 		return err
 	}
 
-	currIndex := head.Index + 1
-	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
-	if endIndex-currIndex > maxSync {
-		endIndex = currIndex + maxSync
-	}
-
-	if currIndex > endIndex {
-		log.Printf("Next block %d > Blockchain Head %d", currIndex, endIndex)
+	if startIndex > endIndex {
+		log.Printf("Next block %d > Blockchain Head %d", startIndex, endIndex)
 		return nil
 	}
 
-	log.Printf("Syncing blocks %d-%d\n", currIndex, endIndex)
-	return s.SyncBlockRange(ctx, currIndex, endIndex)
+	log.Printf("Syncing blocks %d-%d\n", startIndex, endIndex)
+	return s.SyncBlockRange(ctx, startIndex, endIndex)
 }
 
 // Sync cycles endlessly until there is an error.

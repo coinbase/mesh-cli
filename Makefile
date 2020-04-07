@@ -32,6 +32,7 @@ salus:
 validate:
 	docker build -t rosetta-validator .; \
 	docker run \
+		--rm \
 		-v ${PWD}/validator-data:/data \
 		-e DATA_DIR="/data" \
 		-e SERVER_URL="${SERVER_URL}" \

@@ -407,6 +407,7 @@ func (b *BlockStorage) UpdateBalance(
 		if !ok {
 			return fmt.Errorf("%s is not an integer", amount.Value)
 		}
+
 		if newVal.Sign() == -1 {
 			return fmt.Errorf(
 				"%w %+v for %+v at %+v",
