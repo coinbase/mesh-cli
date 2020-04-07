@@ -275,9 +275,11 @@ func (s *Syncer) ProcessBlock(
 }
 
 // SyncBlockRange syncs blocks from startIndex to endIndex, inclusive.
-// This function handles re-orgs that may occur while syncing.
+// This function handles re-orgs that may occur while syncing as long
+// as the genesisIndex is not orphaned.
 func (s *Syncer) SyncBlockRange(
 	ctx context.Context,
+	genesisIndex int64,
 	startIndex int64,
 	endIndex int64,
 ) error {
@@ -326,6 +328,10 @@ func (s *Syncer) SyncBlockRange(
 			return err
 		}
 
+		if newIndex < genesisIndex {
+			return errors.New("cannot orphan genesis block")
+		}
+
 		currIndex = newIndex
 		allBlocks = append(allBlocks, block)
 		s.reconciler.QueueAccounts(ctx, block.Block.BlockIdentifier.Index, modifiedAccounts)
@@ -340,19 +346,21 @@ func (s *Syncer) SyncBlockRange(
 func (s *Syncer) nextSyncableRange(
 	ctx context.Context,
 	networkStatus *rosetta.NetworkStatusResponse,
-) (int64, int64, error) {
+) (int64, int64, int64, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, false)
 	defer tx.Discard(ctx)
+
+	genesisBlockIdentifier := networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
 
 	var startIndex int64
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
 	if err == nil {
 		startIndex = head.Index + 1
 	} else if err == storage.ErrHeadBlockNotFound {
-		head = networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
+		head = genesisBlockIdentifier
 		startIndex = head.Index
 	} else {
-		return -1, -1, err
+		return -1, -1, -1, err
 	}
 
 	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
@@ -360,7 +368,7 @@ func (s *Syncer) nextSyncableRange(
 		endIndex = startIndex + maxSync
 	}
 
-	return startIndex, endIndex, nil
+	return genesisBlockIdentifier.Index, startIndex, endIndex, nil
 }
 
 // SyncCycle is a single iteration of processing up to maxSync blocks.
@@ -383,7 +391,7 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 		}
 	}
 
-	startIndex, endIndex, err := s.nextSyncableRange(ctx, networkStatus)
+	genesisIndex, startIndex, endIndex, err := s.nextSyncableRange(ctx, networkStatus)
 	if err != nil {
 		return err
 	}
@@ -394,7 +402,12 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 	}
 
 	log.Printf("Syncing blocks %d-%d\n", startIndex, endIndex)
-	return s.SyncBlockRange(ctx, startIndex, endIndex)
+	return s.SyncBlockRange(
+		ctx,
+		genesisIndex,
+		startIndex,
+		endIndex,
+	)
 }
 
 // Sync cycles endlessly until there is an error.
