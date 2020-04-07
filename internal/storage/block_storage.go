@@ -35,6 +35,42 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+const (
+	// headBlockKey is used to lookup the head block identifier.
+	// The head block is the block with the largest index that is
+	// not orphaned.
+	headBlockKey = "head-block"
+
+	// blockHashNamespace is prepended to any stored block hash.
+	// We cannot just use the stored block key to lookup whether
+	// a hash has been used before because it is concatenated
+	// with the index of the stored block.
+	blockHashNamespace = "block-hash"
+
+	// transactionHashNamespace is prepended to any stored
+	// transaction hash.
+	transactionHashNamespace = "transaction-hash"
+
+	// balanceNamespace is prepended to any stored balance.
+	balanceNamespace = "balance"
+
+	// bootstrapBalancesFile is loaded to bootstrap the balance
+	// of a collection of accounts.
+	bootstrapBalancesFile = "bootstrap_balances.csv"
+
+	// bootstrapBalancesPermissions specifies that the user can
+	// read and write the file.
+	bootstrapBalancesPermissions = 0600
+
+	// bootstrapBalancesHeader is used as the CSV header
+	// in the bootstrapBalancesFile.
+	bootstrapBalancesHeader = "AccountIdentifier_address,Amount_value,Currency_symbol,Currency_decimals"
+	bootstrapAddressIndex   = 0
+	bootstrapValueIndex     = 1
+	bootstrapSymbolIndex    = 2
+	bootstrapDecimalsIndex  = 3
+)
+
 var (
 	// ErrHeadBlockNotFound is returned when there is no
 	// head block found in BlockStorage.
@@ -59,38 +95,14 @@ var (
 	// ErrDuplicateTransactionHash is returned when a transaction
 	// hash cannot be stored because it is a duplicate.
 	ErrDuplicateTransactionHash = errors.New("Duplicate transaction hash")
-)
 
-const (
-	// headBlockKey is used to lookup the head block identifier.
-	// The head block is the block with the largest index that is
-	// not orphaned.
-	headBlockKey = "head-block"
+	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
+	// balances after syncing has started.
+	ErrAlreadyStartedSyncing = errors.New("already started syncing")
 
-	// blockHashNamespace is prepended to any stored block hash.
-	// We cannot just use the stored block key to lookup whether
-	// a hash has been used before because it is concatenated
-	// with the index of the stored block.
-	blockHashNamespace = "block-hash"
-
-	// transactionHashNamespace is prepended to any stored
-	// transaction hash.
-	transactionHashNamespace = "transaction-hash"
-
-	// balanceNamespace is prepended to any stored balance.
-	balanceNamespace = "balance"
-
-	// bootstrapBalancesFile is loaded to bootstrap the balance
-	// of a collection of accounts.
-	bootstrapBalancesFile = "bootstrap_balances.csv"
-
-	// bootstrapBalancesHeader is used as the CSV header
-	// in the bootstrapBalancesFile.
-	bootstrapBalancesHeader = "AccountIdentifier_address,Amount_value,Currency_symbol,Currency_decimals"
-	bootstrapAddressIndex   = 0
-	bootstrapValueIndex     = 1
-	bootstrapSymbolIndex    = 2
-	bootstrapDecimalsIndex  = 3
+	// ErrIncorrectHeader is returned when a bootstrap file has an
+	// incorrect header.
+	ErrIncorrectHeader = errors.New("incorrect header")
 )
 
 /*
@@ -525,7 +537,11 @@ func (b *BlockStorage) BootstrapBalances(
 	dataDir string,
 	genesisBlockIdentifier *rosetta.BlockIdentifier,
 ) error {
-	f, err := os.Open(path.Join(dataDir, bootstrapBalancesFile))
+	f, err := os.OpenFile(
+		path.Join(dataDir, bootstrapBalancesFile),
+		os.O_RDONLY,
+		bootstrapBalancesPermissions,
+	)
 	if err != nil {
 		return err
 	}
@@ -535,7 +551,7 @@ func (b *BlockStorage) BootstrapBalances(
 
 	_, err = b.GetHeadBlockIdentifier(ctx, dbTransaction)
 	if err != ErrHeadBlockNotFound {
-		return errors.New("cannot bootstrap accounts already started syncing")
+		return ErrAlreadyStartedSyncing
 	}
 
 	csvReader := csv.NewReader(f)
@@ -550,10 +566,15 @@ func (b *BlockStorage) BootstrapBalances(
 		// Assert header is correct
 		if rowsRead == 1 {
 			if bootstrapBalancesHeader != strings.Join(record[:], ",") {
-				return errors.New("incorrect header on bootstrap file")
+				return ErrIncorrectHeader
 			}
 
 			continue
+		}
+
+		// Assert row column length correct
+		if len(record) != len(strings.Split(bootstrapBalancesHeader, ",")) {
+			return fmt.Errorf("row %d does not have expected fields: %s", rowsRead, record)
 		}
 
 		account := &rosetta.AccountIdentifier{
