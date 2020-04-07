@@ -152,6 +152,18 @@ var (
 		},
 	}
 
+	orphanGenesis = &rosetta.Block{
+		BlockIdentifier: &rosetta.BlockIdentifier{
+			Hash:  "1",
+			Index: 1,
+		},
+		ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			Hash:  "0a",
+			Index: 0,
+		},
+		Transactions: []*rosetta.Transaction{},
+	}
+
 	blockSequenceReorg = []*rosetta.Block{
 		&rosetta.Block{ // genesis
 			BlockIdentifier: &rosetta.BlockIdentifier{
@@ -262,10 +274,12 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
 	currIndex := int64(0)
+	genesisIndex := blockSequenceNoReorg[0].BlockIdentifier.Index
 
 	t.Run("No block exists", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceNoReorg[0],
 		)
@@ -284,6 +298,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	t.Run("Block exists, no reorg", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceNoReorg[1],
 		)
@@ -302,6 +317,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	t.Run("Block with transaction", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceNoReorg[2],
 		)
@@ -336,6 +352,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	t.Run("Block with invalid transaction", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceNoReorg[3],
 		)
@@ -380,10 +397,12 @@ func TestReorgProcessBlock(t *testing.T) {
 	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
 	currIndex := int64(0)
+	genesisIndex := blockSequenceReorg[0].BlockIdentifier.Index
 
 	t.Run("No block exists", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[0],
 		)
@@ -399,9 +418,29 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("Orphan genesis", func(t *testing.T) {
+		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+			ctx,
+			genesisIndex,
+			currIndex,
+			orphanGenesis,
+		)
+
+		assert.Equal(t, int64(0), newIndex)
+		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.EqualError(t, err, "cannot orphan genesis block")
+
+		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
+		head, err := syncer.storage.GetHeadBlockIdentifier(ctx, tx)
+		tx.Discard(ctx)
+		assert.Equal(t, blockSequenceReorg[0].BlockIdentifier, head)
+		assert.NoError(t, err)
+	})
+
 	t.Run("Block exists, no reorg", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[1],
 		)
@@ -435,6 +474,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		// Orphan block
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[2],
 		)
@@ -482,6 +522,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		// Process new block
 		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[3],
 		)
@@ -497,6 +538,7 @@ func TestReorgProcessBlock(t *testing.T) {
 
 		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[2],
 		)
@@ -517,6 +559,7 @@ func TestReorgProcessBlock(t *testing.T) {
 
 		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[4],
 		)
@@ -534,6 +577,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	t.Run("Out of order block", func(t *testing.T) {
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			blockSequenceReorg[5],
 		)

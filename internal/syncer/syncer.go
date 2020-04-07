@@ -220,6 +220,7 @@ func (s *Syncer) AddBlock(
 // head should be orphaned.
 func (s *Syncer) ProcessBlock(
 	ctx context.Context,
+	genesisIndex int64,
 	currIndex int64,
 	block *rosetta.Block,
 ) ([]*reconciler.AccountAndCurrency, int64, error) {
@@ -234,8 +235,9 @@ func (s *Syncer) ProcessBlock(
 	var modifiedAccounts []*reconciler.AccountAndCurrency
 	var newIndex int64
 	if reorg {
-		if currIndex == 0 {
-			return nil, 0, errors.New("Can't reorg genesis block")
+		newIndex = currIndex - 1
+		if newIndex == genesisIndex {
+			return nil, 0, errors.New("cannot orphan genesis block")
 		}
 
 		head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
@@ -248,7 +250,6 @@ func (s *Syncer) ProcessBlock(
 			return nil, currIndex, err
 		}
 
-		newIndex = currIndex - 1
 		err = s.logger.BlockStream(ctx, block, true)
 		if err != nil {
 			log.Printf("Unable to log block %v\n", err)
@@ -321,15 +322,12 @@ func (s *Syncer) SyncBlockRange(
 		// Can't return modifiedAccounts without creating new variable
 		modifiedAccounts, newIndex, err := s.ProcessBlock(
 			ctx,
+			genesisIndex,
 			currIndex,
 			block.Block,
 		)
 		if err != nil {
 			return err
-		}
-
-		if newIndex < genesisIndex {
-			return errors.New("cannot orphan genesis block")
 		}
 
 		currIndex = newIndex
