@@ -18,11 +18,6 @@ and wallets to integrate with much less communication overhead
 and network-specific work.
 
 ## Run the Validator
-
-The validator needs the URL of the Rosetta server configured. This can be set
-as an environment variable named `SERVER_URL`, passed as an argument to make eg `make SERVER_URL=<server url> validate`
-or editing `Makefile` itself.
-
 1. Start your Rosetta Server (and the blockchain node it connects to if it is
 not a single binary.
 2. Start the validator using `make SERVER_URL=<server URL> validate`.
@@ -30,10 +25,25 @@ not a single binary.
 by setting `LOG_TRANSACTIONS="true"` in the environment or as a `make` argument.
 4. Watch for errors in the processing logs. Any error will cause the validator to stop.
 5. Analyze benchmarks from `validator-data/block_benchmarks.csv` and
-  `validator-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in the environment or as a `make` argument.
+`validator-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in
+the environment or as a `make` argument.
 
-_There is no additional setting required to support blockchains with reorgs. This
-is handled automatically!_
+### Setting the Server URL
+The validator needs the URL of the Rosetta server configured. This can be set
+as an environment variable named `SERVER_URL`, passed as an argument to make
+(ex: `make SERVER_URL=<server url> validate`) or editing `Makefile` itself.
+
+### Bootstrapping Balances
+Blockchains that set balances in genesis must create a `bootstrap_balances.csv`
+file in the `/validator-data` directory and pass `BOOTSTRAP_BALANCES=true` as an
+argument to make. If balances are not bootsrapped and balances are set in genesis,
+reconciliation will fail.
+
+There is an example file in `examples/bootstrap_balances.csv`.
+
+### Re-orgable Blockchains
+There is no additional setting required to support blockchains with reorgs. This
+is handled automatically!
 
 ## Development
 * `make deps` to install dependencies
