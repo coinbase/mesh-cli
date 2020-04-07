@@ -247,6 +247,9 @@ var (
 				GenesisBlockIdentifier: &rosetta.BlockIdentifier{
 					Index: 0,
 				},
+				CurrentBlockIdentifier: &rosetta.BlockIdentifier{
+					Index: 1000,
+				},
 			},
 		},
 		Options: &rosetta.Options{
@@ -378,6 +381,25 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	})
 }
 
+// assertNextSyncableRange is a helper function used to test
+// the nextSyncableRange function during block processing.
+func assertNextSyncableRange(
+	ctx context.Context,
+	t *testing.T,
+	syncer *Syncer,
+	currIndex int64,
+) {
+	genesisIndex, startIndex, endIndex, err := syncer.nextSyncableRange(
+		ctx,
+		networkStatusResponse,
+	)
+
+	assert.Equal(t, int64(0), genesisIndex)
+	assert.Equal(t, currIndex, startIndex)
+	assert.Equal(t, currIndex+maxSync, endIndex)
+	assert.NoError(t, err)
+}
+
 func TestReorgProcessBlock(t *testing.T) {
 	ctx := context.Background()
 
@@ -400,6 +422,9 @@ func TestReorgProcessBlock(t *testing.T) {
 	genesisIndex := blockSequenceReorg[0].BlockIdentifier.Index
 
 	t.Run("No block exists", func(t *testing.T) {
+		assertNextSyncableRange(ctx, t, syncer, currIndex)
+
+		// Add genesis block
 		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
@@ -416,6 +441,8 @@ func TestReorgProcessBlock(t *testing.T) {
 		tx.Discard(ctx)
 		assert.Equal(t, blockSequenceReorg[0].BlockIdentifier, head)
 		assert.NoError(t, err)
+
+		assertNextSyncableRange(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan genesis", func(t *testing.T) {
@@ -468,6 +495,8 @@ func TestReorgProcessBlock(t *testing.T) {
 		}, amounts)
 		assert.Equal(t, blockSequenceReorg[1].BlockIdentifier, block)
 		assert.NoError(t, err)
+
+		assertNextSyncableRange(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan block", func(t *testing.T) {
@@ -489,6 +518,7 @@ func TestReorgProcessBlock(t *testing.T) {
 			},
 		}, modifiedAccounts)
 		assert.NoError(t, err)
+		assertNextSyncableRange(ctx, t, syncer, currIndex)
 
 		// Assert head is back to genesis
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -529,6 +559,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(2), currIndex)
 		assert.Equal(t, 0, len(modifiedAccounts))
 		assert.NoError(t, err)
+		assertNextSyncableRange(ctx, t, syncer, currIndex)
 
 		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
 		head, err = syncer.storage.GetHeadBlockIdentifier(ctx, tx)
