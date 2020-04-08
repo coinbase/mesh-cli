@@ -405,6 +405,7 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock,
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -425,6 +426,7 @@ func TestBalance(t *testing.T) {
 			account,
 			amountNilCurrency,
 			newBlock,
+			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.EqualError(t, err, "invalid amount")
@@ -446,6 +448,7 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock2,
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -466,6 +469,7 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock3,
+			nil,
 		)
 		assert.NoError(t, err)
 
@@ -495,6 +499,7 @@ func TestBalance(t *testing.T) {
 			account,
 			largeDeduction,
 			newBlock2,
+			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -509,6 +514,7 @@ func TestBalance(t *testing.T) {
 			account2,
 			largeDeduction,
 			newBlock2,
+			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -523,6 +529,7 @@ func TestBalance(t *testing.T) {
 			subAccount,
 			amount,
 			newBlock,
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -543,6 +550,7 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata,
 			amount,
 			newBlock,
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -563,6 +571,7 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata2,
 			amount,
 			newBlock,
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))

@@ -416,7 +416,7 @@ func (r *Reconciler) reconcileActiveAccounts(
 		case <-ctx.Done():
 			return ctx.Err()
 		case balanceChange := <-r.acctQueue:
-			if balanceChange.NewBlock.Index < r.highWaterMark {
+			if balanceChange.Block.Index < r.highWaterMark {
 				continue
 			}
 

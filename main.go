@@ -40,6 +40,7 @@ type config struct {
 	AccountConcurrency     int    `env:"ACCOUNT_CONCURRENCY,required"`
 	LogTransactions        bool   `env:"LOG_TRANSACTIONS,required"`
 	LogBenchmarks          bool   `env:"LOG_BENCHMARKS,required"`
+	LogBalances            bool   `env:"LOG_BALANCES,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 }
 
@@ -90,7 +91,12 @@ func main() {
 		}
 	}
 
-	logger := logger.NewLogger(cfg.DataDir, cfg.LogTransactions, cfg.LogBenchmarks)
+	logger := logger.NewLogger(
+		cfg.DataDir,
+		cfg.LogTransactions,
+		cfg.LogBenchmarks,
+		cfg.LogBalances,
+	)
 
 	g, ctx := errgroup.WithContext(ctx)
 

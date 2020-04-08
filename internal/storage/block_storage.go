@@ -411,13 +411,14 @@ func GetCurrencyKey(currency *rosetta.Currency) string {
 // BalanceChange represents a balance change that affected
 // a *rosetta.AccountIdentifier and a *rosetta.Currency.
 type BalanceChange struct {
-	Account    *rosetta.AccountIdentifier
-	Currency   *rosetta.Currency
-	NewBlock   *rosetta.BlockIdentifier
-	NewValue   string
-	OldBlock   *rosetta.BlockIdentifier
-	OldValue   string
-	Difference string
+	Account     *rosetta.AccountIdentifier
+	Currency    *rosetta.Currency
+	Block       *rosetta.BlockIdentifier
+	Transaction *rosetta.TransactionIdentifier
+	NewValue    string
+	OldBlock    *rosetta.BlockIdentifier
+	OldValue    string
+	Difference  string
 }
 
 // UpdateBalance updates a rosetta.AccountIdentifer
@@ -425,10 +426,11 @@ type BalanceChange struct {
 // recent accessed block.
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
-	transaction DatabaseTransaction,
+	dbTransaction DatabaseTransaction,
 	account *rosetta.AccountIdentifier,
 	amount *rosetta.Amount,
 	block *rosetta.BlockIdentifier,
+	transaction *rosetta.TransactionIdentifier,
 ) (*BalanceChange, error) {
 	if amount == nil || amount.Currency == nil {
 		return nil, errors.New("invalid amount")
@@ -436,7 +438,7 @@ func (b *BlockStorage) UpdateBalance(
 
 	key := getBalanceKey(account)
 	// Get existing balance on key
-	exists, balance, err := transaction.Get(ctx, key)
+	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -469,18 +471,19 @@ func (b *BlockStorage) UpdateBalance(
 			return nil, err
 		}
 
-		if err := transaction.Set(ctx, key, serialBal); err != nil {
+		if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
 			return nil, err
 		}
 
 		return &BalanceChange{
-			Account:    account,
-			Currency:   amount.Currency,
-			OldBlock:   nil,
-			NewBlock:   block,
-			OldValue:   "0",
-			NewValue:   amount.Value,
-			Difference: amount.Value,
+			Account:     account,
+			Currency:    amount.Currency,
+			OldBlock:    nil,
+			Block:       block,
+			Transaction: transaction,
+			OldValue:    "0",
+			NewValue:    amount.Value,
+			Difference:  amount.Value,
 		}, nil
 	}
 
@@ -526,18 +529,19 @@ func (b *BlockStorage) UpdateBalance(
 		return nil, err
 	}
 
-	if err := transaction.Set(ctx, key, serialBal); err != nil {
+	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
 		return nil, err
 	}
 
 	return &BalanceChange{
-		Account:    account,
-		Currency:   amount.Currency,
-		NewBlock:   block,
-		NewValue:   newVal.String(),
-		OldBlock:   oldBlock,
-		OldValue:   existing.String(),
-		Difference: amount.Value,
+		Account:     account,
+		Currency:    amount.Currency,
+		Block:       block,
+		Transaction: transaction,
+		NewValue:    newVal.String(),
+		OldBlock:    oldBlock,
+		OldValue:    existing.String(),
+		Difference:  amount.Value,
 	}, nil
 }
 
@@ -645,6 +649,7 @@ func (b *BlockStorage) BootstrapBalances(
 			account,
 			amount,
 			genesisBlockIdentifier,
+			nil,
 		)
 		if err != nil {
 			return err

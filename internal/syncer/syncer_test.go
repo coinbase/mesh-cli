@@ -270,7 +270,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}
@@ -331,11 +331,12 @@ func TestNoReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency:   currency,
-				NewBlock:   blockSequenceNoReorg[2].BlockIdentifier,
-				OldValue:   "0",
-				NewValue:   "100",
-				Difference: "100",
+				Currency:    currency,
+				Block:       blockSequenceNoReorg[2].BlockIdentifier,
+				Transaction: blockSequenceNoReorg[2].Transactions[0].TransactionIdentifier,
+				OldValue:    "0",
+				NewValue:    "100",
+				Difference:  "100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
@@ -416,7 +417,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}
@@ -482,11 +483,12 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency:   currency,
-				NewBlock:   blockSequenceReorg[1].BlockIdentifier,
-				OldValue:   "0",
-				NewValue:   "100",
-				Difference: "100",
+				Currency:    currency,
+				Block:       blockSequenceReorg[1].BlockIdentifier,
+				Transaction: blockSequenceReorg[1].Transactions[0].TransactionIdentifier,
+				OldValue:    "0",
+				NewValue:    "100",
+				Difference:  "100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
@@ -522,12 +524,13 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency:   currency,
-				NewBlock:   blockSequenceReorg[0].BlockIdentifier,
-				OldBlock:   blockSequenceReorg[1].BlockIdentifier,
-				OldValue:   "100",
-				NewValue:   "0",
-				Difference: "-100",
+				Currency:    currency,
+				Block:       blockSequenceReorg[0].BlockIdentifier,
+				Transaction: blockSequenceReorg[1].Transactions[0].TransactionIdentifier,
+				OldBlock:    blockSequenceReorg[1].BlockIdentifier,
+				OldValue:    "100",
+				NewValue:    "0",
+				Difference:  "-100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)

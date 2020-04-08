@@ -141,13 +141,13 @@ func (s *Syncer) storeBlockBalanceChanges(
 				op.Account,
 				amount,
 				blockIdentifier,
+				tx.TransactionIdentifier,
 			)
 			if err != nil {
 				return nil, err
 			}
 
 			balanceChanges = append(balanceChanges, balanceChange)
-			// TODO: call account stream logger
 		}
 	}
 
@@ -243,11 +243,6 @@ func (s *Syncer) ProcessBlock(
 		if err != nil {
 			return nil, currIndex, err
 		}
-
-		err = s.logger.BlockStream(ctx, block, true)
-		if err != nil {
-			log.Printf("Unable to log block %v\n", err)
-		}
 	} else {
 		balanceChanges, err = s.AddBlock(ctx, tx, block)
 		if err != nil {
@@ -255,14 +250,19 @@ func (s *Syncer) ProcessBlock(
 		}
 
 		newIndex = currIndex + 1
-		err = s.logger.BlockStream(ctx, block, false)
-		if err != nil {
-			log.Printf("Unable to log block %v\n", err)
-		}
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
+		return nil, currIndex, err
+	}
+
+	// Wait to log until transaction committed
+	if err := s.logger.BlockStream(ctx, block, reorg); err != nil {
+		return nil, currIndex, err
+	}
+
+	if err := s.logger.BalanceStream(ctx, balanceChanges); err != nil {
 		return nil, currIndex, err
 	}
 

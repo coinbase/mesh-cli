@@ -21,8 +21,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-validator/internal/storage"
 
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
 )
 
@@ -74,14 +75,21 @@ type Logger struct {
 	logDir          string
 	logTransactions bool
 	logBenchmarks   bool
+	logBalances     bool
 }
 
 // NewLogger constructs a new Logger.
-func NewLogger(logDir string, logTransactions bool, logBenchmarks bool) *Logger {
+func NewLogger(
+	logDir string,
+	logTransactions bool,
+	logBenchmarks bool,
+	logBalances bool,
+) *Logger {
 	return &Logger{
 		logDir:          logDir,
 		logTransactions: logTransactions,
 		logBenchmarks:   logBenchmarks,
+		logBalances:     logBalances,
 	}
 }
 
@@ -195,6 +203,57 @@ func (l *Logger) TransactionStream(
 		}
 	}
 
+	return nil
+}
+
+// BalanceStream writes a slice of storage.BalanceChanges
+// to the balanceStreamFile.
+func (l *Logger) BalanceStream(
+	ctx context.Context,
+	balanceChanges []*storage.BalanceChange,
+) error {
+	if !l.logBalances {
+		return nil
+	}
+
+	f, err := os.OpenFile(
+		path.Join(l.logDir, balanceStreamFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		logFilePermissions,
+	)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	for _, balanceChange := range balanceChanges {
+		balanceLog := fmt.Sprintf(
+			"Account: %s Change: %s%s -> %s%s (%s%s) Transaction: %s Block: %d:%s",
+			balanceChange.Account.Address,
+			balanceChange.OldValue,
+			balanceChange.Currency.Symbol,
+			balanceChange.NewValue,
+			balanceChange.Currency.Symbol,
+			balanceChange.Difference,
+			balanceChange.Currency.Symbol,
+			balanceChange.Transaction.Hash,
+			balanceChange.Block.Index,
+			balanceChange.Block.Hash,
+		)
+
+		if balanceChange.OldBlock != nil {
+			balanceLog = fmt.Sprintf(
+				"%s Last Updated: %d:%s",
+				balanceLog,
+				balanceChange.OldBlock.Index,
+				balanceChange.OldBlock.Hash,
+			)
+		}
+
+		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
