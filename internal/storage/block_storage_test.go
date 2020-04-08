@@ -356,9 +356,15 @@ func TestBalance(t *testing.T) {
 			Hash:  "kdasdj",
 			Index: 123890,
 		}
+		newTransaction = &rosetta.TransactionIdentifier{
+			Hash: "tx1",
+		}
 		newBlock2 = &rosetta.BlockIdentifier{
 			Hash:  "pkdasdj",
 			Index: 123890,
+		}
+		newTransaction2 = &rosetta.TransactionIdentifier{
+			Hash: "tx2",
 		}
 		result = map[string]*rosetta.Amount{
 			GetCurrencyKey(currency): &rosetta.Amount{
@@ -399,14 +405,25 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock,
-			nil,
+			newTransaction,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -442,14 +459,26 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Modify existing balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock2,
-			nil,
+			newTransaction2,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:    currency,
+			Block:       newBlock2,
+			OldBlock:    newBlock,
+			Transaction: newTransaction2,
+			OldValue:    "100",
+			NewValue:    "200",
+			Difference:  "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -463,7 +492,7 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Discard transaction", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
@@ -471,6 +500,17 @@ func TestBalance(t *testing.T) {
 			newBlock3,
 			nil,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:   currency,
+			Block:      newBlock3,
+			OldBlock:   newBlock2,
+			OldValue:   "200",
+			NewValue:   "300",
+			Difference: "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 
 		// Get balance during transaction
@@ -523,14 +563,23 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccount,
 			amount,
 			newBlock,
-			nil,
+			newTransaction,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccount,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -544,14 +593,23 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata,
 			amount,
 			newBlock,
-			nil,
+			newTransaction,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccountMetadata,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -565,14 +623,23 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account unique metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		_, err := storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata2,
 			amount,
 			newBlock,
-			nil,
+			newTransaction,
 		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccountMetadata2,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
