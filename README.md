@@ -31,12 +31,35 @@ by setting `LOG_TRANSACTIONS="true"` in the environment or as a `make` argument.
 `validator-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in
 the environment or as a `make` argument.
 
-### Setting the Server URL
-The validator needs the URL of the Rosetta server configured. This can be set
-as an environment variable named `SERVER_URL`, passed as an argument to make
-(ex: `make SERVER_URL=<server url> validate`) or editing `Makefile` itself.
+### Configuration Options
+All configuration options can be set in the call to `make validate`
+(ex: `make SERVER_URL=http://localhost:9999 validate`) or altered in
+the `Makefile` itself.
 
-### Bootstrapping Balances
+_There is no additional setting required to support blockchains with reorgs. This
+is handled automatically!_
+
+#### SERVER_URL
+_Default: http://localhost:8080_
+The URL the validator will use to access the Rosetta Server.
+
+#### LOG_TRANSACTIONS
+_Default: true_
+All processed transactions will be logged to `transactions.txt`. You can tail
+these logs using `watch-transactions`.
+
+#### LOG_BALANCES
+_Default: true_
+All processed balance changes will be logged to `balances.txt`. You can tail
+these logs using `watch-balances`.
+
+#### LOG_RECONCILIATION
+_Default: true_
+All reconciliation checks will be logged to `reconciliations.txt`. You can tail
+these logs using `watch-reconciliations`.
+
+#### BOOTSTRAP_BALANCES
+_Default: false_
 Blockchains that set balances in genesis must create a `bootstrap_balances.csv`
 file in the `/validator-data` directory and pass `BOOTSTRAP_BALANCES=true` as an
 argument to make. If balances are not bootsrapped and balances are set in genesis,
@@ -44,14 +67,18 @@ reconciliation will fail.
 
 There is an example file in `examples/bootstrap_balances.csv`.
 
-### Re-orgable Blockchains
-There is no additional setting required to support blockchains with reorgs. This
-is handled automatically!
+#### LOG_BENCHMARKS
+_Default: false_
+It can be useful to observe performance characteristics of a Rosetta Server.
+When enabled, it is possible to view the latency of block and account fetches.
+Note, this naive implementation of benchmarks does not factor in request latency
+due to multithreaded requests.
 
 ## Development
 * `make deps` to install dependencies
 * `make test` to run tests
 * `make lint` to lint the source code (included generated code)
+* `make release` to run one last check before opening a PR
 
 ## Correctness Checks
 This tool performs a variety of correctness checks using the Rosetta Server. If

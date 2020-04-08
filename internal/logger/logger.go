@@ -36,9 +36,13 @@ const (
 	// transactions and whether they were added or removed.
 	transactionStreamFile = "transactions.txt"
 
-	// accountStreamFile contains the stream of processed
+	// balanceStreamFile contains the stream of processed
 	// balance changes.
 	balanceStreamFile = "balances.txt"
+
+	// reconcileStreamFile contains the stream of processed
+	// reconciliations.
+	reconcileStreamFile = "reconciliations.txt"
 
 	// addEvent is printed in a stream
 	// when an event is added.
@@ -72,10 +76,11 @@ const (
 // Logger contains all logic to record validator output
 // and benchmark a Rosetta Server.
 type Logger struct {
-	logDir          string
-	logTransactions bool
-	logBenchmarks   bool
-	logBalances     bool
+	logDir            string
+	logTransactions   bool
+	logBenchmarks     bool
+	logBalances       bool
+	logReconciliation bool
 }
 
 // NewLogger constructs a new Logger.
@@ -84,12 +89,14 @@ func NewLogger(
 	logTransactions bool,
 	logBenchmarks bool,
 	logBalances bool,
+	logReconciliation bool,
 ) *Logger {
 	return &Logger{
-		logDir:          logDir,
-		logTransactions: logTransactions,
-		logBenchmarks:   logBenchmarks,
-		logBalances:     logBalances,
+		logDir:            logDir,
+		logTransactions:   logTransactions,
+		logBenchmarks:     logBenchmarks,
+		logBalances:       logBalances,
+		logReconciliation: logReconciliation,
 	}
 }
 
@@ -254,6 +261,44 @@ func (l *Logger) BalanceStream(
 			return err
 		}
 	}
+	return nil
+}
+
+// ReconcileStream logs all reconciliation checks performed
+// during syncing.
+func (l *Logger) ReconcileStream(
+	ctx context.Context,
+	account *rosetta.AccountIdentifier,
+	currency *rosetta.Currency,
+	liveBalance *rosetta.Amount,
+	liveBlock *rosetta.BlockIdentifier,
+) error {
+	if !l.logReconciliation {
+		return nil
+	}
+
+	f, err := os.OpenFile(
+		path.Join(l.logDir, reconcileStreamFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		logFilePermissions,
+	)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf(
+		"Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		account.Address,
+		currency.Symbol,
+		liveBalance.Value,
+		liveBlock.Index,
+		liveBlock.Hash,
+	))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

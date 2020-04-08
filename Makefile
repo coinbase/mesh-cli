@@ -1,12 +1,15 @@
-.PHONY: deps lint test add-license check-license circleci-local validator \
-	watch-blocks view-block-benchmarks view-account-benchmarks salus
+.PHONY: deps lint format check-format test test-cover add-license \
+	check-license shorten-lines salus validate watch-blocks \
+	watch-transactions watch-balances watch-reconciliations \
+	view-block-benchmarks view-account-benchmarks
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
 TEST_SCRIPT=go test -v ./internal/...
 
-SERVER_URL?=http://localhost:10000
+SERVER_URL?=http://localhost:8080
 LOG_TRANSACTIONS?=true
 LOG_BENCHMARKS?=false
 LOG_BALANCES?=true
+LOG_RECONCILIATION?=true
 BOOTSTRAP_BALANCES?=false
 
 deps:
@@ -60,6 +63,7 @@ validate:
 		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
 		-e LOG_BENCHMARKS="${LOG_BENCHMARKS}" \
 		-e LOG_BALANCES="${LOG_BALANCES}" \
+		-e LOG_RECONCILIATION="${LOG_RECONCILIATION}" \
 		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
 		--network host \
 		rosetta-validator \
@@ -68,11 +72,14 @@ validate:
 watch-blocks:
 	tail -f ${PWD}/validator-data/blocks.txt
 
+watch-transactions:
+	tail -f ${PWD}/validator-data/transactions.txt
+
 watch-balances:
 	tail -f ${PWD}/validator-data/balances.txt
 
-watch-transactions:
-	tail -f ${PWD}/validator-data/transactions.txt
+watch-reconciliations:
+	tail -f ${PWD}/validator-data/reconciliations.txt
 
 view-block-benchmarks:
 	open ${PWD}/validator-data/block_benchmarks.csv

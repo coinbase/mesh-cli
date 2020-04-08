@@ -270,7 +270,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}
@@ -417,7 +417,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}

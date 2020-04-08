@@ -314,7 +314,7 @@ func TestCompareBalance(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false, false)
 	reconciler := New(ctx, nil, blockStorage, nil, logger, 1)
 
 	t.Run("No head block yet", func(t *testing.T) {

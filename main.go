@@ -41,6 +41,7 @@ type config struct {
 	LogTransactions        bool   `env:"LOG_TRANSACTIONS,required"`
 	LogBenchmarks          bool   `env:"LOG_BENCHMARKS,required"`
 	LogBalances            bool   `env:"LOG_BALANCES,required"`
+	LogReconciliation      bool   `env:"LOG_RECONCILIATION,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 }
 
@@ -100,6 +101,7 @@ func main() {
 		cfg.LogTransactions,
 		cfg.LogBenchmarks,
 		cfg.LogBalances,
+		cfg.LogReconciliation,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

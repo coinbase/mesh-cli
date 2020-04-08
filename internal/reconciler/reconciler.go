@@ -398,6 +398,18 @@ func (r *Reconciler) accountReconciliation(
 			simpleAccountAndCurrency(acct),
 			liveBlock.Index,
 		)
+
+		err = r.logger.ReconcileStream(
+			ctx,
+			acct.Account,
+			acct.Currency,
+			liveAmount,
+			liveBlock,
+		)
+		if err != nil {
+			return err
+		}
+
 		break
 	}
 
