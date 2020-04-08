@@ -105,8 +105,8 @@ func (s *Syncer) storeBlockBalanceChanges(
 	dbTx storage.DatabaseTransaction,
 	block *rosetta.Block,
 	orphan bool,
-) ([]*reconciler.AccountAndCurrency, error) {
-	modifiedAccounts := make([]*reconciler.AccountAndCurrency, 0)
+) ([]*storage.BalanceChange, error) {
+	balanceChanges := make([]*storage.BalanceChange, 0)
 	for _, tx := range block.Transactions {
 		for _, op := range tx.Operations {
 			successful, err := s.fetcher.Asserter.OperationSuccessful(op)
@@ -135,16 +135,7 @@ func (s *Syncer) storeBlockBalanceChanges(
 				blockIdentifier = block.ParentBlockIdentifier
 			}
 
-			accountAndCurrency := &reconciler.AccountAndCurrency{
-				Account:  op.Account,
-				Currency: amount.Currency,
-			}
-
-			if !reconciler.ContainsAccountAndCurrency(modifiedAccounts, accountAndCurrency) {
-				modifiedAccounts = append(modifiedAccounts, accountAndCurrency)
-			}
-
-			err = s.storage.UpdateBalance(
+			balanceChange, err := s.storage.UpdateBalance(
 				ctx,
 				dbTx,
 				op.Account,
@@ -154,10 +145,13 @@ func (s *Syncer) storeBlockBalanceChanges(
 			if err != nil {
 				return nil, err
 			}
+
+			balanceChanges = append(balanceChanges, balanceChange)
+			// TODO: call account stream logger
 		}
 	}
 
-	return modifiedAccounts, nil
+	return balanceChanges, nil
 }
 
 // OrphanBlock removes a block from the database and reverts all its balance
@@ -166,7 +160,7 @@ func (s *Syncer) OrphanBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
 	blockIdentifier *rosetta.BlockIdentifier,
-) ([]*reconciler.AccountAndCurrency, error) {
+) ([]*storage.BalanceChange, error) {
 	log.Printf("Orphaning block %+v\n", blockIdentifier)
 	block, err := s.storage.GetBlock(ctx, tx, blockIdentifier)
 	if err != nil {
@@ -178,7 +172,7 @@ func (s *Syncer) OrphanBlock(
 		return nil, err
 	}
 
-	modifiedAccounts, err := s.storeBlockBalanceChanges(ctx, tx, block, true)
+	balanceChanges, err := s.storeBlockBalanceChanges(ctx, tx, block, true)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +182,7 @@ func (s *Syncer) OrphanBlock(
 		return nil, err
 	}
 
-	return modifiedAccounts, nil
+	return balanceChanges, nil
 }
 
 // AddBlock adds a block to the database and stores all balance changes.
@@ -196,7 +190,7 @@ func (s *Syncer) AddBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
 	block *rosetta.Block,
-) ([]*reconciler.AccountAndCurrency, error) {
+) ([]*storage.BalanceChange, error) {
 	log.Printf("Adding block %+v\n", block.BlockIdentifier)
 	err := s.storage.StoreBlock(ctx, tx, block)
 	if err != nil {
@@ -208,12 +202,12 @@ func (s *Syncer) AddBlock(
 		return nil, err
 	}
 
-	modifiedAccounts, err := s.storeBlockBalanceChanges(ctx, tx, block, false)
+	balanceChanges, err := s.storeBlockBalanceChanges(ctx, tx, block, false)
 	if err != nil {
 		return nil, err
 	}
 
-	return modifiedAccounts, nil
+	return balanceChanges, nil
 }
 
 // ProcessBlock determines if a block should be added or the current
@@ -223,7 +217,7 @@ func (s *Syncer) ProcessBlock(
 	genesisIndex int64,
 	currIndex int64,
 	block *rosetta.Block,
-) ([]*reconciler.AccountAndCurrency, int64, error) {
+) ([]*storage.BalanceChange, int64, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, true)
 	defer tx.Discard(ctx)
 
@@ -232,7 +226,7 @@ func (s *Syncer) ProcessBlock(
 		return nil, currIndex, err
 	}
 
-	var modifiedAccounts []*reconciler.AccountAndCurrency
+	var balanceChanges []*storage.BalanceChange
 	var newIndex int64
 	if reorg {
 		newIndex = currIndex - 1
@@ -245,7 +239,7 @@ func (s *Syncer) ProcessBlock(
 			return nil, currIndex, err
 		}
 
-		modifiedAccounts, err = s.OrphanBlock(ctx, tx, head)
+		balanceChanges, err = s.OrphanBlock(ctx, tx, head)
 		if err != nil {
 			return nil, currIndex, err
 		}
@@ -255,7 +249,7 @@ func (s *Syncer) ProcessBlock(
 			log.Printf("Unable to log block %v\n", err)
 		}
 	} else {
-		modifiedAccounts, err = s.AddBlock(ctx, tx, block)
+		balanceChanges, err = s.AddBlock(ctx, tx, block)
 		if err != nil {
 			return nil, currIndex, err
 		}
@@ -272,7 +266,7 @@ func (s *Syncer) ProcessBlock(
 		return nil, currIndex, err
 	}
 
-	return modifiedAccounts, newIndex, nil
+	return balanceChanges, newIndex, nil
 }
 
 // SyncBlockRange syncs blocks from startIndex to endIndex, inclusive.
@@ -319,8 +313,8 @@ func (s *Syncer) SyncBlockRange(
 			delete(blockMap, currIndex)
 		}
 
-		// Can't return modifiedAccounts without creating new variable
-		modifiedAccounts, newIndex, err := s.ProcessBlock(
+		// Can't return balanceChanges without creating new variable
+		balanceChanges, newIndex, err := s.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -332,7 +326,7 @@ func (s *Syncer) SyncBlockRange(
 
 		currIndex = newIndex
 		allBlocks = append(allBlocks, block)
-		s.reconciler.QueueAccounts(ctx, block.Block.BlockIdentifier.Index, modifiedAccounts)
+		s.reconciler.QueueAccounts(ctx, block.Block.BlockIdentifier.Index, balanceChanges)
 	}
 
 	return s.logger.BlockLatency(ctx, allBlocks)

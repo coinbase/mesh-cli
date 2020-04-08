@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAccountAndCurrencyExists(t *testing.T) {
+func TestContainsAccountAndCurrency(t *testing.T) {
 	currency1 := &rosetta.Currency{
 		Symbol:   "Blah",
 		Decimals: 2,
@@ -36,14 +36,14 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 		Symbol:   "Blah2",
 		Decimals: 2,
 	}
-	accts := []*AccountAndCurrency{
-		&AccountAndCurrency{
+	accts := []*storage.BalanceChange{
+		&storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "test",
 			},
 			Currency: currency1,
 		},
-		&AccountAndCurrency{
+		&storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -52,7 +52,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 			},
 			Currency: currency1,
 		},
-		&AccountAndCurrency{
+		&storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -67,7 +67,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	}
 
 	t.Run("Non-existent account", func(t *testing.T) {
-		assert.False(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "blah",
 			},
@@ -76,7 +76,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	})
 
 	t.Run("Basic account", func(t *testing.T) {
-		assert.True(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "test",
 			},
@@ -85,7 +85,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	})
 
 	t.Run("Basic account with bad currency", func(t *testing.T) {
-		assert.False(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "test",
 			},
@@ -94,7 +94,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	})
 
 	t.Run("Account with subaccount", func(t *testing.T) {
-		assert.True(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -106,7 +106,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	})
 
 	t.Run("Account with subaccount and metadata", func(t *testing.T) {
-		assert.True(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -121,7 +121,7 @@ func TestAccountAndCurrencyExists(t *testing.T) {
 	})
 
 	t.Run("Account with subaccount and unique metadata", func(t *testing.T) {
-		assert.False(t, ContainsAccountAndCurrency(accts, &AccountAndCurrency{
+		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -207,14 +207,14 @@ func TestExtractAmount(t *testing.T) {
 			},
 		}
 
-		badAcct = &AccountAndCurrency{
+		badAcct = &storage.BalanceChange{
 			Account: &rosetta.AccountIdentifier{
 				Address: "no acct",
 			},
 			Currency: currency1,
 		}
 
-		badCurr = &AccountAndCurrency{
+		badCurr = &storage.BalanceChange{
 			Account: account1,
 			Currency: &rosetta.Currency{
 				Symbol:   "no curr",
@@ -236,7 +236,7 @@ func TestExtractAmount(t *testing.T) {
 	})
 
 	t.Run("Simple account", func(t *testing.T) {
-		result, err := extractAmount(balances, &AccountAndCurrency{
+		result, err := extractAmount(balances, &storage.BalanceChange{
 			Account:  account1,
 			Currency: currency1,
 		})
@@ -245,7 +245,7 @@ func TestExtractAmount(t *testing.T) {
 	})
 
 	t.Run("SubAccount", func(t *testing.T) {
-		result, err := extractAmount(balances, &AccountAndCurrency{
+		result, err := extractAmount(balances, &storage.BalanceChange{
 			Account:  account2,
 			Currency: currency2,
 		})
@@ -320,7 +320,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("No head block yet", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -342,7 +342,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Live block is ahead of head block", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -372,7 +372,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Live block is not in store", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -404,7 +404,7 @@ func TestCompareBalance(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = blockStorage.UpdateBalance(ctx, txn, account1, amount1, block1)
+	_, err = blockStorage.UpdateBalance(ctx, txn, account1, amount1, block1)
 	assert.NoError(t, err)
 	err = txn.Commit(ctx)
 	assert.NoError(t, err)
@@ -412,7 +412,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Account updated after live block", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -427,7 +427,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Account balance matches", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -442,7 +442,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Account balance matches later live block", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -457,7 +457,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Balances are not equal", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account1,
 				Currency: currency1,
 			},
@@ -472,7 +472,7 @@ func TestCompareBalance(t *testing.T) {
 	t.Run("Compare balance for non-existent account", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(
 			ctx,
-			&AccountAndCurrency{
+			&storage.BalanceChange{
 				Account:  account2,
 				Currency: currency1,
 			},

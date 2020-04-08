@@ -100,7 +100,7 @@ type Reconciler struct {
 	fetcher            *fetcher.Fetcher
 	logger             *logger.Logger
 	accountConcurrency int
-	acctQueue          chan *IndexAndAccount
+	acctQueue          chan *storage.BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -108,54 +108,39 @@ type Reconciler struct {
 
 	// seenAccts are stored for inactive account
 	// reconciliation.
-	seenAccts []*AccountAndCurrency
+	seenAccts []*storage.BalanceChange
 }
 
 // New creates a new Reconciler.
 func New(
 	ctx context.Context,
 	network *rosetta.NetworkIdentifier,
-	storage *storage.BlockStorage,
+	blockStorage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
 	accountConcurrency int,
 ) *Reconciler {
 	return &Reconciler{
 		network:            network,
-		storage:            storage,
+		storage:            blockStorage,
 		fetcher:            fetcher,
 		logger:             logger,
 		accountConcurrency: accountConcurrency,
-		acctQueue:          make(chan *IndexAndAccount, backlogThreshold),
+		acctQueue:          make(chan *storage.BalanceChange, backlogThreshold),
 		highWaterMark:      0,
-		seenAccts:          make([]*AccountAndCurrency, 0),
+		seenAccts:          make([]*storage.BalanceChange, 0),
 	}
 }
 
-// IndexAndAccount contains an AccountAndCurrency
-// and at what block index it was modified. This
-// struct is enqueued for later processing by
-// the reconciler.
-type IndexAndAccount struct {
-	accountAndCurrency *AccountAndCurrency
-	blockIndex         int64
-}
-
-// AccountAndCurrency contains a *rosetta.AccountIdentifier
-// and a *rosetta.Currency this account was affected by.
-type AccountAndCurrency struct {
-	Account  *rosetta.AccountIdentifier
-	Currency *rosetta.Currency
-}
-
-// ContainsAccountAndCurrency returns a boolean indicating if a
-// AccountAndCurrency slice contains an AccountAndCurrency.
-func ContainsAccountAndCurrency(
-	arr []*AccountAndCurrency,
-	acct *AccountAndCurrency,
+// containsAccountAndCurrency returns a boolean indicating if a
+// BalanceChange slice already contains an Account and Currency combination.
+func containsAccountAndCurrency(
+	arr []*storage.BalanceChange,
+	change *storage.BalanceChange,
 ) bool {
 	for _, a := range arr {
-		if reflect.DeepEqual(a, acct) {
+		if reflect.DeepEqual(a.Account, change.Account) &&
+			reflect.DeepEqual(a.Currency, change.Currency) {
 			return true
 		}
 	}
@@ -168,7 +153,7 @@ func ContainsAccountAndCurrency(
 func (r *Reconciler) QueueAccounts(
 	ctx context.Context,
 	blockIndex int64,
-	accounts []*AccountAndCurrency,
+	balanceChanges []*storage.BalanceChange,
 ) {
 	// If reconciliation is disabled,
 	// we should just return.
@@ -180,14 +165,19 @@ func (r *Reconciler) QueueAccounts(
 		return
 	}
 
+	modifiedAccounts := make([]*storage.BalanceChange, 0)
+
 	// Use a buffered channel so don't need to
 	// spawn a goroutine to add accounts to channel.
-	for _, account := range accounts {
+	for _, balanceChange := range balanceChanges {
+		// Remove duplicates
+		if containsAccountAndCurrency(modifiedAccounts, balanceChange) {
+			continue
+		}
+		modifiedAccounts = append(modifiedAccounts, balanceChange)
+
 		select {
-		case r.acctQueue <- &IndexAndAccount{
-			accountAndCurrency: account,
-			blockIndex:         blockIndex,
-		}:
+		case r.acctQueue <- balanceChange:
 		default:
 			log.Printf("skipping enqueue because backlog\n")
 		}
@@ -199,7 +189,7 @@ func (r *Reconciler) QueueAccounts(
 // balance is checked correctly in the case of orphaned blocks.
 func (r *Reconciler) CompareBalance(
 	ctx context.Context,
-	accountAndCurrency *AccountAndCurrency,
+	accountAndCurrency *storage.BalanceChange,
 	liveAmount *rosetta.Amount,
 	liveBlock *rosetta.BlockIdentifier,
 ) (string, int64, error) {
@@ -273,7 +263,7 @@ func (r *Reconciler) CompareBalance(
 // pertaining to an AccountAndCurrency.
 func extractAmount(
 	balances []*rosetta.Balance,
-	accountAndCurrency *AccountAndCurrency,
+	accountAndCurrency *storage.BalanceChange,
 ) (*rosetta.Amount, error) {
 	for _, b := range balances {
 		if !reflect.DeepEqual(b.AccountIdentifier, accountAndCurrency.Account) {
@@ -309,7 +299,7 @@ func ShouldReconcile(networkStatus *rosetta.NetworkStatusResponse) bool {
 // with the computed balance.
 func (r *Reconciler) accountReconciliation(
 	ctx context.Context,
-	acct *AccountAndCurrency,
+	acct *storage.BalanceChange,
 	inactive bool,
 ) error {
 	start := time.Now()
@@ -384,7 +374,7 @@ func (r *Reconciler) accountReconciliation(
 			)
 		}
 
-		if !inactive && !ContainsAccountAndCurrency(r.seenAccts, acct) {
+		if !inactive && !containsAccountAndCurrency(r.seenAccts, acct) {
 			r.seenAccts = append(r.seenAccts, acct)
 		}
 
@@ -402,7 +392,7 @@ func (r *Reconciler) accountReconciliation(
 
 // simpleAccountAndCurrency returns a string that is a simple
 // representation of an AccountAndCurrency struct.
-func simpleAccountAndCurrency(acct *AccountAndCurrency) string {
+func simpleAccountAndCurrency(acct *storage.BalanceChange) string {
 	acctString := acct.Account.Address
 	if acct.Account.SubAccount != nil {
 		acctString += acct.Account.SubAccount.SubAccount
@@ -425,14 +415,14 @@ func (r *Reconciler) reconcileActiveAccounts(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case acctIndex := <-r.acctQueue:
-			if acctIndex.blockIndex < r.highWaterMark {
+		case balanceChange := <-r.acctQueue:
+			if balanceChange.Block.Index < r.highWaterMark {
 				continue
 			}
 
 			err := r.accountReconciliation(
 				ctx,
-				acctIndex.accountAndCurrency,
+				balanceChange,
 				false,
 			)
 			if err != nil {

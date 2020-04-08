@@ -2,8 +2,8 @@
 	watch-blocks view-block-benchmarks view-account-benchmarks salus
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
 SERVER_URL?=http://localhost:10000
-LOG_TRANSACTIONS?=false
-LOG_BENCHMARKS?=true
+LOG_TRANSACTIONS?=true
+LOG_BENCHMARKS?=false
 BOOTSTRAP_BALANCES?=false
 
 deps:

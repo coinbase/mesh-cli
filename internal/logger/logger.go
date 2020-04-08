@@ -31,13 +31,21 @@ const (
 	// blocks and whether they were added or removed.
 	blockStreamFile = "blocks.txt"
 
-	// addBlock is printed in the block stream
-	// when a block is added.
-	addBlock = "Add"
+	// transactionStreamFile contains the stream of processed
+	// transactions and whether they were added or removed.
+	transactionStreamFile = "transactions.txt"
 
-	// removeBlock is printed in the block stream
-	// when a block is orphaned.
-	removeBlock = "Remove"
+	// accountStreamFile contains the stream of processed
+	// balance changes.
+	balanceStreamFile = "balances.txt"
+
+	// addEvent is printed in a stream
+	// when an event is added.
+	addEvent = "Add"
+
+	// removeEvent is printed in a stream
+	// when an event is orphaned.
+	removeEvent = "Remove"
 
 	// blockLatencyHeader is used as the CSV header
 	// to the blockBenchmarkFile.
@@ -77,8 +85,8 @@ func NewLogger(logDir string, logTransactions bool, logBenchmarks bool) *Logger 
 	}
 }
 
-// BlockStream writes the next processed block to the end of the blocks.txt
-// output file.
+// BlockStream writes the next processed block to the end of the
+// blockStreamFile output file.
 func (l *Logger) BlockStream(
 	ctx context.Context,
 	block *rosetta.Block,
@@ -94,74 +102,94 @@ func (l *Logger) BlockStream(
 	}
 	defer f.Close()
 
-	verb := addBlock
+	verb := addEvent
 	if orphan {
-		verb = removeBlock
+		verb = removeEvent
 	}
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"%s Block %s %d %d\n",
+		"%s Block %d:%s with Parent Block %d:%s\n",
 		verb,
-		block.BlockIdentifier.Hash,
 		block.BlockIdentifier.Index,
-		block.Timestamp,
+		block.BlockIdentifier.Hash,
+		block.ParentBlockIdentifier.Index,
+		block.ParentBlockIdentifier.Hash,
 	))
 	if err != nil {
 		return err
 	}
 
-	if l.logTransactions {
+	return l.TransactionStream(ctx, block, verb)
+}
+
+// TransactionStream writes the next processed block's transactions
+// to the end of the transactionStreamFile.
+func (l *Logger) TransactionStream(
+	ctx context.Context,
+	block *rosetta.Block,
+	verb string,
+) error {
+	if !l.logTransactions {
+		return nil
+	}
+
+	f, err := os.OpenFile(
+		path.Join(l.logDir, transactionStreamFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		logFilePermissions,
+	)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	for _, tx := range block.Transactions {
 		_, err = f.WriteString(fmt.Sprintf(
-			"Parent Block: %s %d\n",
-			block.ParentBlockIdentifier.Hash,
-			block.ParentBlockIdentifier.Index,
+			"%s Transaction %s at Block %d:%s\n",
+			verb,
+			tx.TransactionIdentifier.Hash,
+			block.BlockIdentifier.Index,
+			block.BlockIdentifier.Hash,
 		))
 		if err != nil {
 			return err
 		}
 
-		for _, tx := range block.Transactions {
-			_, err = f.WriteString(fmt.Sprintf("Tx %s\n", tx.TransactionIdentifier.Hash))
+		for _, op := range tx.Operations {
+			amount := ""
+			symbol := ""
+			if op.Amount != nil {
+				amount = op.Amount.Value
+				symbol = op.Amount.Currency.Symbol
+			}
+			participant := ""
+			if op.Account != nil {
+				participant = op.Account.Address
+			}
+
+			networkIndex := op.OperationIdentifier.Index
+			if op.OperationIdentifier.NetworkIndex != nil {
+				networkIndex = *op.OperationIdentifier.NetworkIndex
+			}
+
+			_, err = f.WriteString(fmt.Sprintf(
+				"TxOp %d(%d) %s %s %s %s %s\n",
+				op.OperationIdentifier.Index,
+				networkIndex,
+				op.Type,
+				participant,
+				amount,
+				symbol,
+				op.Status,
+			))
 			if err != nil {
 				return err
 			}
 
-			for _, op := range tx.Operations {
-				amount := ""
-				symbol := ""
-				if op.Amount != nil {
-					amount = op.Amount.Value
-					symbol = op.Amount.Currency.Symbol
-				}
-				participant := ""
-				if op.Account != nil {
-					participant = op.Account.Address
-				}
-
-				networkIndex := op.OperationIdentifier.Index
-				if op.OperationIdentifier.NetworkIndex != nil {
-					networkIndex = *op.OperationIdentifier.NetworkIndex
-				}
-
-				_, err = f.WriteString(fmt.Sprintf(
-					"TxOp %d(%d) %s %s %s %s %s\n",
-					op.OperationIdentifier.Index,
-					networkIndex,
-					op.Type,
-					participant,
-					amount,
-					symbol,
-					op.Status,
-				))
+			if op.Account != nil && op.Account.Metadata != nil {
+				_, err = f.WriteString(fmt.Sprintf("Account Metadata: %+v\n", op.Account.Metadata))
 				if err != nil {
 					return err
-				}
-
-				if op.Account != nil && op.Account.Metadata != nil {
-					_, err = f.WriteString(fmt.Sprintf("Account Metadata: %+v\n", op.Account.Metadata))
-					if err != nil {
-						return err
-					}
 				}
 			}
 		}

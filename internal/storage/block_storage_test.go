@@ -399,13 +399,14 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock,
-		))
+		)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -418,13 +419,15 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Set balance with nil currency", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.EqualError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amountNilCurrency,
 			newBlock,
-		), "invalid amount")
+		)
+		assert.Nil(t, balanceChange)
+		assert.EqualError(t, err, "invalid amount")
 		txn.Discard(ctx)
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -437,13 +440,14 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Modify existing balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock2,
-		))
+		)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, true)
@@ -456,13 +460,14 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Discard transaction", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock3,
-		))
+		)
+		assert.NoError(t, err)
 
 		// Get balance during transaction
 		txn2 := storage.NewDatabaseTransaction(ctx, false)
@@ -484,39 +489,42 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Attempt modification to push balance negative on existing account", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		err = storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			largeDeduction,
 			newBlock2,
 		)
+		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
 		txn.Discard(ctx)
 	})
 
 	t.Run("Attempt modification to push balance negative on new acct", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		err = storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account2,
 			largeDeduction,
 			newBlock2,
 		)
+		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
 		txn.Discard(ctx)
 	})
 
 	t.Run("sub account set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccount,
 			amount,
 			newBlock,
-		))
+		)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -529,13 +537,14 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata,
 			amount,
 			newBlock,
-		))
+		)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -548,13 +557,14 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account unique metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		_, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata2,
 			amount,
 			newBlock,
-		))
+		)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
