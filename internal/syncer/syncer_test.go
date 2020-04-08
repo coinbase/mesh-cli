@@ -104,7 +104,7 @@ var (
 	}
 
 	blockSequenceNoReorg = []*rosetta.Block{
-		&rosetta.Block{ // genesis
+		{ // genesis
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
@@ -114,7 +114,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
@@ -124,7 +124,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
@@ -137,7 +137,7 @@ var (
 				recipientTransaction,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
@@ -165,7 +165,7 @@ var (
 	}
 
 	blockSequenceReorg = []*rosetta.Block{
-		&rosetta.Block{ // genesis
+		{ // genesis
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
@@ -175,7 +175,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
@@ -188,7 +188,7 @@ var (
 				recipientTransaction,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
@@ -198,7 +198,7 @@ var (
 				Index: 1,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1a",
 				Index: 1,
@@ -208,7 +208,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
@@ -218,7 +218,7 @@ var (
 				Index: 2,
 			},
 		},
-		&rosetta.Block{ // invalid block
+		{ // invalid block
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "5",
 				Index: 5,
@@ -231,11 +231,11 @@ var (
 	}
 
 	operationStatuses = []*rosetta.OperationStatus{
-		&rosetta.OperationStatus{
+		{
 			Status:     "Success",
 			Successful: true,
 		},
-		&rosetta.OperationStatus{
+		{
 			Status:     "Failure",
 			Successful: false,
 		},
@@ -327,7 +327,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		currIndex = newIndex
 		assert.Equal(t, int64(3), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
-			&storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
@@ -479,7 +479,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		currIndex = newIndex
 		assert.Equal(t, int64(2), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
-			&storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
@@ -520,7 +520,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		currIndex = newIndex
 		assert.Equal(t, int64(1), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
-			&storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
@@ -545,7 +545,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		// Assert that balance change was reverted
 		// only by the successful operation
 		zeroAmount := map[string]*rosetta.Amount{
-			storage.GetCurrencyKey(currency): &rosetta.Amount{
+			storage.GetCurrencyKey(currency): {
 				Value:    "0",
 				Currency: currency,
 			},

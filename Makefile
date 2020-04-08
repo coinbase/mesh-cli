@@ -18,7 +18,7 @@ deps:
 
 lint:
 	golangci-lint run -v \
-		-E golint,misspell,gocyclo,gocritic,whitespace,goconst,gocognit,bodyclose,unconvert,lll,unparam,gomnd
+		-E golint,misspell,gocyclo,whitespace,goconst,gocognit,bodyclose,unconvert,lll,unparam,gomnd
 
 format:
 	gofmt -s -w -l .

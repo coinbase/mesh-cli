@@ -109,12 +109,12 @@ func TestBlock(t *testing.T) {
 			},
 			Timestamp: 1,
 			Transactions: []*rosetta.Transaction{
-				&rosetta.Transaction{
+				{
 					TransactionIdentifier: &rosetta.TransactionIdentifier{
 						Hash: "blahTx",
 					},
 					Operations: []*rosetta.Operation{
-						&rosetta.Operation{
+						{
 							OperationIdentifier: &rosetta.OperationIdentifier{
 								Index: 0,
 							},
@@ -136,12 +136,12 @@ func TestBlock(t *testing.T) {
 			},
 			Timestamp: 1,
 			Transactions: []*rosetta.Transaction{
-				&rosetta.Transaction{
+				{
 					TransactionIdentifier: &rosetta.TransactionIdentifier{
 						Hash: "blahTx",
 					},
 					Operations: []*rosetta.Operation{
-						&rosetta.Operation{
+						{
 							OperationIdentifier: &rosetta.OperationIdentifier{
 								Index: 0,
 							},
@@ -179,7 +179,11 @@ func TestBlock(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, false)
 		block, err := storage.GetBlock(ctx, txn, badBlockIdentifier)
 		txn.Discard(ctx)
-		assert.EqualError(t, err, fmt.Errorf("%w %+v", ErrBlockNotFound, badBlockIdentifier).Error())
+		assert.EqualError(
+			t,
+			err,
+			fmt.Errorf("%w %+v", ErrBlockNotFound, badBlockIdentifier).Error(),
+		)
 		assert.Nil(t, block)
 	})
 
@@ -367,7 +371,7 @@ func TestBalance(t *testing.T) {
 			Hash: "tx2",
 		}
 		result = map[string]*rosetta.Amount{
-			GetCurrencyKey(currency): &rosetta.Amount{
+			GetCurrencyKey(currency): {
 				Value:    "200",
 				Currency: currency,
 			},
@@ -750,8 +754,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Set balance successfully", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",
@@ -798,8 +802,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid file header", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString("bad header")
 		assert.NoError(t, err)
@@ -814,8 +818,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid account row", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",
@@ -836,8 +840,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid account value", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",

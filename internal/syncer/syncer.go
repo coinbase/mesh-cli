@@ -346,12 +346,13 @@ func (s *Syncer) nextSyncableRange(
 
 	var startIndex int64
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
-	if err == nil {
+	switch err {
+	case nil:
 		startIndex = head.Index + 1
-	} else if err == storage.ErrHeadBlockNotFound {
+	case storage.ErrHeadBlockNotFound:
 		head = genesisBlockIdentifier
 		startIndex = head.Index
-	} else {
+	default:
 		return -1, -1, -1, err
 	}
 

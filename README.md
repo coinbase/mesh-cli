@@ -1,6 +1,9 @@
 # rosetta-validator
 
-[![Coinbase](https://circleci.com/gh/coinbase/rosetta-validator/tree/master.svg?style=svg)](https://circleci.com/gh/coinbase/rosetta-validator/tree/master)
+[![Coinbase](https://circleci.com/gh/coinbase/rosetta-validator/tree/master.svg?style=shield)](https://circleci.com/gh/coinbase/rosetta-validator/tree/master)
+[![Coverage Status](https://coveralls.io/repos/github/coinbase/rosetta-validator/badge.svg)](https://coveralls.io/github/coinbase/rosetta-validator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/coinbase/rosetta-validator)](https://goreportcard.com/report/github.com/coinbase/rosetta-validator)
+[![License](https://img.shields.io/github/license/coinbase/rosetta-validator.svg)](https://github.com/coinbase/rosetta-validator/blob/master/LICENSE.txt)
 
 Once you create a Rosetta Server, you'll need to test its
 performance and correctness. This validation tool makes that easy!

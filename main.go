@@ -44,6 +44,10 @@ type config struct {
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 }
 
+const (
+	defaultHTTPTimeout = 10 * time.Second
+)
+
 func main() {
 	ctx := context.Background()
 
@@ -57,7 +61,7 @@ func main() {
 		cfg.ServerURL,
 		"rosetta-validator",
 		&http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: defaultHTTPTimeout,
 		},
 		cfg.BlockConcurrency,
 		cfg.TransactionConcurrency,

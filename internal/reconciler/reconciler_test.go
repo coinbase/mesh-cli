@@ -37,13 +37,13 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 		Decimals: 2,
 	}
 	accts := []*storage.BalanceChange{
-		&storage.BalanceChange{
+		{
 			Account: &rosetta.AccountIdentifier{
 				Address: "test",
 			},
 			Currency: currency1,
 		},
-		&storage.BalanceChange{
+		{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -52,7 +52,7 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 			},
 			Currency: currency1,
 		},
-		&storage.BalanceChange{
+		{
 			Account: &rosetta.AccountIdentifier{
 				Address: "cool",
 				SubAccount: &rosetta.SubAccountIdentifier{
@@ -193,13 +193,13 @@ func TestExtractAmount(t *testing.T) {
 		}
 
 		balances = []*rosetta.Balance{
-			&rosetta.Balance{
+			{
 				AccountIdentifier: account1,
 				Amounts: []*rosetta.Amount{
 					amount1,
 				},
 			},
-			&rosetta.Balance{
+			{
 				AccountIdentifier: account2,
 				Amounts: []*rosetta.Amount{
 					amount2,

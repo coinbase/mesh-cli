@@ -69,7 +69,7 @@ const (
 	logFilePermissions = 0600
 )
 
-// Logger contains all logic to record validator ouput
+// Logger contains all logic to record validator output
 // and benchmark a Rosetta Server.
 type Logger struct {
 	logDir          string

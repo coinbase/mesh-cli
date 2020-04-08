@@ -341,6 +341,10 @@ func (b *BlockStorage) RemoveBlock(
 ) error {
 	// Remove all transaction hashes
 	blockData, err := b.GetBlock(ctx, transaction, block)
+	if err != nil {
+		return err
+	}
+
 	for _, txn := range blockData.Transactions {
 		err = transaction.Delete(ctx, getHashKey(txn.TransactionIdentifier.Hash, false))
 		if err != nil {
@@ -607,7 +611,7 @@ func (b *BlockStorage) BootstrapBalances(
 
 		// Assert header is correct
 		if rowsRead == 1 {
-			if bootstrapBalancesHeader != strings.Join(record[:], ",") {
+			if bootstrapBalancesHeader != strings.Join(record, ",") {
 				return ErrIncorrectHeader
 			}
 
