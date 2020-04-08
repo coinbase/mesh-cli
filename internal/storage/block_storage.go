@@ -413,9 +413,10 @@ func GetCurrencyKey(currency *rosetta.Currency) string {
 type BalanceChange struct {
 	Account    *rosetta.AccountIdentifier
 	Currency   *rosetta.Currency
-	Block      *rosetta.BlockIdentifier
-	OldValue   string
+	NewBlock   *rosetta.BlockIdentifier
 	NewValue   string
+	OldBlock   *rosetta.BlockIdentifier
+	OldValue   string
 	Difference string
 }
 
@@ -475,7 +476,8 @@ func (b *BlockStorage) UpdateBalance(
 		return &BalanceChange{
 			Account:    account,
 			Currency:   amount.Currency,
-			Block:      block,
+			OldBlock:   nil,
+			NewBlock:   block,
 			OldValue:   "0",
 			NewValue:   amount.Value,
 			Difference: amount.Value,
@@ -517,6 +519,7 @@ func (b *BlockStorage) UpdateBalance(
 
 	parseBal.Amounts[currencyKey] = val
 
+	oldBlock := parseBal.Block
 	parseBal.Block = block
 	serialBal, err := serializeBalanceEntry(*parseBal)
 	if err != nil {
@@ -530,9 +533,10 @@ func (b *BlockStorage) UpdateBalance(
 	return &BalanceChange{
 		Account:    account,
 		Currency:   amount.Currency,
-		Block:      block,
-		OldValue:   existing.String(),
+		NewBlock:   block,
 		NewValue:   newVal.String(),
+		OldBlock:   oldBlock,
+		OldValue:   existing.String(),
 		Difference: amount.Value,
 	}, nil
 }

@@ -331,7 +331,11 @@ func TestNoReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:   currency,
+				NewBlock:   blockSequenceNoReorg[2].BlockIdentifier,
+				OldValue:   "0",
+				NewValue:   "100",
+				Difference: "100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
@@ -478,7 +482,11 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:   currency,
+				NewBlock:   blockSequenceReorg[1].BlockIdentifier,
+				OldValue:   "0",
+				NewValue:   "100",
+				Difference: "100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
@@ -514,7 +522,12 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:   currency,
+				NewBlock:   blockSequenceReorg[0].BlockIdentifier,
+				OldBlock:   blockSequenceReorg[1].BlockIdentifier,
+				OldValue:   "100",
+				NewValue:   "0",
+				Difference: "-100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
