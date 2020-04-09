@@ -23,13 +23,10 @@ and network-specific work.
 ## Run the Validator
 1. Start your Rosetta Server (and the blockchain node it connects to if it is
 not a single binary.
-2. Start the validator using `make SERVER_URL=<server URL> validate`.
-3. Examine processed blocks using `make watch-blocks`. You can also print transactions
-by setting `LOG_TRANSACTIONS="true"` in the environment or as a `make` argument.
-4. Watch for errors in the processing logs. Any error will cause the validator to stop.
-5. Analyze benchmarks from `validator-data/block_benchmarks.csv` and
-`validator-data/account_benchmarks.csv` by setting `LOG_BENCHMARKS="true"` in
-the environment or as a `make` argument.
+2. Start the validator using `makevalidate`.
+3. Examine processed blocks using `make watch-blocks`.
+4. Watch for errors in the processing logs. Any error will cause validation to
+stop.
 
 ### Configuration Options
 All configuration options can be set in the call to `make validate`
@@ -41,25 +38,30 @@ is handled automatically!_
 
 #### SERVER_URL
 _Default: http://localhost:8080_
+
 The URL the validator will use to access the Rosetta Server.
 
 #### LOG_TRANSACTIONS
 _Default: true_
+
 All processed transactions will be logged to `transactions.txt`. You can tail
 these logs using `watch-transactions`.
 
 #### LOG_BALANCES
 _Default: true_
+
 All processed balance changes will be logged to `balances.txt`. You can tail
 these logs using `watch-balances`.
 
 #### LOG_RECONCILIATION
 _Default: true_
+
 All reconciliation checks will be logged to `reconciliations.txt`. You can tail
 these logs using `watch-reconciliations`.
 
 #### BOOTSTRAP_BALANCES
 _Default: false_
+
 Blockchains that set balances in genesis must create a `bootstrap_balances.csv`
 file in the `/validator-data` directory and pass `BOOTSTRAP_BALANCES=true` as an
 argument to make. If balances are not bootsrapped and balances are set in genesis,
@@ -69,6 +71,7 @@ There is an example file in `examples/bootstrap_balances.csv`.
 
 #### LOG_BENCHMARKS
 _Default: false_
+
 It can be useful to observe performance characteristics of a Rosetta Server.
 When enabled, it is possible to view the latency of block and account fetches.
 Note, this naive implementation of benchmarks does not factor in request latency

@@ -353,23 +353,33 @@ func (r *Reconciler) accountReconciliation(
 					continue
 				}
 
-				// Don't wait if we are very far behind
+				// Don't wait to check if we are very far behind
 				log.Printf(
 					"Skipping reconciliation for %s: %d blocks behind\n",
 					simpleAccountAndCurrency(acct),
 					diff,
 				)
+
+				// Set a highWaterMark to not accept any new
+				// reconciliation requests unless they happened
+				// after this new highWaterMark.
 				r.highWaterMark = liveBlock.Index
 				break
-			} else if errors.Is(err, ErrBlockGone) {
+			}
+
+			if errors.Is(err, ErrBlockGone) {
 				// Either the block has not been processed in a re-org yet
 				// or the block was orphaned
 				break
-			} else if errors.Is(err, ErrAccountUpdated) {
-				break // account will already be re-checked
-			} else {
-				return err
 			}
+
+			if errors.Is(err, ErrAccountUpdated) {
+				// If account was updated, it must be
+				// enqueued again
+				break
+			}
+
+			return err
 		}
 
 		reconciliationType := activeReconciliation
