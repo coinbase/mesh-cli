@@ -16,6 +16,7 @@ package storage
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -32,6 +33,8 @@ func CreateTempDir() (*string, error) {
 
 // RemoveTempDir deletes a directory at
 // a provided path for usage within testing.
-func RemoveTempDir(dir string) error {
-	return os.RemoveAll(dir)
+func RemoveTempDir(dir string) {
+	if err := os.RemoveAll(dir); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -104,7 +104,7 @@ var (
 	}
 
 	blockSequenceNoReorg = []*rosetta.Block{
-		&rosetta.Block{ // genesis
+		{ // genesis
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
@@ -114,7 +114,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
@@ -124,7 +124,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
@@ -137,7 +137,7 @@ var (
 				recipientTransaction,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
@@ -165,7 +165,7 @@ var (
 	}
 
 	blockSequenceReorg = []*rosetta.Block{
-		&rosetta.Block{ // genesis
+		{ // genesis
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
@@ -175,7 +175,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
@@ -188,7 +188,7 @@ var (
 				recipientTransaction,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
@@ -198,7 +198,7 @@ var (
 				Index: 1,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "1a",
 				Index: 1,
@@ -208,7 +208,7 @@ var (
 				Index: 0,
 			},
 		},
-		&rosetta.Block{
+		{
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
@@ -218,7 +218,7 @@ var (
 				Index: 2,
 			},
 		},
-		&rosetta.Block{ // invalid block
+		{ // invalid block
 			BlockIdentifier: &rosetta.BlockIdentifier{
 				Hash:  "5",
 				Index: 5,
@@ -231,11 +231,11 @@ var (
 	}
 
 	operationStatuses = []*rosetta.OperationStatus{
-		&rosetta.OperationStatus{
+		{
 			Status:     "Success",
 			Successful: true,
 		},
-		&rosetta.OperationStatus{
+		{
 			Status:     "Failure",
 			Successful: false,
 		},
@@ -270,7 +270,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}
@@ -280,7 +280,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	genesisIndex := blockSequenceNoReorg[0].BlockIdentifier.Index
 
 	t.Run("No block exists", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -288,7 +288,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(1), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -299,7 +299,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block exists, no reorg", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -307,7 +307,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(2), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -318,7 +318,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block with transaction", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -326,14 +326,19 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(3), currIndex)
-		assert.Equal(t, []*reconciler.AccountAndCurrency{
-			&reconciler.AccountAndCurrency{
+		assert.Equal(t, []*storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:    currency,
+				Block:       blockSequenceNoReorg[2].BlockIdentifier,
+				Transaction: blockSequenceNoReorg[2].Transactions[0].TransactionIdentifier,
+				OldValue:    "0",
+				NewValue:    "100",
+				Difference:  "100",
 			},
-		}, modifiedAccounts)
+		}, balanceChanges)
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -353,7 +358,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block with invalid transaction", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -361,7 +366,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(3), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.Contains(t, err.Error(), storage.ErrNegativeBalance.Error())
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -412,7 +417,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	logger := logger.NewLogger(*newDir, false, false)
+	logger := logger.NewLogger(*newDir, false, false, false, false)
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter.New(ctx, networkStatusResponse),
 	}
@@ -425,7 +430,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		assertNextSyncableRange(ctx, t, syncer, currIndex)
 
 		// Add genesis block
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -433,7 +438,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(1), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -446,7 +451,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Orphan genesis", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -454,7 +459,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 
 		assert.Equal(t, int64(0), newIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.EqualError(t, err, "cannot orphan genesis block")
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -465,7 +470,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block exists, no reorg", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -473,14 +478,19 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(2), currIndex)
-		assert.Equal(t, []*reconciler.AccountAndCurrency{
-			&reconciler.AccountAndCurrency{
+		assert.Equal(t, []*storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:    currency,
+				Block:       blockSequenceReorg[1].BlockIdentifier,
+				Transaction: blockSequenceReorg[1].Transactions[0].TransactionIdentifier,
+				OldValue:    "0",
+				NewValue:    "100",
+				Difference:  "100",
 			},
-		}, modifiedAccounts)
+		}, balanceChanges)
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -501,7 +511,7 @@ func TestReorgProcessBlock(t *testing.T) {
 
 	t.Run("Orphan block", func(t *testing.T) {
 		// Orphan block
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -509,14 +519,20 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(1), currIndex)
-		assert.Equal(t, []*reconciler.AccountAndCurrency{
-			&reconciler.AccountAndCurrency{
+		assert.Equal(t, []*storage.BalanceChange{
+			{
 				Account: &rosetta.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency: currency,
+				Currency:    currency,
+				Block:       blockSequenceReorg[0].BlockIdentifier,
+				Transaction: blockSequenceReorg[1].Transactions[0].TransactionIdentifier,
+				OldBlock:    blockSequenceReorg[1].BlockIdentifier,
+				OldValue:    "100",
+				NewValue:    "0",
+				Difference:  "-100",
 			},
-		}, modifiedAccounts)
+		}, balanceChanges)
 		assert.NoError(t, err)
 		assertNextSyncableRange(ctx, t, syncer, currIndex)
 
@@ -529,7 +545,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		// Assert that balance change was reverted
 		// only by the successful operation
 		zeroAmount := map[string]*rosetta.Amount{
-			storage.GetCurrencyKey(currency): &rosetta.Amount{
+			storage.GetCurrencyKey(currency): {
 				Value:    "0",
 				Currency: currency,
 			},
@@ -550,14 +566,14 @@ func TestReorgProcessBlock(t *testing.T) {
 		tx.Discard(ctx)
 
 		// Process new block
-		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
+		balanceChanges, currIndex, err = syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
 			blockSequenceReorg[3],
 		)
 		assert.Equal(t, int64(2), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 		assertNextSyncableRange(ctx, t, syncer, currIndex)
 
@@ -567,14 +583,14 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequenceReorg[3].BlockIdentifier, head)
 		assert.NoError(t, err)
 
-		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
+		balanceChanges, currIndex, err = syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
 			blockSequenceReorg[2],
 		)
 		assert.Equal(t, int64(3), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 
 		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -588,14 +604,14 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequenceReorg[0].BlockIdentifier, block)
 		assert.NoError(t, err)
 
-		modifiedAccounts, currIndex, err = syncer.ProcessBlock(
+		balanceChanges, currIndex, err = syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
 			blockSequenceReorg[4],
 		)
 		assert.Equal(t, int64(4), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
 
 		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -606,7 +622,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Out of order block", func(t *testing.T) {
-		modifiedAccounts, newIndex, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -614,7 +630,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.Equal(t, int64(4), currIndex)
-		assert.Equal(t, 0, len(modifiedAccounts))
+		assert.Equal(t, 0, len(balanceChanges))
 		assert.EqualError(t, err, "Got block 5 instead of 4")
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)

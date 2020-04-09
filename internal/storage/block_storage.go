@@ -341,6 +341,10 @@ func (b *BlockStorage) RemoveBlock(
 ) error {
 	// Remove all transaction hashes
 	blockData, err := b.GetBlock(ctx, transaction, block)
+	if err != nil {
+		return err
+	}
+
 	for _, txn := range blockData.Transactions {
 		err = transaction.Delete(ctx, getHashKey(txn.TransactionIdentifier.Hash, false))
 		if err != nil {
@@ -408,25 +412,39 @@ func GetCurrencyKey(currency *rosetta.Currency) string {
 	)
 }
 
+// BalanceChange represents a balance change that affected
+// a *rosetta.AccountIdentifier and a *rosetta.Currency.
+type BalanceChange struct {
+	Account     *rosetta.AccountIdentifier
+	Currency    *rosetta.Currency
+	Block       *rosetta.BlockIdentifier
+	Transaction *rosetta.TransactionIdentifier
+	NewValue    string
+	OldBlock    *rosetta.BlockIdentifier
+	OldValue    string
+	Difference  string
+}
+
 // UpdateBalance updates a rosetta.AccountIdentifer
 // by a rosetta.Amount and sets the account's most
 // recent accessed block.
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
-	transaction DatabaseTransaction,
+	dbTransaction DatabaseTransaction,
 	account *rosetta.AccountIdentifier,
 	amount *rosetta.Amount,
 	block *rosetta.BlockIdentifier,
-) error {
+	transaction *rosetta.TransactionIdentifier,
+) (*BalanceChange, error) {
 	if amount == nil || amount.Currency == nil {
-		return errors.New("invalid amount")
+		return nil, errors.New("invalid amount")
 	}
 
 	key := getBalanceKey(account)
 	// Get existing balance on key
-	exists, balance, err := transaction.Get(ctx, key)
+	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	currencyKey := GetCurrencyKey(amount.Currency)
@@ -435,11 +453,11 @@ func (b *BlockStorage) UpdateBalance(
 		amountMap := make(map[string]*rosetta.Amount)
 		newVal, ok := new(big.Int).SetString(amount.Value, 10)
 		if !ok {
-			return fmt.Errorf("%s is not an integer", amount.Value)
+			return nil, fmt.Errorf("%s is not an integer", amount.Value)
 		}
 
 		if newVal.Sign() == -1 {
-			return fmt.Errorf(
+			return nil, fmt.Errorf(
 				"%w %+v for %+v at %+v",
 				ErrNegativeBalance,
 				spew.Sdump(amount),
@@ -454,16 +472,29 @@ func (b *BlockStorage) UpdateBalance(
 			Block:   block,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		return transaction.Set(ctx, key, serialBal)
+		if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
+			return nil, err
+		}
+
+		return &BalanceChange{
+			Account:     account,
+			Currency:    amount.Currency,
+			OldBlock:    nil,
+			Block:       block,
+			Transaction: transaction,
+			OldValue:    "0",
+			NewValue:    amount.Value,
+			Difference:  amount.Value,
+		}, nil
 	}
 
 	// Modify balance
 	parseBal, err := parseBalanceEntry(balance)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	val, ok := parseBal.Amounts[currencyKey]
@@ -473,18 +504,18 @@ func (b *BlockStorage) UpdateBalance(
 
 	modification, ok := new(big.Int).SetString(amount.Value, 10)
 	if !ok {
-		return fmt.Errorf("%s is not an integer", amount.Value)
+		return nil, fmt.Errorf("%s is not an integer", amount.Value)
 	}
 
 	existing, ok := new(big.Int).SetString(val.Value, 10)
 	if !ok {
-		return fmt.Errorf("%s is not an integer", val.Value)
+		return nil, fmt.Errorf("%s is not an integer", val.Value)
 	}
 
 	newVal := new(big.Int).Add(existing, modification)
 	val.Value = newVal.String()
 	if newVal.Sign() == -1 {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w %+v for %+v at %+v",
 			ErrNegativeBalance,
 			spew.Sdump(val),
@@ -495,12 +526,27 @@ func (b *BlockStorage) UpdateBalance(
 
 	parseBal.Amounts[currencyKey] = val
 
+	oldBlock := parseBal.Block
 	parseBal.Block = block
 	serialBal, err := serializeBalanceEntry(*parseBal)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return transaction.Set(ctx, key, serialBal)
+
+	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
+		return nil, err
+	}
+
+	return &BalanceChange{
+		Account:     account,
+		Currency:    amount.Currency,
+		Block:       block,
+		Transaction: transaction,
+		NewValue:    newVal.String(),
+		OldBlock:    oldBlock,
+		OldValue:    existing.String(),
+		Difference:  amount.Value,
+	}, nil
 }
 
 // GetBalance returns all the balances of a rosetta.AccountIdentifier
@@ -565,7 +611,7 @@ func (b *BlockStorage) BootstrapBalances(
 
 		// Assert header is correct
 		if rowsRead == 1 {
-			if bootstrapBalancesHeader != strings.Join(record[:], ",") {
+			if bootstrapBalancesHeader != strings.Join(record, ",") {
 				return ErrIncorrectHeader
 			}
 
@@ -601,12 +647,13 @@ func (b *BlockStorage) BootstrapBalances(
 			amount.Currency,
 		)
 
-		err = b.UpdateBalance(
+		_, err = b.UpdateBalance(
 			ctx,
 			dbTransaction,
 			account,
 			amount,
 			genesisBlockIdentifier,
+			nil,
 		)
 		if err != nil {
 			return err

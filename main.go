@@ -40,8 +40,14 @@ type config struct {
 	AccountConcurrency     int    `env:"ACCOUNT_CONCURRENCY,required"`
 	LogTransactions        bool   `env:"LOG_TRANSACTIONS,required"`
 	LogBenchmarks          bool   `env:"LOG_BENCHMARKS,required"`
+	LogBalances            bool   `env:"LOG_BALANCES,required"`
+	LogReconciliation      bool   `env:"LOG_RECONCILIATION,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 }
+
+const (
+	defaultHTTPTimeout = 10 * time.Second
+)
 
 func main() {
 	ctx := context.Background()
@@ -56,7 +62,7 @@ func main() {
 		cfg.ServerURL,
 		"rosetta-validator",
 		&http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: defaultHTTPTimeout,
 		},
 		cfg.BlockConcurrency,
 		cfg.TransactionConcurrency,
@@ -90,7 +96,13 @@ func main() {
 		}
 	}
 
-	logger := logger.NewLogger(cfg.DataDir, cfg.LogTransactions, cfg.LogBenchmarks)
+	logger := logger.NewLogger(
+		cfg.DataDir,
+		cfg.LogTransactions,
+		cfg.LogBenchmarks,
+		cfg.LogBalances,
+		cfg.LogReconciliation,
+	)
 
 	g, ctx := errgroup.WithContext(ctx)
 

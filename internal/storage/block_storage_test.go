@@ -109,12 +109,12 @@ func TestBlock(t *testing.T) {
 			},
 			Timestamp: 1,
 			Transactions: []*rosetta.Transaction{
-				&rosetta.Transaction{
+				{
 					TransactionIdentifier: &rosetta.TransactionIdentifier{
 						Hash: "blahTx",
 					},
 					Operations: []*rosetta.Operation{
-						&rosetta.Operation{
+						{
 							OperationIdentifier: &rosetta.OperationIdentifier{
 								Index: 0,
 							},
@@ -136,12 +136,12 @@ func TestBlock(t *testing.T) {
 			},
 			Timestamp: 1,
 			Transactions: []*rosetta.Transaction{
-				&rosetta.Transaction{
+				{
 					TransactionIdentifier: &rosetta.TransactionIdentifier{
 						Hash: "blahTx",
 					},
 					Operations: []*rosetta.Operation{
-						&rosetta.Operation{
+						{
 							OperationIdentifier: &rosetta.OperationIdentifier{
 								Index: 0,
 							},
@@ -179,7 +179,11 @@ func TestBlock(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, false)
 		block, err := storage.GetBlock(ctx, txn, badBlockIdentifier)
 		txn.Discard(ctx)
-		assert.EqualError(t, err, fmt.Errorf("%w %+v", ErrBlockNotFound, badBlockIdentifier).Error())
+		assert.EqualError(
+			t,
+			err,
+			fmt.Errorf("%w %+v", ErrBlockNotFound, badBlockIdentifier).Error(),
+		)
 		assert.Nil(t, block)
 	})
 
@@ -356,12 +360,18 @@ func TestBalance(t *testing.T) {
 			Hash:  "kdasdj",
 			Index: 123890,
 		}
+		newTransaction = &rosetta.TransactionIdentifier{
+			Hash: "tx1",
+		}
 		newBlock2 = &rosetta.BlockIdentifier{
 			Hash:  "pkdasdj",
 			Index: 123890,
 		}
+		newTransaction2 = &rosetta.TransactionIdentifier{
+			Hash: "tx2",
+		}
 		result = map[string]*rosetta.Amount{
-			GetCurrencyKey(currency): &rosetta.Amount{
+			GetCurrencyKey(currency): {
 				Value:    "200",
 				Currency: currency,
 			},
@@ -399,13 +409,26 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock,
-		))
+			newTransaction,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -418,13 +441,16 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Set balance with nil currency", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.EqualError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amountNilCurrency,
 			newBlock,
-		), "invalid amount")
+			nil,
+		)
+		assert.Nil(t, balanceChange)
+		assert.EqualError(t, err, "invalid amount")
 		txn.Discard(ctx)
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -437,13 +463,27 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Modify existing balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock2,
-		))
+			newTransaction2,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:    currency,
+			Block:       newBlock2,
+			OldBlock:    newBlock,
+			Transaction: newTransaction2,
+			OldValue:    "100",
+			NewValue:    "200",
+			Difference:  "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, true)
@@ -456,13 +496,26 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Discard transaction", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			amount,
 			newBlock3,
-		))
+			nil,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account: &rosetta.AccountIdentifier{
+				Address: "blah",
+			},
+			Currency:   currency,
+			Block:      newBlock3,
+			OldBlock:   newBlock2,
+			OldValue:   "200",
+			NewValue:   "300",
+			Difference: "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 
 		// Get balance during transaction
 		txn2 := storage.NewDatabaseTransaction(ctx, false)
@@ -484,39 +537,54 @@ func TestBalance(t *testing.T) {
 
 	t.Run("Attempt modification to push balance negative on existing account", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		err = storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account,
 			largeDeduction,
 			newBlock2,
+			nil,
 		)
+		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
 		txn.Discard(ctx)
 	})
 
 	t.Run("Attempt modification to push balance negative on new acct", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		err = storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			account2,
 			largeDeduction,
 			newBlock2,
+			nil,
 		)
+		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
 		txn.Discard(ctx)
 	})
 
 	t.Run("sub account set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccount,
 			amount,
 			newBlock,
-		))
+			newTransaction,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccount,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -529,13 +597,24 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata,
 			amount,
 			newBlock,
-		))
+			newTransaction,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccountMetadata,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -548,13 +627,24 @@ func TestBalance(t *testing.T) {
 
 	t.Run("sub account unique metadata set and get balance", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
-		assert.NoError(t, storage.UpdateBalance(
+		balanceChange, err := storage.UpdateBalance(
 			ctx,
 			txn,
 			subAccountMetadata2,
 			amount,
 			newBlock,
-		))
+			newTransaction,
+		)
+		assert.Equal(t, &BalanceChange{
+			Account:     subAccountMetadata2,
+			Currency:    currency,
+			Block:       newBlock,
+			Transaction: newTransaction,
+			OldValue:    "0",
+			NewValue:    "100",
+			Difference:  "100",
+		}, balanceChange)
+		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
 		txn = storage.NewDatabaseTransaction(ctx, false)
@@ -664,8 +754,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Set balance successfully", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",
@@ -712,8 +802,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid file header", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString("bad header")
 		assert.NoError(t, err)
@@ -728,8 +818,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid account row", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",
@@ -750,8 +840,8 @@ func TestBootstrapBalances(t *testing.T) {
 
 	t.Run("Invalid account value", func(t *testing.T) {
 		f, err := createBootstrapBalancesFile(*newDir)
-		defer f.Close()
 		assert.NoError(t, err)
+		defer f.Close()
 
 		_, err = f.WriteString(fmt.Sprintf(
 			"%s\n",

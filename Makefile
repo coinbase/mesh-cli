@@ -1,22 +1,40 @@
-.PHONY: deps lint test add-license check-license circleci-local validator \
-	watch-blocks view-block-benchmarks view-account-benchmarks salus
+.PHONY: deps lint format check-format test test-cover add-license \
+	check-license shorten-lines salus validate watch-blocks \
+	watch-transactions watch-balances watch-reconciliations \
+	view-block-benchmarks view-account-benchmarks
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
-SERVER_URL?=http://localhost:10000
-LOG_TRANSACTIONS?=false
-LOG_BENCHMARKS?=true
+TEST_SCRIPT=go test -v ./internal/...
+
+SERVER_URL?=http://localhost:8080
+LOG_TRANSACTIONS?=true
+LOG_BENCHMARKS?=false
+LOG_BALANCES?=true
+LOG_RECONCILIATION?=true
 BOOTSTRAP_BALANCES?=false
 
 deps:
 	go get ./...
 	go get github.com/stretchr/testify
-	go get golang.org/x/lint/golint
 	go get github.com/google/addlicense
+	go get github.com/segmentio/golines
+	go get github.com/mattn/goveralls
 
 lint:
-	golint ./internal/...
+	golangci-lint run -v \
+		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd
+
+format:
+	gofmt -s -w -l .
+
+check-format:
+	! gofmt -s -l . | read
 
 test:
-	go test -v ./internal/...
+	${TEST_SCRIPT}
+
+test-cover:	
+	${TEST_SCRIPT} -coverprofile=c.out -covermode=count
+	goveralls -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}
 
 add-license:
 	${LICENCE_SCRIPT} .
@@ -24,11 +42,13 @@ add-license:
 check-license:
 	${LICENCE_SCRIPT} -check .
 
-circleci-local:
-	circleci local execute
+shorten-lines:
+	golines -w --shorten-comments internal 
 
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
+
+release: add-license shorten-lines format test lint salus
 
 validate:
 	docker build -t rosetta-validator .; \
@@ -42,6 +62,8 @@ validate:
 		-e ACCOUNT_CONCURRENCY="8" \
 		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
 		-e LOG_BENCHMARKS="${LOG_BENCHMARKS}" \
+		-e LOG_BALANCES="${LOG_BALANCES}" \
+		-e LOG_RECONCILIATION="${LOG_RECONCILIATION}" \
 		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
 		--network host \
 		rosetta-validator \
@@ -49,6 +71,15 @@ validate:
 
 watch-blocks:
 	tail -f ${PWD}/validator-data/blocks.txt
+
+watch-transactions:
+	tail -f ${PWD}/validator-data/transactions.txt
+
+watch-balances:
+	tail -f ${PWD}/validator-data/balances.txt
+
+watch-reconciliations:
+	tail -f ${PWD}/validator-data/reconciliations.txt
 
 view-block-benchmarks:
 	open ${PWD}/validator-data/block_benchmarks.csv
