@@ -17,8 +17,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
-	"time"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/reconciler"
@@ -26,7 +24,6 @@ import (
 	"github.com/coinbase/rosetta-validator/internal/syncer"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
 
 	"github.com/caarlos0/env"
 	"golang.org/x/sync/errgroup"
@@ -43,11 +40,8 @@ type config struct {
 	LogBalances            bool   `env:"LOG_BALANCES,required"`
 	LogReconciliation      bool   `env:"LOG_RECONCILIATION,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
+	ReconcileBalances      bool   `env:"RECONCILE_BALANCES,required"`
 }
-
-const (
-	defaultHTTPTimeout = 10 * time.Second
-)
 
 func main() {
 	ctx := context.Background()
@@ -60,23 +54,14 @@ func main() {
 	fetcher := fetcher.New(
 		ctx,
 		cfg.ServerURL,
-		"rosetta-validator",
-		&http.Client{
-			Timeout: defaultHTTPTimeout,
-		},
-		cfg.BlockConcurrency,
-		cfg.TransactionConcurrency,
+		fetcher.WithBlockConcurrency(cfg.BlockConcurrency),
+		fetcher.WithTransactionConcurrency(cfg.TransactionConcurrency),
 	)
 
-	networkResponse, err := fetcher.InitializeAsserter(ctx)
+	// TODO: sync and reconcile on subnetworks, if they exist.
+	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// TODO: sync and reconcile on subnetworks, if they exist.
-	network := &rosetta.NetworkIdentifier{
-		Network:    networkResponse.NetworkStatus.NetworkIdentifier.Network,
-		Blockchain: networkResponse.NetworkStatus.NetworkIdentifier.Blockchain,
 	}
 
 	localStore, err := storage.NewBadgerStorage(ctx, cfg.DataDir)
@@ -89,7 +74,7 @@ func main() {
 		err = blockStorage.BootstrapBalances(
 			ctx,
 			cfg.DataDir,
-			networkResponse.NetworkStatus.NetworkInformation.GenesisBlockIdentifier,
+			networkStatus.GenesisBlockIdentifier,
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -107,12 +92,12 @@ func main() {
 	g, ctx := errgroup.WithContext(ctx)
 
 	var r *reconciler.Reconciler
-	if reconciler.ShouldReconcile(networkResponse) {
-		log.Printf("Balance reconciliation enabled\n")
+	if cfg.ReconcileBalances {
+		log.Println("Balance reconciliation enabled")
 
 		r = reconciler.New(
 			ctx,
-			network,
+			primaryNetwork,
 			blockStorage,
 			fetcher,
 			logger,
@@ -126,7 +111,7 @@ func main() {
 
 	syncer := syncer.New(
 		ctx,
-		network,
+		primaryNetwork,
 		blockStorage,
 		fetcher,
 		logger,

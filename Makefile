@@ -11,6 +11,7 @@ LOG_BENCHMARKS?=false
 LOG_BALANCES?=true
 LOG_RECONCILIATION?=true
 BOOTSTRAP_BALANCES?=false
+RECONCILE_BALANCES?=true
 
 deps:
 	go get ./...
@@ -65,6 +66,7 @@ validate:
 		-e LOG_BALANCES="${LOG_BALANCES}" \
 		-e LOG_RECONCILIATION="${LOG_RECONCILIATION}" \
 		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
+		-e RECONCILE_BALANCES="${RECONCILE_BALANCES}" \
 		--network host \
 		rosetta-validator \
 		rosetta-validator;

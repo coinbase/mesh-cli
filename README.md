@@ -41,6 +41,11 @@ _Default: http://localhost:8080_
 
 The URL the validator will use to access the Rosetta Server.
 
+#### RECONCILE_BALANCES
+_Default: true_
+
+Computed balances will be reconciled against balances returned by the node.
+
 #### LOG_TRANSACTIONS
 _Default: true_
 

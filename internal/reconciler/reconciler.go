@@ -29,7 +29,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/sync/errgroup"
@@ -64,11 +64,6 @@ const (
 	// reconciliation.
 	inactiveReconciliation = "INACTIVE"
 
-	// accountBalanceMethod is used to determine if reconciliation
-	// should be performed. If this method is not returned in
-	// rosetta.Options.Methods, reconciliation is disabled.
-	accountBalanceMethod = "/account/balance"
-
 	// zeroString is a string of value 0.
 	zeroString = "0"
 
@@ -97,10 +92,10 @@ var (
 )
 
 // Reconciler contains all logic to reconcile balances of
-// rosetta.AccountIdentifiers returned in rosetta.Operations
+// types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
 type Reconciler struct {
-	network            *rosetta.NetworkIdentifier
+	network            *types.NetworkIdentifier
 	storage            *storage.BlockStorage
 	fetcher            *fetcher.Fetcher
 	logger             *logger.Logger
@@ -119,7 +114,7 @@ type Reconciler struct {
 // New creates a new Reconciler.
 func New(
 	ctx context.Context,
-	network *rosetta.NetworkIdentifier,
+	network *types.NetworkIdentifier,
 	blockStorage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
@@ -195,8 +190,8 @@ func (r *Reconciler) QueueAccounts(
 func (r *Reconciler) CompareBalance(
 	ctx context.Context,
 	accountAndCurrency *storage.BalanceChange,
-	liveAmount *rosetta.Amount,
-	liveBlock *rosetta.BlockIdentifier,
+	liveAmount *types.Amount,
+	liveBlock *types.BlockIdentifier,
 ) (string, int64, error) {
 	txn := r.storage.NewDatabaseTransaction(ctx, false)
 	defer txn.Discard(ctx)
@@ -273,39 +268,21 @@ func (r *Reconciler) CompareBalance(
 	return zeroString, head.Index, nil
 }
 
-// extractAmount returns the rosetta.Amount from a slice of rosetta.Balance
+// extractAmount returns the types.Amount from a slice of types.Balance
 // pertaining to an AccountAndCurrency.
 func extractAmount(
-	balances []*rosetta.Balance,
+	balances []*types.Amount,
 	accountAndCurrency *storage.BalanceChange,
-) (*rosetta.Amount, error) {
+) (*types.Amount, error) {
 	for _, b := range balances {
-		if !reflect.DeepEqual(b.AccountIdentifier, accountAndCurrency.Account) {
+		if !reflect.DeepEqual(b.Currency, accountAndCurrency.Currency) {
 			continue
 		}
 
-		for _, amount := range b.Amounts {
-			if !reflect.DeepEqual(amount.Currency, accountAndCurrency.Currency) {
-				continue
-			}
-
-			return amount, nil
-		}
+		return b, nil
 	}
 
 	return nil, fmt.Errorf("could not extract amount for %+v", accountAndCurrency)
-}
-
-// ShouldReconcile returns a boolean indicating whether reconciliation
-// should be attempted based on what methods the Rosetta Server implements.
-func ShouldReconcile(networkStatus *rosetta.NetworkStatusResponse) bool {
-	for _, method := range networkStatus.Options.Methods {
-		if method == accountBalanceMethod {
-			return true
-		}
-	}
-
-	return false
 }
 
 // accountReconciliation returns an error if the provided
@@ -321,8 +298,6 @@ func (r *Reconciler) accountReconciliation(
 		ctx,
 		r.network,
 		acct.Account,
-		fetcher.DefaultElapsedTime,
-		fetcher.DefaultRetries,
 	)
 	if err != nil {
 		return err
@@ -431,7 +406,7 @@ func (r *Reconciler) accountReconciliation(
 func simpleAccountAndCurrency(acct *storage.BalanceChange) string {
 	acctString := acct.Account.Address
 	if acct.Account.SubAccount != nil {
-		acctString += acct.Account.SubAccount.SubAccount
+		acctString += acct.Account.SubAccount.Address
 	}
 
 	acctString += acct.Currency.Symbol
