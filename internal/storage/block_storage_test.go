@@ -21,18 +21,18 @@ import (
 	"path"
 	"testing"
 
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHeadBlockIdentifier(t *testing.T) {
 	var (
-		newBlockIdentifier = &rosetta.BlockIdentifier{
+		newBlockIdentifier = &types.BlockIdentifier{
 			Hash:  "blah",
 			Index: 0,
 		}
-		newBlockIdentifier2 = &rosetta.BlockIdentifier{
+		newBlockIdentifier2 = &types.BlockIdentifier{
 			Hash:  "blah2",
 			Index: 1,
 		}
@@ -73,7 +73,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	t.Run("Discard head block update", func(t *testing.T) {
 		txn := storage.NewDatabaseTransaction(ctx, true)
 		assert.NoError(t, storage.StoreHeadBlockIdentifier(ctx, txn,
-			&rosetta.BlockIdentifier{
+			&types.BlockIdentifier{
 				Hash:  "no blah",
 				Index: 10,
 			}),
@@ -102,20 +102,20 @@ func TestHeadBlockIdentifier(t *testing.T) {
 
 func TestBlock(t *testing.T) {
 	var (
-		newBlock = &rosetta.Block{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+		newBlock = &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "blah",
 				Index: 0,
 			},
 			Timestamp: 1,
-			Transactions: []*rosetta.Transaction{
+			Transactions: []*types.Transaction{
 				{
-					TransactionIdentifier: &rosetta.TransactionIdentifier{
+					TransactionIdentifier: &types.TransactionIdentifier{
 						Hash: "blahTx",
 					},
-					Operations: []*rosetta.Operation{
+					Operations: []*types.Operation{
 						{
-							OperationIdentifier: &rosetta.OperationIdentifier{
+							OperationIdentifier: &types.OperationIdentifier{
 								Index: 0,
 							},
 						},
@@ -124,25 +124,25 @@ func TestBlock(t *testing.T) {
 			},
 		}
 
-		badBlockIdentifier = &rosetta.BlockIdentifier{
+		badBlockIdentifier = &types.BlockIdentifier{
 			Hash:  "missing blah",
 			Index: 0,
 		}
 
-		newBlock2 = &rosetta.Block{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+		newBlock2 = &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "blah 2",
 				Index: 1,
 			},
 			Timestamp: 1,
-			Transactions: []*rosetta.Transaction{
+			Transactions: []*types.Transaction{
 				{
-					TransactionIdentifier: &rosetta.TransactionIdentifier{
+					TransactionIdentifier: &types.TransactionIdentifier{
 						Hash: "blahTx",
 					},
-					Operations: []*rosetta.Operation{
+					Operations: []*types.Operation{
 						{
-							OperationIdentifier: &rosetta.OperationIdentifier{
+							OperationIdentifier: &types.OperationIdentifier{
 								Index: 0,
 							},
 						},
@@ -222,29 +222,29 @@ func TestBlock(t *testing.T) {
 
 func TestGetBalanceKey(t *testing.T) {
 	var tests = map[string]struct {
-		account *rosetta.AccountIdentifier
+		account *types.AccountIdentifier
 		key     string
 	}{
 		"simple account": {
-			account: &rosetta.AccountIdentifier{
+			account: &types.AccountIdentifier{
 				Address: "hello",
 			},
 			key: "balance:hello",
 		},
 		"subaccount": {
-			account: &rosetta.AccountIdentifier{
+			account: &types.AccountIdentifier{
 				Address: "hello",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "stake",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "stake",
 				},
 			},
 			key: "balance:hello:stake",
 		},
 		"subaccount with string metadata": {
-			account: &rosetta.AccountIdentifier{
+			account: &types.AccountIdentifier{
 				Address: "hello",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "stake",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "stake",
 					Metadata: &map[string]interface{}{
 						"cool": "neat",
 					},
@@ -253,10 +253,10 @@ func TestGetBalanceKey(t *testing.T) {
 			key: "balance:hello:stake:map[cool:neat]",
 		},
 		"subaccount with number metadata": {
-			account: &rosetta.AccountIdentifier{
+			account: &types.AccountIdentifier{
 				Address: "hello",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "stake",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "stake",
 					Metadata: &map[string]interface{}{
 						"cool": 1,
 					},
@@ -265,10 +265,10 @@ func TestGetBalanceKey(t *testing.T) {
 			key: "balance:hello:stake:map[cool:1]",
 		},
 		"subaccount with complex metadata": {
-			account: &rosetta.AccountIdentifier{
+			account: &types.AccountIdentifier{
 				Address: "hello",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "stake",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "stake",
 					Metadata: &map[string]interface{}{
 						"cool":    1,
 						"awesome": "neat",
@@ -288,99 +288,99 @@ func TestGetBalanceKey(t *testing.T) {
 
 func TestBalance(t *testing.T) {
 	var (
-		account = &rosetta.AccountIdentifier{
+		account = &types.AccountIdentifier{
 			Address: "blah",
 		}
-		account2 = &rosetta.AccountIdentifier{
+		account2 = &types.AccountIdentifier{
 			Address: "blah2",
 		}
-		subAccount = &rosetta.AccountIdentifier{
+		subAccount = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 			},
 		}
-		subAccountNewPointer = &rosetta.AccountIdentifier{
+		subAccountNewPointer = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 			},
 		}
-		subAccountMetadata = &rosetta.AccountIdentifier{
+		subAccountMetadata = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 				Metadata: &map[string]interface{}{
 					"cool": "hello",
 				},
 			},
 		}
-		subAccountMetadataNewPointer = &rosetta.AccountIdentifier{
+		subAccountMetadataNewPointer = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 				Metadata: &map[string]interface{}{
 					"cool": "hello",
 				},
 			},
 		}
-		subAccountMetadata2 = &rosetta.AccountIdentifier{
+		subAccountMetadata2 = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 				Metadata: &map[string]interface{}{
 					"cool": 10,
 				},
 			},
 		}
-		subAccountMetadata2NewPointer = &rosetta.AccountIdentifier{
+		subAccountMetadata2NewPointer = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "stake",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
 				Metadata: &map[string]interface{}{
 					"cool": 10,
 				},
 			},
 		}
-		currency = &rosetta.Currency{
+		currency = &types.Currency{
 			Symbol:   "BLAH",
 			Decimals: 2,
 		}
-		amount = &rosetta.Amount{
+		amount = &types.Amount{
 			Value:    "100",
 			Currency: currency,
 		}
-		amountNilCurrency = &rosetta.Amount{
+		amountNilCurrency = &types.Amount{
 			Value: "100",
 		}
-		newAmounts = map[string]*rosetta.Amount{
+		newAmounts = map[string]*types.Amount{
 			GetCurrencyKey(currency): amount,
 		}
-		newBlock = &rosetta.BlockIdentifier{
+		newBlock = &types.BlockIdentifier{
 			Hash:  "kdasdj",
 			Index: 123890,
 		}
-		newTransaction = &rosetta.TransactionIdentifier{
+		newTransaction = &types.TransactionIdentifier{
 			Hash: "tx1",
 		}
-		newBlock2 = &rosetta.BlockIdentifier{
+		newBlock2 = &types.BlockIdentifier{
 			Hash:  "pkdasdj",
 			Index: 123890,
 		}
-		newTransaction2 = &rosetta.TransactionIdentifier{
+		newTransaction2 = &types.TransactionIdentifier{
 			Hash: "tx2",
 		}
-		result = map[string]*rosetta.Amount{
+		result = map[string]*types.Amount{
 			GetCurrencyKey(currency): {
 				Value:    "200",
 				Currency: currency,
 			},
 		}
-		newBlock3 = &rosetta.BlockIdentifier{
+		newBlock3 = &types.BlockIdentifier{
 			Hash:  "pkdgdj",
 			Index: 123891,
 		}
-		largeDeduction = &rosetta.Amount{
+		largeDeduction = &types.Amount{
 			Value:    "-1000",
 			Currency: currency,
 		}
@@ -418,7 +418,7 @@ func TestBalance(t *testing.T) {
 			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
 			Currency:    currency,
@@ -472,7 +472,7 @@ func TestBalance(t *testing.T) {
 			newTransaction2,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
 			Currency:    currency,
@@ -505,7 +505,7 @@ func TestBalance(t *testing.T) {
 			nil,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
 			Currency:   currency,
@@ -658,18 +658,18 @@ func TestBalance(t *testing.T) {
 
 func TestGetCurrencyKey(t *testing.T) {
 	var tests = map[string]struct {
-		currency *rosetta.Currency
+		currency *types.Currency
 		key      string
 	}{
 		"simple currency": {
-			currency: &rosetta.Currency{
+			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 			},
 			key: "BTC:8",
 		},
 		"currency with string metadata": {
-			currency: &rosetta.Currency{
+			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 				Metadata: &map[string]interface{}{
@@ -679,7 +679,7 @@ func TestGetCurrencyKey(t *testing.T) {
 			key: "BTC:8:map[issuer:satoshi]",
 		},
 		"currency with number metadata": {
-			currency: &rosetta.Currency{
+			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 				Metadata: &map[string]interface{}{
@@ -689,7 +689,7 @@ func TestGetCurrencyKey(t *testing.T) {
 			key: "BTC:8:map[issuer:1]",
 		},
 		"currency with complex metadata": {
-			currency: &rosetta.Currency{
+			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 				Metadata: &map[string]interface{}{
@@ -718,12 +718,12 @@ func createBootstrapBalancesFile(dataDir string) (*os.File, error) {
 
 func TestBootstrapBalances(t *testing.T) {
 	var (
-		genesisBlockIdentifier = &rosetta.BlockIdentifier{
+		genesisBlockIdentifier = &types.BlockIdentifier{
 			Index: 0,
 			Hash:  "0",
 		}
 
-		account = &rosetta.AccountIdentifier{
+		account = &types.AccountIdentifier{
 			Address: "hello",
 		}
 	)
@@ -763,9 +763,9 @@ func TestBootstrapBalances(t *testing.T) {
 		))
 		assert.NoError(t, err)
 
-		amount := &rosetta.Amount{
+		amount := &types.Amount{
 			Value: "10",
-			Currency: &rosetta.Currency{
+			Currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 			},
@@ -849,9 +849,9 @@ func TestBootstrapBalances(t *testing.T) {
 		))
 		assert.NoError(t, err)
 
-		amount := &rosetta.Amount{
+		amount := &types.Amount{
 			Value: "goodbye",
-			Currency: &rosetta.Currency{
+			Currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
 			},

@@ -22,41 +22,41 @@ import (
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestContainsAccountAndCurrency(t *testing.T) {
-	currency1 := &rosetta.Currency{
+	currency1 := &types.Currency{
 		Symbol:   "Blah",
 		Decimals: 2,
 	}
-	currency2 := &rosetta.Currency{
+	currency2 := &types.Currency{
 		Symbol:   "Blah2",
 		Decimals: 2,
 	}
 	accts := []*storage.BalanceChange{
 		{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "test",
 			},
 			Currency: currency1,
 		},
 		{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "cool",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "test2",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "test2",
 				},
 			},
 			Currency: currency1,
 		},
 		{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "cool",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "test2",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "test2",
 					Metadata: &map[string]interface{}{
 						"neat": "stuff",
 					},
@@ -68,7 +68,7 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Non-existent account", func(t *testing.T) {
 		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
 			Currency: currency1,
@@ -77,7 +77,7 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Basic account", func(t *testing.T) {
 		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "test",
 			},
 			Currency: currency1,
@@ -86,7 +86,7 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Basic account with bad currency", func(t *testing.T) {
 		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "test",
 			},
 			Currency: currency2,
@@ -95,10 +95,10 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Account with subaccount", func(t *testing.T) {
 		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "cool",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "test2",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "test2",
 				},
 			},
 			Currency: currency1,
@@ -107,10 +107,10 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Account with subaccount and metadata", func(t *testing.T) {
 		assert.True(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "cool",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "test2",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "test2",
 					Metadata: &map[string]interface{}{
 						"neat": "stuff",
 					},
@@ -122,10 +122,10 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 	t.Run("Account with subaccount and unique metadata", func(t *testing.T) {
 		assert.False(t, containsAccountAndCurrency(accts, &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
+			Account: &types.AccountIdentifier{
 				Address: "cool",
-				SubAccount: &rosetta.SubAccountIdentifier{
-					SubAccount: "test2",
+				SubAccount: &types.SubAccountIdentifier{
+					Address: "test2",
 					Metadata: &map[string]interface{}{
 						"neater": "stuff",
 					},
@@ -136,98 +136,52 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 	})
 }
 
-func TestShouldReconcile(t *testing.T) {
-	t.Run("should reconcile", func(t *testing.T) {
-		assert.True(t, ShouldReconcile(&rosetta.NetworkStatusResponse{
-			Options: &rosetta.Options{
-				Methods: []string{
-					"/block",
-					"/account/balance",
-				},
-			},
-		}))
-	})
-
-	t.Run("should not reconcile", func(t *testing.T) {
-		assert.False(t, ShouldReconcile(&rosetta.NetworkStatusResponse{
-			Options: &rosetta.Options{
-				Methods: []string{
-					"/block",
-				},
-			},
-		}))
-	})
-}
-
 func TestExtractAmount(t *testing.T) {
 	var (
-		account1 = &rosetta.AccountIdentifier{
+		account1 = &types.AccountIdentifier{
 			Address: "blah",
 		}
 
-		account2 = &rosetta.AccountIdentifier{
+		account2 = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "sub blah",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "sub blah",
 			},
 		}
 
-		currency1 = &rosetta.Currency{
+		currency1 = &types.Currency{
 			Symbol:   "curr1",
 			Decimals: 4,
 		}
 
-		currency2 = &rosetta.Currency{
+		currency2 = &types.Currency{
 			Symbol:   "curr2",
 			Decimals: 7,
 		}
 
-		amount1 = &rosetta.Amount{
+		amount1 = &types.Amount{
 			Value:    "100",
 			Currency: currency1,
 		}
 
-		amount2 = &rosetta.Amount{
+		amount2 = &types.Amount{
 			Value:    "200",
 			Currency: currency2,
 		}
 
-		balances = []*rosetta.Balance{
-			{
-				AccountIdentifier: account1,
-				Amounts: []*rosetta.Amount{
-					amount1,
-				},
-			},
-			{
-				AccountIdentifier: account2,
-				Amounts: []*rosetta.Amount{
-					amount2,
-				},
-			},
-		}
-
-		badAcct = &storage.BalanceChange{
-			Account: &rosetta.AccountIdentifier{
-				Address: "no acct",
-			},
-			Currency: currency1,
+		balances = []*types.Amount{
+			amount1,
+			amount2,
 		}
 
 		badCurr = &storage.BalanceChange{
 			Account: account1,
-			Currency: &rosetta.Currency{
+			Currency: &types.Currency{
 				Symbol:   "no curr",
 				Decimals: 100,
 			},
 		}
 	)
-
-	t.Run("Non-existent account", func(t *testing.T) {
-		result, err := extractAmount(balances, badAcct)
-		assert.Nil(t, result)
-		assert.EqualError(t, err, fmt.Errorf("could not extract amount for %+v", badAcct).Error())
-	})
 
 	t.Run("Non-existent currency", func(t *testing.T) {
 		result, err := extractAmount(balances, badCurr)
@@ -256,48 +210,48 @@ func TestExtractAmount(t *testing.T) {
 
 func TestCompareBalance(t *testing.T) {
 	var (
-		account1 = &rosetta.AccountIdentifier{
+		account1 = &types.AccountIdentifier{
 			Address: "blah",
 		}
 
-		account2 = &rosetta.AccountIdentifier{
+		account2 = &types.AccountIdentifier{
 			Address: "blah",
-			SubAccount: &rosetta.SubAccountIdentifier{
-				SubAccount: "sub blah",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "sub blah",
 			},
 		}
 
-		currency1 = &rosetta.Currency{
+		currency1 = &types.Currency{
 			Symbol:   "curr1",
 			Decimals: 4,
 		}
 
-		currency2 = &rosetta.Currency{
+		currency2 = &types.Currency{
 			Symbol:   "curr2",
 			Decimals: 7,
 		}
 
-		amount1 = &rosetta.Amount{
+		amount1 = &types.Amount{
 			Value:    "100",
 			Currency: currency1,
 		}
 
-		amount2 = &rosetta.Amount{
+		amount2 = &types.Amount{
 			Value:    "200",
 			Currency: currency2,
 		}
 
-		block0 = &rosetta.BlockIdentifier{
+		block0 = &types.BlockIdentifier{
 			Hash:  "block0",
 			Index: 0,
 		}
 
-		block1 = &rosetta.BlockIdentifier{
+		block1 = &types.BlockIdentifier{
 			Hash:  "block1",
 			Index: 1,
 		}
 
-		block2 = &rosetta.BlockIdentifier{
+		block2 = &types.BlockIdentifier{
 			Hash:  "block2",
 			Index: 2,
 		}
@@ -361,7 +315,7 @@ func TestCompareBalance(t *testing.T) {
 
 	// Update head block
 	txn = blockStorage.NewDatabaseTransaction(ctx, true)
-	err = blockStorage.StoreHeadBlockIdentifier(ctx, txn, &rosetta.BlockIdentifier{
+	err = blockStorage.StoreHeadBlockIdentifier(ctx, txn, &types.BlockIdentifier{
 		Hash:  "hash2",
 		Index: 2,
 	})
@@ -386,19 +340,19 @@ func TestCompareBalance(t *testing.T) {
 
 	// Add blocks to store behind head
 	txn = blockStorage.NewDatabaseTransaction(ctx, true)
-	err = blockStorage.StoreBlock(ctx, txn, &rosetta.Block{
+	err = blockStorage.StoreBlock(ctx, txn, &types.Block{
 		BlockIdentifier:       block0,
 		ParentBlockIdentifier: block0,
 	})
 	assert.NoError(t, err)
 
-	err = blockStorage.StoreBlock(ctx, txn, &rosetta.Block{
+	err = blockStorage.StoreBlock(ctx, txn, &types.Block{
 		BlockIdentifier:       block1,
 		ParentBlockIdentifier: block0,
 	})
 	assert.NoError(t, err)
 
-	err = blockStorage.StoreBlock(ctx, txn, &rosetta.Block{
+	err = blockStorage.StoreBlock(ctx, txn, &types.Block{
 		BlockIdentifier:       block2,
 		ParentBlockIdentifier: block1,
 	})

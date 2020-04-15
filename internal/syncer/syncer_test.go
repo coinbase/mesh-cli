@@ -25,28 +25,28 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	currency = &rosetta.Currency{
+	currency = &types.Currency{
 		Symbol:   "Blah",
 		Decimals: 2,
 	}
 
-	recipient = &rosetta.AccountIdentifier{
+	recipient = &types.AccountIdentifier{
 		Address: "acct1",
 	}
 
-	recipientAmount = &rosetta.Amount{
+	recipientAmount = &types.Amount{
 		Value:    "100",
 		Currency: currency,
 	}
 
-	recipientOperation = &rosetta.Operation{
-		OperationIdentifier: &rosetta.OperationIdentifier{
+	recipientOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
 			Index: 0,
 		},
 		Type:    "Transfer",
@@ -55,8 +55,8 @@ var (
 		Amount:  recipientAmount,
 	}
 
-	recipientFailureOperation = &rosetta.Operation{
-		OperationIdentifier: &rosetta.OperationIdentifier{
+	recipientFailureOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
 			Index: 1,
 		},
 		Type:    "Transfer",
@@ -65,27 +65,27 @@ var (
 		Amount:  recipientAmount,
 	}
 
-	recipientTransaction = &rosetta.Transaction{
-		TransactionIdentifier: &rosetta.TransactionIdentifier{
+	recipientTransaction = &types.Transaction{
+		TransactionIdentifier: &types.TransactionIdentifier{
 			Hash: "tx1",
 		},
-		Operations: []*rosetta.Operation{
+		Operations: []*types.Operation{
 			recipientOperation,
 			recipientFailureOperation,
 		},
 	}
 
-	sender = &rosetta.AccountIdentifier{
+	sender = &types.AccountIdentifier{
 		Address: "acct2",
 	}
 
-	senderAmount = &rosetta.Amount{
+	senderAmount = &types.Amount{
 		Value:    "-100",
 		Currency: currency,
 	}
 
-	senderOperation = &rosetta.Operation{
-		OperationIdentifier: &rosetta.OperationIdentifier{
+	senderOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
 			Index: 0,
 		},
 		Type:    "Transfer",
@@ -94,143 +94,143 @@ var (
 		Amount:  senderAmount,
 	}
 
-	senderTransaction = &rosetta.Transaction{
-		TransactionIdentifier: &rosetta.TransactionIdentifier{
+	senderTransaction = &types.Transaction{
+		TransactionIdentifier: &types.TransactionIdentifier{
 			Hash: "tx2",
 		},
-		Operations: []*rosetta.Operation{
+		Operations: []*types.Operation{
 			senderOperation,
 		},
 	}
 
-	blockSequenceNoReorg = []*rosetta.Block{
+	blockSequenceNoReorg = []*types.Block{
 		{ // genesis
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
 			},
-			Transactions: []*rosetta.Transaction{
+			Transactions: []*types.Transaction{
 				recipientTransaction,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
 			},
-			Transactions: []*rosetta.Transaction{
+			Transactions: []*types.Transaction{
 				senderTransaction,
 			},
 		},
 	}
 
-	orphanGenesis = &rosetta.Block{
-		BlockIdentifier: &rosetta.BlockIdentifier{
+	orphanGenesis = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
 			Hash:  "1",
 			Index: 1,
 		},
-		ParentBlockIdentifier: &rosetta.BlockIdentifier{
+		ParentBlockIdentifier: &types.BlockIdentifier{
 			Hash:  "0a",
 			Index: 0,
 		},
-		Transactions: []*rosetta.Transaction{},
+		Transactions: []*types.Transaction{},
 	}
 
-	blockSequenceReorg = []*rosetta.Block{
+	blockSequenceReorg = []*types.Block{
 		{ // genesis
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "1",
 				Index: 1,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
-			Transactions: []*rosetta.Transaction{
+			Transactions: []*types.Transaction{
 				recipientTransaction,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "1a",
 				Index: 1,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "1a",
 				Index: 1,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "0",
 				Index: 0,
 			},
 		},
 		{
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "3",
 				Index: 3,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "2",
 				Index: 2,
 			},
 		},
 		{ // invalid block
-			BlockIdentifier: &rosetta.BlockIdentifier{
+			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "5",
 				Index: 5,
 			},
-			ParentBlockIdentifier: &rosetta.BlockIdentifier{
+			ParentBlockIdentifier: &types.BlockIdentifier{
 				Hash:  "4",
 				Index: 4,
 			},
 		},
 	}
 
-	operationStatuses = []*rosetta.OperationStatus{
+	operationStatuses = []*types.OperationStatus{
 		{
 			Status:     "Success",
 			Successful: true,
@@ -241,19 +241,33 @@ var (
 		},
 	}
 
-	networkStatusResponse = &rosetta.NetworkStatusResponse{
-		NetworkStatus: &rosetta.NetworkStatus{
-			NetworkInformation: &rosetta.NetworkInformation{
-				GenesisBlockIdentifier: &rosetta.BlockIdentifier{
-					Index: 0,
-				},
-				CurrentBlockIdentifier: &rosetta.BlockIdentifier{
-					Index: 1000,
-				},
+	networkStatusResponse = &types.NetworkStatusResponse{
+		GenesisBlockIdentifier: &types.BlockIdentifier{
+			Index: 0,
+			Hash:  "block 0",
+		},
+		CurrentBlockIdentifier: &types.BlockIdentifier{
+			Index: 1000,
+			Hash:  "block 1000",
+		},
+		CurrentBlockTimestamp: 10000,
+		Peers: []*types.Peer{
+			{
+				PeerID: "peer 1",
 			},
 		},
-		Options: &rosetta.Options{
+	}
+
+	networkOptionsResponse = &types.NetworkOptionsResponse{
+		Version: &types.Version{
+			RosettaVersion: "1.3.1",
+			NodeVersion:    "1.0",
+		},
+		Allow: &types.Allow{
 			OperationStatuses: operationStatuses,
+			OperationTypes: []string{
+				"Transfer",
+			},
 		},
 	}
 )
@@ -271,8 +285,16 @@ func TestNoReorgProcessBlock(t *testing.T) {
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
 	logger := logger.NewLogger(*newDir, false, false, false, false)
+	asserter, err := asserter.NewWithResponses(
+		ctx,
+		networkStatusResponse,
+		networkOptionsResponse,
+	)
+	assert.NotNil(t, asserter)
+	assert.NoError(t, err)
+
 	fetcher := &fetcher.Fetcher{
-		Asserter: asserter.New(ctx, networkStatusResponse),
+		Asserter: asserter,
 	}
 	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
@@ -328,7 +350,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(3), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
 			{
-				Account: &rosetta.AccountIdentifier{
+				Account: &types.AccountIdentifier{
 					Address: "acct1",
 				},
 				Currency:    currency,
@@ -350,7 +372,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 		tx.Discard(ctx)
 
 		// Ensure amount only increases by successful operation
-		assert.Equal(t, map[string]*rosetta.Amount{
+		assert.Equal(t, map[string]*types.Amount{
 			storage.GetCurrencyKey(currency): recipientAmount,
 		}, amounts)
 		assert.Equal(t, blockSequenceNoReorg[2].BlockIdentifier, block)
@@ -418,8 +440,16 @@ func TestReorgProcessBlock(t *testing.T) {
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
 	logger := logger.NewLogger(*newDir, false, false, false, false)
+	asserter, err := asserter.NewWithResponses(
+		ctx,
+		networkStatusResponse,
+		networkOptionsResponse,
+	)
+	assert.NotNil(t, asserter)
+	assert.NoError(t, err)
+
 	fetcher := &fetcher.Fetcher{
-		Asserter: asserter.New(ctx, networkStatusResponse),
+		Asserter: asserter,
 	}
 	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
@@ -480,7 +510,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(2), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
 			{
-				Account: &rosetta.AccountIdentifier{
+				Account: &types.AccountIdentifier{
 					Address: "acct1",
 				},
 				Currency:    currency,
@@ -500,7 +530,7 @@ func TestReorgProcessBlock(t *testing.T) {
 
 		amounts, block, err := syncer.storage.GetBalance(ctx, tx, recipient)
 		tx.Discard(ctx)
-		assert.Equal(t, map[string]*rosetta.Amount{
+		assert.Equal(t, map[string]*types.Amount{
 			storage.GetCurrencyKey(currency): recipientAmount,
 		}, amounts)
 		assert.Equal(t, blockSequenceReorg[1].BlockIdentifier, block)
@@ -521,7 +551,7 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(1), currIndex)
 		assert.Equal(t, []*storage.BalanceChange{
 			{
-				Account: &rosetta.AccountIdentifier{
+				Account: &types.AccountIdentifier{
 					Address: "acct1",
 				},
 				Currency:    currency,
@@ -544,7 +574,7 @@ func TestReorgProcessBlock(t *testing.T) {
 
 		// Assert that balance change was reverted
 		// only by the successful operation
-		zeroAmount := map[string]*rosetta.Amount{
+		zeroAmount := map[string]*types.Amount{
 			storage.GetCurrencyKey(currency): {
 				Value:    "0",
 				Currency: currency,

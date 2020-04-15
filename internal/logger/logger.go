@@ -24,7 +24,7 @@ import (
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 const (
@@ -104,7 +104,7 @@ func NewLogger(
 // blockStreamFile output file.
 func (l *Logger) BlockStream(
 	ctx context.Context,
-	block *rosetta.Block,
+	block *types.Block,
 	orphan bool,
 ) error {
 	f, err := os.OpenFile(
@@ -141,7 +141,7 @@ func (l *Logger) BlockStream(
 // to the end of the transactionStreamFile.
 func (l *Logger) TransactionStream(
 	ctx context.Context,
-	block *rosetta.Block,
+	block *types.Block,
 	verb string,
 ) error {
 	if !l.logTransactions {
@@ -268,10 +268,10 @@ func (l *Logger) BalanceStream(
 // during syncing.
 func (l *Logger) ReconcileStream(
 	ctx context.Context,
-	account *rosetta.AccountIdentifier,
-	currency *rosetta.Currency,
-	liveBalance *rosetta.Amount,
-	liveBlock *rosetta.BlockIdentifier,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	liveBalance *types.Amount,
+	liveBlock *types.BlockIdentifier,
 ) error {
 	if !l.logReconciliation {
 		return nil
@@ -377,7 +377,7 @@ func (l *Logger) BlockLatency(
 // account fetch benchmarks to the account_benchmarks.csv file.
 func (l *Logger) AccountLatency(
 	ctx context.Context,
-	account *rosetta.AccountIdentifier,
+	account *types.AccountIdentifier,
 	latency float64,
 	balances int,
 ) error {
@@ -404,7 +404,7 @@ func (l *Logger) AccountLatency(
 
 	addressString := account.Address
 	if account.SubAccount != nil {
-		addressString += account.SubAccount.SubAccount
+		addressString += account.SubAccount.Address
 	}
 
 	_, err = f.WriteString(fmt.Sprintf(
@@ -417,10 +417,10 @@ func (l *Logger) AccountLatency(
 	return err
 }
 
-// Network pretty prints the rosetta.NetworkStatusResponse to the console.
+// Network pretty prints the types.NetworkStatusResponse to the console.
 func Network(
 	ctx context.Context,
-	network *rosetta.NetworkStatusResponse,
+	network *types.NetworkStatusResponse,
 ) error {
 	b, err := json.MarshalIndent(network, "", " ")
 	if err != nil {

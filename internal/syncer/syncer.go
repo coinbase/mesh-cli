@@ -28,7 +28,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 const (
@@ -40,7 +40,7 @@ const (
 // Syncer contains the logic that orchestrates
 // block fetching, storage, and reconciliation.
 type Syncer struct {
-	network    *rosetta.NetworkIdentifier
+	network    *types.NetworkIdentifier
 	storage    *storage.BlockStorage
 	fetcher    *fetcher.Fetcher
 	logger     *logger.Logger
@@ -50,7 +50,7 @@ type Syncer struct {
 // New returns a new Syncer.
 func New(
 	ctx context.Context,
-	network *rosetta.NetworkIdentifier,
+	network *types.NetworkIdentifier,
 	storage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
@@ -71,7 +71,7 @@ func New(
 func (s *Syncer) checkReorg(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
-	block *rosetta.Block,
+	block *types.Block,
 ) (bool, error) {
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
 	if err == storage.ErrHeadBlockNotFound {
@@ -103,7 +103,7 @@ func (s *Syncer) checkReorg(
 func (s *Syncer) storeBlockBalanceChanges(
 	ctx context.Context,
 	dbTx storage.DatabaseTransaction,
-	block *rosetta.Block,
+	block *types.Block,
 	orphan bool,
 ) ([]*storage.BalanceChange, error) {
 	balanceChanges := make([]*storage.BalanceChange, 0)
@@ -159,7 +159,7 @@ func (s *Syncer) storeBlockBalanceChanges(
 func (s *Syncer) OrphanBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
-	blockIdentifier *rosetta.BlockIdentifier,
+	blockIdentifier *types.BlockIdentifier,
 ) ([]*storage.BalanceChange, error) {
 	log.Printf("Orphaning block %+v\n", blockIdentifier)
 	block, err := s.storage.GetBlock(ctx, tx, blockIdentifier)
@@ -189,7 +189,7 @@ func (s *Syncer) OrphanBlock(
 func (s *Syncer) AddBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
-	block *rosetta.Block,
+	block *types.Block,
 ) ([]*storage.BalanceChange, error) {
 	log.Printf("Adding block %+v\n", block.BlockIdentifier)
 	err := s.storage.StoreBlock(ctx, tx, block)
@@ -216,7 +216,7 @@ func (s *Syncer) ProcessBlock(
 	ctx context.Context,
 	genesisIndex int64,
 	currIndex int64,
-	block *rosetta.Block,
+	block *types.Block,
 ) ([]*storage.BalanceChange, int64, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, true)
 	defer tx.Discard(ctx)
@@ -292,11 +292,9 @@ func (s *Syncer) SyncBlockRange(
 			blockValue, err := s.fetcher.BlockRetry(
 				ctx,
 				s.network,
-				&rosetta.PartialBlockIdentifier{
+				&types.PartialBlockIdentifier{
 					Index: &currIndex,
 				},
-				fetcher.DefaultElapsedTime,
-				fetcher.DefaultRetries,
 			)
 			if err != nil {
 				return err
@@ -337,12 +335,12 @@ func (s *Syncer) SyncBlockRange(
 // the contents of the network status response.
 func (s *Syncer) nextSyncableRange(
 	ctx context.Context,
-	networkStatus *rosetta.NetworkStatusResponse,
+	networkStatus *types.NetworkStatusResponse,
 ) (int64, int64, int64, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, false)
 	defer tx.Discard(ctx)
 
-	genesisBlockIdentifier := networkStatus.NetworkStatus.NetworkInformation.GenesisBlockIdentifier
+	genesisBlockIdentifier := networkStatus.GenesisBlockIdentifier
 
 	var startIndex int64
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
@@ -356,7 +354,7 @@ func (s *Syncer) nextSyncableRange(
 		return -1, -1, -1, err
 	}
 
-	endIndex := networkStatus.NetworkStatus.NetworkInformation.CurrentBlockIdentifier.Index
+	endIndex := networkStatus.CurrentBlockIdentifier.Index
 	if endIndex-startIndex > maxSync {
 		endIndex = startIndex + maxSync
 	}
@@ -369,9 +367,8 @@ func (s *Syncer) nextSyncableRange(
 func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 	networkStatus, err := s.fetcher.NetworkStatusRetry(
 		ctx,
+		s.network,
 		nil,
-		fetcher.DefaultElapsedTime,
-		fetcher.DefaultRetries,
 	)
 	if err != nil {
 		return err

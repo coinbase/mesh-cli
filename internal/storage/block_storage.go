@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"strings"
 
-	rosetta "github.com/coinbase/rosetta-sdk-go/gen"
+	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -133,7 +133,7 @@ func getHeadBlockKey() []byte {
 	return hashBytes([]byte(headBlockKey))
 }
 
-func getBlockKey(blockIdentifier *rosetta.BlockIdentifier) []byte {
+func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
 	return hashBytes(
 		[]byte(fmt.Sprintf("%s:%d", blockIdentifier.Hash, blockIdentifier.Index)),
 	)
@@ -147,7 +147,7 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes([]byte(fmt.Sprintf("%s:%s", transactionHashNamespace, hash)))
 }
 
-func getBalanceKey(account *rosetta.AccountIdentifier) []byte {
+func getBalanceKey(account *types.AccountIdentifier) []byte {
 	if account.SubAccount == nil {
 		return hashBytes(
 			[]byte(fmt.Sprintf("%s:%s", balanceNamespace, account.Address)),
@@ -159,7 +159,7 @@ func getBalanceKey(account *rosetta.AccountIdentifier) []byte {
 			"%s:%s:%s",
 			balanceNamespace,
 			account.Address,
-			account.SubAccount.SubAccount,
+			account.SubAccount.Address,
 		)))
 	}
 
@@ -169,7 +169,7 @@ func getBalanceKey(account *rosetta.AccountIdentifier) []byte {
 		"%s:%s:%s:%v",
 		balanceNamespace,
 		account.Address,
-		account.SubAccount.SubAccount,
+		account.SubAccount.Address,
 		*account.SubAccount.Metadata,
 	)))
 }
@@ -201,7 +201,7 @@ func (b *BlockStorage) NewDatabaseTransaction(
 func (b *BlockStorage) GetHeadBlockIdentifier(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-) (*rosetta.BlockIdentifier, error) {
+) (*types.BlockIdentifier, error) {
 	exists, block, err := transaction.Get(ctx, getHeadBlockKey())
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 	}
 
 	dec := gob.NewDecoder(bytes.NewReader(block))
-	var blockIdentifier rosetta.BlockIdentifier
+	var blockIdentifier types.BlockIdentifier
 	err = dec.Decode(&blockIdentifier)
 	if err != nil {
 		return nil, err
@@ -226,7 +226,7 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 func (b *BlockStorage) StoreHeadBlockIdentifier(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	blockIdentifier *rosetta.BlockIdentifier,
+	blockIdentifier *types.BlockIdentifier,
 ) error {
 	buf := new(bytes.Buffer)
 	err := gob.NewEncoder(buf).Encode(blockIdentifier)
@@ -241,8 +241,8 @@ func (b *BlockStorage) StoreHeadBlockIdentifier(
 func (b *BlockStorage) GetBlock(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	blockIdentifier *rosetta.BlockIdentifier,
-) (*rosetta.Block, error) {
+	blockIdentifier *types.BlockIdentifier,
+) (*types.Block, error) {
 	exists, block, err := transaction.Get(ctx, getBlockKey(blockIdentifier))
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (b *BlockStorage) GetBlock(
 		return nil, fmt.Errorf("%w %+v", ErrBlockNotFound, blockIdentifier)
 	}
 
-	var rosettaBlock rosetta.Block
+	var rosettaBlock types.Block
 	err = gob.NewDecoder(bytes.NewBuffer(block)).Decode(&rosettaBlock)
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ func (b *BlockStorage) storeHash(
 func (b *BlockStorage) StoreBlock(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	block *rosetta.Block,
+	block *types.Block,
 ) error {
 	buf := new(bytes.Buffer)
 	err := gob.NewEncoder(buf).Encode(block)
@@ -337,7 +337,7 @@ func (b *BlockStorage) StoreBlock(
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	block *rosetta.BlockIdentifier,
+	block *types.BlockIdentifier,
 ) error {
 	// Remove all transaction hashes
 	blockData, err := b.GetBlock(ctx, transaction, block)
@@ -363,8 +363,8 @@ func (b *BlockStorage) RemoveBlock(
 }
 
 type balanceEntry struct {
-	Amounts map[string]*rosetta.Amount
-	Block   *rosetta.BlockIdentifier
+	Amounts map[string]*types.Amount
+	Block   *types.BlockIdentifier
 }
 
 func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
@@ -388,12 +388,12 @@ func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
 	return &bal, nil
 }
 
-// GetCurrencyKey is used to identify a *rosetta.Currency
+// GetCurrencyKey is used to identify a *types.Currency
 // in an account's map of currencies. It is not feasible
-// to create a map of [rosetta.Currency]*rosetta.Amount
-// because rosetta.Currency contains a metadata pointer
+// to create a map of [types.Currency]*types.Amount
+// because types.Currency contains a metadata pointer
 // that would prevent any equality.
-func GetCurrencyKey(currency *rosetta.Currency) string {
+func GetCurrencyKey(currency *types.Currency) string {
 	if currency.Metadata == nil {
 		return hashString(
 			fmt.Sprintf("%s:%d", currency.Symbol, currency.Decimals),
@@ -413,28 +413,28 @@ func GetCurrencyKey(currency *rosetta.Currency) string {
 }
 
 // BalanceChange represents a balance change that affected
-// a *rosetta.AccountIdentifier and a *rosetta.Currency.
+// a *types.AccountIdentifier and a *types.Currency.
 type BalanceChange struct {
-	Account     *rosetta.AccountIdentifier
-	Currency    *rosetta.Currency
-	Block       *rosetta.BlockIdentifier
-	Transaction *rosetta.TransactionIdentifier
+	Account     *types.AccountIdentifier
+	Currency    *types.Currency
+	Block       *types.BlockIdentifier
+	Transaction *types.TransactionIdentifier
 	NewValue    string
-	OldBlock    *rosetta.BlockIdentifier
+	OldBlock    *types.BlockIdentifier
 	OldValue    string
 	Difference  string
 }
 
-// UpdateBalance updates a rosetta.AccountIdentifer
-// by a rosetta.Amount and sets the account's most
+// UpdateBalance updates a types.AccountIdentifer
+// by a types.Amount and sets the account's most
 // recent accessed block.
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
-	account *rosetta.AccountIdentifier,
-	amount *rosetta.Amount,
-	block *rosetta.BlockIdentifier,
-	transaction *rosetta.TransactionIdentifier,
+	account *types.AccountIdentifier,
+	amount *types.Amount,
+	block *types.BlockIdentifier,
+	transaction *types.TransactionIdentifier,
 ) (*BalanceChange, error) {
 	if amount == nil || amount.Currency == nil {
 		return nil, errors.New("invalid amount")
@@ -450,7 +450,7 @@ func (b *BlockStorage) UpdateBalance(
 	currencyKey := GetCurrencyKey(amount.Currency)
 
 	if !exists {
-		amountMap := make(map[string]*rosetta.Amount)
+		amountMap := make(map[string]*types.Amount)
 		newVal, ok := new(big.Int).SetString(amount.Value, 10)
 		if !ok {
 			return nil, fmt.Errorf("%s is not an integer", amount.Value)
@@ -549,13 +549,13 @@ func (b *BlockStorage) UpdateBalance(
 	}, nil
 }
 
-// GetBalance returns all the balances of a rosetta.AccountIdentifier
-// and the rosetta.BlockIdentifier it was last updated at.
+// GetBalance returns all the balances of a types.AccountIdentifier
+// and the types.BlockIdentifier it was last updated at.
 func (b *BlockStorage) GetBalance(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	account *rosetta.AccountIdentifier,
-) (map[string]*rosetta.Amount, *rosetta.BlockIdentifier, error) {
+	account *types.AccountIdentifier,
+) (map[string]*types.Amount, *types.BlockIdentifier, error) {
 	key := getBalanceKey(account)
 	exists, bal, err := transaction.Get(ctx, key)
 	if err != nil {
@@ -581,7 +581,7 @@ func (b *BlockStorage) GetBalance(
 func (b *BlockStorage) BootstrapBalances(
 	ctx context.Context,
 	dataDir string,
-	genesisBlockIdentifier *rosetta.BlockIdentifier,
+	genesisBlockIdentifier *types.BlockIdentifier,
 ) error {
 	f, err := os.OpenFile(
 		path.Join(dataDir, bootstrapBalancesFile),
@@ -623,7 +623,7 @@ func (b *BlockStorage) BootstrapBalances(
 			return fmt.Errorf("row %d does not have expected fields: %s", rowsRead, record)
 		}
 
-		account := &rosetta.AccountIdentifier{
+		account := &types.AccountIdentifier{
 			Address: record[bootstrapAddressIndex],
 		}
 
@@ -632,9 +632,9 @@ func (b *BlockStorage) BootstrapBalances(
 			return err
 		}
 
-		amount := &rosetta.Amount{
+		amount := &types.Amount{
 			Value: record[bootstrapValueIndex],
-			Currency: &rosetta.Currency{
+			Currency: &types.Currency{
 				Symbol:   record[bootstrapSymbolIndex],
 				Decimals: int32(currencyDecimals),
 			},
