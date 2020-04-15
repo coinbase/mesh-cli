@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
-	github.com/coinbase/rosetta-sdk-go v0.1.3
+	github.com/coinbase/rosetta-sdk-go v0.1.4
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v1.6.0
 	github.com/stretchr/testify v1.5.1
