@@ -93,7 +93,7 @@ func main() {
 
 	var r *reconciler.Reconciler
 	if cfg.ReconcileBalances {
-		log.Printf("Balance reconciliation enabled\n")
+		log.Println("Balance reconciliation enabled")
 
 		r = reconciler.New(
 			ctx,
