@@ -74,31 +74,31 @@ const (
 var (
 	// ErrHeadBlockNotFound is returned when there is no
 	// head block found in BlockStorage.
-	ErrHeadBlockNotFound = errors.New("Head block not found")
+	ErrHeadBlockNotFound = errors.New("head block not found")
 
 	// ErrBlockNotFound is returned when a block is not
 	// found in BlockStorage.
-	ErrBlockNotFound = errors.New("Block not found")
+	ErrBlockNotFound = errors.New("block not found")
 
 	// ErrAccountNotFound is returned when an account
 	// is not found in BlockStorage.
-	ErrAccountNotFound = errors.New("Account not found")
+	ErrAccountNotFound = errors.New("account not found")
 
 	// ErrNegativeBalance is returned when an account
 	// balance goes negative as the result of an operation.
-	ErrNegativeBalance = errors.New("Negative balance")
+	ErrNegativeBalance = errors.New("negative balance")
 
 	// ErrDuplicateBlockHash is returned when a block hash
 	// cannot be stored because it is a duplicate.
-	ErrDuplicateBlockHash = errors.New("Duplicate block hash")
+	ErrDuplicateBlockHash = errors.New("duplicate block hash")
 
 	// ErrDuplicateTransactionHash is returned when a transaction
 	// hash cannot be stored because it is a duplicate.
-	ErrDuplicateTransactionHash = errors.New("Duplicate transaction hash")
+	ErrDuplicateTransactionHash = errors.New("duplicate transaction hash")
 
 	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
 	// balances after syncing has started.
-	ErrAlreadyStartedSyncing = errors.New("already started syncing")
+	ErrAlreadyStartedSyncing = errors.New("cannot bootstrap accounts, already started syncing")
 
 	// ErrIncorrectHeader is returned when a bootstrap file has an
 	// incorrect header.
