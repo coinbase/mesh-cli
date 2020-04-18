@@ -669,4 +669,15 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequenceReorg[4].BlockIdentifier, head)
 		assert.NoError(t, err)
 	})
+
+	t.Run("Revert all blocks after genesis", func(t *testing.T) {
+		err := syncer.NewHeadIndex(ctx, genesisIndex)
+		assert.NoError(t, err)
+
+		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
+		head, err := syncer.storage.GetHeadBlockIdentifier(ctx, tx)
+		tx.Discard(ctx)
+		assert.Equal(t, blockSequenceReorg[0].BlockIdentifier, head)
+		assert.NoError(t, err)
+	})
 }

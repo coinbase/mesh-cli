@@ -269,6 +269,38 @@ func (s *Syncer) ProcessBlock(
 	return balanceChanges, newIndex, nil
 }
 
+// NewHeadIndex reverts all blocks that have
+// an index greater than newHeadIndex. This is particularly
+// useful when debugging a server implementation because
+// you don't need to restart validation from genesis. Instead,
+// you can just restart validation at the block immediately
+// before any erroneous block.
+func (s *Syncer) NewHeadIndex(
+	ctx context.Context,
+	newHeadIndex int64,
+) error {
+	tx := s.storage.NewDatabaseTransaction(ctx, true)
+	defer tx.Discard(ctx)
+
+	for {
+		head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		if head.Index == newHeadIndex {
+			break
+		}
+
+		_, err = s.OrphanBlock(ctx, tx, head)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
 // SyncBlockRange syncs blocks from startIndex to endIndex, inclusive.
 // This function handles re-orgs that may occur while syncing as long
 // as the genesisIndex is not orphaned.
@@ -401,7 +433,9 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 }
 
 // Sync cycles endlessly until there is an error.
-func (s *Syncer) Sync(ctx context.Context) error {
+func (s *Syncer) Sync(
+	ctx context.Context,
+) error {
 	printNetwork := true
 	for ctx.Err() == nil {
 		err := s.SyncCycle(ctx, printNetwork)

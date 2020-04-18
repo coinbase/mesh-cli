@@ -82,6 +82,13 @@ When enabled, it is possible to view the latency of block and account fetches.
 Note, this naive implementation of benchmarks does not factor in request latency
 due to multithreaded requests.
 
+#### NEW_HEAD_INDEX
+_Default: -1_
+
+When debugging a server, it can be useful to revert some number of erroneous blocks
+instead of starting validation over. To do so, set the `NEW_HEAD_INDEX` to the value
+of the last correct block.
+
 ## Development
 * `make deps` to install dependencies
 * `make test` to run tests

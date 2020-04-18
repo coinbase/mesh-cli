@@ -41,6 +41,7 @@ type config struct {
 	LogReconciliation      bool   `env:"LOG_RECONCILIATION,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
 	ReconcileBalances      bool   `env:"RECONCILE_BALANCES,required"`
+	NewHeadIndex           int64  `env:"NEW_HEAD_INDEX" envDefault:"-1"`
 }
 
 func main() {
@@ -117,6 +118,13 @@ func main() {
 		logger,
 		r,
 	)
+	if cfg.NewHeadIndex != -1 {
+		err := syncer.NewHeadIndex(ctx, cfg.NewHeadIndex)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	g.Go(func() error {
 		return syncer.Sync(ctx)
 	})
