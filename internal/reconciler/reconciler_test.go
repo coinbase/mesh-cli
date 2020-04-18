@@ -269,7 +269,7 @@ func TestCompareBalance(t *testing.T) {
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
 	logger := logger.NewLogger(*newDir, false, false, false, false)
-	reconciler := New(ctx, nil, blockStorage, nil, logger, 1)
+	reconciler := New(ctx, nil, blockStorage, nil, logger, 1, false)
 
 	t.Run("No head block yet", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(

@@ -296,7 +296,7 @@ func TestNoReorgProcessBlock(t *testing.T) {
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter,
 	}
-	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
+	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1, false)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
 	currIndex := int64(0)
 	genesisIndex := blockSequenceNoReorg[0].BlockIdentifier.Index
@@ -451,7 +451,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter,
 	}
-	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1)
+	rec := reconciler.New(ctx, nil, blockStorage, fetcher, logger, 1, false)
 	syncer := New(ctx, nil, blockStorage, fetcher, logger, rec)
 	currIndex := int64(0)
 	genesisIndex := blockSequenceReorg[0].BlockIdentifier.Index

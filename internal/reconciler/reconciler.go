@@ -95,12 +95,13 @@ var (
 // types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
 type Reconciler struct {
-	network            *types.NetworkIdentifier
-	storage            *storage.BlockStorage
-	fetcher            *fetcher.Fetcher
-	logger             *logger.Logger
-	accountConcurrency int
-	acctQueue          chan *storage.BalanceChange
+	network              *types.NetworkIdentifier
+	storage              *storage.BlockStorage
+	fetcher              *fetcher.Fetcher
+	logger               *logger.Logger
+	accountConcurrency   int
+	lookupBalanceByBlock bool
+	acctQueue            chan *storage.BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -119,16 +120,18 @@ func New(
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
 	accountConcurrency int,
+	lookupBalanceByBlock bool,
 ) *Reconciler {
 	return &Reconciler{
-		network:            network,
-		storage:            blockStorage,
-		fetcher:            fetcher,
-		logger:             logger,
-		accountConcurrency: accountConcurrency,
-		acctQueue:          make(chan *storage.BalanceChange, backlogThreshold),
-		highWaterMark:      0,
-		seenAccts:          make([]*storage.BalanceChange, 0),
+		network:              network,
+		storage:              blockStorage,
+		fetcher:              fetcher,
+		logger:               logger,
+		accountConcurrency:   accountConcurrency,
+		lookupBalanceByBlock: lookupBalanceByBlock,
+		acctQueue:            make(chan *storage.BalanceChange, backlogThreshold),
+		highWaterMark:        0,
+		seenAccts:            make([]*storage.BalanceChange, 0),
 	}
 }
 
@@ -285,6 +288,53 @@ func extractAmount(
 	return nil, fmt.Errorf("could not extract amount for %+v", accountAndCurrency)
 }
 
+// getAccountBalance returns the balance for an account
+// at either the current block (if lookupBalanceByBlock is
+// disabled) or at some historical block.
+func (r *Reconciler) getAccountBalance(
+	ctx context.Context,
+	acct *storage.BalanceChange,
+	inactive bool,
+) (*types.BlockIdentifier, []*types.Amount, error) {
+	start := time.Now()
+
+	blockIdentifier := types.ConstructPartialBlockIdentifier(acct.Block)
+	if inactive {
+		txn := r.storage.NewDatabaseTransaction(ctx, false)
+		head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
+		if err != nil {
+			return nil, nil, err
+		}
+		txn.Discard(ctx)
+
+		blockIdentifier = types.ConstructPartialBlockIdentifier(head)
+	}
+
+	if !r.lookupBalanceByBlock {
+		// Use the current balance to reconcile balances when lookupBalanceByBlock
+		// is disabled. This could be the case when a rosetta server does not
+		// support historical balance lookups.
+		blockIdentifier = nil
+	}
+
+	liveBlock, liveBalances, _, err := r.fetcher.AccountBalanceRetry(
+		ctx,
+		r.network,
+		acct.Account,
+		blockIdentifier,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = r.logger.AccountLatency(ctx, acct.Account, time.Since(start).Seconds(), len(liveBalances))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return liveBlock, liveBalances, nil
+}
+
 // accountReconciliation returns an error if the provided
 // AccountAndCurrency's live balance cannot be reconciled
 // with the computed balance.
@@ -293,17 +343,7 @@ func (r *Reconciler) accountReconciliation(
 	acct *storage.BalanceChange,
 	inactive bool,
 ) error {
-	start := time.Now()
-	liveBlock, liveBalances, err := r.fetcher.AccountBalanceRetry(
-		ctx,
-		r.network,
-		acct.Account,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = r.logger.AccountLatency(ctx, acct.Account, time.Since(start).Seconds(), len(liveBalances))
+	liveBlock, liveBalances, err := r.getAccountBalance(ctx, acct, inactive)
 	if err != nil {
 		return err
 	}
@@ -322,6 +362,10 @@ func (r *Reconciler) accountReconciliation(
 		)
 		if err != nil {
 			if errors.Is(err, ErrHeadBlockBehindLive) {
+				// This error will only occur when lookupBalanceByBlock
+				// is disabled and the syncer is behind the current block of
+				// the node. This error should never occur when
+				// lookupBalanceByBlock is enabled.
 				diff := liveBlock.Index - headIndex
 				if diff < waitToCheckDiff {
 					time.Sleep(waitToCheckDiffSleep)

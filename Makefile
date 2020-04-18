@@ -13,6 +13,7 @@ LOG_RECONCILIATION?=true
 BOOTSTRAP_BALANCES?=false
 RECONCILE_BALANCES?=true
 NEW_HEAD_INDEX?=-1
+LOOKUP_BALANCE_BY_BLOCK?=true
 
 deps:
 	go get ./...
@@ -69,6 +70,7 @@ validate:
 		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
 		-e RECONCILE_BALANCES="${RECONCILE_BALANCES}" \
 		-e NEW_HEAD_INDEX="${NEW_HEAD_INDEX}" \
+		-e LOOKUP_BALANCE_BY_BLOCK="${LOOKUP_BALANCE_BY_BLOCK}" \
 		--network host \
 		rosetta-validator \
 		rosetta-validator;

@@ -89,6 +89,15 @@ When debugging a server, it can be useful to revert some number of erroneous blo
 instead of starting validation over. To do so, set the `NEW_HEAD_INDEX` to the value
 of the last correct block.
 
+#### LOOKUP_BALANCE_BY_BLOCK
+_Default: true_
+
+It is much more efficient to reconcile balances when it is possible to lookup
+balances at a particular block. However, if your server does not support
+historical balance lookup, you should disable this option. Reconciliation will
+still be performed but it will rely on fetching the current balances of
+interesting accounts.
+
 ## Development
 * `make deps` to install dependencies
 * `make test` to run tests
