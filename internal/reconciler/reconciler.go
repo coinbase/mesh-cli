@@ -99,7 +99,7 @@ type Reconciler struct {
 	storage              *storage.BlockStorage
 	fetcher              *fetcher.Fetcher
 	logger               *logger.Logger
-	accountConcurrency   int
+	accountConcurrency   uint64
 	lookupBalanceByBlock bool
 	acctQueue            chan *storage.BalanceChange
 
@@ -119,7 +119,7 @@ func New(
 	blockStorage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
-	accountConcurrency int,
+	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
 ) *Reconciler {
 	return &Reconciler{
@@ -509,7 +509,7 @@ func (r *Reconciler) reconcileInactiveAccounts(
 // If either set of goroutines errors, the function will return an error.
 func (r *Reconciler) Reconcile(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
-	for j := 0; j < r.accountConcurrency; j++ {
+	for j := uint64(0); j < r.accountConcurrency; j++ {
 		g.Go(func() error {
 			return r.reconcileActiveAccounts(ctx)
 		})

@@ -26,7 +26,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -53,10 +52,6 @@ const (
 
 	// balanceNamespace is prepended to any stored balance.
 	balanceNamespace = "balance"
-
-	// bootstrapBalancesFile is loaded to bootstrap the balance
-	// of a collection of accounts.
-	bootstrapBalancesFile = "bootstrap_balances.csv"
 
 	// bootstrapBalancesPermissions specifies that the user can
 	// read and write the file.
@@ -580,11 +575,11 @@ func (b *BlockStorage) GetBalance(
 // accounts that received an allocation in the genesis block.
 func (b *BlockStorage) BootstrapBalances(
 	ctx context.Context,
-	dataDir string,
+	bootstrapBalancesFile string,
 	genesisBlockIdentifier *types.BlockIdentifier,
 ) error {
 	f, err := os.OpenFile(
-		path.Join(dataDir, bootstrapBalancesFile),
+		bootstrapBalancesFile,
 		os.O_RDONLY,
 		bootstrapBalancesPermissions,
 	)

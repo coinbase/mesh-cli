@@ -166,6 +166,9 @@ var (
 				Hash:  "2",
 				Index: 2,
 			},
+			Transactions: []*types.Transaction{
+				senderTransaction,
+			},
 		},
 		{ // invalid block
 			BlockIdentifier: &types.BlockIdentifier{
@@ -450,23 +453,25 @@ func TestReorgProcessBlock(t *testing.T) {
 		assert.Equal(t, zeroAmount, amounts)
 		assert.Equal(t, blockSequence[0].BlockIdentifier, block)
 		assert.NoError(t, err)
+	})
 
-		balanceChanges, currIndex, reorg, err = syncer.ProcessBlock(
+	t.Run("Block with invalid transaction", func(t *testing.T) {
+		balanceChanges, currIndex, reorg, err := syncer.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
 			blockSequence[4],
 		)
 		assert.False(t, reorg)
-		assert.Equal(t, int64(4), currIndex)
+		assert.Equal(t, int64(3), currIndex)
 		assert.Equal(t, 0, len(balanceChanges))
-		assert.NoError(t, err)
+		assert.Contains(t, err.Error(), storage.ErrNegativeBalance.Error())
 
-		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
-		head, err = syncer.storage.GetHeadBlockIdentifier(ctx, tx)
+		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
+		head, err := syncer.storage.GetHeadBlockIdentifier(ctx, tx)
 		tx.Discard(ctx)
-		assert.Equal(t, blockSequence[4].BlockIdentifier, head)
 		assert.NoError(t, err)
+		assert.Equal(t, blockSequence[2].BlockIdentifier, head)
 	})
 
 	t.Run("Out of order block", func(t *testing.T) {
@@ -478,14 +483,14 @@ func TestReorgProcessBlock(t *testing.T) {
 		)
 		currIndex = newIndex
 		assert.False(t, reorg)
-		assert.Equal(t, int64(4), currIndex)
+		assert.Equal(t, int64(3), currIndex)
 		assert.Equal(t, 0, len(balanceChanges))
-		assert.EqualError(t, err, "Got block 5 instead of 4")
+		assert.EqualError(t, err, "Got block 5 instead of 3")
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
 		head, err := syncer.storage.GetHeadBlockIdentifier(ctx, tx)
 		tx.Discard(ctx)
-		assert.Equal(t, blockSequence[4].BlockIdentifier, head)
+		assert.Equal(t, blockSequence[2].BlockIdentifier, head)
 		assert.NoError(t, err)
 	})
 

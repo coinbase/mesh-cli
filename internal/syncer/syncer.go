@@ -270,8 +270,21 @@ func (s *Syncer) NewHeadIndex(
 
 	for {
 		head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
-		if err != nil {
+		if err == storage.ErrHeadBlockNotFound {
+			return fmt.Errorf(
+				"cannot start syncing at %d, have not yet processed any blocks",
+				newHeadIndex,
+			)
+		} else if err != nil {
 			return err
+		}
+
+		if head.Index < newHeadIndex {
+			return fmt.Errorf(
+				"cannot start syncing at %d, have only processed %d blocks",
+				newHeadIndex,
+				head.Index,
+			)
 		}
 
 		if head.Index == newHeadIndex {
@@ -296,7 +309,6 @@ func (s *Syncer) SyncBlockRange(
 	startIndex int64,
 	endIndex int64,
 ) error {
-	allBlocks := make([]*fetcher.BlockAndLatency, 0)
 	blockMap, err := s.fetcher.BlockRange(ctx, s.network, startIndex, endIndex)
 	if err != nil {
 		return err
@@ -341,7 +353,6 @@ func (s *Syncer) SyncBlockRange(
 		}
 
 		currIndex = newIndex
-		allBlocks = append(allBlocks, block)
 
 		if err := s.handler.BlockProcessed(ctx, block.Block, reorg, balanceChanges); err != nil {
 			return err

@@ -5,15 +5,6 @@
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
 TEST_SCRIPT=go test -v ./internal/...
 
-SERVER_URL?=http://localhost:8080
-LOG_TRANSACTIONS?=true
-LOG_BALANCES?=true
-LOG_RECONCILIATION?=true
-BOOTSTRAP_BALANCES?=false
-RECONCILE_BALANCES?=true
-NEW_HEAD_INDEX?=-1
-LOOKUP_BALANCE_BY_BLOCK?=true
-
 deps:
 	go get ./...
 	go get github.com/stretchr/testify
@@ -45,33 +36,18 @@ check-license:
 	${LICENCE_SCRIPT} -check .
 
 shorten-lines:
-	golines -w --shorten-comments internal 
+	golines -w --shorten-comments internal cmd
 
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
 
 release: add-license shorten-lines format test lint salus
 
-validate:
-	docker build -t rosetta-validator .; \
-	docker run \
-		--rm \
-		-v ${PWD}/validator-data:/data \
-		-e DATA_DIR="/data" \
-		-e SERVER_URL="${SERVER_URL}" \
-		-e BLOCK_CONCURRENCY="32" \
-		-e TRANSACTION_CONCURRENCY="8" \
-		-e ACCOUNT_CONCURRENCY="8" \
-		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
-		-e LOG_BALANCES="${LOG_BALANCES}" \
-		-e LOG_RECONCILIATION="${LOG_RECONCILIATION}" \
-		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
-		-e RECONCILE_BALANCES="${RECONCILE_BALANCES}" \
-		-e NEW_HEAD_INDEX="${NEW_HEAD_INDEX}" \
-		-e LOOKUP_BALANCE_BY_BLOCK="${LOOKUP_BALANCE_BY_BLOCK}" \
-		--network host \
-		rosetta-validator \
-		rosetta-validator;
+build:
+	go build ./...
+
+install:
+	go install ./...
 
 watch-blocks:
 	tail -f ${PWD}/validator-data/blocks.txt

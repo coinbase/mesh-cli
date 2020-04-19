@@ -708,9 +708,9 @@ func TestGetCurrencyKey(t *testing.T) {
 	}
 }
 
-func createBootstrapBalancesFile(dataDir string) (*os.File, error) {
+func createBootstrapBalancesFile(file string) (*os.File, error) {
 	return os.OpenFile(
-		path.Join(dataDir, bootstrapBalancesFile),
+		file,
 		os.O_CREATE|os.O_WRONLY,
 		0600,
 	)
@@ -739,21 +739,22 @@ func TestBootstrapBalances(t *testing.T) {
 	defer database.Close(ctx)
 
 	storage := NewBlockStorage(ctx, database)
+	bootstrapBalancesFile := path.Join(*newDir, "balances.csv")
 
 	t.Run("File doesn't exist", func(t *testing.T) {
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, fmt.Sprintf(
 			"open %s: no such file or directory",
-			path.Join(*newDir, bootstrapBalancesFile),
+			bootstrapBalancesFile,
 		))
 	})
 
 	t.Run("Set balance successfully", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -782,7 +783,7 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.NoError(t, err)
@@ -801,7 +802,7 @@ func TestBootstrapBalances(t *testing.T) {
 	})
 
 	t.Run("Invalid file header", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -810,14 +811,14 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, ErrIncorrectHeader.Error())
 	})
 
 	t.Run("Invalid account row", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -832,14 +833,14 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, "row 2 does not have expected fields: [bad row]")
 	})
 
 	t.Run("Invalid account value", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -868,7 +869,7 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, "goodbye is not an integer")
@@ -881,7 +882,7 @@ func TestBootstrapBalances(t *testing.T) {
 		assert.NoError(t, tx.Commit(ctx))
 
 		// Use the created CSV file from the last test
-		err = storage.BootstrapBalances(ctx, *newDir, genesisBlockIdentifier)
+		err = storage.BootstrapBalances(ctx, bootstrapBalancesFile, genesisBlockIdentifier)
 		assert.EqualError(t, err, ErrAlreadyStartedSyncing.Error())
 	})
 }
