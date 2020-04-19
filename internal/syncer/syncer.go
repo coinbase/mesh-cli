@@ -16,14 +16,13 @@ package syncer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/coinbase/rosetta-validator/internal/logger"
-	"github.com/coinbase/rosetta-validator/internal/reconciler"
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -40,28 +39,24 @@ const (
 // Syncer contains the logic that orchestrates
 // block fetching, storage, and reconciliation.
 type Syncer struct {
-	network    *types.NetworkIdentifier
-	storage    *storage.BlockStorage
-	fetcher    *fetcher.Fetcher
-	logger     *logger.Logger
-	reconciler *reconciler.Reconciler
+	network *types.NetworkIdentifier
+	storage *storage.BlockStorage
+	fetcher *fetcher.Fetcher
+	handler Handler
 }
 
 // New returns a new Syncer.
 func New(
-	ctx context.Context,
 	network *types.NetworkIdentifier,
 	storage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
-	logger *logger.Logger,
-	reconciler *reconciler.Reconciler,
+	handler Handler,
 ) *Syncer {
 	return &Syncer{
-		network:    network,
-		storage:    storage,
-		fetcher:    fetcher,
-		logger:     logger,
-		reconciler: reconciler,
+		network: network,
+		storage: storage,
+		fetcher: fetcher,
+		handler: handler,
 	}
 }
 
@@ -217,13 +212,13 @@ func (s *Syncer) ProcessBlock(
 	genesisIndex int64,
 	currIndex int64,
 	block *types.Block,
-) ([]*storage.BalanceChange, int64, error) {
+) ([]*storage.BalanceChange, int64, bool, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, true)
 	defer tx.Discard(ctx)
 
 	reorg, err := s.checkReorg(ctx, tx, block)
 	if err != nil {
-		return nil, currIndex, err
+		return nil, currIndex, false, err
 	}
 
 	var balanceChanges []*storage.BalanceChange
@@ -231,22 +226,22 @@ func (s *Syncer) ProcessBlock(
 	if reorg {
 		newIndex = currIndex - 1
 		if newIndex == genesisIndex {
-			return nil, 0, errors.New("cannot orphan genesis block")
+			return nil, 0, false, errors.New("cannot orphan genesis block")
 		}
 
 		head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
 		if err != nil {
-			return nil, currIndex, err
+			return nil, currIndex, false, err
 		}
 
 		balanceChanges, err = s.OrphanBlock(ctx, tx, head)
 		if err != nil {
-			return nil, currIndex, err
+			return nil, currIndex, false, err
 		}
 	} else {
 		balanceChanges, err = s.AddBlock(ctx, tx, block)
 		if err != nil {
-			return nil, currIndex, err
+			return nil, currIndex, false, err
 		}
 
 		newIndex = currIndex + 1
@@ -254,19 +249,10 @@ func (s *Syncer) ProcessBlock(
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return nil, currIndex, err
+		return nil, currIndex, false, err
 	}
 
-	// Wait to log until transaction committed
-	if err := s.logger.BlockStream(ctx, block, reorg); err != nil {
-		return nil, currIndex, err
-	}
-
-	if err := s.logger.BalanceStream(ctx, balanceChanges); err != nil {
-		return nil, currIndex, err
-	}
-
-	return balanceChanges, newIndex, nil
+	return balanceChanges, newIndex, reorg, nil
 }
 
 // NewHeadIndex reverts all blocks that have
@@ -344,7 +330,7 @@ func (s *Syncer) SyncBlockRange(
 		}
 
 		// Can't return balanceChanges without creating new variable
-		balanceChanges, newIndex, err := s.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := s.ProcessBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -356,10 +342,13 @@ func (s *Syncer) SyncBlockRange(
 
 		currIndex = newIndex
 		allBlocks = append(allBlocks, block)
-		s.reconciler.QueueAccounts(ctx, block.Block.BlockIdentifier.Index, balanceChanges)
+
+		if err := s.handler.BlockProcessed(ctx, block.Block, reorg, balanceChanges); err != nil {
+			return err
+		}
 	}
 
-	return s.logger.BlockLatency(ctx, allBlocks)
+	return nil
 }
 
 // nextSyncableRange returns the next range of indexes to sync
@@ -394,6 +383,21 @@ func (s *Syncer) nextSyncableRange(
 	return genesisBlockIdentifier.Index, startIndex, endIndex, nil
 }
 
+// PrintNetwork pretty prints the types.NetworkStatusResponse to the console.
+func PrintNetwork(
+	ctx context.Context,
+	network *types.NetworkStatusResponse,
+) error {
+	b, err := json.MarshalIndent(network, "", " ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Network Information: " + string(b))
+
+	return nil
+}
+
 // SyncCycle is a single iteration of processing up to maxSync blocks.
 // SyncCycle is called repeatedly by Sync until there is an error.
 func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
@@ -407,7 +411,7 @@ func (s *Syncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 	}
 
 	if printNetwork {
-		err = logger.Network(ctx, networkStatus)
+		err = PrintNetwork(ctx, networkStatus)
 		if err != nil {
 			return err
 		}

@@ -74,14 +74,6 @@ reconciliation will fail.
 
 There is an example file in `examples/bootstrap_balances.csv`.
 
-#### LOG_BENCHMARKS
-_Default: false_
-
-It can be useful to observe performance characteristics of a Rosetta Server.
-When enabled, it is possible to view the latency of block and account fetches.
-Note, this naive implementation of benchmarks does not factor in request latency
-due to multithreaded requests.
-
 #### NEW_HEAD_INDEX
 _Default: -1_
 

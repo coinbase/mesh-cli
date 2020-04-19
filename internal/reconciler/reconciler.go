@@ -296,8 +296,6 @@ func (r *Reconciler) getAccountBalance(
 	acct *storage.BalanceChange,
 	inactive bool,
 ) (*types.BlockIdentifier, []*types.Amount, error) {
-	start := time.Now()
-
 	blockIdentifier := types.ConstructPartialBlockIdentifier(acct.Block)
 	if inactive {
 		txn := r.storage.NewDatabaseTransaction(ctx, false)
@@ -323,11 +321,6 @@ func (r *Reconciler) getAccountBalance(
 		acct.Account,
 		blockIdentifier,
 	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = r.logger.AccountLatency(ctx, acct.Account, time.Since(start).Seconds(), len(liveBalances))
 	if err != nil {
 		return nil, nil, err
 	}

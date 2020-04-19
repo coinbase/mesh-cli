@@ -36,7 +36,6 @@ type config struct {
 	TransactionConcurrency uint64 `env:"TRANSACTION_CONCURRENCY,required"`
 	AccountConcurrency     int    `env:"ACCOUNT_CONCURRENCY,required"`
 	LogTransactions        bool   `env:"LOG_TRANSACTIONS,required"`
-	LogBenchmarks          bool   `env:"LOG_BENCHMARKS,required"`
 	LogBalances            bool   `env:"LOG_BALANCES,required"`
 	LogReconciliation      bool   `env:"LOG_RECONCILIATION,required"`
 	BootstrapBalances      bool   `env:"BOOTSTRAP_BALANCES,required"`
@@ -86,7 +85,6 @@ func main() {
 	logger := logger.NewLogger(
 		cfg.DataDir,
 		cfg.LogTransactions,
-		cfg.LogBenchmarks,
 		cfg.LogBalances,
 		cfg.LogReconciliation,
 	)
@@ -112,13 +110,16 @@ func main() {
 		})
 	}
 
+	syncHandler := syncer.NewBaseHandler(
+		logger,
+		r,
+	)
+
 	syncer := syncer.New(
-		ctx,
 		primaryNetwork,
 		blockStorage,
 		fetcher,
-		logger,
-		r,
+		syncHandler,
 	)
 	if cfg.NewHeadIndex != -1 {
 		err := syncer.NewHeadIndex(ctx, cfg.NewHeadIndex)

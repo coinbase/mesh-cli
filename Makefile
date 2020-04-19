@@ -7,7 +7,6 @@ TEST_SCRIPT=go test -v ./internal/...
 
 SERVER_URL?=http://localhost:8080
 LOG_TRANSACTIONS?=true
-LOG_BENCHMARKS?=false
 LOG_BALANCES?=true
 LOG_RECONCILIATION?=true
 BOOTSTRAP_BALANCES?=false
@@ -64,7 +63,6 @@ validate:
 		-e TRANSACTION_CONCURRENCY="8" \
 		-e ACCOUNT_CONCURRENCY="8" \
 		-e LOG_TRANSACTIONS="${LOG_TRANSACTIONS}" \
-		-e LOG_BENCHMARKS="${LOG_BENCHMARKS}" \
 		-e LOG_BALANCES="${LOG_BALANCES}" \
 		-e LOG_RECONCILIATION="${LOG_RECONCILIATION}" \
 		-e BOOTSTRAP_BALANCES="${BOOTSTRAP_BALANCES}" \
@@ -86,9 +84,3 @@ watch-balances:
 
 watch-reconciliations:
 	tail -f ${PWD}/validator-data/reconciliations.txt
-
-view-block-benchmarks:
-	open ${PWD}/validator-data/block_benchmarks.csv
-
-view-account-benchmarks:
-	open ${PWD}/validator-data/account_benchmarks.csv

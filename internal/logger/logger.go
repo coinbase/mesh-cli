@@ -16,14 +16,12 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
-	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -52,22 +50,6 @@ const (
 	// when an event is orphaned.
 	removeEvent = "Remove"
 
-	// blockLatencyHeader is used as the CSV header
-	// to the blockBenchmarkFile.
-	blockLatencyHeader = "index,latency,txs,ops\n"
-
-	// accountLatencyHeader is used as the CSV header
-	// to the accountBenchmarkFile.
-	accountLatencyHeader = "account,latency,balances\n"
-
-	// blockBenchmarkFile contains each block fetch
-	// stat in the form of blockLatencyHeader.
-	blockBenchmarkFile = "block_benchmarks.csv"
-
-	// accountBenchmarkFile contains each account fetch
-	// stat in the form of accountBenchmarkFile.
-	accountBenchmarkFile = "account_benchmarks.csv"
-
 	// logFilePermissions specifies that the user can
 	// read and write the file.
 	logFilePermissions = 0600
@@ -78,7 +60,6 @@ const (
 type Logger struct {
 	logDir            string
 	logTransactions   bool
-	logBenchmarks     bool
 	logBalances       bool
 	logReconciliation bool
 }
@@ -87,14 +68,12 @@ type Logger struct {
 func NewLogger(
 	logDir string,
 	logTransactions bool,
-	logBenchmarks bool,
 	logBalances bool,
 	logReconciliation bool,
 ) *Logger {
 	return &Logger{
 		logDir:            logDir,
 		logTransactions:   logTransactions,
-		logBenchmarks:     logBenchmarks,
 		logBalances:       logBalances,
 		logReconciliation: logReconciliation,
 	}
@@ -298,136 +277,6 @@ func (l *Logger) ReconcileStream(
 	if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-// writeCSVHeader writes a header to a file if it
-// doesn't yet exist.
-func writeCSVHeader(header string, file string) error {
-	_, err := os.Stat(file)
-	if os.IsNotExist(err) {
-		f, err := os.OpenFile(
-			file,
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-			logFilePermissions,
-		)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		_, err = f.WriteString(header)
-		return err
-	}
-
-	return err
-}
-
-// BlockLatency writes the Rosetta Server performance for block fetch
-// benchmarks to the block_benchmarks.csv file.
-func (l *Logger) BlockLatency(
-	ctx context.Context,
-	blocks []*fetcher.BlockAndLatency,
-) error {
-	if !l.logBenchmarks {
-		return nil
-	}
-
-	file := path.Join(l.logDir, blockBenchmarkFile)
-	err := writeCSVHeader(blockLatencyHeader, file)
-	if err != nil {
-		return err
-	}
-
-	// Append to file
-	f, err := os.OpenFile(
-		file,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
-	)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	for _, block := range blocks {
-		txs := len(block.Block.Transactions)
-		ops := 0
-		for _, tx := range block.Block.Transactions {
-			ops += len(tx.Operations)
-		}
-
-		_, err := f.WriteString(fmt.Sprintf(
-			"%d,%f,%d,%d\n",
-			block.Block.BlockIdentifier.Index,
-			block.Latency,
-			txs,
-			ops,
-		))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// AccountLatency writes the Rosetta Server performance for
-// account fetch benchmarks to the account_benchmarks.csv file.
-func (l *Logger) AccountLatency(
-	ctx context.Context,
-	account *types.AccountIdentifier,
-	latency float64,
-	balances int,
-) error {
-	if !l.logBenchmarks {
-		return nil
-	}
-
-	file := path.Join(l.logDir, accountBenchmarkFile)
-	err := writeCSVHeader(accountLatencyHeader, file)
-	if err != nil {
-		return err
-	}
-
-	// Append to file
-	f, err := os.OpenFile(
-		file,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
-	)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	addressString := account.Address
-	if account.SubAccount != nil {
-		addressString += account.SubAccount.Address
-	}
-
-	_, err = f.WriteString(fmt.Sprintf(
-		"%s,%f,%d\n",
-		addressString,
-		latency,
-		balances,
-	))
-
-	return err
-}
-
-// Network pretty prints the types.NetworkStatusResponse to the console.
-func Network(
-	ctx context.Context,
-	network *types.NetworkStatusResponse,
-) error {
-	b, err := json.MarshalIndent(network, "", " ")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Network Information: " + string(b))
 
 	return nil
 }
