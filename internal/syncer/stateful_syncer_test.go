@@ -229,7 +229,7 @@ var (
 func assertNextSyncableRange(
 	ctx context.Context,
 	t *testing.T,
-	syncer *Syncer,
+	syncer *StatefulSyncer,
 	currIndex int64,
 ) {
 	genesisIndex, startIndex, endIndex, err := syncer.nextSyncableRange(
@@ -266,7 +266,7 @@ func TestReorgProcessBlock(t *testing.T) {
 	fetcher := &fetcher.Fetcher{
 		Asserter: asserter,
 	}
-	syncer := New(nil, blockStorage, fetcher, nil)
+	syncer := NewStateful(nil, blockStorage, fetcher, nil)
 	currIndex := int64(0)
 	genesisIndex := blockSequence[0].BlockIdentifier.Index
 

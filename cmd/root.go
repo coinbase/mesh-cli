@@ -33,7 +33,8 @@ var (
 	LogBalances            bool
 	LogReconciliation      bool
 	BootstrapBalances      string
-	NewHeadIndex           int64
+	StartIndex             int64
+	EndIndex               int64
 	LookupBalanceByBlock   bool
 )
 
@@ -81,13 +82,13 @@ func init() {
 	)
 
 	rootCmd.AddCommand(checkCompleteCmd)
+	rootCmd.AddCommand(checkQuickCmd)
 }
 
 // TODO
 // Commands
 // ** keep state and compute
-// check:complete
+// check:complete (--start) (--finish) //TODO: add support and make sure start error is clear
 // ** balance by block only (no duplicate hash checking)
-// check:quick (--start)
-// check:block --hash or --index
-// check:range --start or --end
+// check:quick (--start) (--finish)
+// check:block --hash or --index // TODO: could just use quick with params to do correctly

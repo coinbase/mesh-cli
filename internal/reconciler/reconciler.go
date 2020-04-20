@@ -168,17 +168,9 @@ func (r *Reconciler) QueueAccounts(
 		return
 	}
 
-	modifiedAccounts := make([]*storage.BalanceChange, 0)
-
 	// Use a buffered channel so don't need to
 	// spawn a goroutine to add accounts to channel.
 	for _, balanceChange := range balanceChanges {
-		// Remove duplicates
-		if containsAccountAndCurrency(modifiedAccounts, balanceChange) {
-			continue
-		}
-		modifiedAccounts = append(modifiedAccounts, balanceChange)
-
 		select {
 		case r.acctQueue <- balanceChange:
 		default:
@@ -509,15 +501,15 @@ func (r *Reconciler) reconcileInactiveAccounts(
 // If either set of goroutines errors, the function will return an error.
 func (r *Reconciler) Reconcile(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
-	for j := uint64(0); j < r.accountConcurrency; j++ {
+	for j := uint64(0); j < r.accountConcurrency/2; j++ {
 		g.Go(func() error {
 			return r.reconcileActiveAccounts(ctx)
 		})
-	}
 
-	g.Go(func() error {
-		return r.reconcileInactiveAccounts(ctx)
-	})
+		g.Go(func() error {
+			return r.reconcileInactiveAccounts(ctx)
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		return err

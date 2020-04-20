@@ -58,11 +58,12 @@ func init() {
 	}
 
 	checkCompleteCmd.Flags().Int64Var(
-		&NewHeadIndex,
+		&StartIndex,
 		"start-index",
 		-1,
 		"start reconciliation from some already processed block instead of continuing from the last processed block",
 	)
+	// TODO: handle end index
 	checkCompleteCmd.Flags().BoolVar(
 		&LookupBalanceByBlock,
 		"lookup-balance-by-block",
@@ -132,14 +133,14 @@ func runcheckCompleteCmd(cmd *cobra.Command, args []string) {
 		r,
 	)
 
-	syncer := syncer.New(
+	syncer := syncer.NewStateful(
 		primaryNetwork,
 		blockStorage,
 		fetcher,
 		syncHandler,
 	)
-	if NewHeadIndex != -1 {
-		err := syncer.NewHeadIndex(ctx, NewHeadIndex)
+	if StartIndex != -1 {
+		err := syncer.NewHeadIndex(ctx, StartIndex)
 		if err != nil {
 			log.Fatal(err)
 		}
