@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
+	"math/big"
 	"time"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
@@ -117,12 +117,12 @@ func calculateBalanceChanges(
 			amount := op.Amount
 			blockIdentifier := block.BlockIdentifier
 			if orphan {
-				if strings.HasPrefix(amount.Value, "-") {
-					amount.Value = amount.Value[1:]
-				} else {
-					amount.Value = "-" + amount.Value
+				existing, ok := new(big.Int).SetString(amount.Value, 10)
+				if !ok {
+					return nil, fmt.Errorf("%s is not an integer", amount.Value)
 				}
 
+				amount.Value = new(big.Int).Neg(existing).String()
 				blockIdentifier = block.ParentBlockIdentifier
 			}
 
@@ -142,7 +142,17 @@ func calculateBalanceChanges(
 				}
 				continue
 			}
+			existing, ok := new(big.Int).SetString(val.Difference, 10)
+			if !ok {
+				return nil, fmt.Errorf("%s is not an integer", val.Difference)
+			}
 
+			modification, ok := new(big.Int).SetString(amount.Value, 10)
+			if !ok {
+				return nil, fmt.Errorf("%s is not an integer", amount.Value)
+			}
+
+			val.Difference = new(big.Int).Add(existing, modification).String()
 			balanceChanges[key] = val
 		}
 	}
