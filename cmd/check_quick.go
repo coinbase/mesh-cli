@@ -47,7 +47,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// TODO: sync and reconcile on subnetworks, if they exist.
-	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
+	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,21 +61,18 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	r := reconciler.New(
-		ctx,
+	r := reconciler.NewStateless(
 		primaryNetwork,
-		blockStorage,
 		fetcher,
 		logger,
 		AccountConcurrency,
-		LookupBalanceByBlock,
 	)
 
 	g.Go(func() error {
 		return r.Reconcile(ctx)
 	})
 
-	syncHandler := syncer.NewBaseHandler(
+	syncHandler := syncer.NewStatelessHandler(
 		logger,
 		r,
 	)

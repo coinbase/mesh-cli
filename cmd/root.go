@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/spf13/cobra"
 )
 
@@ -80,6 +82,15 @@ func init() {
 		true,
 		"log reconciliations",
 	)
+	rootCmd.PersistentFlags().StringVar(
+		&DataDir,
+		"data-dir",
+		"",
+		"[required] folder to store all block data and logs",
+	)
+	if err := rootCmd.MarkPersistentFlagRequired("data-dir"); err != nil {
+		log.Fatal(err)
+	}
 
 	rootCmd.AddCommand(checkCompleteCmd)
 	rootCmd.AddCommand(checkQuickCmd)

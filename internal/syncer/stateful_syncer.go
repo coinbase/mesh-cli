@@ -34,7 +34,7 @@ import (
 const (
 	// maxSync is the maximum number of blocks
 	// to try and sync in a given SyncCycle.
-	maxSync = 500
+	maxSync = 10000
 )
 
 // StatefulSyncer contains the logic that orchestrates
@@ -96,7 +96,7 @@ func calculateBalanceChanges(
 	asserter *asserter.Asserter,
 	block *types.Block,
 	orphan bool,
-) (map[string]*storage.BalanceChange, error) {
+) ([]*storage.BalanceChange, error) {
 	balanceChanges := map[string]*storage.BalanceChange{}
 	for _, tx := range block.Transactions {
 		for _, op := range tx.Operations {
@@ -135,24 +135,24 @@ func calculateBalanceChanges(
 			val, ok := balanceChanges[key]
 			if !ok {
 				balanceChanges[key] = &storage.BalanceChange{
-					Account:  op.Account,
-					Currency: op.Amount.Currency,
-					NewValue: amount.Value,
-					Block:    blockIdentifier,
+					Account:    op.Account,
+					Currency:   op.Amount.Currency,
+					Difference: amount.Value,
+					Block:      blockIdentifier,
 				}
 				continue
-			}
-
-			val.NewValue, err = storage.AddStringValues(val.NewValue, amount.Value)
-			if err != nil {
-				return nil, err
 			}
 
 			balanceChanges[key] = val
 		}
 	}
 
-	return balanceChanges, nil
+	allChanges := []*storage.BalanceChange{}
+	for _, change := range balanceChanges {
+		allChanges = append(allChanges, change)
+	}
+
+	return allChanges, nil
 }
 
 // storeBlockBalanceChanges updates the balance
@@ -185,7 +185,7 @@ func (s *StatefulSyncer) storeBlockBalanceChanges(
 			dbTx,
 			change.Account,
 			&types.Amount{
-				Value:    change.NewValue,
+				Value:    change.Difference,
 				Currency: change.Currency,
 			},
 			change.Block,
@@ -207,7 +207,6 @@ func (s *StatefulSyncer) OrphanBlock(
 	tx storage.DatabaseTransaction,
 	blockIdentifier *types.BlockIdentifier,
 ) ([]*storage.BalanceChange, error) {
-	log.Printf("Orphaning block %+v\n", blockIdentifier)
 	block, err := s.storage.GetBlock(ctx, tx, blockIdentifier)
 	if err != nil {
 		return nil, err
@@ -237,7 +236,6 @@ func (s *StatefulSyncer) AddBlock(
 	tx storage.DatabaseTransaction,
 	block *types.Block,
 ) ([]*storage.BalanceChange, error) {
-	log.Printf("Adding block %+v\n", block.BlockIdentifier)
 	err := s.storage.StoreBlock(ctx, tx, block)
 	if err != nil {
 		return nil, err

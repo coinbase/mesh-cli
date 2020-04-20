@@ -138,17 +138,6 @@ func TestContainsAccountAndCurrency(t *testing.T) {
 
 func TestExtractAmount(t *testing.T) {
 	var (
-		account1 = &types.AccountIdentifier{
-			Address: "blah",
-		}
-
-		account2 = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "sub blah",
-			},
-		}
-
 		currency1 = &types.Currency{
 			Symbol:   "curr1",
 			Decimals: 4,
@@ -174,12 +163,9 @@ func TestExtractAmount(t *testing.T) {
 			amount2,
 		}
 
-		badCurr = &storage.BalanceChange{
-			Account: account1,
-			Currency: &types.Currency{
-				Symbol:   "no curr",
-				Decimals: 100,
-			},
+		badCurr = &types.Currency{
+			Symbol:   "no curr",
+			Decimals: 100,
 		}
 	)
 
@@ -190,19 +176,13 @@ func TestExtractAmount(t *testing.T) {
 	})
 
 	t.Run("Simple account", func(t *testing.T) {
-		result, err := extractAmount(balances, &storage.BalanceChange{
-			Account:  account1,
-			Currency: currency1,
-		})
+		result, err := extractAmount(balances, currency1)
 		assert.Equal(t, amount1, result)
 		assert.NoError(t, err)
 	})
 
 	t.Run("SubAccount", func(t *testing.T) {
-		result, err := extractAmount(balances, &storage.BalanceChange{
-			Account:  account2,
-			Currency: currency2,
-		})
+		result, err := extractAmount(balances, currency2)
 		assert.Equal(t, amount2, result)
 		assert.NoError(t, err)
 	})
@@ -269,7 +249,7 @@ func TestCompareBalance(t *testing.T) {
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
 	logger := logger.NewLogger(*newDir, false, false, false)
-	reconciler := New(ctx, nil, blockStorage, nil, logger, 1, false)
+	reconciler := NewStateful(nil, blockStorage, nil, logger, 1, false)
 
 	t.Run("No head block yet", func(t *testing.T) {
 		difference, headIndex, err := reconciler.CompareBalance(

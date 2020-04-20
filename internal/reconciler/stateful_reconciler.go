@@ -28,7 +28,6 @@ import (
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-
 	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/davecgh/go-spew/spew"
@@ -91,10 +90,10 @@ var (
 	ErrBlockGone = errors.New("block gone")
 )
 
-// Reconciler contains all logic to reconcile balances of
+// StatefulReconciler contains all logic to reconcile balances of
 // types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
-type Reconciler struct {
+type StatefulReconciler struct {
 	network              *types.NetworkIdentifier
 	storage              *storage.BlockStorage
 	fetcher              *fetcher.Fetcher
@@ -112,17 +111,16 @@ type Reconciler struct {
 	seenAccts []*storage.BalanceChange
 }
 
-// New creates a new Reconciler.
-func New(
-	ctx context.Context,
+// NewStateful creates a new StatefulReconciler.
+func NewStateful(
 	network *types.NetworkIdentifier,
 	blockStorage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
-) *Reconciler {
-	return &Reconciler{
+) *StatefulReconciler {
+	return &StatefulReconciler{
 		network:              network,
 		storage:              blockStorage,
 		fetcher:              fetcher,
@@ -153,7 +151,7 @@ func containsAccountAndCurrency(
 
 // QueueAccounts adds an IndexAndAccount to the acctQueue
 // for reconciliation.
-func (r *Reconciler) QueueAccounts(
+func (r *StatefulReconciler) QueueAccounts(
 	ctx context.Context,
 	blockIndex int64,
 	balanceChanges []*storage.BalanceChange,
@@ -182,7 +180,7 @@ func (r *Reconciler) QueueAccounts(
 // CompareBalance checks to see if the computed balance of an account
 // is equal to the live balance of an account. This function ensures
 // balance is checked correctly in the case of orphaned blocks.
-func (r *Reconciler) CompareBalance(
+func (r *StatefulReconciler) CompareBalance(
 	ctx context.Context,
 	accountAndCurrency *storage.BalanceChange,
 	liveAmount *types.Amount,
@@ -267,23 +265,23 @@ func (r *Reconciler) CompareBalance(
 // pertaining to an AccountAndCurrency.
 func extractAmount(
 	balances []*types.Amount,
-	accountAndCurrency *storage.BalanceChange,
+	currency *types.Currency,
 ) (*types.Amount, error) {
 	for _, b := range balances {
-		if !reflect.DeepEqual(b.Currency, accountAndCurrency.Currency) {
+		if !reflect.DeepEqual(b.Currency, currency) {
 			continue
 		}
 
 		return b, nil
 	}
 
-	return nil, fmt.Errorf("could not extract amount for %+v", accountAndCurrency)
+	return nil, fmt.Errorf("could not extract amount for %+v", currency)
 }
 
 // getAccountBalance returns the balance for an account
 // at either the current block (if lookupBalanceByBlock is
 // disabled) or at some historical block.
-func (r *Reconciler) getAccountBalance(
+func (r *StatefulReconciler) getAccountBalance(
 	ctx context.Context,
 	acct *storage.BalanceChange,
 	inactive bool,
@@ -323,7 +321,7 @@ func (r *Reconciler) getAccountBalance(
 // accountReconciliation returns an error if the provided
 // AccountAndCurrency's live balance cannot be reconciled
 // with the computed balance.
-func (r *Reconciler) accountReconciliation(
+func (r *StatefulReconciler) accountReconciliation(
 	ctx context.Context,
 	acct *storage.BalanceChange,
 	inactive bool,
@@ -333,7 +331,7 @@ func (r *Reconciler) accountReconciliation(
 		return err
 	}
 
-	liveAmount, err := extractAmount(liveBalances, acct)
+	liveAmount, err := extractAmount(liveBalances, acct.Currency)
 	if err != nil {
 		return err
 	}
@@ -416,7 +414,6 @@ func (r *Reconciler) accountReconciliation(
 		err = r.logger.ReconcileStream(
 			ctx,
 			acct.Account,
-			acct.Currency,
 			liveAmount,
 			liveBlock,
 		)
@@ -444,11 +441,11 @@ func simpleAccountAndCurrency(acct *storage.BalanceChange) string {
 }
 
 // reconcileActiveAccounts selects an account
-// from the reconciler account queue and
+// from the StatefulReconciler account queue and
 // reconciles the balance. This is useful
 // for detecting if balance changes in operations
 // were correct.
-func (r *Reconciler) reconcileActiveAccounts(
+func (r *StatefulReconciler) reconcileActiveAccounts(
 	ctx context.Context,
 ) error {
 	for {
@@ -476,7 +473,7 @@ func (r *Reconciler) reconcileActiveAccounts(
 // from all previously seen accounts and reconciles
 // the balance. This is useful for detecting balance
 // changes that were not returned in operations.
-func (r *Reconciler) reconcileInactiveAccounts(
+func (r *StatefulReconciler) reconcileInactiveAccounts(
 	ctx context.Context,
 ) error {
 	randSource := rand.NewSource(time.Now().UnixNano())
@@ -497,9 +494,9 @@ func (r *Reconciler) reconcileInactiveAccounts(
 	return nil
 }
 
-// Reconcile starts the active and inactive reconciler goroutines.
+// Reconcile starts the active and inactive StatefulReconciler goroutines.
 // If either set of goroutines errors, the function will return an error.
-func (r *Reconciler) Reconcile(ctx context.Context) error {
+func (r *StatefulReconciler) Reconcile(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for j := uint64(0); j < r.accountConcurrency/2; j++ {
 		g.Go(func() error {

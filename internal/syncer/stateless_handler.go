@@ -16,6 +16,7 @@ package syncer
 
 import (
 	"context"
+	"log"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/reconciler"
@@ -24,19 +25,19 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-// BaseHandler logs processed blocks
+// StatelessHandler logs processed blocks
 // and reconciles modified balances.
-type BaseHandler struct {
+type StatelessHandler struct {
 	logger     *logger.Logger
-	reconciler *reconciler.Reconciler
+	reconciler *reconciler.StatelessReconciler
 }
 
-// NewBaseHandler constructs a basic Handler.
-func NewBaseHandler(
+// NewStatelessHandler constructs a basic Handler.
+func NewStatelessHandler(
 	logger *logger.Logger,
-	reconciler *reconciler.Reconciler,
+	reconciler *reconciler.StatelessReconciler,
 ) Handler {
-	return &BaseHandler{
+	return &StatelessHandler{
 		logger:     logger,
 		reconciler: reconciler,
 	}
@@ -44,12 +45,18 @@ func NewBaseHandler(
 
 // BlockProcessed is called by the syncer after each
 // block is processed.
-func (h *BaseHandler) BlockProcessed(
+func (h *StatelessHandler) BlockProcessed(
 	ctx context.Context,
 	block *types.Block,
 	reorg bool,
 	balanceChanges []*storage.BalanceChange,
 ) error {
+	if !reorg {
+		log.Printf("Adding block %+v\n", block.BlockIdentifier)
+	} else {
+		log.Printf("Orphaning block %+v\n", block.BlockIdentifier)
+	}
+
 	// Log processed blocks and balance changes
 	if err := h.logger.BlockStream(ctx, block, reorg); err != nil {
 		return nil
@@ -60,7 +67,7 @@ func (h *BaseHandler) BlockProcessed(
 	}
 
 	// Mark accounts for reconciliation
-	h.reconciler.QueueAccounts(ctx, block.BlockIdentifier.Index, balanceChanges)
+	h.reconciler.QueueAccounts(ctx, block.ParentBlockIdentifier, balanceChanges)
 
 	return nil
 }

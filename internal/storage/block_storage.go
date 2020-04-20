@@ -413,9 +413,6 @@ type BalanceChange struct {
 	Account    *types.AccountIdentifier
 	Currency   *types.Currency
 	Block      *types.BlockIdentifier
-	NewValue   string
-	OldBlock   *types.BlockIdentifier
-	OldValue   string
 	Difference string
 }
 
@@ -493,10 +490,7 @@ func (b *BlockStorage) UpdateBalance(
 		return &BalanceChange{
 			Account:    account,
 			Currency:   amount.Currency,
-			OldBlock:   nil,
 			Block:      block,
-			OldValue:   "0",
-			NewValue:   amount.Value,
 			Difference: amount.Value,
 		}, nil
 	}
@@ -530,7 +524,6 @@ func (b *BlockStorage) UpdateBalance(
 
 	parseBal.Amounts[currencyKey] = val
 
-	oldBlock := parseBal.Block
 	parseBal.Block = block
 	serialBal, err := serializeBalanceEntry(*parseBal)
 	if err != nil {
@@ -545,9 +538,6 @@ func (b *BlockStorage) UpdateBalance(
 		Account:    account,
 		Currency:   amount.Currency,
 		Block:      block,
-		NewValue:   val.Value,
-		OldBlock:   oldBlock,
-		OldValue:   oldValue,
 		Difference: amount.Value,
 	}, nil
 }

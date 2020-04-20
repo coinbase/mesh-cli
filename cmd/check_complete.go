@@ -36,7 +36,7 @@ var (
 		Long: `Fetch each block and check that reconciles, no duplicates,
 responses correct, etc. Handles re-orgs.
 		`,
-		Run: runcheckCompleteCmd,
+		Run: runCheckCompleteCmd,
 	}
 )
 
@@ -47,16 +47,6 @@ func init() {
 		"",
 		"bootstrap balances from an initialization file (check examples directory for an example)",
 	)
-	checkCompleteCmd.Flags().StringVar(
-		&ServerURL,
-		"data-dir",
-		"",
-		"[required] folder to store all block data and logs",
-	)
-	if err := checkCompleteCmd.MarkFlagRequired("data-dir"); err != nil {
-		log.Fatal(err)
-	}
-
 	checkCompleteCmd.Flags().Int64Var(
 		&StartIndex,
 		"start-index",
@@ -72,7 +62,7 @@ func init() {
 	)
 }
 
-func runcheckCompleteCmd(cmd *cobra.Command, args []string) {
+func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
 	fetcher := fetcher.New(
@@ -114,8 +104,7 @@ func runcheckCompleteCmd(cmd *cobra.Command, args []string) {
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	r := reconciler.New(
-		ctx,
+	r := reconciler.NewStateful(
 		primaryNetwork,
 		blockStorage,
 		fetcher,
@@ -128,7 +117,7 @@ func runcheckCompleteCmd(cmd *cobra.Command, args []string) {
 		return r.Reconcile(ctx)
 	})
 
-	syncHandler := syncer.NewBaseHandler(
+	syncHandler := syncer.NewStatefulHandler(
 		logger,
 		r,
 	)

@@ -2,8 +2,7 @@ package syncer
 
 import (
 	"context"
-
-	"github.com/coinbase/rosetta-validator/internal/storage"
+	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -41,27 +40,23 @@ func (s *StatelessSyncer) SyncRange(
 	}
 
 	// TODO: support reorgs
-	for _, block := range blockMap {
+	for i := startIndex; i < endIndex; i++ {
+		block := blockMap[i].Block
 		changes, err := calculateBalanceChanges(
 			ctx,
 			s.fetcher.Asserter,
-			block.Block,
+			block,
 			false,
 		)
 		if err != nil {
 			return err
 		}
 
-		allChanges := []*storage.BalanceChange{}
-		for _, change := range changes {
-			allChanges = append(allChanges, change)
-		}
-
 		err = s.handler.BlockProcessed(
 			ctx,
-			block.Block,
+			block,
 			false,
-			allChanges,
+			changes,
 		)
 		if err != nil {
 			return err
@@ -76,7 +71,7 @@ func (s *StatelessSyncer) nextSyncableRange(
 	startIndex int64,
 	endIndex int64,
 ) (int64, int64, bool, error) {
-	if startIndex >= endIndex {
+	if startIndex >= endIndex && startIndex != -1 && endIndex != -1 {
 		return -1, -1, true, nil
 	}
 
@@ -90,7 +85,10 @@ func (s *StatelessSyncer) nextSyncableRange(
 	}
 
 	if startIndex == -1 {
-		startIndex = networkStatus.GenesisBlockIdentifier.Index
+		// Don't sync genesis block because balance lookup will not
+		// work.
+		// TODO: figure out some way to do this (could have a hook in handler)
+		startIndex = networkStatus.GenesisBlockIdentifier.Index + 1
 	}
 
 	if endIndex == -1 {
@@ -101,6 +99,7 @@ func (s *StatelessSyncer) nextSyncableRange(
 		endIndex = startIndex + maxSync
 	}
 
+	log.Printf("Syncing %d-%d\n", startIndex, endIndex)
 	return startIndex, endIndex, false, nil
 }
 
@@ -109,10 +108,11 @@ func (s *StatelessSyncer) Sync(
 	startIndex int64,
 	endIndex int64,
 ) error {
+	currIndex := startIndex
 	for ctx.Err() == nil {
-		startIndex, stopIndex, halt, err := s.nextSyncableRange(
+		newCurrIndex, stopIndex, halt, err := s.nextSyncableRange(
 			ctx,
-			startIndex,
+			currIndex,
 			endIndex,
 		)
 		if err != nil {
@@ -122,12 +122,12 @@ func (s *StatelessSyncer) Sync(
 			return nil
 		}
 
-		err = s.SyncRange(ctx, startIndex, stopIndex)
+		err = s.SyncRange(ctx, newCurrIndex, stopIndex)
 		if err != nil {
 			return err
 		}
 
-		startIndex = stopIndex + 1
+		currIndex = stopIndex + 1
 	}
 	return nil
 }

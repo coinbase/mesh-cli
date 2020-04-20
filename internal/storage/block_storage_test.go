@@ -416,8 +416,6 @@ func TestBalance(t *testing.T) {
 			},
 			Currency:   currency,
 			Block:      newBlock,
-			OldValue:   "0",
-			NewValue:   "100",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -467,9 +465,6 @@ func TestBalance(t *testing.T) {
 			},
 			Currency:   currency,
 			Block:      newBlock2,
-			OldBlock:   newBlock,
-			OldValue:   "100",
-			NewValue:   "200",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -498,9 +493,6 @@ func TestBalance(t *testing.T) {
 			},
 			Currency:   currency,
 			Block:      newBlock3,
-			OldBlock:   newBlock2,
-			OldValue:   "200",
-			NewValue:   "300",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -564,8 +556,6 @@ func TestBalance(t *testing.T) {
 			Account:    subAccount,
 			Currency:   currency,
 			Block:      newBlock,
-			OldValue:   "0",
-			NewValue:   "100",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -592,8 +582,6 @@ func TestBalance(t *testing.T) {
 			Account:    subAccountMetadata,
 			Currency:   currency,
 			Block:      newBlock,
-			OldValue:   "0",
-			NewValue:   "100",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -620,8 +608,6 @@ func TestBalance(t *testing.T) {
 			Account:    subAccountMetadata2,
 			Currency:   currency,
 			Block:      newBlock,
-			OldValue:   "0",
-			NewValue:   "100",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)

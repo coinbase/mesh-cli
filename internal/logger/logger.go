@@ -214,26 +214,13 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s%s -> %s%s (%s%s) Block: %d:%s",
+			"Account: %s Change: %s%s Block: %d:%s",
 			balanceChange.Account.Address,
-			balanceChange.OldValue,
-			balanceChange.Currency.Symbol,
-			balanceChange.NewValue,
-			balanceChange.Currency.Symbol,
 			balanceChange.Difference,
 			balanceChange.Currency.Symbol,
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
-
-		if balanceChange.OldBlock != nil {
-			balanceLog = fmt.Sprintf(
-				"%s Last Updated: %d:%s",
-				balanceLog,
-				balanceChange.OldBlock.Index,
-				balanceChange.OldBlock.Hash,
-			)
-		}
 
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			return err
@@ -247,7 +234,6 @@ func (l *Logger) BalanceStream(
 func (l *Logger) ReconcileStream(
 	ctx context.Context,
 	account *types.AccountIdentifier,
-	currency *types.Currency,
 	liveBalance *types.Amount,
 	liveBlock *types.BlockIdentifier,
 ) error {
@@ -268,7 +254,7 @@ func (l *Logger) ReconcileStream(
 	_, err = f.WriteString(fmt.Sprintf(
 		"Account: %s Currency: %s Balance: %s Block: %d:%s\n",
 		account.Address,
-		currency.Symbol,
+		liveBalance.Currency.Symbol,
 		liveBalance.Value,
 		liveBlock.Index,
 		liveBlock.Hash,

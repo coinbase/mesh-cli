@@ -332,8 +332,6 @@ func TestReorgProcessBlock(t *testing.T) {
 				},
 				Currency:   currency,
 				Block:      blockSequence[1].BlockIdentifier,
-				OldValue:   "0",
-				NewValue:   "100",
 				Difference: "100",
 			},
 		}, balanceChanges)
@@ -373,9 +371,6 @@ func TestReorgProcessBlock(t *testing.T) {
 				},
 				Currency:   currency,
 				Block:      blockSequence[0].BlockIdentifier,
-				OldBlock:   blockSequence[1].BlockIdentifier,
-				OldValue:   "100",
-				NewValue:   "0",
 				Difference: "-100",
 			},
 		}, balanceChanges)
