@@ -114,9 +114,12 @@ func (s *StatelessSyncer) nextSyncableRange(
 
 func (s *StatelessSyncer) Sync(
 	ctx context.Context,
+	cancel context.CancelFunc,
 	startIndex int64,
 	endIndex int64,
 ) error {
+	defer cancel()
+
 	currIndex := startIndex
 	for ctx.Err() == nil {
 		newCurrIndex, stopIndex, halt, err := s.nextSyncableRange(
@@ -128,7 +131,7 @@ func (s *StatelessSyncer) Sync(
 			return err
 		}
 		if halt {
-			return nil
+			break
 		}
 
 		err = s.SyncRange(ctx, newCurrIndex, stopIndex)
@@ -138,5 +141,6 @@ func (s *StatelessSyncer) Sync(
 
 		currIndex = stopIndex
 	}
+	log.Printf("Finished sycning %d-%d\n", startIndex, endIndex)
 	return nil
 }

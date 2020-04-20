@@ -37,7 +37,7 @@ func init() {
 }
 
 func runCheckQuickCmd(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
 		ctx,
@@ -87,6 +87,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	g.Go(func() error {
 		return syncer.Sync(
 			ctx,
+			cancel,
 			StartIndex,
 			EndIndex,
 		)
