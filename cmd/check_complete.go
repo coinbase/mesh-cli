@@ -111,6 +111,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		logger,
 		AccountConcurrency,
 		LookupBalanceByBlock,
+		HaltOnReconciliationError,
 	)
 
 	g.Go(func() error {

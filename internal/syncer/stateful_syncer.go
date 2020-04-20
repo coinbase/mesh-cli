@@ -34,7 +34,7 @@ import (
 const (
 	// maxSync is the maximum number of blocks
 	// to try and sync in a given SyncCycle.
-	maxSync = 10000
+	maxSync = 1000
 )
 
 // StatefulSyncer contains the logic that orchestrates

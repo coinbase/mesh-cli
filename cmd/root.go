@@ -26,18 +26,19 @@ var (
 		Short: "A simple CLI to interact with a Rosetta server",
 	}
 
-	DataDir                string
-	ServerURL              string
-	BlockConcurrency       uint64
-	TransactionConcurrency uint64
-	AccountConcurrency     uint64
-	LogTransactions        bool
-	LogBalances            bool
-	LogReconciliation      bool
-	BootstrapBalances      string
-	StartIndex             int64
-	EndIndex               int64
-	LookupBalanceByBlock   bool
+	DataDir                   string
+	ServerURL                 string
+	BlockConcurrency          uint64
+	TransactionConcurrency    uint64
+	AccountConcurrency        uint64
+	LogTransactions           bool
+	LogBalances               bool
+	LogReconciliation         bool
+	BootstrapBalances         string
+	StartIndex                int64
+	EndIndex                  int64
+	LookupBalanceByBlock      bool
+	HaltOnReconciliationError bool
 )
 
 func Execute() error {
@@ -81,6 +82,12 @@ func init() {
 		"log-reconciliations",
 		true,
 		"log reconciliations",
+	)
+	rootCmd.PersistentFlags().BoolVar(
+		&HaltOnReconciliationError,
+		"halt-on-reconciliation-error",
+		true,
+		"halt on reconciliation error",
 	)
 	rootCmd.PersistentFlags().StringVar(
 		&DataDir,

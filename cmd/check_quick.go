@@ -66,6 +66,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		fetcher,
 		logger,
 		AccountConcurrency,
+		HaltOnReconciliationError,
 	)
 
 	g.Go(func() error {

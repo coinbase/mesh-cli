@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -84,6 +85,14 @@ func (s *StatelessSyncer) nextSyncableRange(
 		return -1, -1, false, err
 	}
 
+	if startIndex > networkStatus.CurrentBlockIdentifier.Index {
+		return -1, -1, false, fmt.Errorf(
+			"start index %d > current block index %d",
+			startIndex,
+			networkStatus.CurrentBlockIdentifier.Index,
+		)
+	}
+
 	if startIndex == -1 {
 		// Don't sync genesis block because balance lookup will not
 		// work.
@@ -127,7 +136,7 @@ func (s *StatelessSyncer) Sync(
 			return err
 		}
 
-		currIndex = stopIndex + 1
+		currIndex = stopIndex
 	}
 	return nil
 }

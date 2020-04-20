@@ -17,6 +17,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path"
 
@@ -38,9 +39,10 @@ const (
 	// balance changes.
 	balanceStreamFile = "balances.txt"
 
-	// reconcileStreamFile contains the stream of processed
+	// reconcileSuccessStreamFile contains the stream of processed
 	// reconciliations.
-	reconcileStreamFile = "reconciliations.txt"
+	reconcileSuccessStreamFile = "successful_reconciliations.txt"
+	reconcileFailureStreamFile = "failure_reconciliations.txt"
 
 	// addEvent is printed in a stream
 	// when an event is added.
@@ -229,20 +231,21 @@ func (l *Logger) BalanceStream(
 	return nil
 }
 
-// ReconcileStream logs all reconciliation checks performed
+// ReconcileSuccessStream logs all reconciliation checks performed
 // during syncing.
-func (l *Logger) ReconcileStream(
+func (l *Logger) ReconcileSuccessStream(
 	ctx context.Context,
+	reconciliationType string,
 	account *types.AccountIdentifier,
-	liveBalance *types.Amount,
-	liveBlock *types.BlockIdentifier,
+	balance *types.Amount,
+	block *types.BlockIdentifier,
 ) error {
 	if !l.logReconciliation {
 		return nil
 	}
 
 	f, err := os.OpenFile(
-		path.Join(l.logDir, reconcileStreamFile),
+		path.Join(l.logDir, reconcileSuccessStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		logFilePermissions,
 	)
@@ -251,13 +254,72 @@ func (l *Logger) ReconcileStream(
 	}
 	defer f.Close()
 
+	log.Printf(
+		"%s Reconciled %+v at %d\n",
+		reconciliationType,
+		account,
+		block.Index,
+	)
+
 	_, err = f.WriteString(fmt.Sprintf(
-		"Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		reconciliationType,
 		account.Address,
-		liveBalance.Currency.Symbol,
-		liveBalance.Value,
-		liveBlock.Index,
-		liveBlock.Hash,
+		balance.Currency.Symbol,
+		balance.Value,
+		block.Index,
+		block.Hash,
+	))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReconcileFailureStream logs all reconciliation checks performed
+// during syncing.
+func (l *Logger) ReconcileFailureStream(
+	ctx context.Context,
+	reconciliationType string,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	difference string,
+	differenceDetail string,
+	block *types.BlockIdentifier,
+) error {
+	if !l.logReconciliation {
+		return nil
+	}
+
+	f, err := os.OpenFile(
+		path.Join(l.logDir, reconcileFailureStreamFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		logFilePermissions,
+	)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	log.Printf(
+		"%s Reconciliation failed for %+v at %d by %s %s\n",
+		reconciliationType,
+		account,
+		block.Index,
+		difference,
+		differenceDetail,
+	)
+
+	_, err = f.WriteString(fmt.Sprintf(
+		"Type:%s Account: %+v Currency: %+v Block: %s:%d Difference%s:%s\n",
+		reconciliationType,
+		account,
+		currency,
+		block.Hash,
+		block.Index,
+		differenceDetail,
+		difference,
 	))
 	if err != nil {
 		return err

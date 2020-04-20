@@ -30,7 +30,6 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 
-	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -94,13 +93,14 @@ var (
 // types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
 type StatefulReconciler struct {
-	network              *types.NetworkIdentifier
-	storage              *storage.BlockStorage
-	fetcher              *fetcher.Fetcher
-	logger               *logger.Logger
-	accountConcurrency   uint64
-	lookupBalanceByBlock bool
-	acctQueue            chan *storage.BalanceChange
+	network                   *types.NetworkIdentifier
+	storage                   *storage.BlockStorage
+	fetcher                   *fetcher.Fetcher
+	logger                    *logger.Logger
+	accountConcurrency        uint64
+	lookupBalanceByBlock      bool
+	haltOnReconciliationError bool
+	acctQueue                 chan *storage.BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -119,17 +119,19 @@ func NewStateful(
 	logger *logger.Logger,
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
+	haltOnReconciliationError bool,
 ) *StatefulReconciler {
 	return &StatefulReconciler{
-		network:              network,
-		storage:              blockStorage,
-		fetcher:              fetcher,
-		logger:               logger,
-		accountConcurrency:   accountConcurrency,
-		lookupBalanceByBlock: lookupBalanceByBlock,
-		acctQueue:            make(chan *storage.BalanceChange, backlogThreshold),
-		highWaterMark:        0,
-		seenAccts:            make([]*storage.BalanceChange, 0),
+		network:                   network,
+		storage:                   blockStorage,
+		fetcher:                   fetcher,
+		logger:                    logger,
+		accountConcurrency:        accountConcurrency,
+		lookupBalanceByBlock:      lookupBalanceByBlock,
+		haltOnReconciliationError: haltOnReconciliationError,
+		acctQueue:                 make(chan *storage.BalanceChange, backlogThreshold),
+		highWaterMark:             0,
+		seenAccts:                 make([]*storage.BalanceChange, 0),
 	}
 }
 
@@ -390,38 +392,38 @@ func (r *StatefulReconciler) accountReconciliation(
 		}
 
 		if difference != zeroString {
-			return fmt.Errorf(
-				"\n%s balance mismatch\naccount: %+v\ncurrency: %+v\nblock: %+v\nbalance difference(computed-live):%s",
+			err := r.logger.ReconcileFailureStream(
+				ctx,
 				reconciliationType,
-				spew.Sdump(acct.Account),
-				spew.Sdump(acct.Currency),
-				spew.Sdump(liveBlock),
+				acct.Account,
+				acct.Currency,
 				difference,
+				"(computed-live)",
+				liveBlock,
 			)
+
+			if err != nil {
+				return err
+			}
+
+			if r.haltOnReconciliationError {
+				return errors.New("reconciliation error")
+			}
+
+			return nil
 		}
 
 		if !inactive && !containsAccountAndCurrency(r.seenAccts, acct) {
 			r.seenAccts = append(r.seenAccts, acct)
 		}
 
-		log.Printf(
-			"Reconciled %s %s at %d\n",
-			reconciliationType,
-			simpleAccountAndCurrency(acct),
-			liveBlock.Index,
-		)
-
-		err = r.logger.ReconcileStream(
+		return r.logger.ReconcileSuccessStream(
 			ctx,
+			reconciliationType,
 			acct.Account,
 			liveAmount,
 			liveBlock,
 		)
-		if err != nil {
-			return err
-		}
-
-		break
 	}
 
 	return nil

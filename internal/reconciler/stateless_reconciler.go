@@ -2,8 +2,8 @@ package reconciler
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
@@ -11,16 +11,16 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/sync/errgroup"
 )
 
 type StatelessReconciler struct {
-	network            *types.NetworkIdentifier
-	fetcher            *fetcher.Fetcher
-	logger             *logger.Logger
-	accountConcurrency uint64
-	acctQueue          chan *changeAndBlock
+	network                   *types.NetworkIdentifier
+	fetcher                   *fetcher.Fetcher
+	logger                    *logger.Logger
+	accountConcurrency        uint64
+	haltOnReconciliationError bool
+	acctQueue                 chan *changeAndBlock
 }
 
 func NewStateless(
@@ -28,13 +28,15 @@ func NewStateless(
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
 	accountConcurrency uint64,
+	haltOnReconciliationError bool,
 ) *StatelessReconciler {
 	return &StatelessReconciler{
-		network:            network,
-		fetcher:            fetcher,
-		logger:             logger,
-		accountConcurrency: accountConcurrency,
-		acctQueue:          make(chan *changeAndBlock),
+		network:                   network,
+		fetcher:                   fetcher,
+		logger:                    logger,
+		accountConcurrency:        accountConcurrency,
+		haltOnReconciliationError: haltOnReconciliationError,
+		acctQueue:                 make(chan *changeAndBlock),
 	}
 }
 
@@ -123,26 +125,40 @@ func (r *StatelessReconciler) reconcileChange(
 		return err
 	}
 
-	difference := new(big.Int).Sub(balanceAfter, balanceBefore).String()
-
-	if difference != change.Difference {
+	nodeDifference := new(big.Int).Sub(balanceAfter, balanceBefore)
+	computedDifference, ok := new(big.Int).SetString(change.Difference, 10)
+	if !ok {
 		return fmt.Errorf(
-			"\nbalance mismatch\naccount: %+v\ncurrency: %+v\nblock: %+v\nbalance difference(computed-live):%s",
-			spew.Sdump(change.Account),
-			spew.Sdump(change.Currency),
-			spew.Sdump(change.Block),
-			difference,
+			"could not extract amount for %s",
+			change.Difference,
 		)
 	}
+	difference := new(big.Int).Sub(computedDifference, nodeDifference).String()
 
-	log.Printf(
-		"Reconciled %s at %d\n",
-		simpleAccountAndCurrency(change),
-		change.Block.Index,
-	)
+	if difference != zeroString {
+		err := r.logger.ReconcileFailureStream(
+			ctx,
+			activeReconciliation,
+			change.Account,
+			change.Currency,
+			difference,
+			"(computed-node)",
+			change.Block,
+		)
+		if err != nil {
+			return err
+		}
 
-	return r.logger.ReconcileStream(
+		if r.haltOnReconciliationError {
+			return errors.New("reconciliation error")
+		}
+
+		return nil
+	}
+
+	return r.logger.ReconcileSuccessStream(
 		ctx,
+		activeReconciliation,
 		change.Account,
 		&types.Amount{
 			Value:    balanceAfter.String(),
