@@ -330,12 +330,11 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &types.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency:    currency,
-				Block:       blockSequence[1].BlockIdentifier,
-				Transaction: blockSequence[1].Transactions[0].TransactionIdentifier,
-				OldValue:    "0",
-				NewValue:    "100",
-				Difference:  "100",
+				Currency:   currency,
+				Block:      blockSequence[1].BlockIdentifier,
+				OldValue:   "0",
+				NewValue:   "100",
+				Difference: "100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
@@ -372,13 +371,12 @@ func TestReorgProcessBlock(t *testing.T) {
 				Account: &types.AccountIdentifier{
 					Address: "acct1",
 				},
-				Currency:    currency,
-				Block:       blockSequence[0].BlockIdentifier,
-				Transaction: blockSequence[1].Transactions[0].TransactionIdentifier,
-				OldBlock:    blockSequence[1].BlockIdentifier,
-				OldValue:    "100",
-				NewValue:    "0",
-				Difference:  "-100",
+				Currency:   currency,
+				Block:      blockSequence[0].BlockIdentifier,
+				OldBlock:   blockSequence[1].BlockIdentifier,
+				OldValue:   "100",
+				NewValue:   "0",
+				Difference: "-100",
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)

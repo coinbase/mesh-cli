@@ -214,7 +214,7 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s%s -> %s%s (%s%s) Transaction: %s Block: %d:%s",
+			"Account: %s Change: %s%s -> %s%s (%s%s) Block: %d:%s",
 			balanceChange.Account.Address,
 			balanceChange.OldValue,
 			balanceChange.Currency.Symbol,
@@ -222,7 +222,6 @@ func (l *Logger) BalanceStream(
 			balanceChange.Currency.Symbol,
 			balanceChange.Difference,
 			balanceChange.Currency.Symbol,
-			balanceChange.Transaction.Hash,
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)

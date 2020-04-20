@@ -281,7 +281,7 @@ func TestGetBalanceKey(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, hashBytes([]byte(test.key)), getBalanceKey(test.account))
+			assert.Equal(t, hashBytes([]byte(test.key)), GetBalanceKey(test.account))
 		})
 	}
 }
@@ -360,15 +360,9 @@ func TestBalance(t *testing.T) {
 			Hash:  "kdasdj",
 			Index: 123890,
 		}
-		newTransaction = &types.TransactionIdentifier{
-			Hash: "tx1",
-		}
 		newBlock2 = &types.BlockIdentifier{
 			Hash:  "pkdasdj",
 			Index: 123890,
-		}
-		newTransaction2 = &types.TransactionIdentifier{
-			Hash: "tx2",
 		}
 		result = map[string]*types.Amount{
 			GetCurrencyKey(currency): {
@@ -415,18 +409,16 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Currency:   currency,
+			Block:      newBlock,
+			OldValue:   "0",
+			NewValue:   "100",
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -447,7 +439,6 @@ func TestBalance(t *testing.T) {
 			account,
 			amountNilCurrency,
 			newBlock,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.EqualError(t, err, "invalid amount")
@@ -469,19 +460,17 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock2,
-			newTransaction2,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
-			Currency:    currency,
-			Block:       newBlock2,
-			OldBlock:    newBlock,
-			Transaction: newTransaction2,
-			OldValue:    "100",
-			NewValue:    "200",
-			Difference:  "100",
+			Currency:   currency,
+			Block:      newBlock2,
+			OldBlock:   newBlock,
+			OldValue:   "100",
+			NewValue:   "200",
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -502,7 +491,6 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock3,
-			nil,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
@@ -543,7 +531,6 @@ func TestBalance(t *testing.T) {
 			account,
 			largeDeduction,
 			newBlock2,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -558,7 +545,6 @@ func TestBalance(t *testing.T) {
 			account2,
 			largeDeduction,
 			newBlock2,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -573,16 +559,14 @@ func TestBalance(t *testing.T) {
 			subAccount,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccount,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccount,
+			Currency:   currency,
+			Block:      newBlock,
+			OldValue:   "0",
+			NewValue:   "100",
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -603,16 +587,14 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccountMetadata,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccountMetadata,
+			Currency:   currency,
+			Block:      newBlock,
+			OldValue:   "0",
+			NewValue:   "100",
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -633,16 +615,14 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata2,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccountMetadata2,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccountMetadata2,
+			Currency:   currency,
+			Block:      newBlock,
+			OldValue:   "0",
+			NewValue:   "100",
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))

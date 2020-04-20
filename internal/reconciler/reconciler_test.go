@@ -358,7 +358,7 @@ func TestCompareBalance(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	_, err = blockStorage.UpdateBalance(ctx, txn, account1, amount1, block1, nil)
+	_, err = blockStorage.UpdateBalance(ctx, txn, account1, amount1, block1)
 	assert.NoError(t, err)
 	err = txn.Commit(ctx)
 	assert.NoError(t, err)

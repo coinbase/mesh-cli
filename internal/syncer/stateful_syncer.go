@@ -90,23 +90,17 @@ func (s *Syncer) checkReorg(
 	return false, nil
 }
 
-// storeBlockBalanceChanges updates the balance
-// of each modified account if the operation affecting
-// that account is successful. These modified
-// accounts are returned to the reconciler
-// for active reconciliation.
-func (s *Syncer) storeBlockBalanceChanges(
+func (s *Syncer) calculateBalanceChanges(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
 	block *types.Block,
 	orphan bool,
-) ([]*storage.BalanceChange, error) {
-	balanceChanges := make([]*storage.BalanceChange, 0)
+) (map[string]*storage.BalanceChange, error) {
+	balanceChanges := map[string]*storage.BalanceChange{}
 	for _, tx := range block.Transactions {
 		for _, op := range tx.Operations {
 			successful, err := s.fetcher.Asserter.OperationSuccessful(op)
 			if err != nil {
-				// Could only occur if responses not validated
+				// Should only occur if responses not validated
 				return nil, err
 			}
 
@@ -130,20 +124,74 @@ func (s *Syncer) storeBlockBalanceChanges(
 				blockIdentifier = block.ParentBlockIdentifier
 			}
 
-			balanceChange, err := s.storage.UpdateBalance(
-				ctx,
-				dbTx,
-				op.Account,
-				amount,
-				blockIdentifier,
-				tx.TransactionIdentifier,
+			// Merge values by account and currency
+			key := fmt.Sprintf("%s:%s",
+				string(storage.GetBalanceKey(op.Account)),
+				string(storage.GetCurrencyKey(op.Amount.Currency)),
 			)
+
+			val, ok := balanceChanges[key]
+			if !ok {
+				balanceChanges[key] = &storage.BalanceChange{
+					Account:  op.Account,
+					Currency: op.Amount.Currency,
+					NewValue: amount.Value,
+					Block:    blockIdentifier,
+				}
+				continue
+			}
+
+			val.NewValue, err = storage.AddStringValues(val.NewValue, amount.Value)
 			if err != nil {
 				return nil, err
 			}
 
-			balanceChanges = append(balanceChanges, balanceChange)
+			balanceChanges[key] = val
 		}
+	}
+
+	return balanceChanges, nil
+}
+
+// storeBlockBalanceChanges updates the balance
+// of each modified account if the operation affecting
+// that account is successful. These modified
+// accounts are returned to the reconciler
+// for active reconciliation.
+func (s *Syncer) storeBlockBalanceChanges(
+	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
+	block *types.Block,
+	orphan bool,
+) ([]*storage.BalanceChange, error) {
+	balanceChanges := make([]*storage.BalanceChange, 0)
+
+	// Merge all changes for an account:currency
+	mergedChanges, err := s.calculateBalanceChanges(
+		ctx,
+		block,
+		orphan,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, change := range mergedChanges {
+		balanceChange, err := s.storage.UpdateBalance(
+			ctx,
+			dbTx,
+			change.Account,
+			&types.Amount{
+				Value:    change.NewValue,
+				Currency: change.Currency,
+			},
+			change.Block,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		balanceChanges = append(balanceChanges, balanceChange)
 	}
 
 	return balanceChanges, nil

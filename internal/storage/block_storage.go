@@ -142,7 +142,7 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes([]byte(fmt.Sprintf("%s:%s", transactionHashNamespace, hash)))
 }
 
-func getBalanceKey(account *types.AccountIdentifier) []byte {
+func GetBalanceKey(account *types.AccountIdentifier) []byte {
 	if account.SubAccount == nil {
 		return hashBytes(
 			[]byte(fmt.Sprintf("%s:%s", balanceNamespace, account.Address)),
@@ -410,14 +410,31 @@ func GetCurrencyKey(currency *types.Currency) string {
 // BalanceChange represents a balance change that affected
 // a *types.AccountIdentifier and a *types.Currency.
 type BalanceChange struct {
-	Account     *types.AccountIdentifier
-	Currency    *types.Currency
-	Block       *types.BlockIdentifier
-	Transaction *types.TransactionIdentifier
-	NewValue    string
-	OldBlock    *types.BlockIdentifier
-	OldValue    string
-	Difference  string
+	Account    *types.AccountIdentifier
+	Currency   *types.Currency
+	Block      *types.BlockIdentifier
+	NewValue   string
+	OldBlock   *types.BlockIdentifier
+	OldValue   string
+	Difference string
+}
+
+func AddStringValues(
+	a string,
+	b string,
+) (string, error) {
+	aVal, ok := new(big.Int).SetString(a, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", a)
+	}
+
+	bVal, ok := new(big.Int).SetString(b, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", b)
+	}
+
+	newVal := new(big.Int).Add(aVal, bVal)
+	return newVal.String(), nil
 }
 
 // UpdateBalance updates a types.AccountIdentifer
@@ -429,13 +446,12 @@ func (b *BlockStorage) UpdateBalance(
 	account *types.AccountIdentifier,
 	amount *types.Amount,
 	block *types.BlockIdentifier,
-	transaction *types.TransactionIdentifier,
 ) (*BalanceChange, error) {
 	if amount == nil || amount.Currency == nil {
 		return nil, errors.New("invalid amount")
 	}
 
-	key := getBalanceKey(account)
+	key := GetBalanceKey(account)
 	// Get existing balance on key
 	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
@@ -475,14 +491,13 @@ func (b *BlockStorage) UpdateBalance(
 		}
 
 		return &BalanceChange{
-			Account:     account,
-			Currency:    amount.Currency,
-			OldBlock:    nil,
-			Block:       block,
-			Transaction: transaction,
-			OldValue:    "0",
-			NewValue:    amount.Value,
-			Difference:  amount.Value,
+			Account:    account,
+			Currency:   amount.Currency,
+			OldBlock:   nil,
+			Block:      block,
+			OldValue:   "0",
+			NewValue:   amount.Value,
+			Difference: amount.Value,
 		}, nil
 	}
 
@@ -497,19 +512,13 @@ func (b *BlockStorage) UpdateBalance(
 		parseBal.Amounts[currencyKey] = amount
 	}
 
-	modification, ok := new(big.Int).SetString(amount.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf("%s is not an integer", amount.Value)
+	oldValue := val.Value
+	val.Value, err = AddStringValues(amount.Value, oldValue)
+	if err != nil {
+		return nil, err
 	}
 
-	existing, ok := new(big.Int).SetString(val.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf("%s is not an integer", val.Value)
-	}
-
-	newVal := new(big.Int).Add(existing, modification)
-	val.Value = newVal.String()
-	if newVal.Sign() == -1 {
+	if strings.HasPrefix(val.Value, "-") {
 		return nil, fmt.Errorf(
 			"%w %+v for %+v at %+v",
 			ErrNegativeBalance,
@@ -533,14 +542,13 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	return &BalanceChange{
-		Account:     account,
-		Currency:    amount.Currency,
-		Block:       block,
-		Transaction: transaction,
-		NewValue:    newVal.String(),
-		OldBlock:    oldBlock,
-		OldValue:    existing.String(),
-		Difference:  amount.Value,
+		Account:    account,
+		Currency:   amount.Currency,
+		Block:      block,
+		NewValue:   val.Value,
+		OldBlock:   oldBlock,
+		OldValue:   oldValue,
+		Difference: amount.Value,
 	}, nil
 }
 
@@ -551,7 +559,7 @@ func (b *BlockStorage) GetBalance(
 	transaction DatabaseTransaction,
 	account *types.AccountIdentifier,
 ) (map[string]*types.Amount, *types.BlockIdentifier, error) {
-	key := getBalanceKey(account)
+	key := GetBalanceKey(account)
 	exists, bal, err := transaction.Get(ctx, key)
 	if err != nil {
 		return nil, nil, err
@@ -648,7 +656,6 @@ func (b *BlockStorage) BootstrapBalances(
 			account,
 			amount,
 			genesisBlockIdentifier,
-			nil,
 		)
 		if err != nil {
 			return err
