@@ -67,7 +67,5 @@ func (h *StatelessHandler) BlockProcessed(
 	}
 
 	// Mark accounts for reconciliation
-	h.reconciler.QueueAccounts(ctx, block.ParentBlockIdentifier, balanceChanges)
-
-	return nil
+	return h.reconciler.QueueAccounts(ctx, block.ParentBlockIdentifier, balanceChanges)
 }
