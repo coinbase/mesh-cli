@@ -28,6 +28,35 @@ not a single binary.
 4. Watch for errors in the processing logs. Any error will cause validation to
 stop.
 
+## TODO
+```
+A simple CLI to interact with a Rosetta server
+
+Usage:
+  rosetta-validator [command]
+
+Available Commands:
+  check:complete Check the correctness of all blocks
+  check:quick    Check that blocks are mostly correct
+  help           Help about any command
+
+Flags:
+      --account-concurrency uint       concurrency of account balance fetches (default 8)
+      --block-concurrency uint         concurrency of block fetches (default 8)
+      --data-dir string                folder to store all block data and logs (default "./validator-data")
+      --end-index int                  end validation at some index (default -1)
+      --halt-on-reconciliation-error   halt on reconciliation error (default true)
+  -h, --help                           help for rosetta-validator
+      --log-balances                   log balance changes (default true)
+      --log-reconciliations            log reconciliations (default true)
+      --log-transactions               log processed transactions (default true)
+      --server-url string              base url for Rosetta server (default "http://localhost:8080")
+      --start-index int                start validation from some index (default -1)
+      --transaction-concurrency uint   concurrency of transaction fetches (if required) (default 16)
+
+Use "rosetta-validator [command] --help" for more information about a command.
+```
+
 ### Configuration Options
 All configuration options can be set in the call to `make validate`
 (ex: `make SERVER_URL=http://localhost:9999 validate`) or altered in

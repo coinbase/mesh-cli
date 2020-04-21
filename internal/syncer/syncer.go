@@ -23,6 +23,7 @@ import (
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -40,21 +41,56 @@ type Syncer interface {
 		startIndex int64,
 	) error
 
-	NextSyncableRange(
+	CurrentIndex(
 		ctx context.Context,
-		endIndex int64,
-	) (
-		rangeStart int64,
-		rangeEnd int64,
-		halt bool,
-		err error,
-	)
+	) (int64, error)
 
 	SyncRange(
 		ctx context.Context,
 		rangeStart int64,
 		rangeEnd int64,
 	) error
+
+	Network(
+		ctx context.Context,
+	) *types.NetworkIdentifier
+
+	Fetcher(
+		ctx context.Context,
+	) *fetcher.Fetcher
+}
+
+// NextSyncableRange returns the next range of indexes to sync
+// based on what the last processed block in storage is and
+// the contents of the network status response.
+func NextSyncableRange(
+	ctx context.Context,
+	s Syncer,
+	endIndex int64,
+) (int64, int64, bool, error) {
+	currentIndex, err := s.CurrentIndex(ctx)
+	if err != nil {
+		return -1, -1, false, err
+	}
+
+	if endIndex == -1 {
+		networkStatus, err := s.Fetcher(ctx).NetworkStatusRetry(
+			ctx,
+			s.Network(ctx),
+			nil,
+		)
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		return currentIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
+	}
+
+	if currentIndex >= endIndex {
+		return -1, -1, true, nil
+	}
+
+	return currentIndex, endIndex, false, nil
 }
 
 // Sync cycles endlessly until there is an error
@@ -73,8 +109,9 @@ func Sync(
 	}
 
 	for {
-		rangeStart, rangeEnd, halt, err := s.NextSyncableRange(
+		rangeStart, rangeEnd, halt, err := NextSyncableRange(
 			ctx,
+			s,
 			endIndex,
 		)
 		if err != nil {

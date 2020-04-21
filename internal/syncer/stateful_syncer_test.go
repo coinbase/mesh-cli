@@ -224,23 +224,15 @@ var (
 	}
 )
 
-// AssertNextSyncableRange is a helper function used to test
-// the nextSyncableRange function during block processing.
-func AssertNextSyncableRange(
+func assertCurrentIndex(
 	ctx context.Context,
 	t *testing.T,
 	syncer *StatefulSyncer,
-	currIndex int64,
+	expectedCurrentIndex int64,
 ) {
-	startIndex, endIndex, halt, err := syncer.NextSyncableRange(
-		ctx,
-		networkStatusResponse.CurrentBlockIdentifier.Index,
-	)
-
-	assert.Equal(t, currIndex, startIndex)
-	assert.Equal(t, networkStatusResponse.CurrentBlockIdentifier.Index, endIndex)
-	assert.False(t, halt)
+	currentIndex, err := syncer.CurrentIndex(ctx)
 	assert.NoError(t, err)
+	assert.Equal(t, expectedCurrentIndex, currentIndex)
 }
 
 func TestProcessBlock(t *testing.T) {
@@ -290,7 +282,7 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[0].BlockIdentifier, head)
 		assert.NoError(t, err)
 
-		AssertNextSyncableRange(ctx, t, syncer, currIndex)
+		assertCurrentIndex(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan genesis", func(t *testing.T) {
@@ -348,7 +340,7 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[1].BlockIdentifier, block)
 		assert.NoError(t, err)
 
-		AssertNextSyncableRange(ctx, t, syncer, currIndex)
+		assertCurrentIndex(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan block", func(t *testing.T) {
@@ -373,7 +365,7 @@ func TestProcessBlock(t *testing.T) {
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
-		AssertNextSyncableRange(ctx, t, syncer, currIndex)
+		assertCurrentIndex(ctx, t, syncer, currIndex)
 
 		// Assert head is back to genesis
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -415,7 +407,7 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(2), currIndex)
 		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
-		AssertNextSyncableRange(ctx, t, syncer, currIndex)
+		assertCurrentIndex(ctx, t, syncer, currIndex)
 
 		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
 		head, err = syncer.storage.GetHeadBlockIdentifier(ctx, tx)

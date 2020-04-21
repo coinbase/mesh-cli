@@ -363,44 +363,35 @@ func (s *StatefulSyncer) SyncRange(
 	return nil
 }
 
-// NextSyncableRange returns the next range of indexes to sync
-// based on what the last processed block in storage is and
-// the contents of the network status response.
-func (s *StatefulSyncer) NextSyncableRange(
+func (s *StatefulSyncer) CurrentIndex(
 	ctx context.Context,
-	endIndex int64,
-) (int64, int64, bool, error) {
+) (int64, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, false)
 	defer tx.Discard(ctx)
 
-	var startIndex int64
+	var currentIndex int64
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
 	switch err {
 	case nil:
-		startIndex = head.Index + 1
+		currentIndex = head.Index + 1
 	case storage.ErrHeadBlockNotFound:
 		head = s.genesisBlock
-		startIndex = head.Index
+		currentIndex = head.Index
 	default:
-		return -1, -1, false, err
+		return -1, err
 	}
 
-	if endIndex == -1 {
-		networkStatus, err := s.fetcher.NetworkStatusRetry(
-			ctx,
-			s.network,
-			nil,
-		)
-		if err != nil {
-			return -1, -1, false, err
-		}
+	return currentIndex, nil
+}
 
-		return startIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
-	}
+func (s *StatefulSyncer) Network(
+	ctx context.Context,
+) *types.NetworkIdentifier {
+	return s.network
+}
 
-	if startIndex >= endIndex {
-		return -1, -1, true, nil
-	}
-
-	return startIndex, endIndex, false, nil
+func (s *StatefulSyncer) Fetcher(
+	ctx context.Context,
+) *fetcher.Fetcher {
+	return s.fetcher
 }
