@@ -385,18 +385,22 @@ func (s *StatefulSyncer) NextSyncableRange(
 		return -1, -1, false, err
 	}
 
-	if endIndex != -1 {
-		return startIndex, endIndex, false, nil
+	if endIndex == -1 {
+		networkStatus, err := s.fetcher.NetworkStatusRetry(
+			ctx,
+			s.network,
+			nil,
+		)
+		if err != nil {
+			return -1, -1, false, err
+		}
+
+		return startIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
 	}
 
-	networkStatus, err := s.fetcher.NetworkStatusRetry(
-		ctx,
-		s.network,
-		nil,
-	)
-	if err != nil {
-		return -1, -1, false, err
+	if startIndex >= endIndex {
+		return -1, -1, true, nil
 	}
 
-	return startIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
+	return startIndex, endIndex, false, nil
 }
