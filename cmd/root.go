@@ -73,6 +73,8 @@ var (
 	HaltOnReconciliationError bool
 )
 
+// Execute handles all invocations of the
+// rosetta-validator cmd.
 func Execute() error {
 	return rootCmd.Execute()
 }

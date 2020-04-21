@@ -220,7 +220,7 @@ func TestBlock(t *testing.T) {
 	})
 }
 
-func TestGetBalanceKey(t *testing.T) {
+func TestGetAccountKey(t *testing.T) {
 	var tests = map[string]struct {
 		account *types.AccountIdentifier
 		key     string
@@ -281,7 +281,7 @@ func TestGetBalanceKey(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, hashBytes([]byte(test.key)), GetBalanceKey(test.account))
+			assert.Equal(t, hashBytes([]byte(test.key)), GetAccountKey(test.account))
 		})
 	}
 }

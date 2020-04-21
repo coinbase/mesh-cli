@@ -41,6 +41,8 @@ func RemoveTempDir(dir string) {
 	}
 }
 
+// AddStringValues adds string amounts using
+// big.Int.
 func AddStringValues(
 	a string,
 	b string,
@@ -59,6 +61,8 @@ func AddStringValues(
 	return newVal.String(), nil
 }
 
+// SubtractStringValues subtracts a-b using
+// big.Int.
 func SubtractStringValues(
 	a string,
 	b string,

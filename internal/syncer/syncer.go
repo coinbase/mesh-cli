@@ -195,8 +195,9 @@ func BalanceChanges(
 			}
 
 			// Merge values by account and currency
+			// TODO: change balance key to be this
 			key := fmt.Sprintf("%s:%s",
-				storage.GetBalanceKey(op.Account),
+				storage.GetAccountKey(op.Account),
 				storage.GetCurrencyKey(op.Amount.Currency),
 			)
 

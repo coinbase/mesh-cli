@@ -48,6 +48,8 @@ func NewStateless(
 	}
 }
 
+// SetStartIndex initializes the current block index
+// with the genesis block index if it is -1.
 func (s *StatelessSyncer) SetStartIndex(
 	ctx context.Context,
 	startIndex int64,
@@ -73,6 +75,9 @@ func (s *StatelessSyncer) SetStartIndex(
 	return nil
 }
 
+// SyncRange syncs blocks from startIndex to endIndex, inclusive.
+// This function does NOT handle re-orgs. If you want re-org support,
+// checkout the StatefulSyncer.
 func (s *StatelessSyncer) SyncRange(
 	ctx context.Context,
 	startIndex int64,
@@ -111,18 +116,21 @@ func (s *StatelessSyncer) SyncRange(
 	return nil
 }
 
+// CurrentIndex returns the next index to sync.
 func (s *StatelessSyncer) CurrentIndex(
 	ctx context.Context,
 ) (int64, error) {
 	return s.currentIndex, nil
 }
 
+// Network returns the syncer network.
 func (s *StatelessSyncer) Network(
 	ctx context.Context,
 ) *types.NetworkIdentifier {
 	return s.network
 }
 
+// Fetcher returns the syncer fetcher.
 func (s *StatelessSyncer) Fetcher(
 	ctx context.Context,
 ) *fetcher.Fetcher {

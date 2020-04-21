@@ -26,6 +26,14 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// StatelessReconciler compares computed balances with
+// the node balance without using any sort of persistent
+// state.	If it is not possible to lookup a balance by block,
+// you must use the StatefulReconciler. If you want to perform
+// inactive reconciliation (check for balance changes that
+// occurred that were not in blocks), you must also use the
+// StatefulReconciler. Lastly, the StatelessReconciler does
+// not support re-orgs.
 type StatelessReconciler struct {
 	network                   *types.NetworkIdentifier
 	fetcher                   *fetcher.Fetcher
@@ -35,13 +43,14 @@ type StatelessReconciler struct {
 	changeQueue               chan *storage.BalanceChange
 }
 
+// NewStateless returns a new StatelessReconciler.
 func NewStateless(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
 	logger *logger.Logger,
 	accountConcurrency uint64,
 	haltOnReconciliationError bool,
-) Reconciler {
+) *StatelessReconciler {
 	return &StatelessReconciler{
 		network:                   network,
 		fetcher:                   fetcher,
@@ -52,6 +61,8 @@ func NewStateless(
 	}
 }
 
+// QueueChanges enqueues a slice of *storage.BalanceChanges
+// for reconciliation.
 func (r *StatelessReconciler) QueueChanges(
 	ctx context.Context,
 	balanceChanges []*storage.BalanceChange,
@@ -176,6 +187,8 @@ func (r *StatelessReconciler) reconcileAccounts(
 	}
 }
 
+// Reconcile starts the active StatelessReconciler goroutines.
+// If any goroutine errors, the function will return an error.
 func (r *StatelessReconciler) Reconcile(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for j := uint64(0); j < r.accountConcurrency; j++ {

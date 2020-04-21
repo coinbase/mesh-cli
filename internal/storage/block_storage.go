@@ -142,7 +142,10 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes([]byte(fmt.Sprintf("%s:%s", transactionHashNamespace, hash)))
 }
 
-func GetBalanceKey(account *types.AccountIdentifier) []byte {
+// GetAccountKey returns a byte slice representing a *types.AccountIdentifier.
+// This byte slice automatically handles the existence of *types.SubAccount
+// detail.
+func GetAccountKey(account *types.AccountIdentifier) []byte {
 	if account.SubAccount == nil {
 		return hashBytes(
 			[]byte(fmt.Sprintf("%s:%s", balanceNamespace, account.Address)),
@@ -430,13 +433,15 @@ func (b *BlockStorage) UpdateBalance(
 		return nil, errors.New("invalid amount")
 	}
 
-	key := GetBalanceKey(account)
+	key := GetAccountKey(account)
 	// Get existing balance on key
 	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: create a balance key that is the combination
+	// of account and currency
 	currencyKey := GetCurrencyKey(amount.Currency)
 
 	if !exists {
@@ -526,12 +531,13 @@ func (b *BlockStorage) UpdateBalance(
 
 // GetBalance returns all the balances of a types.AccountIdentifier
 // and the types.BlockIdentifier it was last updated at.
+// TODO: change to fetch by account and currency
 func (b *BlockStorage) GetBalance(
 	ctx context.Context,
 	transaction DatabaseTransaction,
 	account *types.AccountIdentifier,
 ) (map[string]*types.Amount, *types.BlockIdentifier, error) {
-	key := GetBalanceKey(account)
+	key := GetAccountKey(account)
 	exists, bal, err := transaction.Get(ctx, key)
 	if err != nil {
 		return nil, nil, err

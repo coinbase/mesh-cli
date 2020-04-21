@@ -363,6 +363,7 @@ func (s *StatefulSyncer) SyncRange(
 	return nil
 }
 
+// CurrentIndex returns the next index to sync.
 func (s *StatefulSyncer) CurrentIndex(
 	ctx context.Context,
 ) (int64, error) {
@@ -384,12 +385,14 @@ func (s *StatefulSyncer) CurrentIndex(
 	return currentIndex, nil
 }
 
+// Network returns the syncer network.
 func (s *StatefulSyncer) Network(
 	ctx context.Context,
 ) *types.NetworkIdentifier {
 	return s.network
 }
 
+// Fetcher returns the syncer fetcher.
 func (s *StatefulSyncer) Fetcher(
 	ctx context.Context,
 ) *fetcher.Fetcher {

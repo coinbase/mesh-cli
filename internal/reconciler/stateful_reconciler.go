@@ -133,6 +133,8 @@ func NewStateful(
 	}
 }
 
+// QueueChanges enqueues a slice of *storage.BalanceChanges
+// for reconciliation.
 func (r *StatefulReconciler) QueueChanges(
 	ctx context.Context,
 	balanceChanges []*storage.BalanceChange,
@@ -472,7 +474,7 @@ func (r *StatefulReconciler) reconcileInactiveAccounts(
 }
 
 // Reconcile starts the active and inactive StatefulReconciler goroutines.
-// If either set of goroutines errors, the function will return an error.
+// If any goroutine errors, the function will return an error.
 func (r *StatefulReconciler) Reconcile(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for j := uint64(0); j < r.accountConcurrency/2; j++ {

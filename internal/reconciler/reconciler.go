@@ -25,6 +25,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+// Reconciler defines an interface for comparing
+// computed balances with node balances.
 type Reconciler interface {
 	QueueChanges(
 		ctx context.Context,
@@ -51,6 +53,9 @@ func ExtractAmount(
 	return nil, fmt.Errorf("could not extract amount for %+v", currency)
 }
 
+// AccountCurrency is a simple struct combining
+// a *types.Account and *types.Currency. This can
+// be useful for looking up balances.
 type AccountCurrency struct {
 	Account  *types.AccountIdentifier
 	Currency *types.Currency
@@ -72,6 +77,8 @@ func ContainsAccountCurrency(
 	return false
 }
 
+// GetCurrencyBalance fetches the balance of a *types.AccountIdentifier
+// for a particular *types.Currency.
 func GetCurrencyBalance(
 	ctx context.Context,
 	fetcher *fetcher.Fetcher,
