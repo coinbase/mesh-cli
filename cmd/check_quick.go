@@ -34,13 +34,21 @@ var (
 		Long: `Check all server responses are properly constructed and that
 computed balance changes are equal to balance changes reported by the
 node. To use check:quick, your server must implement the balance lookup
-by block. Unlike check:complete, which requires syncing all blocks up
+by block.
+
+Unlike check:complete, which requires syncing all blocks up
 to the blocks you want to check, check:quick allows you to validate
 an arbitrary range of blocks (even if earlier blocks weren't synced).
+To do this, all you need to do is provide a --start flag and optionally
+an --end flag.
 
 It is important to note that check:quick does not support re-orgs and it
 does not check for duplicate blocks and transactions. For these features,
-please use check:complete.`,
+please use check:complete.
+
+When re-running this command, it will start off from genesis unless you
+provide a populated --start flag. If you want to run a stateful validation,
+use the check:complete command.`,
 		Run: runCheckQuickCmd,
 	}
 )

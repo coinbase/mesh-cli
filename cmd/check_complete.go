@@ -36,7 +36,11 @@ var (
 		Long: `Check all server responses are properly constructed, that
 there are no duplicate blocks and transactions, that blocks can be processed
 from genesis to the current block (re-orgs handled automatically), and that
-computed balance changes are equal to balance changes reported by the node.`,
+computed balance changes are equal to balance changes reported by the node.
+
+When re-running this command, it will start where it left off. If you want
+to discard some number of blocks populate the --start flag with some block
+index less than the last computed block index.`,
 		Run: runCheckCompleteCmd,
 	}
 

@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/coinbase/rosetta-validator)](https://goreportcard.com/report/github.com/coinbase/rosetta-validator)
 [![License](https://img.shields.io/github/license/coinbase/rosetta-validator.svg)](https://github.com/coinbase/rosetta-validator/blob/master/LICENSE.txt)
 
-Once you create a Rosetta Server, you'll need to test its
+Once you create a Rosetta server, you'll need to test its
 performance and correctness. This validation tool makes that easy!
 
 ## What is Rosetta?
@@ -20,15 +20,12 @@ in this specification will enable exchanges, block explorers,
 and wallets to integrate with much less communication overhead
 and network-specific work.
 
-## Run the Validator
-1. Start your Rosetta Server (and the blockchain node it connects to if it is
-not a single binary.
-2. Start the validator using `makevalidate`.
-3. Examine processed blocks using `make watch-blocks`.
-4. Watch for errors in the processing logs. Any error will cause validation to
-stop.
+## Install
+```
+go get github.com/coinbase/rosetta-validator
+```
 
-## rosetta-validator
+## Usage
 ```
 A simple CLI to validate a Rosetta server
 
@@ -38,15 +35,35 @@ Usage:
 Available Commands:
   check:complete Run a full check of the correctness of a Rosetta server
   check:quick    Run a simple check of the correctness of a Rosetta server
-  help           Help about any command
+  help           Help about any commands
+
+Global Flags:
+  --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
+  --block-concurrency uint         concurrency to use while fetching blocks (default 8)
+  --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
+  --end int                        block index to stop syncing (default -1)
+  --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
+                                   error. It can be beneficial to collect all reconciliation errors or silence
+                                   reconciliation errors during development. (default true)
+  --log-balance-changes            log balance changes (default true)
+  --log-blocks                     log processed blocks (default true)
+  --log-reconciliations            log balance reconciliations (default true)
+  --log-transactions               log processed transactions (default true)
+  --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
+  --start int                      block index to start syncing (default -1)
+  --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 ```
 
-## check:complete
+### check:complete
 ```
 Check all server responses are properly constructed, that
 there are no duplicate blocks and transactions, that blocks can be processed
 from genesis to the current block (re-orgs handled automatically), and that
 computed balance changes are equal to balance changes reported by the node.
+
+When re-running this command, it will start where it left off. If you want
+to discard some number of blocks populate the --start flag with some block
+index less than the last computed block index.
 
 Usage:
   rosetta-validator check:complete [flags]
@@ -58,36 +75,28 @@ Flags:
       --lookup-balance-by-block     When set to true, balances are looked up at the block where a balance
                                     change occurred instead of at the current block. Blockchains that do not support
                                     historical balance lookup should set this to false. (default true)
-
-Global Flags:
-      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
-      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
-      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
-      --end int                        block index to stop syncing (default -1)
-      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
-                                       error. It can be beneficial to collect all reconciliation errors or silence
-                                       reconciliation errors during development. (default true)
-      --log-balance-changes            log balance changes (default true)
-      --log-blocks                     log processed blocks (default true)
-      --log-reconciliations            log balance reconciliations (default true)
-      --log-transactions               log processed transactions (default true)
-      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
-      --start int                      block index to start syncing (default -1)
-      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 ```
 
-## check:quick
+### check:quick
 ```
 Check all server responses are properly constructed and that
 computed balance changes are equal to balance changes reported by the
 node. To use check:quick, your server must implement the balance lookup
-by block. Unlike check:complete, which requires syncing all blocks up
+by block.
+
+Unlike check:complete, which requires syncing all blocks up
 to the blocks you want to check, check:quick allows you to validate
 an arbitrary range of blocks (even if earlier blocks weren't synced).
+To do this, all you need to do is provide a --start flag and optionally
+an --end flag.
 
 It is important to note that check:quick does not support re-orgs and it
 does not check for duplicate blocks and transactions. For these features,
 please use check:complete.
+
+When re-running this command, it will start off from genesis unless you
+provide a populated --start flag. If you want to run a stateful validation,
+use the check:complete command.
 
 Usage:
   rosetta-validator check:quick [flags]
@@ -95,84 +104,7 @@ Usage:
 Flags:
   -h, --help   help for check:quick
 
-Global Flags:
-      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
-      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
-      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
-      --end int                        block index to stop syncing (default -1)
-      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
-                                       error. It can be beneficial to collect all reconciliation errors or silence
-                                       reconciliation errors during development. (default true)
-      --log-balance-changes            log balance changes (default true)
-      --log-blocks                     log processed blocks (default true)
-      --log-reconciliations            log balance reconciliations (default true)
-      --log-transactions               log processed transactions (default true)
-      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
-      --start int                      block index to start syncing (default -1)
-      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 ```
-
-### Configuration Options
-All configuration options can be set in the call to `make validate`
-(ex: `make SERVER_URL=http://localhost:9999 validate`) or altered in
-the `Makefile` itself.
-
-_There is no additional setting required to support blockchains with reorgs. This
-is handled automatically!_
-
-#### SERVER_URL
-_Default: http://localhost:8080_
-
-The URL the validator will use to access the Rosetta Server.
-
-#### RECONCILE_BALANCES
-_Default: true_
-
-Computed balances will be reconciled against balances returned by the node.
-
-#### LOG_TRANSACTIONS
-_Default: true_
-
-All processed transactions will be logged to `transactions.txt`. You can tail
-these logs using `watch-transactions`.
-
-#### LOG_BALANCES
-_Default: true_
-
-All processed balance changes will be logged to `balances.txt`. You can tail
-these logs using `watch-balances`.
-
-#### LOG_RECONCILIATION
-_Default: true_
-
-All reconciliation checks will be logged to `reconciliations.txt`. You can tail
-these logs using `watch-reconciliations`.
-
-#### BOOTSTRAP_BALANCES
-_Default: false_
-
-Blockchains that set balances in genesis must create a `bootstrap_balances.csv`
-file in the `/validator-data` directory and pass `BOOTSTRAP_BALANCES=true` as an
-argument to make. If balances are not bootsrapped and balances are set in genesis,
-reconciliation will fail.
-
-There is an example file in `examples/bootstrap_balances.csv`.
-
-#### NEW_HEAD_INDEX
-_Default: -1_
-
-When debugging a server, it can be useful to revert some number of erroneous blocks
-instead of starting validation over. To do so, set the `NEW_HEAD_INDEX` to the value
-of the last correct block.
-
-#### LOOKUP_BALANCE_BY_BLOCK
-_Default: true_
-
-It is much more efficient to reconcile balances when it is possible to lookup
-balances at a particular block. However, if your server does not support
-historical balance lookup, you should disable this option. Reconciliation will
-still be performed but it will rely on fetching the current balances of
-interesting accounts.
 
 ## Development
 * `make deps` to install dependencies
@@ -188,7 +120,7 @@ message explaining the error.
 ### Response Correctness
 The validator uses the autogenerated [Go Client package](https://github.com/coinbase/rosetta-sdk-go)
 to communicate with the Rosetta Server and assert that responses adhere
-to the Rosetta Standard.
+to the Rosetta interface specification.
 
 ### Duplicate Hashes
 The validator checks that a block hash or transaction hash is
@@ -213,6 +145,7 @@ returned by the Rosetta Server. Recall that **ALL** balance-changing
 operations must be returned by the Rosetta Server.
 
 ## Future Work
+* Move syncer, reconciler, and storage packages to rosetta-sdk-go for better re-use.
 * Automatically test the correctness of a Rosetta Client SDK by constructing,
 signing, and submitting a transaction. This can be further extended by ensuring
 broadcast transactions eventually land in a block.
