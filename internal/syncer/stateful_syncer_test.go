@@ -224,22 +224,22 @@ var (
 	}
 )
 
-// assertNextSyncableRange is a helper function used to test
+// AssertNextSyncableRange is a helper function used to test
 // the nextSyncableRange function during block processing.
-func assertNextSyncableRange(
+func AssertNextSyncableRange(
 	ctx context.Context,
 	t *testing.T,
 	syncer *StatefulSyncer,
 	currIndex int64,
 ) {
-	genesisIndex, startIndex, endIndex, err := syncer.nextSyncableRange(
+	startIndex, endIndex, halt, err := syncer.NextSyncableRange(
 		ctx,
-		networkStatusResponse,
+		networkStatusResponse.CurrentBlockIdentifier.Index,
 	)
 
-	assert.Equal(t, int64(0), genesisIndex)
 	assert.Equal(t, currIndex, startIndex)
-	assert.Equal(t, currIndex+maxSync, endIndex)
+	assert.Equal(t, networkStatusResponse.CurrentBlockIdentifier.Index, endIndex)
+	assert.False(t, halt)
 	assert.NoError(t, err)
 }
 
@@ -271,10 +271,8 @@ func TestProcessBlock(t *testing.T) {
 	genesisIndex := blockSequence[0].BlockIdentifier.Index
 
 	t.Run("No block exists", func(t *testing.T) {
-		assertNextSyncableRange(ctx, t, syncer, currIndex)
-
 		// Add genesis block
-		balanceChanges, newIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -292,11 +290,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[0].BlockIdentifier, head)
 		assert.NoError(t, err)
 
-		assertNextSyncableRange(ctx, t, syncer, currIndex)
+		AssertNextSyncableRange(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan genesis", func(t *testing.T) {
-		balanceChanges, newIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -316,7 +314,7 @@ func TestProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block exists, no reorg", func(t *testing.T) {
-		balanceChanges, newIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -350,12 +348,12 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[1].BlockIdentifier, block)
 		assert.NoError(t, err)
 
-		assertNextSyncableRange(ctx, t, syncer, currIndex)
+		AssertNextSyncableRange(ctx, t, syncer, currIndex)
 	})
 
 	t.Run("Orphan block", func(t *testing.T) {
 		// Orphan block
-		balanceChanges, newIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -375,7 +373,7 @@ func TestProcessBlock(t *testing.T) {
 			},
 		}, balanceChanges)
 		assert.NoError(t, err)
-		assertNextSyncableRange(ctx, t, syncer, currIndex)
+		AssertNextSyncableRange(ctx, t, syncer, currIndex)
 
 		// Assert head is back to genesis
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)
@@ -407,7 +405,7 @@ func TestProcessBlock(t *testing.T) {
 		tx.Discard(ctx)
 
 		// Process new block
-		balanceChanges, currIndex, reorg, err = syncer.ProcessBlock(
+		balanceChanges, currIndex, reorg, err = syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -417,7 +415,7 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, int64(2), currIndex)
 		assert.Equal(t, 0, len(balanceChanges))
 		assert.NoError(t, err)
-		assertNextSyncableRange(ctx, t, syncer, currIndex)
+		AssertNextSyncableRange(ctx, t, syncer, currIndex)
 
 		tx = syncer.storage.NewDatabaseTransaction(ctx, false)
 		head, err = syncer.storage.GetHeadBlockIdentifier(ctx, tx)
@@ -425,7 +423,7 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[3].BlockIdentifier, head)
 		assert.NoError(t, err)
 
-		balanceChanges, currIndex, reorg, err = syncer.ProcessBlock(
+		balanceChanges, currIndex, reorg, err = syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -449,7 +447,7 @@ func TestProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Block with invalid transaction", func(t *testing.T) {
-		balanceChanges, currIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, currIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -468,7 +466,7 @@ func TestProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Out of order block", func(t *testing.T) {
-		balanceChanges, newIndex, reorg, err := syncer.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := syncer.processBlock(
 			ctx,
 			genesisIndex,
 			currIndex,
@@ -488,7 +486,7 @@ func TestProcessBlock(t *testing.T) {
 	})
 
 	t.Run("Revert all blocks after genesis", func(t *testing.T) {
-		err := syncer.NewHeadIndex(ctx, genesisIndex)
+		err := syncer.newHeadIndex(ctx, genesisIndex)
 		assert.NoError(t, err)
 
 		tx := syncer.storage.NewDatabaseTransaction(ctx, false)

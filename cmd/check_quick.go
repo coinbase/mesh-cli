@@ -35,21 +35,6 @@ var (
 	}
 )
 
-func init() {
-	checkQuickCmd.Flags().Int64Var(
-		&StartIndex,
-		"start-index",
-		-1,
-		"start validation from some index",
-	)
-	checkQuickCmd.Flags().Int64Var(
-		&EndIndex,
-		"end-index",
-		-1,
-		"end validation at some index",
-	)
-}
-
 func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -60,7 +45,6 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithTransactionConcurrency(TransactionConcurrency),
 	)
 
-	// TODO: sync and reconcile on subnetworks, if they exist.
 	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -92,7 +76,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		r,
 	)
 
-	syncer := syncer.NewStateless(
+	statelessSyncer := syncer.NewStateless(
 		primaryNetwork,
 		fetcher,
 		syncHandler,
@@ -102,6 +86,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		return syncer.Sync(
 			ctx,
 			cancel,
+			statelessSyncer,
 			StartIndex,
 			EndIndex,
 		)

@@ -47,13 +47,6 @@ func init() {
 		"",
 		"bootstrap balances from an initialization file (check examples directory for an example)",
 	)
-	checkCompleteCmd.Flags().Int64Var(
-		&StartIndex,
-		"start-index",
-		-1,
-		"start reconciliation from some already processed block instead of continuing from the last processed block",
-	)
-	// TODO: handle end index
 	checkCompleteCmd.Flags().BoolVar(
 		&LookupBalanceByBlock,
 		"lookup-balance-by-block",
@@ -63,7 +56,7 @@ func init() {
 }
 
 func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
 		ctx,
@@ -123,21 +116,21 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		r,
 	)
 
-	syncer := syncer.NewStateful(
+	statefulSyncer := syncer.NewStateful(
 		primaryNetwork,
 		blockStorage,
 		fetcher,
 		syncHandler,
 	)
-	if StartIndex != -1 {
-		err := syncer.NewHeadIndex(ctx, StartIndex)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	g.Go(func() error {
-		return syncer.Sync(ctx)
+		return syncer.Sync(
+			ctx,
+			cancel,
+			statefulSyncer,
+			StartIndex,
+			EndIndex,
+		)
 	})
 
 	err = g.Wait()

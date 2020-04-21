@@ -16,22 +16,26 @@ package syncer
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 // StatelessSyncer contains the logic that orchestrates
-// stateless block fetching and reconciliation.
+// stateless block fetching and reconciliation. The stateless
+// syncer is useful for performing a quick check over a range of
+// blocks without needed to sync all blocks up to the start of
+// the range (a common pattern when debugging). It is important
+// to note that the stateless syncer does not support reorgs nor
+// does it save where it is on restart.
 type StatelessSyncer struct {
-	network *types.NetworkIdentifier
-	fetcher *fetcher.Fetcher
-	handler Handler
+	network      *types.NetworkIdentifier
+	fetcher      *fetcher.Fetcher
+	handler      Handler
+	currentIndex int64
 }
 
-// NewStateless returns a new StatelessSyncer.
+// NewStateless returns a new Syncer.
 func NewStateless(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
@@ -44,6 +48,31 @@ func NewStateless(
 	}
 }
 
+func (s *StatelessSyncer) SetStartIndex(
+	ctx context.Context,
+	startIndex int64,
+) error {
+	if startIndex != -1 {
+		s.currentIndex = startIndex
+		return nil
+	}
+
+	// Sync from genesis + 1
+	networkStatus, err := s.fetcher.NetworkStatusRetry(
+		ctx,
+		s.network,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Don't sync genesis block because balance lookup will not
+	// work.
+	s.currentIndex = networkStatus.GenesisBlockIdentifier.Index + 1
+	return nil
+}
+
 func (s *StatelessSyncer) SyncRange(
 	ctx context.Context,
 	startIndex int64,
@@ -54,8 +83,7 @@ func (s *StatelessSyncer) SyncRange(
 		return err
 	}
 
-	// TODO: support reorgs
-	for i := startIndex; i < endIndex; i++ {
+	for i := startIndex; i <= endIndex; i++ {
 		block := blockMap[i].Block
 		changes, err := BalanceChanges(
 			ctx,
@@ -78,16 +106,21 @@ func (s *StatelessSyncer) SyncRange(
 		}
 	}
 
+	s.currentIndex = endIndex + 1
+
 	return nil
 }
 
-func (s *StatelessSyncer) nextSyncableRange(
+func (s *StatelessSyncer) NextSyncableRange(
 	ctx context.Context,
-	startIndex int64,
 	endIndex int64,
 ) (int64, int64, bool, error) {
-	if startIndex >= endIndex && startIndex != -1 && endIndex != -1 {
+	if s.currentIndex >= endIndex && endIndex != -1 {
 		return -1, -1, true, nil
+	}
+
+	if endIndex != -1 {
+		return s.currentIndex, endIndex, false, nil
 	}
 
 	networkStatus, err := s.fetcher.NetworkStatusRetry(
@@ -99,62 +132,5 @@ func (s *StatelessSyncer) nextSyncableRange(
 		return -1, -1, false, err
 	}
 
-	if startIndex > networkStatus.CurrentBlockIdentifier.Index {
-		return -1, -1, false, fmt.Errorf(
-			"start index %d > current block index %d",
-			startIndex,
-			networkStatus.CurrentBlockIdentifier.Index,
-		)
-	}
-
-	if startIndex == -1 {
-		// Don't sync genesis block because balance lookup will not
-		// work.
-		// TODO: figure out some way to do this (could have a hook in handler)
-		startIndex = networkStatus.GenesisBlockIdentifier.Index + 1
-	}
-
-	if endIndex == -1 {
-		endIndex = networkStatus.CurrentBlockIdentifier.Index
-	}
-
-	if endIndex-startIndex > maxSync {
-		endIndex = startIndex + maxSync
-	}
-
-	log.Printf("Syncing %d-%d\n", startIndex, endIndex)
-	return startIndex, endIndex, false, nil
-}
-
-func (s *StatelessSyncer) Sync(
-	ctx context.Context,
-	cancel context.CancelFunc,
-	startIndex int64,
-	endIndex int64,
-) error {
-	defer cancel()
-
-	currIndex := startIndex
-	for ctx.Err() == nil {
-		newCurrIndex, stopIndex, halt, err := s.nextSyncableRange(
-			ctx,
-			currIndex,
-			endIndex,
-		)
-		if err != nil {
-			return err
-		}
-		if halt {
-			break
-		}
-
-		err = s.SyncRange(ctx, newCurrIndex, stopIndex)
-		if err != nil {
-			return err
-		}
-
-		currIndex = stopIndex
-	}
-	log.Printf("Finished sycning %d-%d\n", startIndex, endIndex)
-	return nil
+	return s.currentIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
 }

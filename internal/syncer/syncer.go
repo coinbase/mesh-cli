@@ -2,8 +2,8 @@ package syncer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
@@ -18,19 +18,89 @@ const (
 	maxSync = 1000
 )
 
-// PrintNetwork pretty prints the types.NetworkStatusResponse to the console.
-func PrintNetwork(
+// Syncer defines an interface for syncing some
+// range of blocks.
+type Syncer interface {
+	SetStartIndex(
+		ctx context.Context,
+		startIndex int64,
+	) error
+
+	NextSyncableRange(
+		ctx context.Context,
+		endIndex int64,
+	) (
+		rangeStart int64,
+		rangeEnd int64,
+		halt bool,
+		err error,
+	)
+
+	SyncRange(
+		ctx context.Context,
+		rangeStart int64,
+		rangeEnd int64,
+	) error
+}
+
+// Sync cycles endlessly until there is an error
+// or the requested range is synced.
+func Sync(
 	ctx context.Context,
-	network *types.NetworkStatusResponse,
+	cancel context.CancelFunc,
+	s Syncer,
+	startIndex int64,
+	endIndex int64,
 ) error {
-	b, err := json.MarshalIndent(network, "", " ")
-	if err != nil {
+	defer cancel()
+
+	if err := s.SetStartIndex(ctx, startIndex); err != nil {
+		log.Printf("Unable to set start index: %w\n", err)
 		return err
 	}
 
-	fmt.Println("Network Information: " + string(b))
+	for {
+		rangeStart, rangeEnd, halt, err := s.NextSyncableRange(
+			ctx,
+			endIndex,
+		)
+		if err != nil {
+			return err
+		}
+		if halt {
+			break
+		}
 
+		if rangeEnd-rangeStart > maxSync {
+			rangeEnd = rangeStart + maxSync
+		}
+
+		log.Printf("Syncing %d-%d\n", rangeStart, rangeEnd)
+
+		err = s.SyncRange(ctx, rangeStart, rangeEnd)
+		if err != nil {
+			return err
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+
+	log.Printf("Finished syncing %d-%d\n", startIndex, endIndex)
 	return nil
+}
+
+// Handler is called at various times during the sync cycle
+// to handle different events. It is common to write logs or
+// perform reconciliation in the sync handler.
+type Handler interface {
+	BlockProcessed(
+		ctx context.Context,
+		block *types.Block,
+		orphan bool,
+		changes []*storage.BalanceChange,
+	) error
 }
 
 // BalanceChanges returns all balance changes for

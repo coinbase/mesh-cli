@@ -15,8 +15,6 @@
 package cmd
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
 )
 
@@ -89,24 +87,25 @@ func init() {
 		true,
 		"halt on reconciliation error",
 	)
+	rootCmd.PersistentFlags().Int64Var(
+		&StartIndex,
+		"start-index",
+		-1,
+		"start validation from some index",
+	)
+	rootCmd.PersistentFlags().Int64Var(
+		&EndIndex,
+		"end-index",
+		-1,
+		"end validation at some index",
+	)
 	rootCmd.PersistentFlags().StringVar(
 		&DataDir,
 		"data-dir",
-		"",
-		"[required] folder to store all block data and logs",
+		"./validator-data",
+		"folder to store all block data and logs",
 	)
-	if err := rootCmd.MarkPersistentFlagRequired("data-dir"); err != nil {
-		log.Fatal(err)
-	}
 
 	rootCmd.AddCommand(checkCompleteCmd)
 	rootCmd.AddCommand(checkQuickCmd)
 }
-
-// TODO
-// Commands
-// ** keep state and compute
-// check:complete (--start) (--finish) //TODO: add support and make sure start error is clear
-// ** balance by block only (no duplicate hash checking)
-// check:quick (--start) (--finish)
-// check:block --hash or --index // TODO: could just use quick with params to do correctly

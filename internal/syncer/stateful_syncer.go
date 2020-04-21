@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
@@ -28,15 +27,19 @@ import (
 )
 
 // StatefulSyncer contains the logic that orchestrates
-// block fetching, storage, and reconciliation.
+// block fetching, storage, and reconciliation. The
+// stateful syncer is useful for creating an application
+// where durability and consistency of data is important.
+// The stateful syncer supports re-orgs out-of the box.
 type StatefulSyncer struct {
-	network *types.NetworkIdentifier
-	storage *storage.BlockStorage
-	fetcher *fetcher.Fetcher
-	handler Handler
+	network      *types.NetworkIdentifier
+	storage      *storage.BlockStorage
+	fetcher      *fetcher.Fetcher
+	handler      Handler
+	genesisBlock *types.BlockIdentifier
 }
 
-// NewStateful returns a new StatefulSyncer.
+// NewStateful returns a new Syncer.
 func NewStateful(
 	network *types.NetworkIdentifier,
 	storage *storage.BlockStorage,
@@ -49,6 +52,30 @@ func NewStateful(
 		fetcher: fetcher,
 		handler: handler,
 	}
+}
+
+// SetStartIndex initializes the genesisBlock
+// and attempts to set the newHeadIndex.
+func (s *StatefulSyncer) SetStartIndex(
+	ctx context.Context,
+	startIndex int64,
+) error {
+	networkStatus, err := s.fetcher.NetworkStatusRetry(
+		ctx,
+		s.network,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	s.genesisBlock = networkStatus.GenesisBlockIdentifier
+
+	if startIndex != -1 {
+		return s.newHeadIndex(ctx, startIndex)
+	}
+
+	return nil
 }
 
 // checkReorg determines if the block provided
@@ -126,9 +153,9 @@ func (s *StatefulSyncer) storeBlockBalanceChanges(
 	return balanceChanges, nil
 }
 
-// OrphanBlock removes a block from the database and reverts all its balance
+// orphanBlock removes a block from the database and reverts all its balance
 // changes.
-func (s *StatefulSyncer) OrphanBlock(
+func (s *StatefulSyncer) orphanBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
 	blockIdentifier *types.BlockIdentifier,
@@ -156,8 +183,8 @@ func (s *StatefulSyncer) OrphanBlock(
 	return balanceChanges, nil
 }
 
-// AddBlock adds a block to the database and stores all balance changes.
-func (s *StatefulSyncer) AddBlock(
+// addBlock adds a block to the database and stores all balance changes.
+func (s *StatefulSyncer) addBlock(
 	ctx context.Context,
 	tx storage.DatabaseTransaction,
 	block *types.Block,
@@ -180,9 +207,9 @@ func (s *StatefulSyncer) AddBlock(
 	return balanceChanges, nil
 }
 
-// ProcessBlock determines if a block should be added or the current
+// processBlock determines if a block should be added or the current
 // head should be orphaned.
-func (s *StatefulSyncer) ProcessBlock(
+func (s *StatefulSyncer) processBlock(
 	ctx context.Context,
 	genesisIndex int64,
 	currIndex int64,
@@ -209,12 +236,12 @@ func (s *StatefulSyncer) ProcessBlock(
 			return nil, currIndex, false, err
 		}
 
-		balanceChanges, err = s.OrphanBlock(ctx, tx, head)
+		balanceChanges, err = s.orphanBlock(ctx, tx, head)
 		if err != nil {
 			return nil, currIndex, false, err
 		}
 	} else {
-		balanceChanges, err = s.AddBlock(ctx, tx, block)
+		balanceChanges, err = s.addBlock(ctx, tx, block)
 		if err != nil {
 			return nil, currIndex, false, err
 		}
@@ -230,13 +257,13 @@ func (s *StatefulSyncer) ProcessBlock(
 	return balanceChanges, newIndex, reorg, nil
 }
 
-// NewHeadIndex reverts all blocks that have
+// newHeadIndex reverts all blocks that have
 // an index greater than newHeadIndex. This is particularly
 // useful when debugging a server implementation because
 // you don't need to restart validation from genesis. Instead,
 // you can just restart validation at the block immediately
 // before any erroneous block.
-func (s *StatefulSyncer) NewHeadIndex(
+func (s *StatefulSyncer) newHeadIndex(
 	ctx context.Context,
 	newHeadIndex int64,
 ) error {
@@ -266,7 +293,7 @@ func (s *StatefulSyncer) NewHeadIndex(
 			break
 		}
 
-		_, err = s.OrphanBlock(ctx, tx, head)
+		_, err = s.orphanBlock(ctx, tx, head)
 		if err != nil {
 			return err
 		}
@@ -275,12 +302,11 @@ func (s *StatefulSyncer) NewHeadIndex(
 	return tx.Commit(ctx)
 }
 
-// SyncBlockRange syncs blocks from startIndex to endIndex, inclusive.
+// SyncRange syncs blocks from startIndex to endIndex, inclusive.
 // This function handles re-orgs that may occur while syncing as long
 // as the genesisIndex is not orphaned.
-func (s *StatefulSyncer) SyncBlockRange(
+func (s *StatefulSyncer) SyncRange(
 	ctx context.Context,
-	genesisIndex int64,
 	startIndex int64,
 	endIndex int64,
 ) error {
@@ -317,9 +343,9 @@ func (s *StatefulSyncer) SyncBlockRange(
 		}
 
 		// Can't return balanceChanges without creating new variable
-		balanceChanges, newIndex, reorg, err := s.ProcessBlock(
+		balanceChanges, newIndex, reorg, err := s.processBlock(
 			ctx,
-			genesisIndex,
+			s.genesisBlock.Index,
 			currIndex,
 			block.Block,
 		)
@@ -337,17 +363,15 @@ func (s *StatefulSyncer) SyncBlockRange(
 	return nil
 }
 
-// nextSyncableRange returns the next range of indexes to sync
+// NextSyncableRange returns the next range of indexes to sync
 // based on what the last processed block in storage is and
 // the contents of the network status response.
-func (s *StatefulSyncer) nextSyncableRange(
+func (s *StatefulSyncer) NextSyncableRange(
 	ctx context.Context,
-	networkStatus *types.NetworkStatusResponse,
-) (int64, int64, int64, error) {
+	endIndex int64,
+) (int64, int64, bool, error) {
 	tx := s.storage.NewDatabaseTransaction(ctx, false)
 	defer tx.Discard(ctx)
-
-	genesisBlockIdentifier := networkStatus.GenesisBlockIdentifier
 
 	var startIndex int64
 	head, err := s.storage.GetHeadBlockIdentifier(ctx, tx)
@@ -355,70 +379,24 @@ func (s *StatefulSyncer) nextSyncableRange(
 	case nil:
 		startIndex = head.Index + 1
 	case storage.ErrHeadBlockNotFound:
-		head = genesisBlockIdentifier
+		head = s.genesisBlock
 		startIndex = head.Index
 	default:
-		return -1, -1, -1, err
+		return -1, -1, false, err
 	}
 
-	endIndex := networkStatus.CurrentBlockIdentifier.Index
-	if endIndex-startIndex > maxSync {
-		endIndex = startIndex + maxSync
+	if endIndex != -1 {
+		return startIndex, endIndex, false, nil
 	}
 
-	return genesisBlockIdentifier.Index, startIndex, endIndex, nil
-}
-
-// SyncCycle is a single iteration of processing up to maxSync blocks.
-// SyncCycle is called repeatedly by Sync until there is an error.
-func (s *StatefulSyncer) SyncCycle(ctx context.Context, printNetwork bool) error {
 	networkStatus, err := s.fetcher.NetworkStatusRetry(
 		ctx,
 		s.network,
 		nil,
 	)
 	if err != nil {
-		return err
+		return -1, -1, false, err
 	}
 
-	if printNetwork {
-		err = PrintNetwork(ctx, networkStatus)
-		if err != nil {
-			return err
-		}
-	}
-
-	genesisIndex, startIndex, endIndex, err := s.nextSyncableRange(ctx, networkStatus)
-	if err != nil {
-		return err
-	}
-
-	if startIndex > endIndex {
-		log.Printf("Next block %d > Blockchain Head %d", startIndex, endIndex)
-		return nil
-	}
-
-	log.Printf("Syncing blocks %d-%d\n", startIndex, endIndex)
-	return s.SyncBlockRange(
-		ctx,
-		genesisIndex,
-		startIndex,
-		endIndex,
-	)
-}
-
-// Sync cycles endlessly until there is an error.
-func (s *StatefulSyncer) Sync(
-	ctx context.Context,
-) error {
-	printNetwork := true
-	for ctx.Err() == nil {
-		err := s.SyncCycle(ctx, printNetwork)
-		if err != nil {
-			return err
-		}
-		printNetwork = false
-	}
-
-	return nil
+	return startIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
 }
