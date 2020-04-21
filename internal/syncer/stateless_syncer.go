@@ -57,7 +57,7 @@ func (s *StatelessSyncer) SyncRange(
 	// TODO: support reorgs
 	for i := startIndex; i < endIndex; i++ {
 		block := blockMap[i].Block
-		changes, err := calculateBalanceChanges(
+		changes, err := BalanceChanges(
 			ctx,
 			s.fetcher.Asserter,
 			block,
