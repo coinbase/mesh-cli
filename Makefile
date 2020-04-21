@@ -48,15 +48,3 @@ build:
 
 install:
 	go install ./...
-
-watch-blocks:
-	tail -f ${PWD}/validator-data/blocks.txt
-
-watch-transactions:
-	tail -f ${PWD}/validator-data/transactions.txt
-
-watch-balances:
-	tail -f ${PWD}/validator-data/balances.txt
-
-watch-reconciliations:
-	tail -f ${PWD}/validator-data/reconciliations.txt

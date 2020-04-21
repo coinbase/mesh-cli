@@ -30,8 +30,18 @@ import (
 var (
 	checkQuickCmd = &cobra.Command{
 		Use:   "check:quick",
-		Short: "Check that blocks are mostly correct",
-		Run:   runCheckQuickCmd,
+		Short: "Run a simple check of the correctness of a Rosetta server",
+		Long: `Check all server responses are properly constructed and that
+computed balance changes are equal to balance changes reported by the
+node. To use check:quick, your server must implement the balance lookup
+by block. Unlike check:complete, which requires syncing all blocks up
+to the blocks you want to check, check:quick allows you to validate
+an arbitrary range of blocks (even if earlier blocks weren't synced).
+
+It is important to note that check:quick does not support re-orgs and it
+does not check for duplicate blocks and transactions. For these features,
+please use check:complete.`,
+		Run: runCheckQuickCmd,
 	}
 )
 
@@ -52,9 +62,10 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 
 	logger := logger.NewLogger(
 		DataDir,
+		LogBlocks,
 		LogTransactions,
-		LogBalances,
-		LogReconciliation,
+		LogBalanceChanges,
+		LogReconciliations,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

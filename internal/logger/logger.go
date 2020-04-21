@@ -37,7 +37,7 @@ const (
 
 	// balanceStreamFile contains the stream of processed
 	// balance changes.
-	balanceStreamFile = "balances.txt"
+	balanceStreamFile = "balance_changes.txt"
 
 	// reconcileSuccessStreamFile contains the stream of processed
 	// reconciliations.
@@ -61,22 +61,25 @@ const (
 // and benchmark a Rosetta Server.
 type Logger struct {
 	logDir            string
+	logBlocks         bool
 	logTransactions   bool
-	logBalances       bool
+	logBalanceChanges bool
 	logReconciliation bool
 }
 
 // NewLogger constructs a new Logger.
 func NewLogger(
 	logDir string,
+	logBlocks bool,
 	logTransactions bool,
-	logBalances bool,
+	logBalanceChanges bool,
 	logReconciliation bool,
 ) *Logger {
 	return &Logger{
 		logDir:            logDir,
+		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
-		logBalances:       logBalances,
+		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
 	}
 }
@@ -88,6 +91,10 @@ func (l *Logger) BlockStream(
 	block *types.Block,
 	orphan bool,
 ) error {
+	if !l.logBlocks {
+		return nil
+	}
+
 	f, err := os.OpenFile(
 		path.Join(l.logDir, blockStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
@@ -200,7 +207,7 @@ func (l *Logger) BalanceStream(
 	ctx context.Context,
 	balanceChanges []*storage.BalanceChange,
 ) error {
-	if !l.logBalances {
+	if !l.logBalanceChanges {
 		return nil
 	}
 

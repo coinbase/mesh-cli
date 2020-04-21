@@ -28,33 +28,88 @@ not a single binary.
 4. Watch for errors in the processing logs. Any error will cause validation to
 stop.
 
-## TODO
+## rosetta-validator
 ```
-A simple CLI to interact with a Rosetta server
+A simple CLI to validate a Rosetta server
 
 Usage:
   rosetta-validator [command]
 
 Available Commands:
-  check:complete Check the correctness of all blocks
-  check:quick    Check that blocks are mostly correct
+  check:complete Run a full check of the correctness of a Rosetta server
+  check:quick    Run a simple check of the correctness of a Rosetta server
   help           Help about any command
+```
+
+## check:complete
+```
+Check all server responses are properly constructed, that
+there are no duplicate blocks and transactions, that blocks can be processed
+from genesis to the current block (re-orgs handled automatically), and that
+computed balance changes are equal to balance changes reported by the node.
+
+Usage:
+  rosetta-validator check:complete [flags]
 
 Flags:
-      --account-concurrency uint       concurrency of account balance fetches (default 8)
-      --block-concurrency uint         concurrency of block fetches (default 8)
-      --data-dir string                folder to store all block data and logs (default "./validator-data")
-      --end-index int                  end validation at some index (default -1)
-      --halt-on-reconciliation-error   halt on reconciliation error (default true)
-  -h, --help                           help for rosetta-validator
-      --log-balances                   log balance changes (default true)
-      --log-reconciliations            log reconciliations (default true)
-      --log-transactions               log processed transactions (default true)
-      --server-url string              base url for Rosetta server (default "http://localhost:8080")
-      --start-index int                start validation from some index (default -1)
-      --transaction-concurrency uint   concurrency of transaction fetches (if required) (default 16)
+      --bootstrap-balances string   Absolute path to a file used to bootstrap balances before starting syncing.
+                                    Populating this value after beginning syncing will return an error.
+  -h, --help                        help for check:complete
+      --lookup-balance-by-block     When set to true, balances are looked up at the block where a balance
+                                    change occurred instead of at the current block. Blockchains that do not support
+                                    historical balance lookup should set this to false. (default true)
 
-Use "rosetta-validator [command] --help" for more information about a command.
+Global Flags:
+      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
+      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
+      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
+      --end int                        block index to stop syncing (default -1)
+      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
+                                       error. It can be beneficial to collect all reconciliation errors or silence
+                                       reconciliation errors during development. (default true)
+      --log-balance-changes            log balance changes (default true)
+      --log-blocks                     log processed blocks (default true)
+      --log-reconciliations            log balance reconciliations (default true)
+      --log-transactions               log processed transactions (default true)
+      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
+      --start int                      block index to start syncing (default -1)
+      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
+```
+
+## check:quick
+```
+Check all server responses are properly constructed and that
+computed balance changes are equal to balance changes reported by the
+node. To use check:quick, your server must implement the balance lookup
+by block. Unlike check:complete, which requires syncing all blocks up
+to the blocks you want to check, check:quick allows you to validate
+an arbitrary range of blocks (even if earlier blocks weren't synced).
+
+It is important to note that check:quick does not support re-orgs and it
+does not check for duplicate blocks and transactions. For these features,
+please use check:complete.
+
+Usage:
+  rosetta-validator check:quick [flags]
+
+Flags:
+  -h, --help   help for check:quick
+
+Global Flags:
+      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
+      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
+      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
+      --end int                        block index to stop syncing (default -1)
+      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
+                                       error. It can be beneficial to collect all reconciliation errors or silence
+                                       reconciliation errors during development. (default true)
+      --log-balance-changes            log balance changes (default true)
+      --log-blocks                     log processed blocks (default true)
+      --log-reconciliations            log balance reconciliations (default true)
+      --log-transactions               log processed transactions (default true)
+      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
+      --start int                      block index to start syncing (default -1)
+      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 ```
 
 ### Configuration Options

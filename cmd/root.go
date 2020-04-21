@@ -21,21 +21,55 @@ import (
 var (
 	rootCmd = &cobra.Command{
 		Use:   "rosetta-validator",
-		Short: "A simple CLI to interact with a Rosetta server",
+		Short: "A simple CLI to validate a Rosetta server",
 	}
 
-	DataDir                   string
-	ServerURL                 string
-	BlockConcurrency          uint64
-	TransactionConcurrency    uint64
-	AccountConcurrency        uint64
-	LogTransactions           bool
-	LogBalances               bool
-	LogReconciliation         bool
-	BootstrapBalances         string
-	StartIndex                int64
-	EndIndex                  int64
-	LookupBalanceByBlock      bool
+	// DataDir is a folder used to store logs
+	// and any data used to perform validation.
+	DataDir string
+
+	// ServerURL is the base URL for a Rosetta
+	// server to validate.
+	ServerURL string
+
+	// StartIndex is the block index to start syncing.
+	StartIndex int64
+
+	// EndIndex is the block index to stop syncing.
+	EndIndex int64
+
+	// BlockConcurrency is the concurrency to use
+	// while fetching blocks.
+	BlockConcurrency uint64
+
+	// TransactionConcurrency is the concurrency to use
+	// while fetching transactions (if required).
+	TransactionConcurrency uint64
+
+	// AccountConcurrency is the concurrency to use
+	// while fetching accounts during reconciliation.
+	AccountConcurrency uint64
+
+	// LogBlocks determines if blocks are
+	// logged.
+	LogBlocks bool
+
+	// LogTransactions determines if transactions are
+	// logged.
+	LogTransactions bool
+
+	// LogBalanceChanges determines if balance changes are
+	// logged.
+	LogBalanceChanges bool
+
+	// LogReconciliations determines if reconciliations are
+	// logged.
+	LogReconciliations bool
+
+	// HaltOnReconciliationError determines if processing
+	// should stop when encountering a reconciliation error.
+	// It can be beneficial to collect all reconciliation errors
+	// during development.
 	HaltOnReconciliationError bool
 )
 
@@ -45,28 +79,52 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(
+		&DataDir,
+		"data-dir",
+		"./validator-data",
+		"folder used to store logs and any data used to perform validation",
+	)
+	rootCmd.PersistentFlags().StringVar(
 		&ServerURL,
 		"server-url",
 		"http://localhost:8080",
-		"base url for Rosetta server",
+		"base URL for a Rosetta server to validate",
+	)
+	rootCmd.PersistentFlags().Int64Var(
+		&StartIndex,
+		"start",
+		-1,
+		"block index to start syncing",
+	)
+	rootCmd.PersistentFlags().Int64Var(
+		&EndIndex,
+		"end",
+		-1,
+		"block index to stop syncing",
 	)
 	rootCmd.PersistentFlags().Uint64Var(
 		&BlockConcurrency,
 		"block-concurrency",
 		8,
-		"concurrency of block fetches",
+		"concurrency to use while fetching blocks",
 	)
 	rootCmd.PersistentFlags().Uint64Var(
 		&TransactionConcurrency,
 		"transaction-concurrency",
 		16,
-		"concurrency of transaction fetches (if required)",
+		"concurrency to use while fetching transactions (if required)",
 	)
 	rootCmd.PersistentFlags().Uint64Var(
 		&AccountConcurrency,
 		"account-concurrency",
 		8,
-		"concurrency of account balance fetches",
+		"concurrency to use while fetching accounts during reconciliation",
+	)
+	rootCmd.PersistentFlags().BoolVar(
+		&LogBlocks,
+		"log-blocks",
+		true,
+		"log processed blocks",
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&LogTransactions,
@@ -74,36 +132,25 @@ func init() {
 		true,
 		"log processed transactions",
 	)
-	rootCmd.PersistentFlags().BoolVar(&LogBalances, "log-balances", true, "log balance changes")
 	rootCmd.PersistentFlags().BoolVar(
-		&LogReconciliation,
+		&LogBalanceChanges,
+		"log-balance-changes",
+		true,
+		"log balance changes",
+	)
+	rootCmd.PersistentFlags().BoolVar(
+		&LogReconciliations,
 		"log-reconciliations",
 		true,
-		"log reconciliations",
+		"log balance reconciliations",
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&HaltOnReconciliationError,
 		"halt-on-reconciliation-error",
 		true,
-		"halt on reconciliation error",
-	)
-	rootCmd.PersistentFlags().Int64Var(
-		&StartIndex,
-		"start-index",
-		-1,
-		"start validation from some index",
-	)
-	rootCmd.PersistentFlags().Int64Var(
-		&EndIndex,
-		"end-index",
-		-1,
-		"end validation at some index",
-	)
-	rootCmd.PersistentFlags().StringVar(
-		&DataDir,
-		"data-dir",
-		"./validator-data",
-		"folder to store all block data and logs",
+		`Determines if block processing should halt on a reconciliation
+error. It can be beneficial to collect all reconciliation errors or silence
+reconciliation errors during development.`,
 	)
 
 	rootCmd.AddCommand(checkCompleteCmd)

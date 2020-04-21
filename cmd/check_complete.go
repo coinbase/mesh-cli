@@ -32,12 +32,24 @@ import (
 var (
 	checkCompleteCmd = &cobra.Command{
 		Use:   "check:complete",
-		Short: "Check the correctness of all blocks",
-		Long: `Fetch each block and check that reconciles, no duplicates,
-responses correct, etc. Handles re-orgs.
-		`,
+		Short: "Run a full check of the correctness of a Rosetta server",
+		Long: `Check all server responses are properly constructed, that
+there are no duplicate blocks and transactions, that blocks can be processed
+from genesis to the current block (re-orgs handled automatically), and that
+computed balance changes are equal to balance changes reported by the node.`,
 		Run: runCheckCompleteCmd,
 	}
+
+	// BootstrapBalances is a path to a file used to bootstrap
+	// balances before starting syncing. Populating this value
+	// after beginning syncing will return an error.
+	BootstrapBalances string
+
+	// LookupBalanceByBlock determines if balances are looked up
+	// at the block where a balance change occurred instead of at the current
+	// block. Blockchains that do not support historical balance lookup
+	// should set this to false.
+	LookupBalanceByBlock bool
 )
 
 func init() {
@@ -45,13 +57,16 @@ func init() {
 		&BootstrapBalances,
 		"bootstrap-balances",
 		"",
-		"bootstrap balances from an initialization file (check examples directory for an example)",
+		`Absolute path to a file used to bootstrap balances before starting syncing.
+Populating this value after beginning syncing will return an error.`,
 	)
 	checkCompleteCmd.Flags().BoolVar(
 		&LookupBalanceByBlock,
 		"lookup-balance-by-block",
 		true,
-		"perform reconciliation by looking up balances by block.",
+		`When set to true, balances are looked up at the block where a balance
+change occurred instead of at the current block. Blockchains that do not support
+historical balance lookup should set this to false.`,
 	)
 }
 
@@ -90,9 +105,10 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 
 	logger := logger.NewLogger(
 		DataDir,
+		LogBlocks,
 		LogTransactions,
-		LogBalances,
-		LogReconciliation,
+		LogBalanceChanges,
+		LogReconciliations,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
