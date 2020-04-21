@@ -16,14 +16,13 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
-	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -38,11 +37,12 @@ const (
 
 	// balanceStreamFile contains the stream of processed
 	// balance changes.
-	balanceStreamFile = "balances.txt"
+	balanceStreamFile = "balance_changes.txt"
 
-	// reconcileStreamFile contains the stream of processed
+	// reconcileSuccessStreamFile contains the stream of processed
 	// reconciliations.
-	reconcileStreamFile = "reconciliations.txt"
+	reconcileSuccessStreamFile = "successful_reconciliations.txt"
+	reconcileFailureStreamFile = "failure_reconciliations.txt"
 
 	// addEvent is printed in a stream
 	// when an event is added.
@@ -51,22 +51,6 @@ const (
 	// removeEvent is printed in a stream
 	// when an event is orphaned.
 	removeEvent = "Remove"
-
-	// blockLatencyHeader is used as the CSV header
-	// to the blockBenchmarkFile.
-	blockLatencyHeader = "index,latency,txs,ops\n"
-
-	// accountLatencyHeader is used as the CSV header
-	// to the accountBenchmarkFile.
-	accountLatencyHeader = "account,latency,balances\n"
-
-	// blockBenchmarkFile contains each block fetch
-	// stat in the form of blockLatencyHeader.
-	blockBenchmarkFile = "block_benchmarks.csv"
-
-	// accountBenchmarkFile contains each account fetch
-	// stat in the form of accountBenchmarkFile.
-	accountBenchmarkFile = "account_benchmarks.csv"
 
 	// logFilePermissions specifies that the user can
 	// read and write the file.
@@ -77,25 +61,25 @@ const (
 // and benchmark a Rosetta Server.
 type Logger struct {
 	logDir            string
+	logBlocks         bool
 	logTransactions   bool
-	logBenchmarks     bool
-	logBalances       bool
+	logBalanceChanges bool
 	logReconciliation bool
 }
 
 // NewLogger constructs a new Logger.
 func NewLogger(
 	logDir string,
+	logBlocks bool,
 	logTransactions bool,
-	logBenchmarks bool,
-	logBalances bool,
+	logBalanceChanges bool,
 	logReconciliation bool,
 ) *Logger {
 	return &Logger{
 		logDir:            logDir,
+		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
-		logBenchmarks:     logBenchmarks,
-		logBalances:       logBalances,
+		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
 	}
 }
@@ -107,6 +91,10 @@ func (l *Logger) BlockStream(
 	block *types.Block,
 	orphan bool,
 ) error {
+	if !l.logBlocks {
+		return nil
+	}
+
 	f, err := os.OpenFile(
 		path.Join(l.logDir, blockStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
@@ -219,7 +207,7 @@ func (l *Logger) BalanceStream(
 	ctx context.Context,
 	balanceChanges []*storage.BalanceChange,
 ) error {
-	if !l.logBalances {
+	if !l.logBalanceChanges {
 		return nil
 	}
 
@@ -235,27 +223,13 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s%s -> %s%s (%s%s) Transaction: %s Block: %d:%s",
+			"Account: %s Change: %s%s Block: %d:%s",
 			balanceChange.Account.Address,
-			balanceChange.OldValue,
-			balanceChange.Currency.Symbol,
-			balanceChange.NewValue,
-			balanceChange.Currency.Symbol,
 			balanceChange.Difference,
 			balanceChange.Currency.Symbol,
-			balanceChange.Transaction.Hash,
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
-
-		if balanceChange.OldBlock != nil {
-			balanceLog = fmt.Sprintf(
-				"%s Last Updated: %d:%s",
-				balanceLog,
-				balanceChange.OldBlock.Index,
-				balanceChange.OldBlock.Hash,
-			)
-		}
 
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			return err
@@ -264,21 +238,21 @@ func (l *Logger) BalanceStream(
 	return nil
 }
 
-// ReconcileStream logs all reconciliation checks performed
+// ReconcileSuccessStream logs all reconciliation checks performed
 // during syncing.
-func (l *Logger) ReconcileStream(
+func (l *Logger) ReconcileSuccessStream(
 	ctx context.Context,
+	reconciliationType string,
 	account *types.AccountIdentifier,
-	currency *types.Currency,
-	liveBalance *types.Amount,
-	liveBlock *types.BlockIdentifier,
+	balance *types.Amount,
+	block *types.BlockIdentifier,
 ) error {
 	if !l.logReconciliation {
 		return nil
 	}
 
 	f, err := os.OpenFile(
-		path.Join(l.logDir, reconcileStreamFile),
+		path.Join(l.logDir, reconcileSuccessStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		logFilePermissions,
 	)
@@ -287,13 +261,21 @@ func (l *Logger) ReconcileStream(
 	}
 	defer f.Close()
 
+	log.Printf(
+		"%s Reconciled %+v at %d\n",
+		reconciliationType,
+		account,
+		block.Index,
+	)
+
 	_, err = f.WriteString(fmt.Sprintf(
-		"Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		reconciliationType,
 		account.Address,
-		currency.Symbol,
-		liveBalance.Value,
-		liveBlock.Index,
-		liveBlock.Hash,
+		balance.Currency.Symbol,
+		balance.Value,
+		block.Index,
+		block.Hash,
 	))
 	if err != nil {
 		return err
@@ -302,98 +284,22 @@ func (l *Logger) ReconcileStream(
 	return nil
 }
 
-// writeCSVHeader writes a header to a file if it
-// doesn't yet exist.
-func writeCSVHeader(header string, file string) error {
-	_, err := os.Stat(file)
-	if os.IsNotExist(err) {
-		f, err := os.OpenFile(
-			file,
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-			logFilePermissions,
-		)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		_, err = f.WriteString(header)
-		return err
-	}
-
-	return err
-}
-
-// BlockLatency writes the Rosetta Server performance for block fetch
-// benchmarks to the block_benchmarks.csv file.
-func (l *Logger) BlockLatency(
+// ReconcileFailureStream logs all reconciliation checks performed
+// during syncing.
+func (l *Logger) ReconcileFailureStream(
 	ctx context.Context,
-	blocks []*fetcher.BlockAndLatency,
-) error {
-	if !l.logBenchmarks {
-		return nil
-	}
-
-	file := path.Join(l.logDir, blockBenchmarkFile)
-	err := writeCSVHeader(blockLatencyHeader, file)
-	if err != nil {
-		return err
-	}
-
-	// Append to file
-	f, err := os.OpenFile(
-		file,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
-	)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	for _, block := range blocks {
-		txs := len(block.Block.Transactions)
-		ops := 0
-		for _, tx := range block.Block.Transactions {
-			ops += len(tx.Operations)
-		}
-
-		_, err := f.WriteString(fmt.Sprintf(
-			"%d,%f,%d,%d\n",
-			block.Block.BlockIdentifier.Index,
-			block.Latency,
-			txs,
-			ops,
-		))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// AccountLatency writes the Rosetta Server performance for
-// account fetch benchmarks to the account_benchmarks.csv file.
-func (l *Logger) AccountLatency(
-	ctx context.Context,
+	reconciliationType string,
 	account *types.AccountIdentifier,
-	latency float64,
-	balances int,
+	currency *types.Currency,
+	difference string,
+	block *types.BlockIdentifier,
 ) error {
-	if !l.logBenchmarks {
+	if !l.logReconciliation {
 		return nil
 	}
 
-	file := path.Join(l.logDir, accountBenchmarkFile)
-	err := writeCSVHeader(accountLatencyHeader, file)
-	if err != nil {
-		return err
-	}
-
-	// Append to file
 	f, err := os.OpenFile(
-		file,
+		path.Join(l.logDir, reconcileFailureStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		logFilePermissions,
 	)
@@ -402,32 +308,26 @@ func (l *Logger) AccountLatency(
 	}
 	defer f.Close()
 
-	addressString := account.Address
-	if account.SubAccount != nil {
-		addressString += account.SubAccount.Address
-	}
+	log.Printf(
+		"%s Reconciliation failed for %+v at %d by %s (computed-node)\n",
+		reconciliationType,
+		account,
+		block.Index,
+		difference,
+	)
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"%s,%f,%d\n",
-		addressString,
-		latency,
-		balances,
+		"Type:%s Account: %+v Currency: %+v Block: %s:%d Difference(computed-node):%s\n",
+		reconciliationType,
+		account,
+		currency,
+		block.Hash,
+		block.Index,
+		difference,
 	))
-
-	return err
-}
-
-// Network pretty prints the types.NetworkStatusResponse to the console.
-func Network(
-	ctx context.Context,
-	network *types.NetworkStatusResponse,
-) error {
-	b, err := json.MarshalIndent(network, "", " ")
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Network Information: " + string(b))
 
 	return nil
 }

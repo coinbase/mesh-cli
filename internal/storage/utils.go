@@ -15,8 +15,10 @@
 package storage
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 )
 
@@ -37,4 +39,44 @@ func RemoveTempDir(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// AddStringValues adds string amounts using
+// big.Int.
+func AddStringValues(
+	a string,
+	b string,
+) (string, error) {
+	aVal, ok := new(big.Int).SetString(a, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", a)
+	}
+
+	bVal, ok := new(big.Int).SetString(b, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", b)
+	}
+
+	newVal := new(big.Int).Add(aVal, bVal)
+	return newVal.String(), nil
+}
+
+// SubtractStringValues subtracts a-b using
+// big.Int.
+func SubtractStringValues(
+	a string,
+	b string,
+) (string, error) {
+	aVal, ok := new(big.Int).SetString(a, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", a)
+	}
+
+	bVal, ok := new(big.Int).SetString(b, 10)
+	if !ok {
+		return "", fmt.Errorf("%s is not an integer", b)
+	}
+
+	newVal := new(big.Int).Sub(aVal, bVal)
+	return newVal.String(), nil
 }

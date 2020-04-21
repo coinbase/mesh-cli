@@ -26,7 +26,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -54,10 +53,6 @@ const (
 	// balanceNamespace is prepended to any stored balance.
 	balanceNamespace = "balance"
 
-	// bootstrapBalancesFile is loaded to bootstrap the balance
-	// of a collection of accounts.
-	bootstrapBalancesFile = "bootstrap_balances.csv"
-
 	// bootstrapBalancesPermissions specifies that the user can
 	// read and write the file.
 	bootstrapBalancesPermissions = 0600
@@ -74,31 +69,31 @@ const (
 var (
 	// ErrHeadBlockNotFound is returned when there is no
 	// head block found in BlockStorage.
-	ErrHeadBlockNotFound = errors.New("Head block not found")
+	ErrHeadBlockNotFound = errors.New("head block not found")
 
 	// ErrBlockNotFound is returned when a block is not
 	// found in BlockStorage.
-	ErrBlockNotFound = errors.New("Block not found")
+	ErrBlockNotFound = errors.New("block not found")
 
 	// ErrAccountNotFound is returned when an account
 	// is not found in BlockStorage.
-	ErrAccountNotFound = errors.New("Account not found")
+	ErrAccountNotFound = errors.New("account not found")
 
 	// ErrNegativeBalance is returned when an account
 	// balance goes negative as the result of an operation.
-	ErrNegativeBalance = errors.New("Negative balance")
+	ErrNegativeBalance = errors.New("negative balance")
 
 	// ErrDuplicateBlockHash is returned when a block hash
 	// cannot be stored because it is a duplicate.
-	ErrDuplicateBlockHash = errors.New("Duplicate block hash")
+	ErrDuplicateBlockHash = errors.New("duplicate block hash")
 
 	// ErrDuplicateTransactionHash is returned when a transaction
 	// hash cannot be stored because it is a duplicate.
-	ErrDuplicateTransactionHash = errors.New("Duplicate transaction hash")
+	ErrDuplicateTransactionHash = errors.New("duplicate transaction hash")
 
 	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
 	// balances after syncing has started.
-	ErrAlreadyStartedSyncing = errors.New("already started syncing")
+	ErrAlreadyStartedSyncing = errors.New("cannot bootstrap accounts, already started syncing")
 
 	// ErrIncorrectHeader is returned when a bootstrap file has an
 	// incorrect header.
@@ -147,7 +142,10 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes([]byte(fmt.Sprintf("%s:%s", transactionHashNamespace, hash)))
 }
 
-func getBalanceKey(account *types.AccountIdentifier) []byte {
+// GetAccountKey returns a byte slice representing a *types.AccountIdentifier.
+// This byte slice automatically handles the existence of *types.SubAccount
+// detail.
+func GetAccountKey(account *types.AccountIdentifier) []byte {
 	if account.SubAccount == nil {
 		return hashBytes(
 			[]byte(fmt.Sprintf("%s:%s", balanceNamespace, account.Address)),
@@ -415,14 +413,10 @@ func GetCurrencyKey(currency *types.Currency) string {
 // BalanceChange represents a balance change that affected
 // a *types.AccountIdentifier and a *types.Currency.
 type BalanceChange struct {
-	Account     *types.AccountIdentifier
-	Currency    *types.Currency
-	Block       *types.BlockIdentifier
-	Transaction *types.TransactionIdentifier
-	NewValue    string
-	OldBlock    *types.BlockIdentifier
-	OldValue    string
-	Difference  string
+	Account    *types.AccountIdentifier
+	Currency   *types.Currency
+	Block      *types.BlockIdentifier
+	Difference string
 }
 
 // UpdateBalance updates a types.AccountIdentifer
@@ -434,19 +428,20 @@ func (b *BlockStorage) UpdateBalance(
 	account *types.AccountIdentifier,
 	amount *types.Amount,
 	block *types.BlockIdentifier,
-	transaction *types.TransactionIdentifier,
 ) (*BalanceChange, error) {
 	if amount == nil || amount.Currency == nil {
 		return nil, errors.New("invalid amount")
 	}
 
-	key := getBalanceKey(account)
+	key := GetAccountKey(account)
 	// Get existing balance on key
 	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: create a balance key that is the combination
+	// of account and currency
 	currencyKey := GetCurrencyKey(amount.Currency)
 
 	if !exists {
@@ -480,14 +475,10 @@ func (b *BlockStorage) UpdateBalance(
 		}
 
 		return &BalanceChange{
-			Account:     account,
-			Currency:    amount.Currency,
-			OldBlock:    nil,
-			Block:       block,
-			Transaction: transaction,
-			OldValue:    "0",
-			NewValue:    amount.Value,
-			Difference:  amount.Value,
+			Account:    account,
+			Currency:   amount.Currency,
+			Block:      block,
+			Difference: amount.Value,
 		}, nil
 	}
 
@@ -502,19 +493,13 @@ func (b *BlockStorage) UpdateBalance(
 		parseBal.Amounts[currencyKey] = amount
 	}
 
-	modification, ok := new(big.Int).SetString(amount.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf("%s is not an integer", amount.Value)
+	oldValue := val.Value
+	val.Value, err = AddStringValues(amount.Value, oldValue)
+	if err != nil {
+		return nil, err
 	}
 
-	existing, ok := new(big.Int).SetString(val.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf("%s is not an integer", val.Value)
-	}
-
-	newVal := new(big.Int).Add(existing, modification)
-	val.Value = newVal.String()
-	if newVal.Sign() == -1 {
+	if strings.HasPrefix(val.Value, "-") {
 		return nil, fmt.Errorf(
 			"%w %+v for %+v at %+v",
 			ErrNegativeBalance,
@@ -526,7 +511,6 @@ func (b *BlockStorage) UpdateBalance(
 
 	parseBal.Amounts[currencyKey] = val
 
-	oldBlock := parseBal.Block
 	parseBal.Block = block
 	serialBal, err := serializeBalanceEntry(*parseBal)
 	if err != nil {
@@ -538,25 +522,22 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	return &BalanceChange{
-		Account:     account,
-		Currency:    amount.Currency,
-		Block:       block,
-		Transaction: transaction,
-		NewValue:    newVal.String(),
-		OldBlock:    oldBlock,
-		OldValue:    existing.String(),
-		Difference:  amount.Value,
+		Account:    account,
+		Currency:   amount.Currency,
+		Block:      block,
+		Difference: amount.Value,
 	}, nil
 }
 
 // GetBalance returns all the balances of a types.AccountIdentifier
 // and the types.BlockIdentifier it was last updated at.
+// TODO: change to fetch by account and currency
 func (b *BlockStorage) GetBalance(
 	ctx context.Context,
 	transaction DatabaseTransaction,
 	account *types.AccountIdentifier,
 ) (map[string]*types.Amount, *types.BlockIdentifier, error) {
-	key := getBalanceKey(account)
+	key := GetAccountKey(account)
 	exists, bal, err := transaction.Get(ctx, key)
 	if err != nil {
 		return nil, nil, err
@@ -580,11 +561,11 @@ func (b *BlockStorage) GetBalance(
 // accounts that received an allocation in the genesis block.
 func (b *BlockStorage) BootstrapBalances(
 	ctx context.Context,
-	dataDir string,
+	bootstrapBalancesFile string,
 	genesisBlockIdentifier *types.BlockIdentifier,
 ) error {
 	f, err := os.OpenFile(
-		path.Join(dataDir, bootstrapBalancesFile),
+		bootstrapBalancesFile,
 		os.O_RDONLY,
 		bootstrapBalancesPermissions,
 	)
@@ -653,7 +634,6 @@ func (b *BlockStorage) BootstrapBalances(
 			account,
 			amount,
 			genesisBlockIdentifier,
-			nil,
 		)
 		if err != nil {
 			return err

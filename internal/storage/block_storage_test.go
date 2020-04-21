@@ -220,7 +220,7 @@ func TestBlock(t *testing.T) {
 	})
 }
 
-func TestGetBalanceKey(t *testing.T) {
+func TestGetAccountKey(t *testing.T) {
 	var tests = map[string]struct {
 		account *types.AccountIdentifier
 		key     string
@@ -281,7 +281,7 @@ func TestGetBalanceKey(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, hashBytes([]byte(test.key)), getBalanceKey(test.account))
+			assert.Equal(t, hashBytes([]byte(test.key)), GetAccountKey(test.account))
 		})
 	}
 }
@@ -360,15 +360,9 @@ func TestBalance(t *testing.T) {
 			Hash:  "kdasdj",
 			Index: 123890,
 		}
-		newTransaction = &types.TransactionIdentifier{
-			Hash: "tx1",
-		}
 		newBlock2 = &types.BlockIdentifier{
 			Hash:  "pkdasdj",
 			Index: 123890,
-		}
-		newTransaction2 = &types.TransactionIdentifier{
-			Hash: "tx2",
 		}
 		result = map[string]*types.Amount{
 			GetCurrencyKey(currency): {
@@ -415,18 +409,14 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Currency:   currency,
+			Block:      newBlock,
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -447,7 +437,6 @@ func TestBalance(t *testing.T) {
 			account,
 			amountNilCurrency,
 			newBlock,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.EqualError(t, err, "invalid amount")
@@ -469,19 +458,14 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock2,
-			newTransaction2,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
 				Address: "blah",
 			},
-			Currency:    currency,
-			Block:       newBlock2,
-			OldBlock:    newBlock,
-			Transaction: newTransaction2,
-			OldValue:    "100",
-			NewValue:    "200",
-			Difference:  "100",
+			Currency:   currency,
+			Block:      newBlock2,
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -502,7 +486,6 @@ func TestBalance(t *testing.T) {
 			account,
 			amount,
 			newBlock3,
-			nil,
 		)
 		assert.Equal(t, &BalanceChange{
 			Account: &types.AccountIdentifier{
@@ -510,9 +493,6 @@ func TestBalance(t *testing.T) {
 			},
 			Currency:   currency,
 			Block:      newBlock3,
-			OldBlock:   newBlock2,
-			OldValue:   "200",
-			NewValue:   "300",
 			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
@@ -543,7 +523,6 @@ func TestBalance(t *testing.T) {
 			account,
 			largeDeduction,
 			newBlock2,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -558,7 +537,6 @@ func TestBalance(t *testing.T) {
 			account2,
 			largeDeduction,
 			newBlock2,
-			nil,
 		)
 		assert.Nil(t, balanceChange)
 		assert.Contains(t, err.Error(), ErrNegativeBalance.Error())
@@ -573,16 +551,12 @@ func TestBalance(t *testing.T) {
 			subAccount,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccount,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccount,
+			Currency:   currency,
+			Block:      newBlock,
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -603,16 +577,12 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccountMetadata,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccountMetadata,
+			Currency:   currency,
+			Block:      newBlock,
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -633,16 +603,12 @@ func TestBalance(t *testing.T) {
 			subAccountMetadata2,
 			amount,
 			newBlock,
-			newTransaction,
 		)
 		assert.Equal(t, &BalanceChange{
-			Account:     subAccountMetadata2,
-			Currency:    currency,
-			Block:       newBlock,
-			Transaction: newTransaction,
-			OldValue:    "0",
-			NewValue:    "100",
-			Difference:  "100",
+			Account:    subAccountMetadata2,
+			Currency:   currency,
+			Block:      newBlock,
+			Difference: "100",
 		}, balanceChange)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -708,9 +674,9 @@ func TestGetCurrencyKey(t *testing.T) {
 	}
 }
 
-func createBootstrapBalancesFile(dataDir string) (*os.File, error) {
+func createBootstrapBalancesFile(file string) (*os.File, error) {
 	return os.OpenFile(
-		path.Join(dataDir, bootstrapBalancesFile),
+		file,
 		os.O_CREATE|os.O_WRONLY,
 		0600,
 	)
@@ -739,21 +705,22 @@ func TestBootstrapBalances(t *testing.T) {
 	defer database.Close(ctx)
 
 	storage := NewBlockStorage(ctx, database)
+	bootstrapBalancesFile := path.Join(*newDir, "balances.csv")
 
 	t.Run("File doesn't exist", func(t *testing.T) {
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, fmt.Sprintf(
 			"open %s: no such file or directory",
-			path.Join(*newDir, bootstrapBalancesFile),
+			bootstrapBalancesFile,
 		))
 	})
 
 	t.Run("Set balance successfully", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -782,7 +749,7 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.NoError(t, err)
@@ -801,7 +768,7 @@ func TestBootstrapBalances(t *testing.T) {
 	})
 
 	t.Run("Invalid file header", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -810,14 +777,14 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, ErrIncorrectHeader.Error())
 	})
 
 	t.Run("Invalid account row", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -832,14 +799,14 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, "row 2 does not have expected fields: [bad row]")
 	})
 
 	t.Run("Invalid account value", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(*newDir)
+		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -868,7 +835,7 @@ func TestBootstrapBalances(t *testing.T) {
 
 		err = storage.BootstrapBalances(
 			ctx,
-			*newDir,
+			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
 		assert.EqualError(t, err, "goodbye is not an integer")
@@ -881,7 +848,7 @@ func TestBootstrapBalances(t *testing.T) {
 		assert.NoError(t, tx.Commit(ctx))
 
 		// Use the created CSV file from the last test
-		err = storage.BootstrapBalances(ctx, *newDir, genesisBlockIdentifier)
+		err = storage.BootstrapBalances(ctx, bootstrapBalancesFile, genesisBlockIdentifier)
 		assert.EqualError(t, err, ErrAlreadyStartedSyncing.Error())
 	})
 }
