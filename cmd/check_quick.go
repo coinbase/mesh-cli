@@ -71,7 +71,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		return r.Reconcile(ctx)
 	})
 
-	syncHandler := syncer.NewStatelessHandler(
+	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
 	)

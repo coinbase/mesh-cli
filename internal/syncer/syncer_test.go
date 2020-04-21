@@ -22,7 +22,6 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -196,7 +195,7 @@ func TestBalanceChanges(t *testing.T) {
 				test.orphan,
 			)
 
-			assert.Equal(t, test.changes, changes)
+			assert.ElementsMatch(t, test.changes, changes)
 			assert.Equal(t, test.err, err)
 		})
 	}

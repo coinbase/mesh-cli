@@ -173,17 +173,12 @@ func BalanceChanges(
 				}
 				continue
 			}
-			existing, ok := new(big.Int).SetString(val.Difference, 10)
-			if !ok {
-				return nil, fmt.Errorf("%s is not an integer", val.Difference)
-			}
 
-			modification, ok := new(big.Int).SetString(amount.Value, 10)
-			if !ok {
-				return nil, fmt.Errorf("%s is not an integer", amount.Value)
+			newDifference, err := storage.AddStringValues(val.Difference, amount.Value)
+			if err != nil {
+				return nil, err
 			}
-
-			val.Difference = new(big.Int).Add(existing, modification).String()
+			val.Difference = newDifference
 			balanceChanges[key] = val
 		}
 	}

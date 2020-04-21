@@ -111,7 +111,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		return r.Reconcile(ctx)
 	})
 
-	syncHandler := syncer.NewStatefulHandler(
+	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
 	)

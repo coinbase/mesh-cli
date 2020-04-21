@@ -25,19 +25,19 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-// StatefulHandler logs processed blocks
+// BaseHandler logs processed blocks
 // and reconciles modified balances.
-type StatefulHandler struct {
+type BaseHandler struct {
 	logger     *logger.Logger
-	reconciler *reconciler.StatefulReconciler
+	reconciler reconciler.Reconciler
 }
 
-// NewStatefulHandler constructs a basic Handler.
-func NewStatefulHandler(
+// NewBaseHandler constructs a basic Handler.
+func NewBaseHandler(
 	logger *logger.Logger,
-	reconciler *reconciler.StatefulReconciler,
+	reconciler reconciler.Reconciler,
 ) Handler {
-	return &StatefulHandler{
+	return &BaseHandler{
 		logger:     logger,
 		reconciler: reconciler,
 	}
@@ -45,7 +45,7 @@ func NewStatefulHandler(
 
 // BlockProcessed is called by the syncer after each
 // block is processed.
-func (h *StatefulHandler) BlockProcessed(
+func (h *BaseHandler) BlockProcessed(
 	ctx context.Context,
 	block *types.Block,
 	reorg bool,
@@ -65,8 +65,7 @@ func (h *StatefulHandler) BlockProcessed(
 		return nil
 	}
 
-	// Mark accounts for reconciliation
-	h.reconciler.QueueAccounts(ctx, block.BlockIdentifier.Index, balanceChanges)
-
-	return nil
+	// Mark accounts for reconciliation...this may be
+	// blocking
+	return h.reconciler.QueueChanges(ctx, balanceChanges)
 }

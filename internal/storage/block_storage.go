@@ -416,24 +416,6 @@ type BalanceChange struct {
 	Difference string
 }
 
-func AddStringValues(
-	a string,
-	b string,
-) (string, error) {
-	aVal, ok := new(big.Int).SetString(a, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", a)
-	}
-
-	bVal, ok := new(big.Int).SetString(b, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", b)
-	}
-
-	newVal := new(big.Int).Add(aVal, bVal)
-	return newVal.String(), nil
-}
-
 // UpdateBalance updates a types.AccountIdentifer
 // by a types.Amount and sets the account's most
 // recent accessed block.

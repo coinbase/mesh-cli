@@ -17,8 +17,6 @@ package reconciler
 import (
 	"context"
 	"errors"
-	"fmt"
-	"math/big"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/storage"
@@ -34,7 +32,7 @@ type StatelessReconciler struct {
 	logger                    *logger.Logger
 	accountConcurrency        uint64
 	haltOnReconciliationError bool
-	acctQueue                 chan *changeAndBlock
+	changeQueue               chan *storage.BalanceChange
 }
 
 func NewStateless(
@@ -43,34 +41,25 @@ func NewStateless(
 	logger *logger.Logger,
 	accountConcurrency uint64,
 	haltOnReconciliationError bool,
-) *StatelessReconciler {
+) Reconciler {
 	return &StatelessReconciler{
 		network:                   network,
 		fetcher:                   fetcher,
 		logger:                    logger,
 		accountConcurrency:        accountConcurrency,
 		haltOnReconciliationError: haltOnReconciliationError,
-		acctQueue:                 make(chan *changeAndBlock),
+		changeQueue:               make(chan *storage.BalanceChange),
 	}
 }
 
-type changeAndBlock struct {
-	change      *storage.BalanceChange
-	parentBlock *types.BlockIdentifier
-}
-
-func (r *StatelessReconciler) QueueAccounts(
+func (r *StatelessReconciler) QueueChanges(
 	ctx context.Context,
-	parentBlock *types.BlockIdentifier,
 	balanceChanges []*storage.BalanceChange,
 ) error {
 	// block until all checked for a block
-	for _, balanceChange := range balanceChanges {
+	for _, change := range balanceChanges {
 		select {
-		case r.acctQueue <- &changeAndBlock{
-			change:      balanceChange,
-			parentBlock: parentBlock,
-		}:
+		case r.changeQueue <- change:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -79,75 +68,62 @@ func (r *StatelessReconciler) QueueAccounts(
 	return nil
 }
 
-func (r *StatelessReconciler) balanceAtBlock(
+func (r *StatelessReconciler) balanceAtIndex(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
-	block *types.BlockIdentifier,
-) (*big.Int, error) {
-	// Get balance before
-	_, liveBalances, _, err := r.fetcher.AccountBalanceRetry(
+	index int64,
+) (string, error) {
+	_, value, err := GetCurrencyBalance(
 		ctx,
+		r.fetcher,
 		r.network,
 		account,
-		types.ConstructPartialBlockIdentifier(block),
+		currency,
+		&types.PartialBlockIdentifier{
+			Index: &index,
+		},
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	liveAmount, err := extractAmount(liveBalances, currency)
-	if err != nil {
-		return nil, err
-	}
-
-	liveValue, ok := new(big.Int).SetString(liveAmount.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf(
-			"could not extract amount for %s",
-			liveAmount.Value,
-		)
-	}
-
-	return liveValue, nil
+	return value, err
 }
 
 func (r *StatelessReconciler) reconcileChange(
 	ctx context.Context,
-	parentBlock *types.BlockIdentifier,
 	change *storage.BalanceChange,
 ) error {
-	// get balance before
-	balanceBefore, err := r.balanceAtBlock(
+	// Get balance at block before change
+	balanceBefore, err := r.balanceAtIndex(
 		ctx,
 		change.Account,
 		change.Currency,
-		parentBlock,
+		change.Block.Index-1,
 	)
 	if err != nil {
 		return err
 	}
 
-	// get balance after
-	balanceAfter, err := r.balanceAtBlock(
+	// Get balance at block with change
+	balanceAfter, err := r.balanceAtIndex(
 		ctx,
 		change.Account,
 		change.Currency,
-		change.Block,
+		change.Block.Index,
 	)
 	if err != nil {
 		return err
 	}
 
-	nodeDifference := new(big.Int).Sub(balanceAfter, balanceBefore)
-	computedDifference, ok := new(big.Int).SetString(change.Difference, 10)
-	if !ok {
-		return fmt.Errorf(
-			"could not extract amount for %s",
-			change.Difference,
-		)
+	// Get difference between node change and computed change
+	nodeDifference, err := storage.SubtractStringValues(balanceAfter, balanceBefore)
+	if err != nil {
+		return err
 	}
-	difference := new(big.Int).Sub(computedDifference, nodeDifference).String()
+
+	difference, err := storage.SubtractStringValues(change.Difference, nodeDifference)
+	if err != nil {
+		return err
+	}
 
 	if difference != zeroString {
 		err := r.logger.ReconcileFailureStream(
@@ -156,7 +132,6 @@ func (r *StatelessReconciler) reconcileChange(
 			change.Account,
 			change.Currency,
 			difference,
-			"(computed-node)",
 			change.Block,
 		)
 		if err != nil {
@@ -175,7 +150,7 @@ func (r *StatelessReconciler) reconcileChange(
 		activeReconciliation,
 		change.Account,
 		&types.Amount{
-			Value:    balanceAfter.String(),
+			Value:    balanceAfter,
 			Currency: change.Currency,
 		},
 		change.Block,
@@ -189,11 +164,10 @@ func (r *StatelessReconciler) reconcileAccounts(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case balanceChange := <-r.acctQueue:
+		case change := <-r.changeQueue:
 			err := r.reconcileChange(
 				ctx,
-				balanceChange.parentBlock,
-				balanceChange.change,
+				change,
 			)
 			if err != nil {
 				return err

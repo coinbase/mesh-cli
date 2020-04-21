@@ -19,9 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
@@ -100,7 +98,7 @@ type StatefulReconciler struct {
 	accountConcurrency        uint64
 	lookupBalanceByBlock      bool
 	haltOnReconciliationError bool
-	acctQueue                 chan *storage.BalanceChange
+	changeQueue               chan *storage.BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -108,7 +106,7 @@ type StatefulReconciler struct {
 
 	// seenAccts are stored for inactive account
 	// reconciliation.
-	seenAccts []*storage.BalanceChange
+	seenAccts []*AccountCurrency
 }
 
 // NewStateful creates a new StatefulReconciler.
@@ -129,54 +127,33 @@ func NewStateful(
 		accountConcurrency:        accountConcurrency,
 		lookupBalanceByBlock:      lookupBalanceByBlock,
 		haltOnReconciliationError: haltOnReconciliationError,
-		acctQueue:                 make(chan *storage.BalanceChange, backlogThreshold),
-		highWaterMark:             0,
-		seenAccts:                 make([]*storage.BalanceChange, 0),
+		changeQueue:               make(chan *storage.BalanceChange, backlogThreshold),
+		highWaterMark:             -1,
+		seenAccts:                 make([]*AccountCurrency, 0),
 	}
 }
 
-// containsAccountAndCurrency returns a boolean indicating if a
-// BalanceChange slice already contains an Account and Currency combination.
-func containsAccountAndCurrency(
-	arr []*storage.BalanceChange,
-	change *storage.BalanceChange,
-) bool {
-	for _, a := range arr {
-		if reflect.DeepEqual(a.Account, change.Account) &&
-			reflect.DeepEqual(a.Currency, change.Currency) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// QueueAccounts adds an IndexAndAccount to the acctQueue
-// for reconciliation.
-func (r *StatefulReconciler) QueueAccounts(
+func (r *StatefulReconciler) QueueChanges(
 	ctx context.Context,
-	blockIndex int64,
 	balanceChanges []*storage.BalanceChange,
-) {
-	// If reconciliation is disabled,
-	// we should just return.
-	if r == nil {
-		return
-	}
-
-	if blockIndex < r.highWaterMark {
-		return
-	}
-
+) error {
 	// Use a buffered channel so don't need to
 	// spawn a goroutine to add accounts to channel.
-	for _, balanceChange := range balanceChanges {
+	for _, change := range balanceChanges {
+		// All changes will have the same block. Return
+		// if we are too far behind to start reconciling.
+		if change.Block.Index < r.highWaterMark {
+			return nil
+		}
+
 		select {
-		case r.acctQueue <- balanceChange:
+		case r.changeQueue <- change:
 		default:
 			log.Printf("skipping enqueue because backlog\n")
 		}
 	}
+
+	return nil
 }
 
 // CompareBalance checks to see if the computed balance of an account
@@ -184,8 +161,9 @@ func (r *StatefulReconciler) QueueAccounts(
 // balance is checked correctly in the case of orphaned blocks.
 func (r *StatefulReconciler) CompareBalance(
 	ctx context.Context,
-	accountAndCurrency *storage.BalanceChange,
-	liveAmount *types.Amount,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	amount string,
 	liveBlock *types.BlockIdentifier,
 ) (string, int64, error) {
 	txn := r.storage.NewDatabaseTransaction(ctx, false)
@@ -218,7 +196,7 @@ func (r *StatefulReconciler) CompareBalance(
 	}
 
 	// Check if live block < computed head
-	amounts, balanceBlock, err := r.storage.GetBalance(ctx, txn, accountAndCurrency.Account)
+	amounts, balanceBlock, err := r.storage.GetBalance(ctx, txn, account)
 	if err != nil {
 		return zeroString, head.Index, err
 	}
@@ -227,97 +205,55 @@ func (r *StatefulReconciler) CompareBalance(
 		return zeroString, head.Index, fmt.Errorf(
 			"%w %+v updated at %d",
 			ErrAccountUpdated,
-			accountAndCurrency.Account,
+			account,
 			balanceBlock.Index,
 		)
 	}
 
 	// Check balances are equal
-	computedAmount, ok := amounts[storage.GetCurrencyKey(accountAndCurrency.Currency)]
+	computedAmount, ok := amounts[storage.GetCurrencyKey(currency)]
 	if !ok {
-		return zeroString, head.Index, fmt.Errorf(
+		return "", head.Index, fmt.Errorf(
 			"currency %+v not found",
-			*accountAndCurrency.Currency,
+			*currency,
 		)
 	}
 
-	if computedAmount.Value != liveAmount.Value {
-		computed, ok := new(big.Int).SetString(computedAmount.Value, 10)
-		if !ok {
-			return zeroString, head.Index, fmt.Errorf(
-				"could not extract amount for %s",
-				computedAmount.Value,
-			)
-		}
-		live, ok := new(big.Int).SetString(liveAmount.Value, 10)
-		if !ok {
-			return zeroString, head.Index, fmt.Errorf(
-				"could not extract amount for %s",
-				liveAmount.Value,
-			)
-		}
+	difference, err := storage.SubtractStringValues(computedAmount.Value, amount)
+	if err != nil {
+		return "", -1, err
+	}
 
-		return new(big.Int).Sub(computed, live).String(), head.Index, nil
+	if difference != zeroString {
+		return difference, head.Index, nil
 	}
 
 	return zeroString, head.Index, nil
 }
 
-// extractAmount returns the types.Amount from a slice of types.Balance
-// pertaining to an AccountAndCurrency.
-func extractAmount(
-	balances []*types.Amount,
-	currency *types.Currency,
-) (*types.Amount, error) {
-	for _, b := range balances {
-		if !reflect.DeepEqual(b.Currency, currency) {
-			continue
-		}
-
-		return b, nil
-	}
-
-	return nil, fmt.Errorf("could not extract amount for %+v", currency)
-}
-
 // getAccountBalance returns the balance for an account
 // at either the current block (if lookupBalanceByBlock is
 // disabled) or at some historical block.
-func (r *StatefulReconciler) getAccountBalance(
+func (r *StatefulReconciler) bestBalance(
 	ctx context.Context,
-	acct *storage.BalanceChange,
-	inactive bool,
-) (*types.BlockIdentifier, []*types.Amount, error) {
-	blockIdentifier := types.ConstructPartialBlockIdentifier(acct.Block)
-	if inactive {
-		txn := r.storage.NewDatabaseTransaction(ctx, false)
-		head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
-		if err != nil {
-			return nil, nil, err
-		}
-		txn.Discard(ctx)
-
-		blockIdentifier = types.ConstructPartialBlockIdentifier(head)
-	}
-
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	block *types.PartialBlockIdentifier,
+) (*types.BlockIdentifier, string, error) {
 	if !r.lookupBalanceByBlock {
 		// Use the current balance to reconcile balances when lookupBalanceByBlock
 		// is disabled. This could be the case when a rosetta server does not
 		// support historical balance lookups.
-		blockIdentifier = nil
+		block = nil
 	}
-
-	liveBlock, liveBalances, _, err := r.fetcher.AccountBalanceRetry(
+	return GetCurrencyBalance(
 		ctx,
+		r.fetcher,
 		r.network,
-		acct.Account,
-		blockIdentifier,
+		account,
+		currency,
+		block,
 	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return liveBlock, liveBalances, nil
 }
 
 // accountReconciliation returns an error if the provided
@@ -325,23 +261,21 @@ func (r *StatefulReconciler) getAccountBalance(
 // with the computed balance.
 func (r *StatefulReconciler) accountReconciliation(
 	ctx context.Context,
-	acct *storage.BalanceChange,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	liveAmount string,
+	liveBlock *types.BlockIdentifier,
 	inactive bool,
 ) error {
-	liveBlock, liveBalances, err := r.getAccountBalance(ctx, acct, inactive)
-	if err != nil {
-		return err
+	accountCurrency := &AccountCurrency{
+		Account:  account,
+		Currency: currency,
 	}
-
-	liveAmount, err := extractAmount(liveBalances, acct.Currency)
-	if err != nil {
-		return err
-	}
-
 	for ctx.Err() == nil {
 		difference, headIndex, err := r.CompareBalance(
 			ctx,
-			acct,
+			account,
+			currency,
 			liveAmount,
 			liveBlock,
 		)
@@ -360,7 +294,7 @@ func (r *StatefulReconciler) accountReconciliation(
 				// Don't wait to check if we are very far behind
 				log.Printf(
 					"Skipping reconciliation for %s: %d blocks behind\n",
-					simpleAccountAndCurrency(acct),
+					simpleAccountCurrency(accountCurrency),
 					diff,
 				)
 
@@ -395,10 +329,9 @@ func (r *StatefulReconciler) accountReconciliation(
 			err := r.logger.ReconcileFailureStream(
 				ctx,
 				reconciliationType,
-				acct.Account,
-				acct.Currency,
+				accountCurrency.Account,
+				accountCurrency.Currency,
 				difference,
-				"(computed-live)",
 				liveBlock,
 			)
 
@@ -413,15 +346,18 @@ func (r *StatefulReconciler) accountReconciliation(
 			return nil
 		}
 
-		if !inactive && !containsAccountAndCurrency(r.seenAccts, acct) {
-			r.seenAccts = append(r.seenAccts, acct)
+		if !inactive && !ContainsAccountCurrency(r.seenAccts, accountCurrency) {
+			r.seenAccts = append(r.seenAccts, accountCurrency)
 		}
 
 		return r.logger.ReconcileSuccessStream(
 			ctx,
 			reconciliationType,
-			acct.Account,
-			liveAmount,
+			accountCurrency.Account,
+			&types.Amount{
+				Value:    liveAmount,
+				Currency: currency,
+			},
 			liveBlock,
 		)
 	}
@@ -429,15 +365,17 @@ func (r *StatefulReconciler) accountReconciliation(
 	return nil
 }
 
-// simpleAccountAndCurrency returns a string that is a simple
-// representation of an AccountAndCurrency struct.
-func simpleAccountAndCurrency(acct *storage.BalanceChange) string {
-	acctString := acct.Account.Address
-	if acct.Account.SubAccount != nil {
-		acctString += acct.Account.SubAccount.Address
+// simpleAccountCurrency returns a string that is a simple
+// representation of an AccountCurrency struct.
+func simpleAccountCurrency(
+	accountCurrency *AccountCurrency,
+) string {
+	acctString := accountCurrency.Account.Address
+	if accountCurrency.Account.SubAccount != nil {
+		acctString += accountCurrency.Account.SubAccount.Address
 	}
 
-	acctString += acct.Currency.Symbol
+	acctString += accountCurrency.Currency.Symbol
 
 	return acctString
 }
@@ -454,14 +392,27 @@ func (r *StatefulReconciler) reconcileActiveAccounts(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case balanceChange := <-r.acctQueue:
+		case balanceChange := <-r.changeQueue:
 			if balanceChange.Block.Index < r.highWaterMark {
 				continue
 			}
 
-			err := r.accountReconciliation(
+			block, value, err := r.bestBalance(
 				ctx,
-				balanceChange,
+				balanceChange.Account,
+				balanceChange.Currency,
+				types.ConstructPartialBlockIdentifier(balanceChange.Block),
+			)
+			if err != nil {
+				return err
+			}
+
+			err = r.accountReconciliation(
+				ctx,
+				balanceChange.Account,
+				balanceChange.Currency,
+				value,
+				block,
 				false,
 			)
 			if err != nil {
@@ -484,7 +435,31 @@ func (r *StatefulReconciler) reconcileInactiveAccounts(
 		if len(r.seenAccts) > 0 {
 			randAcct := r.seenAccts[randGenerator.Intn(len(r.seenAccts))]
 
-			err := r.accountReconciliation(ctx, randAcct, true)
+			txn := r.storage.NewDatabaseTransaction(ctx, false)
+			head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
+			if err != nil {
+				return err
+			}
+			txn.Discard(ctx)
+
+			block, amount, err := r.bestBalance(
+				ctx,
+				randAcct.Account,
+				randAcct.Currency,
+				types.ConstructPartialBlockIdentifier(head),
+			)
+			if err != nil {
+				return err
+			}
+
+			err = r.accountReconciliation(
+				ctx,
+				randAcct.Account,
+				randAcct.Currency,
+				amount,
+				block,
+				true,
+			)
 			if err != nil {
 				return err
 			}
