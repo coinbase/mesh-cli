@@ -29,6 +29,11 @@ import (
 )
 
 var (
+	networkIdentifier = &types.NetworkIdentifier{
+		Blockchain: "blah",
+		Network:    "testnet",
+	}
+
 	currency = &types.Currency{
 		Symbol:   "Blah",
 		Decimals: 2,
@@ -202,7 +207,7 @@ var (
 			Index: 10000,
 			Hash:  "block 1000",
 		},
-		CurrentBlockTimestamp: 10000,
+		CurrentBlockTimestamp: asserter.MinUnixEpoch + 1,
 		Peers: []*types.Peer{
 			{
 				PeerID: "peer 1",
@@ -247,8 +252,8 @@ func TestProcessBlock(t *testing.T) {
 	defer database.Close(ctx)
 
 	blockStorage := storage.NewBlockStorage(ctx, database)
-	asserter, err := asserter.NewWithResponses(
-		ctx,
+	asserter, err := asserter.NewClientWithResponses(
+		networkIdentifier,
 		networkStatusResponse,
 		networkOptionsResponse,
 	)

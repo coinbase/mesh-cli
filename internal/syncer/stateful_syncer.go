@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/coinbase/rosetta-validator/internal/storage"
 
@@ -319,8 +318,7 @@ func (s *StatefulSyncer) SyncRange(
 	for currIndex <= endIndex {
 		block, ok := blockMap[currIndex]
 		if !ok { // could happen in a reorg
-			start := time.Now()
-			blockValue, err := s.fetcher.BlockRetry(
+			block, err = s.fetcher.BlockRetry(
 				ctx,
 				s.network,
 				&types.PartialBlockIdentifier{
@@ -329,11 +327,6 @@ func (s *StatefulSyncer) SyncRange(
 			)
 			if err != nil {
 				return err
-			}
-
-			block = &fetcher.BlockAndLatency{
-				Block:   blockValue,
-				Latency: time.Since(start).Seconds(),
 			}
 		} else {
 			// Anytime we re-fetch an index, we
@@ -347,7 +340,7 @@ func (s *StatefulSyncer) SyncRange(
 			ctx,
 			s.genesisBlock.Index,
 			currIndex,
-			block.Block,
+			block,
 		)
 		if err != nil {
 			return err
@@ -355,7 +348,7 @@ func (s *StatefulSyncer) SyncRange(
 
 		currIndex = newIndex
 
-		if err := s.handler.BlockProcessed(ctx, block.Block, reorg, balanceChanges); err != nil {
+		if err := s.handler.BlockProcessed(ctx, block, reorg, balanceChanges); err != nil {
 			return err
 		}
 	}

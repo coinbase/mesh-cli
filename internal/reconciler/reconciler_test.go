@@ -52,7 +52,7 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"neat": "stuff",
 					},
 				},
@@ -106,7 +106,7 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"neat": "stuff",
 					},
 				},
@@ -121,7 +121,7 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"neater": "stuff",
 					},
 				},
