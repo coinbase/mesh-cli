@@ -89,7 +89,7 @@ func (s *StatelessSyncer) SyncRange(
 	}
 
 	for i := startIndex; i <= endIndex; i++ {
-		block := blockMap[i].Block
+		block := blockMap[i]
 		changes, err := BalanceChanges(
 			ctx,
 			s.fetcher.Asserter,

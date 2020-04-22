@@ -3,7 +3,7 @@ module github.com/coinbase/rosetta-validator
 go 1.13
 
 require (
-	github.com/coinbase/rosetta-sdk-go v0.1.5
+	github.com/coinbase/rosetta-sdk-go v0.1.6
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v1.6.0
 	github.com/spf13/cobra v0.0.5

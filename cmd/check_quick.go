@@ -57,7 +57,6 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
-		ctx,
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
 		fetcher.WithTransactionConcurrency(TransactionConcurrency),

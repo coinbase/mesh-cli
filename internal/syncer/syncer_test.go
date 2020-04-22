@@ -74,6 +74,7 @@ func TestBalanceChanges(t *testing.T) {
 				Transactions: []*types.Transaction{
 					recipientTransaction,
 				},
+				Timestamp: asserter.MinUnixEpoch + 1,
 			},
 			orphan: false,
 			changes: []*storage.BalanceChange{
@@ -104,6 +105,7 @@ func TestBalanceChanges(t *testing.T) {
 					simpleTransactionFactory("tx2", "addr1", "150", currency),
 					simpleTransactionFactory("tx3", "addr2", "150", currency),
 				},
+				Timestamp: asserter.MinUnixEpoch + 1,
 			},
 			orphan: false,
 			changes: []*storage.BalanceChange{
@@ -147,6 +149,7 @@ func TestBalanceChanges(t *testing.T) {
 					simpleTransactionFactory("tx2", "addr1", "150", currency),
 					simpleTransactionFactory("tx3", "addr2", "150", currency),
 				},
+				Timestamp: asserter.MinUnixEpoch + 1,
 			},
 			orphan: true,
 			changes: []*storage.BalanceChange{
@@ -178,8 +181,8 @@ func TestBalanceChanges(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	asserter, err := asserter.NewWithResponses(
-		ctx,
+	asserter, err := asserter.NewClientWithResponses(
+		networkIdentifier,
 		networkStatusResponse,
 		networkOptionsResponse,
 	)

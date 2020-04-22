@@ -168,7 +168,7 @@ func GetAccountKey(account *types.AccountIdentifier) []byte {
 		balanceNamespace,
 		account.Address,
 		account.SubAccount.Address,
-		*account.SubAccount.Metadata,
+		account.SubAccount.Metadata,
 	)))
 }
 
@@ -405,7 +405,7 @@ func GetCurrencyKey(currency *types.Currency) string {
 			"%s:%d:%v",
 			currency.Symbol,
 			currency.Decimals,
-			*currency.Metadata,
+			currency.Metadata,
 		),
 	)
 }

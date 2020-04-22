@@ -245,7 +245,7 @@ func TestGetAccountKey(t *testing.T) {
 				Address: "hello",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "stake",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"cool": "neat",
 					},
 				},
@@ -257,7 +257,7 @@ func TestGetAccountKey(t *testing.T) {
 				Address: "hello",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "stake",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"cool": 1,
 					},
 				},
@@ -269,7 +269,7 @@ func TestGetAccountKey(t *testing.T) {
 				Address: "hello",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "stake",
-					Metadata: &map[string]interface{}{
+					Metadata: map[string]interface{}{
 						"cool":    1,
 						"awesome": "neat",
 					},
@@ -310,7 +310,7 @@ func TestBalance(t *testing.T) {
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"cool": "hello",
 				},
 			},
@@ -319,7 +319,7 @@ func TestBalance(t *testing.T) {
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"cool": "hello",
 				},
 			},
@@ -328,7 +328,7 @@ func TestBalance(t *testing.T) {
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"cool": 10,
 				},
 			},
@@ -337,7 +337,7 @@ func TestBalance(t *testing.T) {
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"cool": 10,
 				},
 			},
@@ -638,7 +638,7 @@ func TestGetCurrencyKey(t *testing.T) {
 			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"issuer": "satoshi",
 				},
 			},
@@ -648,7 +648,7 @@ func TestGetCurrencyKey(t *testing.T) {
 			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"issuer": 1,
 				},
 			},
@@ -658,7 +658,7 @@ func TestGetCurrencyKey(t *testing.T) {
 			currency: &types.Currency{
 				Symbol:   "BTC",
 				Decimals: 8,
-				Metadata: &map[string]interface{}{
+				Metadata: map[string]interface{}{
 					"issuer": "satoshi",
 					"count":  10,
 				},
