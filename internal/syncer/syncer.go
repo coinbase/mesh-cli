@@ -145,6 +145,7 @@ func Sync(
 // to handle different events. It is common to write logs or
 // perform reconciliation in the sync handler.
 type Handler interface {
+	// TODO: change to BlockAdded and BlockRemoved
 	BlockProcessed(
 		ctx context.Context,
 		block *types.Block,

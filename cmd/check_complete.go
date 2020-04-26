@@ -133,6 +133,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
+		nil,
 	)
 
 	statefulSyncer := syncer.NewStateful(

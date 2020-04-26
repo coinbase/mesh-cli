@@ -1,0 +1,11 @@
+[
+  {
+    "account_identifier": {
+      "address":"0x379fC39D8744ED0C1c8BCfd86771338b9086660D"
+    },
+    "currency": {
+      "symbol": "ETH",
+      "decimals": 18
+    }
+  }
+]

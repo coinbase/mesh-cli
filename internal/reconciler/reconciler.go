@@ -57,8 +57,8 @@ func ExtractAmount(
 // a *types.Account and *types.Currency. This can
 // be useful for looking up balances.
 type AccountCurrency struct {
-	Account  *types.AccountIdentifier
-	Currency *types.Currency
+	Account  *types.AccountIdentifier `json:"account_identifier,omitempty"`
+	Currency *types.Currency          `json:"currency,omitempty"`
 }
 
 // ContainsAccountCurrency returns a boolean indicating if a

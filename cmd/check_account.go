@@ -16,7 +16,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"log"
+	"path"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/reconciler"
@@ -28,32 +31,48 @@ import (
 )
 
 var (
-	checkQuickCmd = &cobra.Command{
-		Use:   "check:quick",
-		Short: "Run a simple check of the correctness of a Rosetta server",
-		Long: `Check all server responses are properly constructed and that
-computed balance changes are equal to balance changes reported by the
-node. To use check:quick, your server must implement the balance lookup
-by block.
-
-Unlike check:complete, which requires syncing all blocks up
-to the blocks you want to check, check:quick allows you to validate
-an arbitrary range of blocks (even if earlier blocks weren't synced).
-To do this, all you need to do is provide a --start flag and optionally
-an --end flag.
-
-It is important to note that check:quick does not support re-orgs and it
-does not check for duplicate blocks and transactions. For these features,
-please use check:complete.
-
-When re-running this command, it will start off from genesis unless you
-provide a populated --start flag. If you want to run a stateful validation,
-use the check:complete command.`,
-		Run: runCheckQuickCmd,
+	checkAccountCmd = &cobra.Command{
+		Use:   "check:account",
+		Short: "",
+		Long:  ``,
+		Run:   runCheckAccountCmd,
 	}
+
+	AccountFile string
 )
 
-func runCheckQuickCmd(cmd *cobra.Command, args []string) {
+func init() {
+	checkAccountCmd.Flags().StringVar(
+		&AccountFile,
+		"interesting-accounts",
+		"",
+		``,
+	)
+
+	err := checkAccountCmd.MarkFlagRequired("interesting-accounts")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runCheckAccountCmd(cmd *cobra.Command, args []string) {
+	// Try to load interesting accounts
+	interestingAccountsRaw, err := ioutil.ReadFile(path.Clean(AccountFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	interestingAccounts := []*reconciler.AccountCurrency{}
+	if err := json.Unmarshal(interestingAccountsRaw, &interestingAccounts); err != nil {
+		log.Fatal(err)
+	}
+
+	accts, err := json.MarshalIndent(interestingAccounts, "", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Checking: %s\n", string(accts))
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
@@ -92,7 +111,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
-		nil,
+		interestingAccounts,
 	)
 
 	statelessSyncer := syncer.NewStateless(
