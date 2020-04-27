@@ -33,25 +33,29 @@ Usage:
   rosetta-validator [command]
 
 Available Commands:
+  check:account  Debug inactive reconciliation errors for a group of accounts
   check:complete Run a full check of the correctness of a Rosetta server
   check:quick    Run a simple check of the correctness of a Rosetta server
-  help           Help about any commands
+  help           Help about any command
 
-Global Flags:
-  --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
-  --block-concurrency uint         concurrency to use while fetching blocks (default 8)
-  --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
-  --end int                        block index to stop syncing (default -1)
-  --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
-                                   error. It can be beneficial to collect all reconciliation errors or silence
-                                   reconciliation errors during development. (default true)
-  --log-balance-changes            log balance changes (default true)
-  --log-blocks                     log processed blocks (default true)
-  --log-reconciliations            log balance reconciliations (default true)
-  --log-transactions               log processed transactions (default true)
-  --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
-  --start int                      block index to start syncing (default -1)
-  --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
+Flags:
+      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
+      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
+      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
+      --end int                        block index to stop syncing (default -1)
+      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
+                                       error. It can be beneficial to collect all reconciliation errors or silence
+                                       reconciliation errors during development. (default true)
+  -h, --help                           help for rosetta-validator
+      --log-balance-changes            log balance changes
+      --log-blocks                     log processed blocks
+      --log-reconciliations            log balance reconciliations
+      --log-transactions               log processed transactions
+      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
+      --start int                      block index to start syncing (default -1)
+      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
+
+Use "rosetta-validator [command] --help" for more information about a command.
 ```
 
 ### check:complete
@@ -103,7 +107,42 @@ Usage:
 
 Flags:
   -h, --help   help for check:quick
+```
 
+### check:account
+```
+check:complete identifies accounts with inactive reconciliation
+errors (when the balance of an account changes without any operations), however,
+it does not identify which block the untracked balance change occurred. This tool
+is used for locating exactly which block was missing an operation for a
+particular account and currency.
+
+In the future, this tool will be deprecated as check:complete
+will automatically identify the block where the missing operation occurred.
+
+Usage:
+  rosetta-validator check:account [flags]
+
+Flags:
+  -h, --help                          help for check:account
+      --interesting-accounts string   Absolute path to a file listing all accounts to check on each block. Look
+                                      at the examples directory for an example of how to structure this file.
+
+Global Flags:
+      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
+      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
+      --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
+      --end int                        block index to stop syncing (default -1)
+      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
+                                       error. It can be beneficial to collect all reconciliation errors or silence
+                                       reconciliation errors during development. (default true)
+      --log-balance-changes            log balance changes
+      --log-blocks                     log processed blocks
+      --log-reconciliations            log balance reconciliations
+      --log-transactions               log processed transactions
+      --server-url string              base URL for a Rosetta server to validate (default "http://localhost:8080")
+      --start int                      block index to start syncing (default -1)
+      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 ```
 
 ## Development

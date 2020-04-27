@@ -33,20 +33,28 @@ import (
 var (
 	checkAccountCmd = &cobra.Command{
 		Use:   "check:account",
-		Short: "",
-		Long:  ``,
-		Run:   runCheckAccountCmd,
+		Short: "Debug inactive reconciliation errors for a group of accounts",
+		Long: `check:complete identifies accounts with inactive reconciliation
+errors (when the balance of an account changes without any operations), however,
+it does not identify which block the untracked balance change occurred. This tool
+is used for locating exactly which block was missing an operation for a
+particular account and currency.
+
+In the future, this tool will be deprecated as check:complete
+will automatically identify the block where the missing operation occurred.`,
+		Run: runCheckAccountCmd,
 	}
 
-	AccountFile string
+	accountFile string
 )
 
 func init() {
 	checkAccountCmd.Flags().StringVar(
-		&AccountFile,
+		&accountFile,
 		"interesting-accounts",
 		"",
-		``,
+		`Absolute path to a file listing all accounts to check on each block. Look
+at the examples directory for an example of how to structure this file.`,
 	)
 
 	err := checkAccountCmd.MarkFlagRequired("interesting-accounts")
@@ -56,8 +64,11 @@ func init() {
 }
 
 func runCheckAccountCmd(cmd *cobra.Command, args []string) {
+	// TODO: unify startup logic with stateless
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Try to load interesting accounts
-	interestingAccountsRaw, err := ioutil.ReadFile(path.Clean(AccountFile))
+	interestingAccountsRaw, err := ioutil.ReadFile(path.Clean(accountFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,8 +83,6 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	log.Printf("Checking: %s\n", string(accts))
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
 		ServerURL,
@@ -102,6 +111,7 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 		logger,
 		AccountConcurrency,
 		HaltOnReconciliationError,
+		interestingAccounts,
 	)
 
 	g.Go(func() error {
@@ -111,7 +121,6 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
-		interestingAccounts,
 	)
 
 	statelessSyncer := syncer.NewStateless(

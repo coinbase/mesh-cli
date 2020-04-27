@@ -83,6 +83,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		logger,
 		AccountConcurrency,
 		HaltOnReconciliationError,
+		nil,
 	)
 
 	g.Go(func() error {
@@ -92,7 +93,6 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
-		nil,
 	)
 
 	statelessSyncer := syncer.NewStateless(

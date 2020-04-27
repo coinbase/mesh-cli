@@ -30,6 +30,7 @@ import (
 type Reconciler interface {
 	QueueChanges(
 		ctx context.Context,
+		block *types.BlockIdentifier,
 		changes []*storage.BalanceChange,
 	) error
 

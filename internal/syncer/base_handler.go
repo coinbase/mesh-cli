@@ -17,7 +17,6 @@ package syncer
 import (
 	"context"
 	"log"
-	"reflect"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/reconciler"
@@ -29,26 +28,24 @@ import (
 // BaseHandler logs processed blocks
 // and reconciles modified balances.
 type BaseHandler struct {
-	logger              *logger.Logger
-	reconciler          reconciler.Reconciler
-	interestingAccounts []*reconciler.AccountCurrency
+	logger     *logger.Logger
+	reconciler reconciler.Reconciler
 }
 
 // NewBaseHandler constructs a basic Handler.
 func NewBaseHandler(
 	logger *logger.Logger,
 	reconciler reconciler.Reconciler,
-	interestingAccounts []*reconciler.AccountCurrency,
 ) Handler {
 	return &BaseHandler{
-		logger:              logger,
-		reconciler:          reconciler,
-		interestingAccounts: interestingAccounts,
+		logger:     logger,
+		reconciler: reconciler,
 	}
 }
 
 // BlockProcessed is called by the syncer after each
 // block is processed.
+// TODO: refactor to BlockAdded and BlockRemoved
 func (h *BaseHandler) BlockProcessed(
 	ctx context.Context,
 	block *types.Block,
@@ -69,33 +66,7 @@ func (h *BaseHandler) BlockProcessed(
 		return nil
 	}
 
-	// TODO: refactor this once handler is cleaned up to remove storage
-	// dependency in syncer
-	for _, account := range h.interestingAccounts {
-		skipAccount := false
-		// Look through balance changes for account + currency
-		for _, change := range balanceChanges {
-			if reflect.DeepEqual(change.Account, account.Account) && reflect.DeepEqual(change.Currency, account.Currency) {
-				skipAccount = true
-				break
-			}
-		}
-
-		// Account changed on this block
-		if skipAccount {
-			continue
-		}
-
-		// If account + currency not found, add with difference 0
-		balanceChanges = append(balanceChanges, &storage.BalanceChange{
-			Account:    account.Account,
-			Currency:   account.Currency,
-			Difference: "0",
-			Block:      block.BlockIdentifier,
-		})
-	}
-
 	// Mark accounts for reconciliation...this may be
 	// blocking
-	return h.reconciler.QueueChanges(ctx, balanceChanges)
+	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, balanceChanges)
 }
