@@ -17,7 +17,7 @@ package main
 import (
 	"log"
 
-	"github.com/coinbase/rosetta-validator/cmd"
+	"github.com/coinbase/rosetta-cli/cmd"
 )
 
 func main() {

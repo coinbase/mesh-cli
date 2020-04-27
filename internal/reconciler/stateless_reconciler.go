@@ -19,8 +19,8 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/coinbase/rosetta-validator/internal/logger"
-	"github.com/coinbase/rosetta-validator/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/logger"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"

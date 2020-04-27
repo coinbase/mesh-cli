@@ -20,8 +20,8 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "rosetta-validator",
-		Short: "A simple CLI to validate a Rosetta server",
+		Use:   "rosetta-cli",
+		Short: "CLI for the Rosetta API",
 	}
 
 	// DataDir is a folder used to store logs
@@ -74,7 +74,7 @@ var (
 )
 
 // Execute handles all invocations of the
-// rosetta-validator cmd.
+// rosetta-cli cmd.
 func Execute() error {
 	return rootCmd.Execute()
 }
