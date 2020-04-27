@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/coinbase/rosetta-validator/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"

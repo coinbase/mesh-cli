@@ -1,4 +1,4 @@
-module github.com/coinbase/rosetta-validator
+module github.com/coinbase/rosetta-cli
 
 go 1.13
 

@@ -1,12 +1,9 @@
-# rosetta-validator
+# rosetta-cli
 
-[![Coinbase](https://circleci.com/gh/coinbase/rosetta-validator/tree/master.svg?style=shield)](https://circleci.com/gh/coinbase/rosetta-validator/tree/master)
-[![Coverage Status](https://coveralls.io/repos/github/coinbase/rosetta-validator/badge.svg)](https://coveralls.io/github/coinbase/rosetta-validator)
-[![Go Report Card](https://goreportcard.com/badge/github.com/coinbase/rosetta-validator)](https://goreportcard.com/report/github.com/coinbase/rosetta-validator)
-[![License](https://img.shields.io/github/license/coinbase/rosetta-validator.svg)](https://github.com/coinbase/rosetta-validator/blob/master/LICENSE.txt)
-
-Once you create a Rosetta server, you'll need to test its
-performance and correctness. This validation tool makes that easy!
+[![Coinbase](https://circleci.com/gh/coinbase/rosetta-cli/tree/master.svg?style=shield)](https://circleci.com/gh/coinbase/rosetta-cli/tree/master)
+[![Coverage Status](https://coveralls.io/repos/github/coinbase/rosetta-cli/badge.svg)](https://coveralls.io/github/coinbase/rosetta-cli)
+[![Go Report Card](https://goreportcard.com/badge/github.com/coinbase/rosetta-cli)](https://goreportcard.com/report/github.com/coinbase/rosetta-cli)
+[![License](https://img.shields.io/github/license/coinbase/rosetta-cli.svg)](https://github.com/coinbase/rosetta-cli/blob/master/LICENSE.txt)
 
 ## What is Rosetta?
 Rosetta is a new project from Coinbase to standardize the process
@@ -22,15 +19,15 @@ and network-specific work.
 
 ## Install
 ```
-go get github.com/coinbase/rosetta-validator
+go get github.com/coinbase/rosetta-cli
 ```
 
 ## Usage
 ```
-A simple CLI to validate a Rosetta server
+CLI for the Rosetta API
 
 Usage:
-  rosetta-validator [command]
+  rosetta-cli [command]
 
 Available Commands:
   check:account  Debug inactive reconciliation errors for a group of accounts
@@ -46,7 +43,7 @@ Flags:
       --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
                                        error. It can be beneficial to collect all reconciliation errors or silence
                                        reconciliation errors during development. (default true)
-  -h, --help                           help for rosetta-validator
+  -h, --help                           help for rosetta-cli
       --log-balance-changes            log balance changes
       --log-blocks                     log processed blocks
       --log-reconciliations            log balance reconciliations
@@ -55,7 +52,7 @@ Flags:
       --start int                      block index to start syncing (default -1)
       --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 
-Use "rosetta-validator [command] --help" for more information about a command.
+Use "rosetta-cli [command] --help" for more information about a command.
 ```
 
 ### check:complete
@@ -70,7 +67,7 @@ to discard some number of blocks populate the --start flag with some block
 index less than the last computed block index.
 
 Usage:
-  rosetta-validator check:complete [flags]
+  rosetta-cli check:complete [flags]
 
 Flags:
       --bootstrap-balances string   Absolute path to a file used to bootstrap balances before starting syncing.
@@ -103,7 +100,7 @@ provide a populated --start flag. If you want to run a stateful validation,
 use the check:complete command.
 
 Usage:
-  rosetta-validator check:quick [flags]
+  rosetta-cli check:quick [flags]
 
 Flags:
   -h, --help   help for check:quick
@@ -121,7 +118,7 @@ In the future, this tool will be deprecated as check:complete
 will automatically identify the block where the missing operation occurred.
 
 Usage:
-  rosetta-validator check:account [flags]
+  rosetta-cli check:account [flags]
 
 Flags:
   -h, --help                          help for check:account

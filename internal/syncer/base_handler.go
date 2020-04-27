@@ -18,9 +18,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/coinbase/rosetta-validator/internal/logger"
-	"github.com/coinbase/rosetta-validator/internal/reconciler"
-	"github.com/coinbase/rosetta-validator/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/logger"
+	"github.com/coinbase/rosetta-cli/internal/reconciler"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
