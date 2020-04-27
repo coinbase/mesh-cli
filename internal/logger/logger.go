@@ -294,6 +294,15 @@ func (l *Logger) ReconcileFailureStream(
 	difference string,
 	block *types.BlockIdentifier,
 ) error {
+	// Always print out reconciliation failures
+	log.Printf(
+		"%s Reconciliation failed for %+v at %d by %s (computed-node)\n",
+		reconciliationType,
+		account,
+		block.Index,
+		difference,
+	)
+
 	if !l.logReconciliation {
 		return nil
 	}
@@ -307,14 +316,6 @@ func (l *Logger) ReconcileFailureStream(
 		return err
 	}
 	defer f.Close()
-
-	log.Printf(
-		"%s Reconciliation failed for %+v at %d by %s (computed-node)\n",
-		reconciliationType,
-		account,
-		block.Index,
-		difference,
-	)
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"Type:%s Account: %+v Currency: %+v Block: %s:%d Difference(computed-node):%s\n",

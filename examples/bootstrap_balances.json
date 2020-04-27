@@ -1,0 +1,12 @@
+[
+  {
+    "account_identifier": {
+      "address":"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    },
+    "currency":{
+      "symbol":"BTC",
+      "decimals":8
+    },
+    "value": "5000000000"
+  }
+]

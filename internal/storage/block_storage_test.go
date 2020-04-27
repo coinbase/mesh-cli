@@ -16,7 +16,9 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -674,16 +676,9 @@ func TestGetCurrencyKey(t *testing.T) {
 	}
 }
 
-func createBootstrapBalancesFile(file string) (*os.File, error) {
-	return os.OpenFile(
-		file,
-		os.O_CREATE|os.O_WRONLY,
-		0600,
-	)
-}
-
 func TestBootstrapBalances(t *testing.T) {
 	var (
+		fileMode               = os.FileMode(0600)
 		genesisBlockIdentifier = &types.BlockIdentifier{
 			Index: 0,
 			Hash:  "0",
@@ -720,16 +715,6 @@ func TestBootstrapBalances(t *testing.T) {
 	})
 
 	t.Run("Set balance successfully", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
-		assert.NoError(t, err)
-		defer f.Close()
-
-		_, err = f.WriteString(fmt.Sprintf(
-			"%s\n",
-			bootstrapBalancesHeader,
-		))
-		assert.NoError(t, err)
-
 		amount := &types.Amount{
 			Value: "10",
 			Currency: &types.Currency{
@@ -738,14 +723,16 @@ func TestBootstrapBalances(t *testing.T) {
 			},
 		}
 
-		_, err = f.WriteString(fmt.Sprintf(
-			"%s,%s,%s,%d\n",
-			account.Address,
-			amount.Value,
-			amount.Currency.Symbol,
-			amount.Currency.Decimals,
-		))
+		file, err := json.MarshalIndent([]*BootstrapBalance{
+			{
+				Account:  account,
+				Value:    amount.Value,
+				Currency: amount.Currency,
+			},
+		}, "", " ")
 		assert.NoError(t, err)
+
+		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
 
 		err = storage.BootstrapBalances(
 			ctx,
@@ -767,55 +754,46 @@ func TestBootstrapBalances(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("Invalid file header", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
-		assert.NoError(t, err)
-		defer f.Close()
+	t.Run("Invalid file contents", func(t *testing.T) {
+		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, []byte("bad file"), fileMode))
 
-		_, err = f.WriteString("bad header")
-		assert.NoError(t, err)
-
-		err = storage.BootstrapBalances(
+		err := storage.BootstrapBalances(
 			ctx,
 			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
-		assert.EqualError(t, err, ErrIncorrectHeader.Error())
+		assert.Error(t, err)
 	})
 
-	t.Run("Invalid account row", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
-		assert.NoError(t, err)
-		defer f.Close()
+	t.Run("Invalid account balance", func(t *testing.T) {
+		amount := &types.Amount{
+			Value: "-10",
+			Currency: &types.Currency{
+				Symbol:   "BTC",
+				Decimals: 8,
+			},
+		}
 
-		_, err = f.WriteString(fmt.Sprintf(
-			"%s\n",
-			bootstrapBalancesHeader,
-		))
+		file, err := json.MarshalIndent([]*BootstrapBalance{
+			{
+				Account:  account,
+				Value:    amount.Value,
+				Currency: amount.Currency,
+			},
+		}, "", " ")
 		assert.NoError(t, err)
 
-		_, err = f.WriteString("bad row\n")
-		assert.NoError(t, err)
+		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
 
 		err = storage.BootstrapBalances(
 			ctx,
 			bootstrapBalancesFile,
 			genesisBlockIdentifier,
 		)
-		assert.EqualError(t, err, "row 2 does not have expected fields: [bad row]")
+		assert.EqualError(t, err, "cannot bootstrap zero or negative balance -10")
 	})
 
 	t.Run("Invalid account value", func(t *testing.T) {
-		f, err := createBootstrapBalancesFile(bootstrapBalancesFile)
-		assert.NoError(t, err)
-		defer f.Close()
-
-		_, err = f.WriteString(fmt.Sprintf(
-			"%s\n",
-			bootstrapBalancesHeader,
-		))
-		assert.NoError(t, err)
-
 		amount := &types.Amount{
 			Value: "goodbye",
 			Currency: &types.Currency{
@@ -824,14 +802,16 @@ func TestBootstrapBalances(t *testing.T) {
 			},
 		}
 
-		_, err = f.WriteString(fmt.Sprintf(
-			"%s,%s,%s,%d\n",
-			account.Address,
-			amount.Value,
-			amount.Currency.Symbol,
-			amount.Currency.Decimals,
-		))
+		file, err := json.MarshalIndent([]*BootstrapBalance{
+			{
+				Account:  account,
+				Value:    amount.Value,
+				Currency: amount.Currency,
+			},
+		}, "", " ")
 		assert.NoError(t, err)
+
+		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
 
 		err = storage.BootstrapBalances(
 			ctx,

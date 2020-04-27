@@ -45,6 +45,7 @@ func NewBaseHandler(
 
 // BlockProcessed is called by the syncer after each
 // block is processed.
+// TODO: refactor to BlockAdded and BlockRemoved
 func (h *BaseHandler) BlockProcessed(
 	ctx context.Context,
 	block *types.Block,
@@ -67,5 +68,5 @@ func (h *BaseHandler) BlockProcessed(
 
 	// Mark accounts for reconciliation...this may be
 	// blocking
-	return h.reconciler.QueueChanges(ctx, balanceChanges)
+	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, balanceChanges)
 }

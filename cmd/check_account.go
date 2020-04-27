@@ -16,7 +16,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"log"
+	"path"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/reconciler"
@@ -28,33 +31,58 @@ import (
 )
 
 var (
-	checkQuickCmd = &cobra.Command{
-		Use:   "check:quick",
-		Short: "Run a simple check of the correctness of a Rosetta server",
-		Long: `Check all server responses are properly constructed and that
-computed balance changes are equal to balance changes reported by the
-node. To use check:quick, your server must implement the balance lookup
-by block.
+	checkAccountCmd = &cobra.Command{
+		Use:   "check:account",
+		Short: "Debug inactive reconciliation errors for a group of accounts",
+		Long: `check:complete identifies accounts with inactive reconciliation
+errors (when the balance of an account changes without any operations), however,
+it does not identify which block the untracked balance change occurred. This tool
+is used for locating exactly which block was missing an operation for a
+particular account and currency.
 
-Unlike check:complete, which requires syncing all blocks up
-to the blocks you want to check, check:quick allows you to validate
-an arbitrary range of blocks (even if earlier blocks weren't synced).
-To do this, all you need to do is provide a --start flag and optionally
-an --end flag.
-
-It is important to note that check:quick does not support re-orgs and it
-does not check for duplicate blocks and transactions. For these features,
-please use check:complete.
-
-When re-running this command, it will start off from genesis unless you
-provide a populated --start flag. If you want to run a stateful validation,
-use the check:complete command.`,
-		Run: runCheckQuickCmd,
+In the future, this tool will be deprecated as check:complete
+will automatically identify the block where the missing operation occurred.`,
+		Run: runCheckAccountCmd,
 	}
+
+	accountFile string
 )
 
-func runCheckQuickCmd(cmd *cobra.Command, args []string) {
+func init() {
+	checkAccountCmd.Flags().StringVar(
+		&accountFile,
+		"interesting-accounts",
+		"",
+		`Absolute path to a file listing all accounts to check on each block. Look
+at the examples directory for an example of how to structure this file.`,
+	)
+
+	err := checkAccountCmd.MarkFlagRequired("interesting-accounts")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runCheckAccountCmd(cmd *cobra.Command, args []string) {
+	// TODO: unify startup logic with stateless
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// Try to load interesting accounts
+	interestingAccountsRaw, err := ioutil.ReadFile(path.Clean(accountFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	interestingAccounts := []*reconciler.AccountCurrency{}
+	if err := json.Unmarshal(interestingAccountsRaw, &interestingAccounts); err != nil {
+		log.Fatal(err)
+	}
+
+	accts, err := json.MarshalIndent(interestingAccounts, "", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Checking: %s\n", string(accts))
 
 	fetcher := fetcher.New(
 		ServerURL,
@@ -83,7 +111,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 		logger,
 		AccountConcurrency,
 		HaltOnReconciliationError,
-		nil,
+		interestingAccounts,
 	)
 
 	g.Go(func() error {

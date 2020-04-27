@@ -18,15 +18,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/csv"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"math/big"
-	"os"
-	"strconv"
+	"path"
 	"strings"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -52,18 +51,6 @@ const (
 
 	// balanceNamespace is prepended to any stored balance.
 	balanceNamespace = "balance"
-
-	// bootstrapBalancesPermissions specifies that the user can
-	// read and write the file.
-	bootstrapBalancesPermissions = 0600
-
-	// bootstrapBalancesHeader is used as the CSV header
-	// in the bootstrapBalancesFile.
-	bootstrapBalancesHeader = "AccountIdentifier_address,Amount_value,Currency_symbol,Currency_decimals"
-	bootstrapAddressIndex   = 0
-	bootstrapValueIndex     = 1
-	bootstrapSymbolIndex    = 2
-	bootstrapDecimalsIndex  = 3
 )
 
 var (
@@ -94,10 +81,6 @@ var (
 	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
 	// balances after syncing has started.
 	ErrAlreadyStartedSyncing = errors.New("cannot bootstrap accounts, already started syncing")
-
-	// ErrIncorrectHeader is returned when a bootstrap file has an
-	// incorrect header.
-	ErrIncorrectHeader = errors.New("incorrect header")
 )
 
 /*
@@ -413,10 +396,10 @@ func GetCurrencyKey(currency *types.Currency) string {
 // BalanceChange represents a balance change that affected
 // a *types.AccountIdentifier and a *types.Currency.
 type BalanceChange struct {
-	Account    *types.AccountIdentifier
-	Currency   *types.Currency
-	Block      *types.BlockIdentifier
-	Difference string
+	Account    *types.AccountIdentifier `json:"account_identifier,omitempty"`
+	Currency   *types.Currency          `json:"currency,omitempty"`
+	Block      *types.BlockIdentifier   `json:"block_identifier,omitempty"`
+	Difference string                   `json:"difference,omitempty"`
 }
 
 // UpdateBalance updates a types.AccountIdentifer
@@ -555,6 +538,15 @@ func (b *BlockStorage) GetBalance(
 	return deserialBal.Amounts, deserialBal.Block, nil
 }
 
+// BootstrapBalance represents a balance of
+// a *types.AccountIdentifier and a *types.Currency in the
+// genesis block.
+type BootstrapBalance struct {
+	Account  *types.AccountIdentifier `json:"account_identifier,omitempty"`
+	Currency *types.Currency          `json:"currency,omitempty"`
+	Value    string                   `json:"value,omitempty"`
+}
+
 // BootstrapBalances is utilized to set the balance of
 // any number of AccountIdentifiers at the genesis blocks.
 // This is particularly useful for setting the value of
@@ -564,15 +556,18 @@ func (b *BlockStorage) BootstrapBalances(
 	bootstrapBalancesFile string,
 	genesisBlockIdentifier *types.BlockIdentifier,
 ) error {
-	f, err := os.OpenFile(
-		bootstrapBalancesFile,
-		os.O_RDONLY,
-		bootstrapBalancesPermissions,
-	)
+	// Read bootstrap file
+	bootstrapBalancesRaw, err := ioutil.ReadFile(path.Clean(bootstrapBalancesFile))
 	if err != nil {
 		return err
 	}
 
+	balances := []*BootstrapBalance{}
+	if err := json.Unmarshal(bootstrapBalancesRaw, &balances); err != nil {
+		return err
+	}
+
+	// Update balances in database
 	dbTransaction := b.NewDatabaseTransaction(ctx, true)
 	defer dbTransaction.Discard(ctx)
 
@@ -581,58 +576,32 @@ func (b *BlockStorage) BootstrapBalances(
 		return ErrAlreadyStartedSyncing
 	}
 
-	csvReader := csv.NewReader(f)
-	rowsRead := 0
-	for {
-		record, err := csvReader.Read()
-		if err == io.EOF {
-			break
-		}
-		rowsRead++
-
-		// Assert header is correct
-		if rowsRead == 1 {
-			if bootstrapBalancesHeader != strings.Join(record, ",") {
-				return ErrIncorrectHeader
-			}
-
-			continue
+	for _, balance := range balances {
+		// Ensure change.Difference is valid
+		amountValue, ok := new(big.Int).SetString(balance.Value, 10)
+		if !ok {
+			return fmt.Errorf("%s is not an integer", balance.Value)
 		}
 
-		// Assert row column length correct
-		if len(record) != len(strings.Split(bootstrapBalancesHeader, ",")) {
-			return fmt.Errorf("row %d does not have expected fields: %s", rowsRead, record)
-		}
-
-		account := &types.AccountIdentifier{
-			Address: record[bootstrapAddressIndex],
-		}
-
-		currencyDecimals, err := strconv.Atoi(record[bootstrapDecimalsIndex])
-		if err != nil {
-			return err
-		}
-
-		amount := &types.Amount{
-			Value: record[bootstrapValueIndex],
-			Currency: &types.Currency{
-				Symbol:   record[bootstrapSymbolIndex],
-				Decimals: int32(currencyDecimals),
-			},
+		if amountValue.Sign() < 1 {
+			return fmt.Errorf("cannot bootstrap zero or negative balance %s", amountValue.String())
 		}
 
 		log.Printf(
 			"Setting account %s balance to %s %+v\n",
-			account.Address,
-			amount.Value,
-			amount.Currency,
+			balance.Account.Address,
+			balance.Value,
+			balance.Currency,
 		)
 
 		_, err = b.UpdateBalance(
 			ctx,
 			dbTransaction,
-			account,
-			amount,
+			balance.Account,
+			&types.Amount{
+				Value:    balance.Value,
+				Currency: balance.Currency,
+			},
 			genesisBlockIdentifier,
 		)
 		if err != nil {
@@ -645,6 +614,6 @@ func (b *BlockStorage) BootstrapBalances(
 		return err
 	}
 
-	log.Printf("%d Balances Bootstrapped\n", rowsRead-1)
+	log.Printf("%d Balances Bootstrapped\n", len(balances))
 	return nil
 }

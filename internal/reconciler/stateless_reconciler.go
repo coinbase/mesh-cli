@@ -17,6 +17,7 @@ package reconciler
 import (
 	"context"
 	"errors"
+	"reflect"
 
 	"github.com/coinbase/rosetta-validator/internal/logger"
 	"github.com/coinbase/rosetta-validator/internal/storage"
@@ -40,6 +41,7 @@ type StatelessReconciler struct {
 	logger                    *logger.Logger
 	accountConcurrency        uint64
 	haltOnReconciliationError bool
+	interestingAccounts       []*AccountCurrency
 	changeQueue               chan *storage.BalanceChange
 }
 
@@ -50,6 +52,7 @@ func NewStateless(
 	logger *logger.Logger,
 	accountConcurrency uint64,
 	haltOnReconciliationError bool,
+	interestingAccounts []*AccountCurrency,
 ) *StatelessReconciler {
 	return &StatelessReconciler{
 		network:                   network,
@@ -57,6 +60,7 @@ func NewStateless(
 		logger:                    logger,
 		accountConcurrency:        accountConcurrency,
 		haltOnReconciliationError: haltOnReconciliationError,
+		interestingAccounts:       interestingAccounts,
 		changeQueue:               make(chan *storage.BalanceChange),
 	}
 }
@@ -65,9 +69,37 @@ func NewStateless(
 // for reconciliation.
 func (r *StatelessReconciler) QueueChanges(
 	ctx context.Context,
+	block *types.BlockIdentifier,
 	balanceChanges []*storage.BalanceChange,
 ) error {
-	// block until all checked for a block
+	// Ensure all interestingAccounts are checked
+	// TODO: refactor to automatically trigger once an inactive reconciliation error
+	// is discovered
+	for _, account := range r.interestingAccounts {
+		skipAccount := false
+		// Look through balance changes for account + currency
+		for _, change := range balanceChanges {
+			if reflect.DeepEqual(change.Account, account.Account) && reflect.DeepEqual(change.Currency, account.Currency) {
+				skipAccount = true
+				break
+			}
+		}
+
+		// Account changed on this block
+		if skipAccount {
+			continue
+		}
+
+		// If account + currency not found, add with difference 0
+		balanceChanges = append(balanceChanges, &storage.BalanceChange{
+			Account:    account.Account,
+			Currency:   account.Currency,
+			Difference: "0",
+			Block:      block,
+		})
+	}
+
+	// Block until all checked for a block
 	for _, change := range balanceChanges {
 		select {
 		case r.changeQueue <- change:

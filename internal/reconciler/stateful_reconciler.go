@@ -137,17 +137,18 @@ func NewStateful(
 // for reconciliation.
 func (r *StatefulReconciler) QueueChanges(
 	ctx context.Context,
+	block *types.BlockIdentifier,
 	balanceChanges []*storage.BalanceChange,
 ) error {
+	// All changes will have the same block. Return
+	// if we are too far behind to start reconciling.
+	if block.Index < r.highWaterMark {
+		return nil
+	}
+
 	// Use a buffered channel so don't need to
 	// spawn a goroutine to add accounts to channel.
 	for _, change := range balanceChanges {
-		// All changes will have the same block. Return
-		// if we are too far behind to start reconciling.
-		if change.Block.Index < r.highWaterMark {
-			return nil
-		}
-
 		select {
 		case r.changeQueue <- change:
 		default:

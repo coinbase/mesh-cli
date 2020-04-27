@@ -125,25 +125,25 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(
 		&LogBlocks,
 		"log-blocks",
-		true,
+		false,
 		"log processed blocks",
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&LogTransactions,
 		"log-transactions",
-		true,
+		false,
 		"log processed transactions",
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&LogBalanceChanges,
 		"log-balance-changes",
-		true,
+		false,
 		"log balance changes",
 	)
 	rootCmd.PersistentFlags().BoolVar(
 		&LogReconciliations,
 		"log-reconciliations",
-		true,
+		false,
 		"log balance reconciliations",
 	)
 	rootCmd.PersistentFlags().BoolVar(
@@ -157,4 +157,5 @@ reconciliation errors during development.`,
 
 	rootCmd.AddCommand(checkCompleteCmd)
 	rootCmd.AddCommand(checkQuickCmd)
+	rootCmd.AddCommand(checkAccountCmd)
 }
