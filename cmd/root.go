@@ -71,6 +71,10 @@ var (
 	// It can be beneficial to collect all reconciliation errors
 	// during development.
 	HaltOnReconciliationError bool
+
+	// ExemptFile is an absolute path to a file listing all accounts
+	// to exempt from balance tracking and reconciliation.
+	ExemptFile string
 )
 
 // Execute handles all invocations of the
@@ -153,6 +157,14 @@ func init() {
 		`Determines if block processing should halt on a reconciliation
 error. It can be beneficial to collect all reconciliation errors or silence
 reconciliation errors during development.`,
+	)
+	rootCmd.PersistentFlags().StringVar(
+		&ExemptFile,
+		"exempt-accounts",
+		"",
+		`Absolute path to a file listing all accounts to exempt from balance
+tracking and reconciliation. Look at the examples directory for an example of
+how to structure this file.`,
 	)
 
 	rootCmd.AddCommand(checkCompleteCmd)
