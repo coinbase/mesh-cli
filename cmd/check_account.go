@@ -16,10 +16,7 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
 	"log"
-	"path"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
@@ -67,22 +64,15 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 	// TODO: unify startup logic with stateless
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Try to load interesting accounts
-	interestingAccountsRaw, err := ioutil.ReadFile(path.Clean(accountFile))
+	interestingAccounts, err := loadAccounts(accountFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	interestingAccounts := []*reconciler.AccountCurrency{}
-	if err := json.Unmarshal(interestingAccountsRaw, &interestingAccounts); err != nil {
-		log.Fatal(err)
-	}
-
-	accts, err := json.MarshalIndent(interestingAccounts, "", " ")
+	exemptAccounts, err := loadAccounts(ExemptFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Checking: %s\n", string(accts))
 
 	fetcher := fetcher.New(
 		ServerURL,
@@ -121,6 +111,7 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
+		exemptAccounts,
 	)
 
 	statelessSyncer := syncer.NewStateless(

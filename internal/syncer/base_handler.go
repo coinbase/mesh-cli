@@ -28,18 +28,21 @@ import (
 // BaseHandler logs processed blocks
 // and reconciles modified balances.
 type BaseHandler struct {
-	logger     *logger.Logger
-	reconciler reconciler.Reconciler
+	logger         *logger.Logger
+	reconciler     reconciler.Reconciler
+	exemptAccounts []*reconciler.AccountCurrency
 }
 
 // NewBaseHandler constructs a basic Handler.
 func NewBaseHandler(
 	logger *logger.Logger,
 	reconciler reconciler.Reconciler,
+	exemptAccounts []*reconciler.AccountCurrency,
 ) Handler {
 	return &BaseHandler{
-		logger:     logger,
-		reconciler: reconciler,
+		logger:         logger,
+		reconciler:     reconciler,
+		exemptAccounts: exemptAccounts,
 	}
 }
 
@@ -69,4 +72,21 @@ func (h *BaseHandler) BlockProcessed(
 	// Mark accounts for reconciliation...this may be
 	// blocking
 	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, balanceChanges)
+}
+
+// AccountExempt returns a boolean indicating if the provided
+// account and currency are exempt from balance tracking and
+// reconciliation.
+func (h *BaseHandler) AccountExempt(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+) bool {
+	return reconciler.ContainsAccountCurrency(
+		h.exemptAccounts,
+		&reconciler.AccountCurrency{
+			Account:  account,
+			Currency: currency,
+		},
+	)
 }

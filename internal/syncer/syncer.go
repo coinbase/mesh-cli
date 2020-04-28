@@ -152,6 +152,12 @@ type Handler interface {
 		orphan bool,
 		changes []*storage.BalanceChange,
 	) error
+
+	AccountExempt(
+		ctx context.Context,
+		account *types.AccountIdentifier,
+		current *types.Currency,
+	) bool
 }
 
 // BalanceChanges returns all balance changes for
@@ -165,6 +171,7 @@ func BalanceChanges(
 	asserter *asserter.Asserter,
 	block *types.Block,
 	orphan bool,
+	handler Handler,
 ) ([]*storage.BalanceChange, error) {
 	balanceChanges := map[string]*storage.BalanceChange{}
 	for _, tx := range block.Transactions {
@@ -180,6 +187,14 @@ func BalanceChanges(
 			}
 
 			if op.Account == nil {
+				continue
+			}
+
+			// Exempting account in BalanceChanges ensures that storage is not updated
+			// and that the account is not reconciled. If a handler is not provided,
+			// no account will be marked exempt.
+			if handler != nil && handler.AccountExempt(ctx, op.Account, op.Amount.Currency) {
+				log.Printf("Skipping exempt account %+v\n", op.Account)
 				continue
 			}
 

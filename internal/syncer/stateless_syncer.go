@@ -95,6 +95,7 @@ func (s *StatelessSyncer) SyncRange(
 			s.fetcher.Asserter,
 			block,
 			false,
+			s.handler,
 		)
 		if err != nil {
 			return err
