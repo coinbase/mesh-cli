@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -56,10 +57,11 @@ func simpleTransactionFactory(
 
 func TestBalanceChanges(t *testing.T) {
 	var tests = map[string]struct {
-		block   *types.Block
-		orphan  bool
-		changes []*storage.BalanceChange
-		err     error
+		block          *types.Block
+		orphan         bool
+		changes        []*storage.BalanceChange
+		exemptAccounts []*reconciler.AccountCurrency
+		err            error
 	}{
 		"simple block": {
 			block: &types.Block{
@@ -86,6 +88,31 @@ func TestBalanceChanges(t *testing.T) {
 						Index: 1,
 					},
 					Difference: "100",
+				},
+			},
+			err: nil,
+		},
+		"simple block account exempt": {
+			block: &types.Block{
+				BlockIdentifier: &types.BlockIdentifier{
+					Hash:  "1",
+					Index: 1,
+				},
+				ParentBlockIdentifier: &types.BlockIdentifier{
+					Hash:  "0",
+					Index: 0,
+				},
+				Transactions: []*types.Transaction{
+					recipientTransaction,
+				},
+				Timestamp: asserter.MinUnixEpoch + 1,
+			},
+			orphan:  false,
+			changes: []*storage.BalanceChange{},
+			exemptAccounts: []*reconciler.AccountCurrency{
+				{
+					Account:  recipient,
+					Currency: currency,
 				},
 			},
 			err: nil,
@@ -191,11 +218,13 @@ func TestBalanceChanges(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			handler := NewBaseHandler(nil, nil, test.exemptAccounts)
 			changes, err := BalanceChanges(
 				ctx,
 				asserter,
 				test.block,
 				test.orphan,
+				handler,
 			)
 
 			assert.ElementsMatch(t, test.changes, changes)

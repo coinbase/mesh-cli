@@ -77,6 +77,11 @@ historical balance lookup should set this to false.`,
 func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	exemptAccounts, err := loadAccounts(ExemptFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fetcher := fetcher.New(
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
@@ -133,6 +138,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
+		exemptAccounts,
 	)
 
 	statefulSyncer := syncer.NewStateful(

@@ -15,6 +15,13 @@
 package cmd
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"log"
+	"path"
+
+	"github.com/coinbase/rosetta-cli/internal/reconciler"
+
 	"github.com/spf13/cobra"
 )
 
@@ -71,6 +78,10 @@ var (
 	// It can be beneficial to collect all reconciliation errors
 	// during development.
 	HaltOnReconciliationError bool
+
+	// ExemptFile is an absolute path to a file listing all accounts
+	// to exempt from balance tracking and reconciliation.
+	ExemptFile string
 )
 
 // Execute handles all invocations of the
@@ -154,8 +165,40 @@ func init() {
 error. It can be beneficial to collect all reconciliation errors or silence
 reconciliation errors during development.`,
 	)
+	rootCmd.PersistentFlags().StringVar(
+		&ExemptFile,
+		"exempt-accounts",
+		"",
+		`Absolute path to a file listing all accounts to exempt from balance
+tracking and reconciliation. Look at the examples directory for an example of
+how to structure this file.`,
+	)
 
 	rootCmd.AddCommand(checkCompleteCmd)
 	rootCmd.AddCommand(checkQuickCmd)
 	rootCmd.AddCommand(checkAccountCmd)
+}
+
+func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
+	if len(filePath) == 0 {
+		return []*reconciler.AccountCurrency{}, nil
+	}
+
+	accountsRaw, err := ioutil.ReadFile(path.Clean(filePath))
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []*reconciler.AccountCurrency{}
+	if err := json.Unmarshal(accountsRaw, &accounts); err != nil {
+		return nil, err
+	}
+
+	prettyAccounts, err := json.MarshalIndent(accounts, "", " ")
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, string(prettyAccounts))
+
+	return accounts, nil
 }

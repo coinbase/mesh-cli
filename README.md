@@ -40,6 +40,9 @@ Flags:
       --block-concurrency uint         concurrency to use while fetching blocks (default 8)
       --data-dir string                folder used to store logs and any data used to perform validation (default "./validator-data")
       --end int                        block index to stop syncing (default -1)
+      --exempt-accounts string         Absolute path to a file listing all accounts to exempt from balance
+                                       tracking and reconciliation. Look at the examples directory for an example of
+                                       how to structure this file.
       --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
                                        error. It can be beneficial to collect all reconciliation errors or silence
                                        reconciliation errors during development. (default true)

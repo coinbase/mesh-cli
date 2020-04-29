@@ -56,6 +56,11 @@ use the check:complete command.`,
 func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	exemptAccounts, err := loadAccounts(ExemptFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fetcher := fetcher.New(
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
@@ -93,6 +98,7 @@ func runCheckQuickCmd(cmd *cobra.Command, args []string) {
 	syncHandler := syncer.NewBaseHandler(
 		logger,
 		r,
+		exemptAccounts,
 	)
 
 	statelessSyncer := syncer.NewStateless(

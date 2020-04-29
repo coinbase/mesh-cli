@@ -126,6 +126,7 @@ func (s *StatefulSyncer) storeBlockBalanceChanges(
 		s.fetcher.Asserter,
 		block,
 		orphan,
+		s.handler,
 	)
 	if err != nil {
 		return nil, err
