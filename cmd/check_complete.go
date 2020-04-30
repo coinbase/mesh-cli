@@ -86,6 +86,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
 		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 	)
 
 	// TODO: sync and reconcile on subnetworks, if they exist.

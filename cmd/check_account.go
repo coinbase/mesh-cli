@@ -78,6 +78,7 @@ func runCheckAccountCmd(cmd *cobra.Command, args []string) {
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
 		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 	)
 
 	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
