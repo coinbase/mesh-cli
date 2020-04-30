@@ -19,10 +19,21 @@ import (
 	"io/ioutil"
 	"log"
 	"path"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	// ExtendedRetryElapsedTime is used to override the default fetcher
+	// retry elapsed time. In practice, extending the retry elapsed time
+	// has prevented retry exhaustion errors when many goroutines are
+	// used to fetch data from the Rosetta server.
+	//
+	// TODO: make configurable
+	ExtendedRetryElapsedTime = 5 * time.Minute
 )
 
 var (

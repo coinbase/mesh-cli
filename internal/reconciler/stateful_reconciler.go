@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
@@ -66,6 +66,12 @@ const (
 	// inactiveReconciliationSleep is used as the time.Duration
 	// to sleep when there are no seen accounts to reconcile.
 	inactiveReconciliationSleep = 5 * time.Second
+
+	// inactiveReconciliationRequiredDepth is the minimum
+	// number of blocks the reconciler should wait between
+	// inactive reconciliations.
+	// TODO: make configurable
+	inactiveReconciliationRequiredDepth = 500
 )
 
 var (
@@ -106,7 +112,12 @@ type StatefulReconciler struct {
 
 	// seenAccts are stored for inactive account
 	// reconciliation.
-	seenAccts []*AccountCurrency
+	seenAccts     []*AccountCurrency
+	inactiveQueue []*storage.BalanceChange
+
+	// inactiveQueueMutex needed because we can't peek at the tip
+	// of a channel to determine when it is ready to look at.
+	inactiveQueueMutex sync.Mutex
 }
 
 // NewStateful creates a new StatefulReconciler.
@@ -130,6 +141,7 @@ func NewStateful(
 		changeQueue:               make(chan *storage.BalanceChange, backlogThreshold),
 		highWaterMark:             -1,
 		seenAccts:                 make([]*AccountCurrency, 0),
+		inactiveQueue:             make([]*storage.BalanceChange, 0),
 	}
 }
 
@@ -152,7 +164,7 @@ func (r *StatefulReconciler) QueueChanges(
 		select {
 		case r.changeQueue <- change:
 		default:
-			log.Printf("skipping enqueue because backlog\n")
+			log.Println("skipping active enqueue because backlog")
 		}
 	}
 
@@ -349,10 +361,7 @@ func (r *StatefulReconciler) accountReconciliation(
 			return nil
 		}
 
-		if !inactive && !ContainsAccountCurrency(r.seenAccts, accountCurrency) {
-			r.seenAccts = append(r.seenAccts, accountCurrency)
-		}
-
+		r.inactiveAccountQueue(inactive, accountCurrency, liveBlock)
 		return r.logger.ReconcileSuccessStream(
 			ctx,
 			reconciliationType,
@@ -366,6 +375,29 @@ func (r *StatefulReconciler) accountReconciliation(
 	}
 
 	return nil
+}
+
+func (r *StatefulReconciler) inactiveAccountQueue(
+	inactive bool,
+	accountCurrency *AccountCurrency,
+	liveBlock *types.BlockIdentifier,
+) {
+	// Only enqueue the first time we see an account on an active reconciliation.
+	shouldEnqueueInactive := false
+	if !inactive && !ContainsAccountCurrency(r.seenAccts, accountCurrency) {
+		r.seenAccts = append(r.seenAccts, accountCurrency)
+		shouldEnqueueInactive = true
+	}
+
+	if inactive || shouldEnqueueInactive {
+		r.inactiveQueueMutex.Lock()
+		r.inactiveQueue = append(r.inactiveQueue, &storage.BalanceChange{
+			Account:  accountCurrency.Account,
+			Currency: accountCurrency.Currency,
+			Block:    liveBlock,
+		})
+		r.inactiveQueueMutex.Unlock()
+	}
 }
 
 // simpleAccountCurrency returns a string that is a simple
@@ -432,18 +464,20 @@ func (r *StatefulReconciler) reconcileActiveAccounts(
 func (r *StatefulReconciler) reconcileInactiveAccounts(
 	ctx context.Context,
 ) error {
-	randSource := rand.NewSource(time.Now().UnixNano())
-	randGenerator := rand.New(randSource)
 	for ctx.Err() == nil {
-		if len(r.seenAccts) > 0 {
-			randAcct := r.seenAccts[randGenerator.Intn(len(r.seenAccts))]
+		txn := r.storage.NewDatabaseTransaction(ctx, false)
+		head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
+		if err != nil {
+			return err
+		}
+		txn.Discard(ctx)
 
-			txn := r.storage.NewDatabaseTransaction(ctx, false)
-			head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
-			if err != nil {
-				return err
-			}
-			txn.Discard(ctx)
+		r.inactiveQueueMutex.Lock()
+		if len(r.inactiveQueue) > 0 &&
+			r.inactiveQueue[0].Block.Index+inactiveReconciliationRequiredDepth < head.Index {
+			randAcct := r.inactiveQueue[0]
+			r.inactiveQueue = r.inactiveQueue[1:]
+			r.inactiveQueueMutex.Unlock()
 
 			block, amount, err := r.bestBalance(
 				ctx,
@@ -467,6 +501,7 @@ func (r *StatefulReconciler) reconcileInactiveAccounts(
 				return err
 			}
 		} else {
+			r.inactiveQueueMutex.Unlock()
 			time.Sleep(inactiveReconciliationSleep)
 		}
 	}
