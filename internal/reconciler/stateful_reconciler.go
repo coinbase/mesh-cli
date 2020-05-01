@@ -470,7 +470,7 @@ func (r *StatefulReconciler) reconcileInactiveAccounts(
 		// When first start syncing, this loop may run before the genesis block is synced.
 		// If this is the case, we should sleep and try again later instead of exiting.
 		if errors.Is(err, storage.ErrHeadBlockNotFound) {
-			log.Println("head block not yet initalized, sleeping...")
+			log.Println("head block not yet initialized, sleeping...")
 			time.Sleep(inactiveReconciliationSleep)
 			continue
 		} else if err != nil {

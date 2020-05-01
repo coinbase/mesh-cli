@@ -79,7 +79,8 @@ func (r *StatelessReconciler) QueueChanges(
 		skipAccount := false
 		// Look through balance changes for account + currency
 		for _, change := range balanceChanges {
-			if reflect.DeepEqual(change.Account, account.Account) && reflect.DeepEqual(change.Currency, account.Currency) {
+			if reflect.DeepEqual(change.Account, account.Account) &&
+				reflect.DeepEqual(change.Currency, account.Currency) {
 				skipAccount = true
 				break
 			}
