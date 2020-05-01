@@ -24,7 +24,6 @@ import (
 	"github.com/coinbase/rosetta-cli/internal/syncer"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -79,7 +78,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 
 	exemptAccounts, err := loadAccounts(ExemptFile)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "unable to load exempt accounts"))
+		log.Fatalf("%w: unable to load exempt accounts", err)
 	}
 
 	fetcher := fetcher.New(
@@ -92,12 +91,12 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	// TODO: sync and reconcile on subnetworks, if they exist.
 	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "unable to initialize asserter"))
+		log.Fatalf("%w: unable to initialize asserter", err)
 	}
 
 	localStore, err := storage.NewBadgerStorage(ctx, DataDir)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "unable to initialize data store"))
+		log.Fatalf("%w: unable to initialize data store", err)
 	}
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore)
@@ -108,7 +107,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 			networkStatus.GenesisBlockIdentifier,
 		)
 		if err != nil {
-			log.Fatal(errors.Wrap(err, "unable to bootstrap balances"))
+			log.Fatalf("%w: unable to bootstrap balances", err)
 		}
 	}
 

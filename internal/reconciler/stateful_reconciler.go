@@ -27,7 +27,6 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	pkgError "github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -187,7 +186,7 @@ func (r *StatefulReconciler) CompareBalance(
 	// Head block should be set before we CompareBalance
 	head, err := r.storage.GetHeadBlockIdentifier(ctx, txn)
 	if err != nil {
-		return zeroString, 0, pkgError.Wrap(err, "unable to get current block for reconciliation")
+		return zeroString, 0, fmt.Errorf("%w: unable to get current block for reconciliation", err)
 	}
 
 	// Check if live block is < head (or wait)
@@ -471,10 +470,11 @@ func (r *StatefulReconciler) reconcileInactiveAccounts(
 		// When first start syncing, this loop may run before the genesis block is synced.
 		// If this is the case, we should sleep and try again later instead of exiting.
 		if errors.Is(err, storage.ErrHeadBlockNotFound) {
+			log.Println("head block not yet initalized, sleeping...")
 			time.Sleep(inactiveReconciliationSleep)
 			continue
 		} else if err != nil {
-			return pkgError.Wrap(err, "unable to get current block for inactive reconciliation")
+			return fmt.Errorf("%w: unable to get current block for inactive reconciliation", err)
 		}
 
 		r.inactiveQueueMutex.Lock()
