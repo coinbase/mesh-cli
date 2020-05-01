@@ -25,6 +25,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -70,7 +71,7 @@ func NextSyncableRange(
 ) (int64, int64, bool, error) {
 	currentIndex, err := s.CurrentIndex(ctx)
 	if err != nil {
-		return -1, -1, false, err
+		return -1, -1, false, errors.Wrap(err, "unable to get current index")
 	}
 
 	if endIndex == -1 {
@@ -80,7 +81,7 @@ func NextSyncableRange(
 			nil,
 		)
 		if err != nil {
-			return -1, -1, false, err
+			return -1, -1, false, errors.Wrap(err, "unable to get network status")
 		}
 
 		return currentIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
@@ -105,7 +106,7 @@ func Sync(
 	defer cancel()
 
 	if err := s.SetStartIndex(ctx, startIndex); err != nil {
-		return err
+		return errors.Wrap(err, "unable to set start index")
 	}
 
 	for {
@@ -115,7 +116,7 @@ func Sync(
 			endIndex,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "unable to get next syncable range")
 		}
 		if halt {
 			break
@@ -129,7 +130,7 @@ func Sync(
 
 		err = s.SyncRange(ctx, rangeStart, rangeEnd)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "unable to sync range %d-%d", rangeStart, rangeEnd)
 		}
 
 		if ctx.Err() != nil {
