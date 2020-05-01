@@ -16,6 +16,7 @@ package reconciler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -99,7 +100,7 @@ func TestCompareBalance(t *testing.T) {
 		)
 		assert.Equal(t, "0", difference)
 		assert.Equal(t, int64(0), headIndex)
-		assert.EqualError(t, err, storage.ErrHeadBlockNotFound.Error())
+		assert.True(t, errors.Is(err, storage.ErrHeadBlockNotFound))
 	})
 
 	// Update head block

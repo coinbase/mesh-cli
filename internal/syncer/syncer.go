@@ -70,7 +70,7 @@ func NextSyncableRange(
 ) (int64, int64, bool, error) {
 	currentIndex, err := s.CurrentIndex(ctx)
 	if err != nil {
-		return -1, -1, false, err
+		return -1, -1, false, fmt.Errorf("%w: unable to get current index", err)
 	}
 
 	if endIndex == -1 {
@@ -80,7 +80,7 @@ func NextSyncableRange(
 			nil,
 		)
 		if err != nil {
-			return -1, -1, false, err
+			return -1, -1, false, fmt.Errorf("%w: unable to get network status", err)
 		}
 
 		return currentIndex, networkStatus.CurrentBlockIdentifier.Index, false, nil
@@ -105,7 +105,7 @@ func Sync(
 	defer cancel()
 
 	if err := s.SetStartIndex(ctx, startIndex); err != nil {
-		return err
+		return fmt.Errorf("%w: unable to set start index", err)
 	}
 
 	for {
@@ -115,7 +115,7 @@ func Sync(
 			endIndex,
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: unable to get next syncable range", err)
 		}
 		if halt {
 			break
@@ -129,7 +129,7 @@ func Sync(
 
 		err = s.SyncRange(ctx, rangeStart, rangeEnd)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: unable to sync range %d-%d", err, rangeStart, rangeEnd)
 		}
 
 		if ctx.Err() != nil {
