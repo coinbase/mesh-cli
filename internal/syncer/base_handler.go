@@ -46,22 +46,17 @@ func NewBaseHandler(
 	}
 }
 
-// BlockProcessed is called by the syncer after each
-// block is processed.
-// TODO: refactor to BlockAdded and BlockRemoved
-func (h *BaseHandler) BlockProcessed(
+// BlockAdded is called by the syncer after a
+// block is added.
+func (h *BaseHandler) BlockAdded(
 	ctx context.Context,
 	block *types.Block,
-	reorg bool,
 	balanceChanges []*storage.BalanceChange,
 ) error {
-	if !reorg {
-		log.Printf("Adding block %+v\n", block.BlockIdentifier)
-	} else {
-		log.Printf("Orphaning block %+v\n", block.BlockIdentifier)
-	}
+	log.Printf("Adding block %+v\n", block.BlockIdentifier)
+
 	// Log processed blocks and balance changes
-	if err := h.logger.BlockStream(ctx, block, reorg); err != nil {
+	if err := h.logger.BlockStream(ctx, block, false); err != nil {
 		return nil
 	}
 
@@ -72,6 +67,27 @@ func (h *BaseHandler) BlockProcessed(
 	// Mark accounts for reconciliation...this may be
 	// blocking
 	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, balanceChanges)
+}
+
+// BlockRemoved is called by the syncer after a
+// block is removed.
+func (h *BaseHandler) BlockRemoved(
+	ctx context.Context,
+	block *types.Block,
+	balanceChanges []*storage.BalanceChange,
+) error {
+	log.Printf("Orphaning block %+v\n", block.BlockIdentifier)
+
+	// Log processed blocks and balance changes
+	if err := h.logger.BlockStream(ctx, block, true); err != nil {
+		return nil
+	}
+
+	if err := h.logger.BalanceStream(ctx, balanceChanges); err != nil {
+		return nil
+	}
+
+	return nil
 }
 
 // AccountExempt returns a boolean indicating if the provided

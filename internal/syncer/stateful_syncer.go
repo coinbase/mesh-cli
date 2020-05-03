@@ -263,6 +263,8 @@ func (s *StatefulSyncer) processBlock(
 // you don't need to restart validation from genesis. Instead,
 // you can just restart validation at the block immediately
 // before any erroneous block.
+//
+// TODO: batch transactions to orphan blocks
 func (s *StatefulSyncer) newHeadIndex(
 	ctx context.Context,
 	newHeadIndex int64,
@@ -349,7 +351,12 @@ func (s *StatefulSyncer) SyncRange(
 
 		currIndex = newIndex
 
-		if err := s.handler.BlockProcessed(ctx, block, reorg, balanceChanges); err != nil {
+		if reorg {
+			err = s.handler.BlockRemoved(ctx, block, balanceChanges)
+		} else {
+			err = s.handler.BlockAdded(ctx, block, balanceChanges)
+		}
+		if err != nil {
 			return err
 		}
 	}

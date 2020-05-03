@@ -101,10 +101,9 @@ func (s *StatelessSyncer) SyncRange(
 			return err
 		}
 
-		err = s.handler.BlockProcessed(
+		err = s.handler.BlockAdded(
 			ctx,
 			block,
-			false,
 			changes,
 		)
 		if err != nil {
