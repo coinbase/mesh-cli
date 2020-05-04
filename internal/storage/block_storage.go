@@ -28,6 +28,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -329,7 +330,7 @@ func (b *BlockStorage) storeHash(
 func (b *BlockStorage) StoreBlock(
 	ctx context.Context,
 	block *types.Block,
-) ([]*BalanceChange, error) {
+) ([]*reconciler.BalanceChange, error) {
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 	buf := new(bytes.Buffer)
@@ -383,7 +384,7 @@ func (b *BlockStorage) StoreBlock(
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
 	block *types.Block,
-) ([]*BalanceChange, error) {
+) ([]*reconciler.BalanceChange, error) {
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 
@@ -446,15 +447,6 @@ func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
 	return &bal, nil
 }
 
-// BalanceChange represents a balance change that affected
-// a *types.AccountIdentifier and a *types.Currency.
-type BalanceChange struct {
-	Account    *types.AccountIdentifier `json:"account_identifier,omitempty"`
-	Currency   *types.Currency          `json:"currency,omitempty"`
-	Block      *types.BlockIdentifier   `json:"block_identifier,omitempty"`
-	Difference string                   `json:"difference,omitempty"`
-}
-
 func (b *BlockStorage) SetBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
@@ -485,7 +477,7 @@ func (b *BlockStorage) SetBalance(
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
-	change *BalanceChange,
+	change *reconciler.BalanceChange,
 ) error {
 	if change.Currency == nil {
 		return errors.New("invalid currency")
@@ -690,8 +682,8 @@ func (b *BlockStorage) BalanceChanges(
 	ctx context.Context,
 	block *types.Block,
 	blockRemoved bool,
-) ([]*BalanceChange, error) {
-	balanceChanges := map[string]*BalanceChange{}
+) ([]*reconciler.BalanceChange, error) {
+	balanceChanges := map[string]*reconciler.BalanceChange{}
 	for _, tx := range block.Transactions {
 		for _, op := range tx.Operations {
 			skip, err := b.helper.SkipOperation(
@@ -725,7 +717,7 @@ func (b *BlockStorage) BalanceChanges(
 
 			val, ok := balanceChanges[key]
 			if !ok {
-				balanceChanges[key] = &BalanceChange{
+				balanceChanges[key] = &reconciler.BalanceChange{
 					Account:    op.Account,
 					Currency:   op.Amount.Currency,
 					Difference: amount.Value,
@@ -743,7 +735,7 @@ func (b *BlockStorage) BalanceChanges(
 		}
 	}
 
-	allChanges := []*BalanceChange{}
+	allChanges := []*reconciler.BalanceChange{}
 	for _, change := range balanceChanges {
 		allChanges = append(allChanges, change)
 	}

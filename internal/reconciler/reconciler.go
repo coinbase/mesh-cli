@@ -25,7 +25,6 @@ import (
 
 	// TODO: remove all references to internal packages
 	// before transitioning to rosetta-sdk-go
-	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -95,6 +94,15 @@ var (
 	ErrBlockGone = errors.New("block gone")
 )
 
+// BalanceChange represents a balance change that affected
+// a *types.AccountIdentifier and a *types.Currency.
+type BalanceChange struct {
+	Account    *types.AccountIdentifier `json:"account_identifier,omitempty"`
+	Currency   *types.Currency          `json:"currency,omitempty"`
+	Block      *types.BlockIdentifier   `json:"block_identifier,omitempty"`
+	Difference string                   `json:"difference,omitempty"`
+}
+
 type ReconcilerHelper interface {
 	BlockExists(
 		ctx context.Context,
@@ -150,7 +158,7 @@ type Reconciler struct {
 	lookupBalanceByBlock      bool
 	haltOnReconciliationError bool
 	interestingAccounts       []*AccountCurrency
-	changeQueue               chan *storage.BalanceChange
+	changeQueue               chan *BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -159,7 +167,7 @@ type Reconciler struct {
 	// seenAccts are stored for inactive account
 	// reconciliation.
 	seenAccts     []*AccountCurrency
-	inactiveQueue []*storage.BalanceChange
+	inactiveQueue []*BalanceChange
 
 	// inactiveQueueMutex needed because we can't peek at the tip
 	// of a channel to determine when it is ready to look at.
@@ -186,31 +194,31 @@ func NewReconciler(
 		interestingAccounts:       interestingAccounts,
 		highWaterMark:             -1,
 		seenAccts:                 make([]*AccountCurrency, 0),
-		inactiveQueue:             make([]*storage.BalanceChange, 0),
+		inactiveQueue:             make([]*BalanceChange, 0),
 	}
 
 	if lookupBalanceByBlock {
 		// When lookupBalanceByBlock is enabled, we check
 		// balance changes synchronously.
-		r.changeQueue = make(chan *storage.BalanceChange)
+		r.changeQueue = make(chan *BalanceChange)
 	} else {
 		// When lookupBalanceByBlock is disabled, we must check
 		// balance changes asynchronously. Using a buffered
 		// channel allows us to add balance changes without blocking.
-		r.changeQueue = make(chan *storage.BalanceChange, backlogThreshold)
+		r.changeQueue = make(chan *BalanceChange, backlogThreshold)
 	}
 
 	return r
 }
 
 // Reconciliation
-// QueueChanges enqueues a slice of *storage.BalanceChanges
+// QueueChanges enqueues a slice of *BalanceChanges
 // for reconciliation.
 func (r *Reconciler) QueueChanges(
 	ctx context.Context,
 	// If we pass in parentblock, then we always know what to compare on diff
 	block *types.BlockIdentifier,
-	balanceChanges []*storage.BalanceChange,
+	balanceChanges []*BalanceChange,
 ) error {
 	// Ensure all interestingAccounts are checked
 	// TODO: refactor to automatically trigger once an inactive reconciliation error
@@ -231,7 +239,7 @@ func (r *Reconciler) QueueChanges(
 		}
 
 		// If account + currency not found, add with difference 0
-		balanceChanges = append(balanceChanges, &storage.BalanceChange{
+		balanceChanges = append(balanceChanges, &BalanceChange{
 			Account:    account.Account,
 			Currency:   account.Currency,
 			Difference: "0",
@@ -475,7 +483,7 @@ func (r *Reconciler) inactiveAccountQueue(
 
 	if inactive || shouldEnqueueInactive {
 		r.inactiveQueueMutex.Lock()
-		r.inactiveQueue = append(r.inactiveQueue, &storage.BalanceChange{
+		r.inactiveQueue = append(r.inactiveQueue, &BalanceChange{
 			Account:  accountCurrency.Account,
 			Currency: accountCurrency.Currency,
 			Block:    liveBlock,
@@ -552,12 +560,9 @@ func (r *Reconciler) reconcileInactiveAccounts(
 		head, err := r.helper.CurrentBlock(ctx)
 		// When first start syncing, this loop may run before the genesis block is synced.
 		// If this is the case, we should sleep and try again later instead of exiting.
-		if errors.Is(err, storage.ErrHeadBlockNotFound) {
-			log.Println("head block not yet initialized, sleeping...")
+		if err != nil {
 			time.Sleep(inactiveReconciliationSleep)
-			continue
-		} else if err != nil {
-			return fmt.Errorf("%w: unable to get current block for inactive reconciliation", err)
+			log.Println("%s: unable to get current block for inactive reconciliation", err.Error())
 		}
 
 		r.inactiveQueueMutex.Lock()
