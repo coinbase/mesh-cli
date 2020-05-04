@@ -150,15 +150,14 @@ type ReconcilerHandler interface {
 // types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
 type Reconciler struct {
-	network                   *types.NetworkIdentifier
-	helper                    ReconcilerHelper
-	handler                   ReconcilerHandler
-	fetcher                   *fetcher.Fetcher
-	accountConcurrency        uint64
-	lookupBalanceByBlock      bool
-	haltOnReconciliationError bool
-	interestingAccounts       []*AccountCurrency
-	changeQueue               chan *BalanceChange
+	network              *types.NetworkIdentifier
+	helper               ReconcilerHelper
+	handler              ReconcilerHandler
+	fetcher              *fetcher.Fetcher
+	accountConcurrency   uint64
+	lookupBalanceByBlock bool
+	interestingAccounts  []*AccountCurrency
+	changeQueue          chan *BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -177,24 +176,24 @@ type Reconciler struct {
 // NewReconciler creates a new Reconciler.
 func NewReconciler(
 	network *types.NetworkIdentifier,
+	helper ReconcilerHelper,
 	handler ReconcilerHandler,
 	fetcher *fetcher.Fetcher,
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
-	haltOnReconciliationError bool,
 	interestingAccounts []*AccountCurrency,
 ) *Reconciler {
 	r := &Reconciler{
-		network:                   network,
-		handler:                   handler,
-		fetcher:                   fetcher,
-		accountConcurrency:        accountConcurrency,
-		lookupBalanceByBlock:      lookupBalanceByBlock,
-		haltOnReconciliationError: haltOnReconciliationError,
-		interestingAccounts:       interestingAccounts,
-		highWaterMark:             -1,
-		seenAccts:                 make([]*AccountCurrency, 0),
-		inactiveQueue:             make([]*BalanceChange, 0),
+		network:              network,
+		helper:               helper,
+		handler:              handler,
+		fetcher:              fetcher,
+		accountConcurrency:   accountConcurrency,
+		lookupBalanceByBlock: lookupBalanceByBlock,
+		interestingAccounts:  interestingAccounts,
+		highWaterMark:        -1,
+		seenAccts:            make([]*AccountCurrency, 0),
+		inactiveQueue:        make([]*BalanceChange, 0),
 	}
 
 	if lookupBalanceByBlock {
@@ -446,10 +445,6 @@ func (r *Reconciler) accountReconciliation(
 			)
 			if err != nil {
 				return err
-			}
-
-			if r.haltOnReconciliationError {
-				return errors.New("reconciliation error")
 			}
 
 			return nil

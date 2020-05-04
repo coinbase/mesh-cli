@@ -20,6 +20,7 @@ import (
 	"log"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
+	"github.com/coinbase/rosetta-cli/internal/processor"
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/syncer"
@@ -54,6 +55,8 @@ index less than the last computed block index.`,
 	// block. Blockchains that do not support historical balance lookup
 	// should set this to false.
 	LookupBalanceByBlock bool
+
+	accountFile string
 )
 
 func init() {
@@ -72,6 +75,13 @@ Populating this value after beginning syncing will return an error.`,
 change occurred instead of at the current block. Blockchains that do not support
 historical balance lookup should set this to false.`,
 	)
+	checkCompleteCmd.Flags().StringVar(
+		&accountFile,
+		"interesting-accounts",
+		"",
+		`Absolute path to a file listing all accounts to check on each block. Look
+at the examples directory for an example of how to structure this file.`,
+	)
 }
 
 func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
@@ -81,6 +91,11 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 	exemptAccounts, err := loadAccounts(ExemptFile)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to load exempt accounts", err))
+	}
+
+	interestingAccounts, err := loadAccounts(accountFile)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to load interesting accounts", err))
 	}
 
 	fetcher := fetcher.New(
@@ -101,7 +116,17 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to initialize data store", err))
 	}
 
-	blockStorage := storage.NewBlockStorage(ctx, localStore)
+	logger := logger.NewLogger(
+		DataDir,
+		LogBlocks,
+		LogTransactions,
+		LogBalanceChanges,
+		LogReconciliations,
+	)
+
+	blockStorageHelper := processor.NewBlockStorageHelper(fetcher, exemptAccounts)
+
+	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
 	if len(BootstrapBalances) > 0 {
 		err = blockStorage.BootstrapBalances(
 			ctx,
@@ -113,48 +138,43 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	logger := logger.NewLogger(
-		DataDir,
-		LogBlocks,
-		LogTransactions,
-		LogBalanceChanges,
-		LogReconciliations,
+	reconcilerHelper := &processor.ReconcilerHelper{}
+	reconcilerHandler := &processor.ReconcilerHandler{}
+
+	r := reconciler.NewReconciler(
+		primaryNetwork,
+		reconcilerHelper,
+		reconcilerHandler,
+		fetcher,
+		AccountConcurrency,
+		LookupBalanceByBlock,
+		interestingAccounts,
+	)
+
+	syncHandler := processor.NewSyncHandler(
+		blockStorage,
+		logger,
+		r,
+		fetcher,
+		exemptAccounts,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
-
-	r := reconciler.NewStateful(
-		primaryNetwork,
-		blockStorage,
-		fetcher,
-		logger,
-		AccountConcurrency,
-		LookupBalanceByBlock,
-		HaltOnReconciliationError,
-	)
 
 	g.Go(func() error {
 		return r.Reconcile(ctx)
 	})
 
-	syncHandler := syncer.NewBaseHandler(
-		logger,
-		r,
-		exemptAccounts,
-	)
-
-	statefulSyncer := syncer.NewStateful(
+	syncer := syncer.New(
 		primaryNetwork,
-		blockStorage,
 		fetcher,
 		syncHandler,
+		cancel,
 	)
 
 	g.Go(func() error {
 		return syncer.Sync(
 			ctx,
-			cancel,
-			statefulSyncer,
 			StartIndex,
 			EndIndex,
 		)

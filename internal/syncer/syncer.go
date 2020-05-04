@@ -57,7 +57,7 @@ type Syncer struct {
 	currentBlock *types.BlockIdentifier
 }
 
-func NewSyncer(
+func New(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
 	handler SyncHandler,

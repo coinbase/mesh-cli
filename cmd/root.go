@@ -15,18 +15,14 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"path"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
 
-	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/spf13/cobra"
 )
 
@@ -190,8 +186,6 @@ how to structure this file.`,
 	)
 
 	rootCmd.AddCommand(checkCompleteCmd)
-	rootCmd.AddCommand(checkQuickCmd)
-	rootCmd.AddCommand(checkAccountCmd)
 }
 
 func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
@@ -216,55 +210,4 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, string(prettyAccounts))
 
 	return accounts, nil
-}
-
-func standardInitialization(ctx context.Context, interestingAccounts []*reconciler.AccountCurrency) {
-	exemptAccounts, err := loadAccounts(ExemptFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fetcher := fetcher.New(
-		ServerURL,
-		fetcher.WithBlockConcurrency(BlockConcurrency),
-		fetcher.WithTransactionConcurrency(TransactionConcurrency),
-		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
-	)
-
-	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	logger := logger.NewLogger(
-		DataDir,
-		LogBlocks,
-		LogTransactions,
-		LogBalanceChanges,
-		LogReconciliations,
-	)
-
-	return
-
-	r := reconciler.NewReconciler(
-		primaryNetwork,
-		fetcher,
-		logger,
-		AccountConcurrency,
-		HaltOnReconciliationError,
-		interestingAccounts,
-	)
-
-	processor := processor.NewBaseProcessor(
-		logger,
-		r,
-		fetcher.Asserter,
-		exemptAccounts,
-	)
-
-	syncer := syncer.NewSyncer(
-		primaryNetwork,
-		fetcher,
-		processor,
-	)
 }
