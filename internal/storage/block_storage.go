@@ -28,8 +28,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -90,9 +91,9 @@ var (
 // hashBytes is used to construct a SHA1
 // hash to protect against arbitrarily
 // large key sizes.
-func hashBytes(data []byte) []byte {
+func hashBytes(data string) []byte {
 	h := sha256.New()
-	_, err := h.Write(data)
+	_, err := h.Write([]byte(data))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,73 +105,117 @@ func hashBytes(data []byte) []byte {
 // hash to protect against arbitrarily
 // large key sizes.
 func hashString(data string) string {
-	return fmt.Sprintf("%x", hashBytes([]byte(data)))
+	return fmt.Sprintf("%x", hashBytes(data))
 }
 
 func getHeadBlockKey() []byte {
-	return hashBytes([]byte(headBlockKey))
+	return hashBytes(headBlockKey)
 }
 
 func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
 	return hashBytes(
-		[]byte(fmt.Sprintf("%s:%d", blockIdentifier.Hash, blockIdentifier.Index)),
+		fmt.Sprintf("%s:%d", blockIdentifier.Hash, blockIdentifier.Index),
 	)
 }
 
 func getHashKey(hash string, isBlock bool) []byte {
 	if isBlock {
-		return hashBytes([]byte(fmt.Sprintf("%s:%s", blockHashNamespace, hash)))
+		return hashBytes(fmt.Sprintf("%s:%s", blockHashNamespace, hash))
 	}
 
-	return hashBytes([]byte(fmt.Sprintf("%s:%s", transactionHashNamespace, hash)))
+	return hashBytes(fmt.Sprintf("%s:%s", transactionHashNamespace, hash))
+}
+
+// GetCurrencyKey is used to identify a *types.Currency
+// in an account's map of currencies. It is not feasible
+// to create a map of [types.Currency]*types.Amount
+// because types.Currency contains a metadata pointer
+// that would prevent any equality.
+func GetCurrencyKey(currency *types.Currency) string {
+	if currency.Metadata == nil {
+		return fmt.Sprintf("%s:%d", currency.Symbol, currency.Decimals)
+	}
+
+	// TODO: Handle currency.Metadata
+	// that has pointer value.
+	return fmt.Sprintf(
+		"%s:%d:%v",
+		currency.Symbol,
+		currency.Decimals,
+		currency.Metadata,
+	)
 }
 
 // GetAccountKey returns a byte slice representing a *types.AccountIdentifier.
 // This byte slice automatically handles the existence of *types.SubAccount
 // detail.
-func GetAccountKey(account *types.AccountIdentifier) []byte {
+func GetAccountKey(account *types.AccountIdentifier) string {
 	if account.SubAccount == nil {
-		return hashBytes(
-			[]byte(fmt.Sprintf("%s:%s", balanceNamespace, account.Address)),
-		)
+		return fmt.Sprintf("%s:%s", balanceNamespace, account.Address)
 	}
 
 	if account.SubAccount.Metadata == nil {
-		return hashBytes([]byte(fmt.Sprintf(
+		return fmt.Sprintf(
 			"%s:%s:%s",
 			balanceNamespace,
 			account.Address,
 			account.SubAccount.Address,
-		)))
+		)
 	}
 
 	// TODO: handle SubAccount.Metadata
 	// that contains pointer values.
-	return hashBytes([]byte(fmt.Sprintf(
+	return fmt.Sprintf(
 		"%s:%s:%s:%v",
 		balanceNamespace,
 		account.Address,
 		account.SubAccount.Address,
 		account.SubAccount.Metadata,
-	)))
+	)
+}
+
+func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) []byte {
+	return hashBytes(
+		fmt.Sprintf("%s/%s", GetAccountKey(account), GetCurrencyKey(currency)),
+	)
+}
+
+type BlockStorageHelper interface {
+	AccountBalance(
+		ctx context.Context,
+		account *types.AccountIdentifier,
+		currency *types.Currency,
+		block *types.BlockIdentifier,
+	) (*types.Amount, error) // returns an error if lookupBalanceByBlock disabled
+
+	SkipOperation(
+		ctx context.Context,
+		op *types.Operation,
+	) (bool, error)
 }
 
 // BlockStorage implements block specific storage methods
 // on top of a Database and DatabaseTransaction interface.
 type BlockStorage struct {
-	db Database
+	db     Database
+	helper BlockStorageHelper
 }
 
 // NewBlockStorage returns a new BlockStorage.
-func NewBlockStorage(ctx context.Context, db Database) *BlockStorage {
+func NewBlockStorage(
+	ctx context.Context,
+	db Database,
+	helper BlockStorageHelper,
+) *BlockStorage {
 	return &BlockStorage{
-		db: db,
+		db:     db,
+		helper: helper,
 	}
 }
 
 // NewDatabaseTransaction returns a DatabaseTransaction
 // from the Database that is backing BlockStorage.
-func (b *BlockStorage) NewDatabaseTransaction(
+func (b *BlockStorage) newDatabaseTransaction(
 	ctx context.Context,
 	write bool,
 ) DatabaseTransaction {
@@ -181,8 +226,10 @@ func (b *BlockStorage) NewDatabaseTransaction(
 // if it exists.
 func (b *BlockStorage) GetHeadBlockIdentifier(
 	ctx context.Context,
-	transaction DatabaseTransaction,
 ) (*types.BlockIdentifier, error) {
+	transaction := b.newDatabaseTransaction(ctx, false)
+	defer transaction.Discard(ctx)
+
 	exists, block, err := transaction.Get(ctx, getHeadBlockKey())
 	if err != nil {
 		return nil, err
@@ -221,9 +268,11 @@ func (b *BlockStorage) StoreHeadBlockIdentifier(
 // GetBlock returns a block, if it exists.
 func (b *BlockStorage) GetBlock(
 	ctx context.Context,
-	transaction DatabaseTransaction,
 	blockIdentifier *types.BlockIdentifier,
 ) (*types.Block, error) {
+	transaction := b.newDatabaseTransaction(ctx, false)
+	defer transaction.Discard(ctx)
+
 	exists, block, err := transaction.Get(ctx, getBlockKey(blockIdentifier))
 	if err != nil {
 		return nil, err
@@ -279,36 +328,52 @@ func (b *BlockStorage) storeHash(
 // its transaction hashes for duplicate detection.
 func (b *BlockStorage) StoreBlock(
 	ctx context.Context,
-	transaction DatabaseTransaction,
 	block *types.Block,
-) error {
+) ([]*BalanceChange, error) {
+	transaction := b.newDatabaseTransaction(ctx, true)
+	defer transaction.Discard(ctx)
 	buf := new(bytes.Buffer)
 	err := gob.NewEncoder(buf).Encode(block)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Store block
 	err = transaction.Set(ctx, getBlockKey(block.BlockIdentifier), buf.Bytes())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Store block hash
 	err = b.storeHash(ctx, transaction, block.BlockIdentifier.Hash, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Store all transaction hashes
 	for _, txn := range block.Transactions {
 		err = b.storeHash(ctx, transaction, txn.TransactionIdentifier.Hash, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	changes, err := b.BalanceChanges(ctx, block, false)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, change := range changes {
+		if err := b.UpdateBalance(ctx, transaction, change); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := transaction.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return changes, nil
 }
 
 // RemoveBlock removes a block or returns an error.
@@ -317,35 +382,47 @@ func (b *BlockStorage) StoreBlock(
 // detection. This is called within a re-org.
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
-	transaction DatabaseTransaction,
-	block *types.BlockIdentifier,
-) error {
-	// Remove all transaction hashes
-	blockData, err := b.GetBlock(ctx, transaction, block)
+	block *types.Block,
+) ([]*BalanceChange, error) {
+	transaction := b.newDatabaseTransaction(ctx, true)
+	defer transaction.Discard(ctx)
+
+	changes, err := b.BalanceChanges(ctx, block, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, txn := range blockData.Transactions {
+	for _, change := range changes {
+		if err := b.UpdateBalance(ctx, transaction, change); err != nil {
+			return nil, err
+		}
+	}
+
+	// Remove all transaction hashes
+	for _, txn := range block.Transactions {
 		err = transaction.Delete(ctx, getHashKey(txn.TransactionIdentifier.Hash, false))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Remove block hash
-	err = transaction.Delete(ctx, getHashKey(block.Hash, true))
+	err = transaction.Delete(ctx, getHashKey(block.BlockIdentifier.Hash, true))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Remove block
-	return transaction.Delete(ctx, getBlockKey(block))
+	if err := transaction.Delete(ctx, getBlockKey(block.BlockIdentifier)); err != nil {
+		return nil, err
+	}
+
+	return changes, nil
 }
 
 type balanceEntry struct {
-	Amounts map[string]*types.Amount
-	Block   *types.BlockIdentifier
+	Amount *types.Amount
+	Block  *types.BlockIdentifier
 }
 
 func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
@@ -369,30 +446,6 @@ func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
 	return &bal, nil
 }
 
-// GetCurrencyKey is used to identify a *types.Currency
-// in an account's map of currencies. It is not feasible
-// to create a map of [types.Currency]*types.Amount
-// because types.Currency contains a metadata pointer
-// that would prevent any equality.
-func GetCurrencyKey(currency *types.Currency) string {
-	if currency.Metadata == nil {
-		return hashString(
-			fmt.Sprintf("%s:%d", currency.Symbol, currency.Decimals),
-		)
-	}
-
-	// TODO: Handle currency.Metadata
-	// that has pointer value.
-	return hashString(
-		fmt.Sprintf(
-			"%s:%d:%v",
-			currency.Symbol,
-			currency.Decimals,
-			currency.Metadata,
-		),
-	)
-}
-
 // BalanceChange represents a balance change that affected
 // a *types.AccountIdentifier and a *types.Currency.
 type BalanceChange struct {
@@ -402,125 +455,133 @@ type BalanceChange struct {
 	Difference string                   `json:"difference,omitempty"`
 }
 
+func (b *BlockStorage) SetBalance(
+	ctx context.Context,
+	dbTransaction DatabaseTransaction,
+	account *types.AccountIdentifier,
+	amount *types.Amount,
+	block *types.BlockIdentifier,
+) error {
+	key := GetBalanceKey(account, amount.Currency)
+
+	serialBal, err := serializeBalanceEntry(balanceEntry{
+		Amount: amount,
+		Block:  block,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UpdateBalance updates a types.AccountIdentifer
 // by a types.Amount and sets the account's most
 // recent accessed block.
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
-	account *types.AccountIdentifier,
-	amount *types.Amount,
-	block *types.BlockIdentifier,
-) (*BalanceChange, error) {
-	if amount == nil || amount.Currency == nil {
-		return nil, errors.New("invalid amount")
+	change *BalanceChange,
+) error {
+	if change.Currency == nil {
+		return errors.New("invalid currency")
 	}
 
-	key := GetAccountKey(account)
+	key := GetBalanceKey(change.Account, change.Currency)
 	// Get existing balance on key
 	exists, balance, err := dbTransaction.Get(ctx, key)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// TODO: create a balance key that is the combination
-	// of account and currency
-	currencyKey := GetCurrencyKey(amount.Currency)
-
 	if !exists {
-		amountMap := make(map[string]*types.Amount)
+		// TODO: must be block BEFORE current (should only occur when adding, not removing)
+		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, nil)
+		if err != nil {
+			return fmt.Errorf("%w: unable to get previous account balance", err)
+		}
+
 		newVal, ok := new(big.Int).SetString(amount.Value, 10)
 		if !ok {
-			return nil, fmt.Errorf("%s is not an integer", amount.Value)
+			return fmt.Errorf("%s is not an integer", amount.Value)
 		}
 
 		if newVal.Sign() == -1 {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"%w %+v for %+v at %+v",
 				ErrNegativeBalance,
 				spew.Sdump(amount),
-				account,
-				block,
+				change.Account,
+				change.Block,
 			)
 		}
-		amountMap[currencyKey] = amount
 
 		serialBal, err := serializeBalanceEntry(balanceEntry{
-			Amounts: amountMap,
-			Block:   block,
+			Amount: amount,
+			Block:  change.Block,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
-			return nil, err
+			return err
 		}
 
-		return &BalanceChange{
-			Account:    account,
-			Currency:   amount.Currency,
-			Block:      block,
-			Difference: amount.Value,
-		}, nil
+		return nil
 	}
 
 	// Modify balance
 	parseBal, err := parseBalanceEntry(balance)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	val, ok := parseBal.Amounts[currencyKey]
-	if !ok {
-		parseBal.Amounts[currencyKey] = amount
-	}
-
-	oldValue := val.Value
-	val.Value, err = AddStringValues(amount.Value, oldValue)
+	oldValue := parseBal.Amount.Value
+	newVal, err := utils.AddStringValues(change.Difference, oldValue)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if strings.HasPrefix(val.Value, "-") {
-		return nil, fmt.Errorf(
+	if strings.HasPrefix(newVal, "-") {
+		return fmt.Errorf(
 			"%w %+v for %+v at %+v",
 			ErrNegativeBalance,
-			spew.Sdump(val),
-			account,
-			block,
+			spew.Sdump(newVal),
+			change.Account,
+			change.Block,
 		)
 	}
 
-	parseBal.Amounts[currencyKey] = val
-
-	parseBal.Block = block
+	parseBal.Amount.Value = newVal
+	parseBal.Block = change.Block
 	serialBal, err := serializeBalanceEntry(*parseBal)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
-		return nil, err
+		return err
 	}
 
-	return &BalanceChange{
-		Account:    account,
-		Currency:   amount.Currency,
-		Block:      block,
-		Difference: amount.Value,
-	}, nil
+	return nil
 }
 
 // GetBalance returns all the balances of a types.AccountIdentifier
 // and the types.BlockIdentifier it was last updated at.
-// TODO: change to fetch by account and currency
 func (b *BlockStorage) GetBalance(
 	ctx context.Context,
-	transaction DatabaseTransaction,
 	account *types.AccountIdentifier,
-) (map[string]*types.Amount, *types.BlockIdentifier, error) {
-	key := GetAccountKey(account)
+	currency *types.Currency,
+) (*types.Amount, *types.BlockIdentifier, error) {
+	transaction := b.newDatabaseTransaction(ctx, false)
+	defer transaction.Discard(ctx)
+
+	key := GetBalanceKey(account, currency)
 	exists, bal, err := transaction.Get(ctx, key)
 	if err != nil {
 		return nil, nil, err
@@ -535,12 +596,13 @@ func (b *BlockStorage) GetBalance(
 		return nil, nil, err
 	}
 
-	return deserialBal.Amounts, deserialBal.Block, nil
+	return deserialBal.Amount, deserialBal.Block, nil
 }
 
 // BootstrapBalance represents a balance of
 // a *types.AccountIdentifier and a *types.Currency in the
 // genesis block.
+// TODO: Must be exported for use
 type BootstrapBalance struct {
 	Account  *types.AccountIdentifier `json:"account_identifier,omitempty"`
 	Currency *types.Currency          `json:"currency,omitempty"`
@@ -567,14 +629,14 @@ func (b *BlockStorage) BootstrapBalances(
 		return err
 	}
 
-	// Update balances in database
-	dbTransaction := b.NewDatabaseTransaction(ctx, true)
-	defer dbTransaction.Discard(ctx)
-
-	_, err = b.GetHeadBlockIdentifier(ctx, dbTransaction)
+	_, err = b.GetHeadBlockIdentifier(ctx)
 	if err != ErrHeadBlockNotFound {
 		return ErrAlreadyStartedSyncing
 	}
+
+	// Update balances in database
+	dbTransaction := b.newDatabaseTransaction(ctx, true)
+	defer dbTransaction.Discard(ctx)
 
 	for _, balance := range balances {
 		// Ensure change.Difference is valid
@@ -594,7 +656,7 @@ func (b *BlockStorage) BootstrapBalances(
 			balance.Currency,
 		)
 
-		_, err = b.UpdateBalance(
+		err = b.SetBalance(
 			ctx,
 			dbTransaction,
 			balance.Account,
@@ -616,4 +678,75 @@ func (b *BlockStorage) BootstrapBalances(
 
 	log.Printf("%d Balances Bootstrapped\n", len(balances))
 	return nil
+}
+
+// BalanceChanges returns all balance changes for
+// a particular block. All balance changes for a
+// particular account are summed into a single
+// storage.BalanceChanges struct. If a block is being
+// orphaned, the opposite of each balance change is
+// returned.
+func (b *BlockStorage) BalanceChanges(
+	ctx context.Context,
+	block *types.Block,
+	blockRemoved bool,
+) ([]*BalanceChange, error) {
+	balanceChanges := map[string]*BalanceChange{}
+	for _, tx := range block.Transactions {
+		for _, op := range tx.Operations {
+			skip, err := b.helper.SkipOperation(
+				ctx,
+				op,
+			)
+			if err != nil {
+				return nil, err
+			}
+			if skip {
+				continue
+			}
+
+			amount := op.Amount
+			blockIdentifier := block.BlockIdentifier
+			if blockRemoved {
+				existing, ok := new(big.Int).SetString(amount.Value, 10)
+				if !ok {
+					return nil, fmt.Errorf("%s is not an integer", amount.Value)
+				}
+
+				amount.Value = new(big.Int).Neg(existing).String()
+				blockIdentifier = block.ParentBlockIdentifier
+			}
+
+			// Merge values by account and currency
+			key := fmt.Sprintf(
+				"%x",
+				GetBalanceKey(op.Account, op.Amount.Currency),
+			)
+
+			val, ok := balanceChanges[key]
+			if !ok {
+				balanceChanges[key] = &BalanceChange{
+					Account:    op.Account,
+					Currency:   op.Amount.Currency,
+					Difference: amount.Value,
+					Block:      blockIdentifier,
+				}
+				continue
+			}
+
+			newDifference, err := utils.AddStringValues(val.Difference, amount.Value)
+			if err != nil {
+				return nil, err
+			}
+			val.Difference = newDifference
+			balanceChanges[key] = val
+		}
+	}
+
+	allChanges := []*BalanceChange{}
+	for _, change := range balanceChanges {
+		allChanges = append(allChanges, change)
+	}
+
+	return allChanges, nil
 }

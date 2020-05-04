@@ -21,8 +21,6 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/coinbase/rosetta-cli/internal/processor"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -33,11 +31,26 @@ const (
 	maxSync = 1000
 )
 
+// SyncHandler is called at various times during the sync cycle
+// to handle different events. It is common to write logs or
+// perform reconciliation in the sync processor.
+type SyncHandler interface {
+	BlockAdded(
+		ctx context.Context,
+		block *types.Block,
+	) error
+
+	BlockRemoved(
+		ctx context.Context,
+		block *types.Block,
+	) error
+}
+
 type Syncer struct {
-	network   *types.NetworkIdentifier
-	fetcher   *fetcher.Fetcher
-	processor processor.Processor
-	cancel    context.CancelFunc
+	network *types.NetworkIdentifier
+	fetcher *fetcher.Fetcher
+	handler SyncHandler
+	cancel  context.CancelFunc
 
 	// Used to keep track of sync state
 	genesisBlock *types.BlockIdentifier
@@ -47,14 +60,14 @@ type Syncer struct {
 func NewSyncer(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
-	processor processor.Processor,
+	handler SyncHandler,
 	cancel context.CancelFunc,
 ) *Syncer {
 	return &Syncer{
-		network:   network,
-		fetcher:   fetcher,
-		processor: processor,
-		cancel:    cancel,
+		network: network,
+		fetcher: fetcher,
+		handler: handler,
+		cancel:  cancel,
 	}
 }
 
@@ -195,10 +208,10 @@ func (s *Syncer) syncRange(
 
 		if shouldRemove {
 			currIndex--
-			err = s.processor.BlockRemoved(ctx, block)
+			err = s.handler.BlockRemoved(ctx, block)
 		} else {
 			currIndex++
-			err = s.processor.BlockAdded(ctx, block)
+			err = s.handler.BlockAdded(ctx, block)
 		}
 		if err != nil {
 			return err

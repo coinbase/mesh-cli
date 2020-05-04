@@ -23,8 +23,11 @@ import (
 	"sync"
 	"time"
 
+	// TODO: remove all references to internal packages
+	// before transitioning to rosetta-sdk-go
 	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -106,7 +109,8 @@ type ReconcilerHandler interface {
 	// always compare current balance...just need to set with previous seen if starting
 	// in middle
 	// TODO: always pass in head block to do lookup in case we need to fetch balance
-	// on previous block
+	// on previous block...this should always be set by the time it gets to the reconciler
+	// based on storage
 	AccountBalance(
 		ctx context.Context,
 		account *types.AccountIdentifier,
@@ -296,7 +300,7 @@ func (r *Reconciler) CompareBalance(
 		)
 	}
 
-	difference, err := storage.SubtractStringValues(cachedBalance.Value, amount)
+	difference, err := utils.SubtractStringValues(cachedBalance.Value, amount)
 	if err != nil {
 		return "", -1, err
 	}
@@ -308,7 +312,7 @@ func (r *Reconciler) CompareBalance(
 	return zeroString, head.Index, nil
 }
 
-// getAccountBalance returns the balance for an account
+// bestBalance returns the balance for an account
 // at either the current block (if lookupBalanceByBlock is
 // disabled) or at some historical block.
 func (r *Reconciler) bestBalance(
