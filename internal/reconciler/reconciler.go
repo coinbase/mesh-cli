@@ -25,7 +25,6 @@ import (
 
 	// TODO: remove all references to internal packages
 	// before transitioning to rosetta-sdk-go
-	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
@@ -96,7 +95,7 @@ var (
 	ErrBlockGone = errors.New("block gone")
 )
 
-type ReconcilerHandler interface {
+type ReconcilerHelper interface {
 	BlockExists(
 		ctx context.Context,
 		block *types.BlockIdentifier,
@@ -118,14 +117,35 @@ type ReconcilerHandler interface {
 	) (*types.Amount, *types.BlockIdentifier, error)
 }
 
+type ReconcilerHandler interface {
+	ReconciliationFailed(
+		ctx context.Context,
+		reconciliationType string,
+		account *types.AccountIdentifier,
+		currency *types.Currency,
+		computedBalance string,
+		nodeBalance string,
+		block *types.BlockIdentifier,
+	) error
+
+	ReconciliationSucceeded(
+		ctx context.Context,
+		reconciliationType string,
+		account *types.AccountIdentifier,
+		currency *types.Currency,
+		balance string,
+		block *types.BlockIdentifier,
+	) error
+}
+
 // Reconciler contains all logic to reconcile balances of
 // types.AccountIdentifiers returned in types.Operations
 // by a Rosetta Server.
 type Reconciler struct {
 	network                   *types.NetworkIdentifier
+	helper                    ReconcilerHelper
 	handler                   ReconcilerHandler
 	fetcher                   *fetcher.Fetcher
-	logger                    *logger.Logger
 	accountConcurrency        uint64
 	lookupBalanceByBlock      bool
 	haltOnReconciliationError bool
@@ -151,7 +171,6 @@ func NewReconciler(
 	network *types.NetworkIdentifier,
 	handler ReconcilerHandler,
 	fetcher *fetcher.Fetcher,
-	logger *logger.Logger,
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
 	haltOnReconciliationError bool,
@@ -161,7 +180,6 @@ func NewReconciler(
 		network:                   network,
 		handler:                   handler,
 		fetcher:                   fetcher,
-		logger:                    logger,
 		accountConcurrency:        accountConcurrency,
 		lookupBalanceByBlock:      lookupBalanceByBlock,
 		haltOnReconciliationError: haltOnReconciliationError,
@@ -260,7 +278,7 @@ func (r *Reconciler) CompareBalance(
 	liveBlock *types.BlockIdentifier,
 ) (string, int64, error) {
 	// Head block should be set before we CompareBalance
-	head, err := r.handler.CurrentBlock(ctx)
+	head, err := r.helper.CurrentBlock(ctx)
 	if err != nil {
 		return zeroString, 0, fmt.Errorf("%w: unable to get current block for reconciliation", err)
 	}
@@ -276,7 +294,7 @@ func (r *Reconciler) CompareBalance(
 	}
 
 	// Check if live block is in store (ensure not reorged)
-	_, err = r.handler.BlockExists(ctx, liveBlock)
+	_, err = r.helper.BlockExists(ctx, liveBlock)
 	if err != nil {
 		return zeroString, head.Index, fmt.Errorf(
 			"%w %+v",
@@ -286,7 +304,7 @@ func (r *Reconciler) CompareBalance(
 	}
 
 	// Check if live block < computed head
-	cachedBalance, balanceBlock, err := r.handler.AccountBalance(ctx, account, currency)
+	cachedBalance, balanceBlock, err := r.helper.AccountBalance(ctx, account, currency)
 	if err != nil {
 		return zeroString, head.Index, err
 	}
@@ -409,15 +427,15 @@ func (r *Reconciler) accountReconciliation(
 		}
 
 		if difference != zeroString {
-			err := r.logger.ReconcileFailureStream(
+			err := r.handler.ReconciliationFailed(
 				ctx,
 				reconciliationType,
 				accountCurrency.Account,
 				accountCurrency.Currency,
-				difference,
+				"TODO",
+				liveAmount,
 				liveBlock,
 			)
-
 			if err != nil {
 				return err
 			}
@@ -430,14 +448,12 @@ func (r *Reconciler) accountReconciliation(
 		}
 
 		r.inactiveAccountQueue(inactive, accountCurrency, liveBlock)
-		return r.logger.ReconcileSuccessStream(
+		return r.handler.ReconciliationSucceeded(
 			ctx,
 			reconciliationType,
 			accountCurrency.Account,
-			&types.Amount{
-				Value:    liveAmount,
-				Currency: currency,
-			},
+			accountCurrency.Currency,
+			liveAmount,
 			liveBlock,
 		)
 	}
@@ -533,7 +549,7 @@ func (r *Reconciler) reconcileInactiveAccounts(
 	ctx context.Context,
 ) error {
 	for ctx.Err() == nil {
-		head, err := r.handler.CurrentBlock(ctx)
+		head, err := r.helper.CurrentBlock(ctx)
 		// When first start syncing, this loop may run before the genesis block is synced.
 		// If this is the case, we should sleep and try again later instead of exiting.
 		if errors.Is(err, storage.ErrHeadBlockNotFound) {
