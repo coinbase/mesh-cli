@@ -111,6 +111,7 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
 	}
 
+	// TODO: if DataDir is empty, use TempDir
 	localStore, err := storage.NewBadgerStorage(ctx, DataDir)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to initialize data store", err))

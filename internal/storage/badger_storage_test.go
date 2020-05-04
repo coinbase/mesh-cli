@@ -18,15 +18,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/coinbase/rosetta-cli/internal/utils"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDatabase(t *testing.T) {
 	ctx := context.Background()
 
-	newDir, err := CreateTempDir()
+	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(*newDir)
 
 	database, err := NewBadgerStorage(ctx, *newDir)
 	assert.NoError(t, err)
@@ -55,9 +57,9 @@ func TestDatabase(t *testing.T) {
 func TestDatabaseTransaction(t *testing.T) {
 	ctx := context.Background()
 
-	newDir, err := CreateTempDir()
+	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(*newDir)
 
 	database, err := NewBadgerStorage(ctx, *newDir)
 	assert.NoError(t, err)

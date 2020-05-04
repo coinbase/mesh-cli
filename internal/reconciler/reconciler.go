@@ -557,7 +557,11 @@ func (r *Reconciler) reconcileInactiveAccounts(
 		// If this is the case, we should sleep and try again later instead of exiting.
 		if err != nil {
 			time.Sleep(inactiveReconciliationSleep)
-			log.Println("%s: unable to get current block for inactive reconciliation", err.Error())
+			log.Printf(
+				"%s: unable to get current block for inactive reconciliation\n",
+				err.Error(),
+			)
+			continue
 		}
 
 		r.inactiveQueueMutex.Lock()

@@ -26,13 +26,11 @@ import (
 	"log"
 	"math/big"
 	"path"
-	"strings"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -418,6 +416,10 @@ func (b *BlockStorage) RemoveBlock(
 		return nil, err
 	}
 
+	if err := transaction.Commit(ctx); err != nil {
+		return nil, err
+	}
+
 	return changes, nil
 }
 
@@ -490,77 +492,57 @@ func (b *BlockStorage) UpdateBalance(
 		return err
 	}
 
-	if !exists {
+	var existingValue string
+	if exists {
+		parseBal, err := parseBalanceEntry(balance)
+		if err != nil {
+			return err
+		}
+
+		existingValue = parseBal.Amount.Value
+	} else {
 		// TODO: must be block BEFORE current (should only occur when adding, not removing)
 		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, nil)
 		if err != nil {
 			return fmt.Errorf("%w: unable to get previous account balance", err)
 		}
 
-		newVal, ok := new(big.Int).SetString(amount.Value, 10)
-		if !ok {
-			return fmt.Errorf("%s is not an integer", amount.Value)
-		}
-
-		if newVal.Sign() == -1 {
-			return fmt.Errorf(
-				"%w %+v for %+v at %+v",
-				ErrNegativeBalance,
-				spew.Sdump(amount),
-				change.Account,
-				change.Block,
-			)
-		}
-
-		serialBal, err := serializeBalanceEntry(balanceEntry{
-			Amount: amount,
-			Block:  change.Block,
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
-			return err
-		}
-
-		return nil
+		existingValue = amount.Value
 	}
 
-	// Modify balance
-	parseBal, err := parseBalanceEntry(balance)
+	newVal, err := utils.AddStringValues(change.Difference, existingValue)
 	if err != nil {
 		return err
 	}
 
-	oldValue := parseBal.Amount.Value
-	newVal, err := utils.AddStringValues(change.Difference, oldValue)
-	if err != nil {
-		return err
+	bigNewVal, ok := new(big.Int).SetString(newVal, 10)
+	if !ok {
+		return fmt.Errorf("%s is not an integer", newVal)
 	}
 
-	if strings.HasPrefix(newVal, "-") {
+	if bigNewVal.Sign() == -1 {
 		return fmt.Errorf(
-			"%w %+v for %+v at %+v",
+			"%w %s:%+v for %+v at %+v",
 			ErrNegativeBalance,
-			spew.Sdump(newVal),
+			newVal,
+			change.Currency,
 			change.Account,
 			change.Block,
 		)
 	}
 
-	parseBal.Amount.Value = newVal
-	parseBal.Block = change.Block
-	serialBal, err := serializeBalanceEntry(*parseBal)
+	serialBal, err := serializeBalanceEntry(balanceEntry{
+		Amount: &types.Amount{
+			Value:    newVal,
+			Currency: change.Currency,
+		},
+		Block: change.Block,
+	})
 	if err != nil {
 		return err
 	}
 
-	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
-		return err
-	}
-
-	return nil
+	return dbTransaction.Set(ctx, key, serialBal)
 }
 
 // GetBalance returns all the balances of a types.AccountIdentifier
