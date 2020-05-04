@@ -75,6 +75,7 @@ historical balance lookup should set this to false.`,
 }
 
 func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
+	// TODO: if no directory passed in, create a temporary one
 	ctx, cancel := context.WithCancel(context.Background())
 
 	exemptAccounts, err := loadAccounts(ExemptFile)
