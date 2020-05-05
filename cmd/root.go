@@ -46,4 +46,5 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
+	rootCmd.AddCommand(createSpecCmd)
 }
