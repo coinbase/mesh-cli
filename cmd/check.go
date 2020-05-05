@@ -329,6 +329,12 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if StartIndex != -1 {
+		if err = blockStorage.SetNewStartIndex(ctx, StartIndex); err != nil {
+			log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
+		}
+	}
+
 	reconcilerHelper := processor.NewReconcilerHelper(
 		blockStorage,
 	)

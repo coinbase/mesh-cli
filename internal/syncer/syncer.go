@@ -28,7 +28,9 @@ import (
 const (
 	// maxSync is the maximum number of blocks
 	// to try and sync in a given SyncCycle.
-	maxSync = 1000
+	maxSync = 999
+
+	reorgCache = 20
 )
 
 // SyncHandler is called at various times during the sync cycle
@@ -54,7 +56,8 @@ type Syncer struct {
 
 	// Used to keep track of sync state
 	genesisBlock *types.BlockIdentifier
-	currentBlock *types.BlockIdentifier
+	nextIndex    int64
+	blockCache   []*types.Block
 }
 
 func New(
@@ -64,10 +67,11 @@ func New(
 	cancel context.CancelFunc,
 ) *Syncer {
 	return &Syncer{
-		network: network,
-		fetcher: fetcher,
-		handler: handler,
-		cancel:  cancel,
+		network:    network,
+		fetcher:    fetcher,
+		handler:    handler,
+		cancel:     cancel,
+		blockCache: make([]*types.Block, reorgCache),
 	}
 }
 
@@ -87,28 +91,12 @@ func (s *Syncer) setStart(
 	s.genesisBlock = networkStatus.GenesisBlockIdentifier
 
 	if index != -1 {
-		// Get block at index
-		block, err := s.fetcher.BlockRetry(ctx, s.network, &types.PartialBlockIdentifier{Index: &index})
-		if err != nil {
-			return err
-		}
-
-		s.currentBlock = block.BlockIdentifier
+		s.nextIndex = index
 		return nil
 	}
 
-	s.currentBlock = networkStatus.GenesisBlockIdentifier
+	s.nextIndex = networkStatus.GenesisBlockIdentifier.Index
 	return nil
-}
-
-func (s *Syncer) head(
-	ctx context.Context,
-) (*types.BlockIdentifier, error) {
-	if s.currentBlock == nil {
-		return nil, errors.New("start block not set")
-	}
-
-	return s.currentBlock, nil
 }
 
 // nextSyncableRange returns the next range of indexes to sync
@@ -117,10 +105,9 @@ func (s *Syncer) head(
 func (s *Syncer) nextSyncableRange(
 	ctx context.Context,
 	endIndex int64,
-) (int64, int64, bool, error) {
-	head, err := s.head(ctx)
-	if err != nil {
-		return -1, -1, false, fmt.Errorf("%w: unable to get current head", err)
+) (int64, bool, error) {
+	if s.nextIndex == -1 {
+		return -1, false, errors.New("unable to get current head")
 	}
 
 	if endIndex == -1 {
@@ -130,65 +117,102 @@ func (s *Syncer) nextSyncableRange(
 			nil,
 		)
 		if err != nil {
-			return -1, -1, false, fmt.Errorf("%w: unable to get network status", err)
+			return -1, false, fmt.Errorf("%w: unable to get network status", err)
 		}
 
-		return head.Index, networkStatus.CurrentBlockIdentifier.Index, false, nil
+		endIndex = networkStatus.CurrentBlockIdentifier.Index
 	}
 
-	if head.Index >= endIndex {
-		return -1, -1, true, nil
+	if s.nextIndex >= endIndex {
+		return -1, true, nil
 	}
 
-	return head.Index, endIndex, false, nil
+	if endIndex-s.nextIndex > maxSync {
+		endIndex = s.nextIndex + maxSync
+	}
+
+	return endIndex, false, nil
 }
 
 func (s *Syncer) removeBlock(
 	ctx context.Context,
 	block *types.Block,
-) (bool, error) {
-	// Get current block
-	head, err := s.head(ctx)
-	if err != nil {
-		return false, fmt.Errorf("%w: unable to get current head", err)
+) (bool, *types.Block, error) {
+	if len(s.blockCache) == 0 {
+		return false, nil, nil
 	}
 
 	// Ensure processing correct index
-	if block.ParentBlockIdentifier.Index != head.Index {
-		return false, fmt.Errorf(
+	if block.BlockIdentifier.Index != s.nextIndex {
+		return false, nil, fmt.Errorf(
 			"Got block %d instead of %d",
 			block.BlockIdentifier.Index,
-			head.Index+1,
+			s.nextIndex,
 		)
 	}
 
 	// Check if block parent is head
-	if !reflect.DeepEqual(block.ParentBlockIdentifier, head) {
-		return true, nil
+	lastBlock := s.blockCache[len(s.blockCache)-1]
+	if !reflect.DeepEqual(block.ParentBlockIdentifier, lastBlock.BlockIdentifier) {
+		if reflect.DeepEqual(s.genesisBlock, lastBlock.BlockIdentifier) {
+			return false, nil, fmt.Errorf("cannot remove genesis block")
+		}
+
+		return true, lastBlock, nil
 	}
 
-	return false, nil
+	return false, lastBlock, nil
 }
 
-func (s *Syncer) syncRange(
+func (s *Syncer) processBlock(
 	ctx context.Context,
-	startIndex int64,
-	endIndex int64,
+	block *types.Block,
 ) error {
-	blockMap, err := s.fetcher.BlockRange(ctx, s.network, startIndex, endIndex)
+	shouldRemove, lastBlock, err := s.removeBlock(ctx, block)
 	if err != nil {
 		return err
 	}
 
-	currIndex := startIndex
-	for currIndex <= endIndex {
-		block, ok := blockMap[currIndex]
+	if shouldRemove {
+		err = s.handler.BlockRemoved(ctx, lastBlock)
+		if err != nil {
+			return err
+		}
+		s.blockCache = s.blockCache[:len(s.blockCache)-1]
+		s.nextIndex = lastBlock.BlockIdentifier.Index
+		return nil
+	}
+
+	err = s.handler.BlockAdded(ctx, block)
+	if err != nil {
+		return err
+	}
+
+	s.blockCache = append(s.blockCache, block)
+	if len(s.blockCache) > reorgCache {
+		s.blockCache = s.blockCache[1:]
+	}
+	s.nextIndex = block.BlockIdentifier.Index + 1
+	return nil
+}
+
+func (s *Syncer) syncRange(
+	ctx context.Context,
+	endIndex int64,
+) error {
+	blockMap, err := s.fetcher.BlockRange(ctx, s.network, s.nextIndex, endIndex)
+	if err != nil {
+		return err
+	}
+
+	for s.nextIndex <= endIndex {
+		block, ok := blockMap[s.nextIndex]
 		if !ok { // could happen in a reorg
 			block, err = s.fetcher.BlockRetry(
 				ctx,
 				s.network,
 				&types.PartialBlockIdentifier{
-					Index: &currIndex,
+					Index: &s.nextIndex,
 				},
 			)
 			if err != nil {
@@ -198,22 +222,10 @@ func (s *Syncer) syncRange(
 			// Anytime we re-fetch an index, we
 			// will need to make another call to the node
 			// as it is likely in a reorg.
-			delete(blockMap, currIndex)
+			delete(blockMap, s.nextIndex)
 		}
 
-		shouldRemove, err := s.removeBlock(ctx, block)
-		if err != nil {
-			return err
-		}
-
-		if shouldRemove {
-			currIndex--
-			err = s.handler.BlockRemoved(ctx, block)
-		} else {
-			currIndex++
-			err = s.handler.BlockAdded(ctx, block)
-		}
-		if err != nil {
+		if err = s.processBlock(ctx, block); err != nil {
 			return err
 		}
 	}
@@ -235,7 +247,7 @@ func (s *Syncer) Sync(
 	}
 
 	for {
-		rangeStart, rangeEnd, halt, err := s.nextSyncableRange(
+		rangeEnd, halt, err := s.nextSyncableRange(
 			ctx,
 			endIndex,
 		)
@@ -246,15 +258,11 @@ func (s *Syncer) Sync(
 			break
 		}
 
-		if rangeEnd-rangeStart > maxSync {
-			rangeEnd = rangeStart + maxSync
-		}
+		log.Printf("Syncing %d-%d\n", s.nextIndex, rangeEnd)
 
-		log.Printf("Syncing %d-%d\n", rangeStart, rangeEnd)
-
-		err = s.syncRange(ctx, rangeStart, rangeEnd)
+		err = s.syncRange(ctx, rangeEnd)
 		if err != nil {
-			return fmt.Errorf("%w: unable to sync range %d-%d", err, rangeStart, rangeEnd)
+			return fmt.Errorf("%w: unable to sync to %d", err, rangeEnd)
 		}
 
 		if ctx.Err() != nil {

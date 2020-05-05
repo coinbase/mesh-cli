@@ -449,6 +449,35 @@ func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
 	return &bal, nil
 }
 
+func (b *BlockStorage) SetNewStartIndex(
+	ctx context.Context,
+	startIndex int64,
+) error {
+	head, err := b.GetHeadBlockIdentifier(ctx)
+	if errors.Is(err, ErrHeadBlockNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	currBlock := head
+	for currBlock.Index > startIndex {
+		block, err := b.GetBlock(ctx, head)
+		if err != nil {
+			return err
+		}
+
+		if _, err = b.RemoveBlock(ctx, block); err != nil {
+			return err
+		}
+
+		currBlock = block.ParentBlockIdentifier
+	}
+
+	return nil
+}
+
 func (b *BlockStorage) SetBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
