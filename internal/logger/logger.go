@@ -244,7 +244,8 @@ func (l *Logger) ReconcileSuccessStream(
 	ctx context.Context,
 	reconciliationType string,
 	account *types.AccountIdentifier,
-	balance *types.Amount,
+	currency *types.Currency,
+	balance string,
 	block *types.BlockIdentifier,
 ) error {
 	if !l.logReconciliation {
@@ -272,8 +273,8 @@ func (l *Logger) ReconcileSuccessStream(
 		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
 		reconciliationType,
 		account.Address,
-		balance.Currency.Symbol,
-		balance.Value,
+		currency.Symbol,
+		balance,
 		block.Index,
 		block.Hash,
 	))
@@ -291,16 +292,18 @@ func (l *Logger) ReconcileFailureStream(
 	reconciliationType string,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
-	difference string,
+	computedBalance string,
+	nodeBalance string,
 	block *types.BlockIdentifier,
 ) error {
 	// Always print out reconciliation failures
 	log.Printf(
-		"%s Reconciliation failed for %+v at %d by %s (computed-node)\n",
+		"%s Reconciliation failed for %+v at %d computed: %s node: %s\n",
 		reconciliationType,
 		account,
 		block.Index,
-		difference,
+		computedBalance,
+		nodeBalance,
 	)
 
 	if !l.logReconciliation {
@@ -318,13 +321,14 @@ func (l *Logger) ReconcileFailureStream(
 	defer f.Close()
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"Type:%s Account: %+v Currency: %+v Block: %s:%d Difference(computed-node):%s\n",
+		"Type:%s Account: %+v Currency: %+v Block: %s:%d computed: %s node: %s\n",
 		reconciliationType,
 		account,
 		currency,
 		block.Hash,
 		block.Index,
-		difference,
+		computedBalance,
+		nodeBalance,
 	))
 	if err != nil {
 		return err

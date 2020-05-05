@@ -85,7 +85,6 @@ at the examples directory for an example of how to structure this file.`,
 }
 
 func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
-	// TODO: if no directory passed in, create a temporary one
 	ctx, cancel := context.WithCancel(context.Background())
 
 	exemptAccounts, err := loadAccounts(ExemptFile)
@@ -125,7 +124,12 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		LogReconciliations,
 	)
 
-	blockStorageHelper := processor.NewBlockStorageHelper(fetcher, exemptAccounts)
+	blockStorageHelper := processor.NewBlockStorageHelper(
+		primaryNetwork,
+		fetcher,
+		LookupBalanceByBlock,
+		exemptAccounts,
+	)
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
 	if len(BootstrapBalances) > 0 {
@@ -139,8 +143,15 @@ func runCheckCompleteCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reconcilerHelper := &processor.ReconcilerHelper{}
-	reconcilerHandler := &processor.ReconcilerHandler{}
+	reconcilerHelper := processor.NewReconcilerHelper(
+		blockStorage,
+	)
+
+	reconcilerHandler := processor.NewReconcilerHandler(
+		cancel,
+		logger,
+		HaltOnReconciliationError,
+	)
 
 	r := reconciler.NewReconciler(
 		primaryNetwork,

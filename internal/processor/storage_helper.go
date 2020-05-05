@@ -2,7 +2,6 @@ package processor
 
 import (
 	"context"
-	"errors"
 	"log"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
@@ -12,19 +11,25 @@ import (
 )
 
 type BlockStorageHelper struct {
+	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
 	// Configuration settings
-	exemptAccounts []*reconciler.AccountCurrency
+	lookupBalanceByBlock bool
+	exemptAccounts       []*reconciler.AccountCurrency
 }
 
 func NewBlockStorageHelper(
+	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
+	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
 ) *BlockStorageHelper {
 	return &BlockStorageHelper{
-		fetcher:        fetcher,
-		exemptAccounts: exemptAccounts,
+		network:              network,
+		fetcher:              fetcher,
+		lookupBalanceByBlock: lookupBalanceByBlock,
+		exemptAccounts:       exemptAccounts,
 	}
 }
 
@@ -33,8 +38,33 @@ func (h *BlockStorageHelper) AccountBalance(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	block *types.BlockIdentifier,
-) (*types.Amount, error) { // returns an error if lookupBalanceByBlock disabled
-	return nil, errors.New("not implemented")
+) (*types.Amount, error) {
+	if !h.lookupBalanceByBlock {
+		return &types.Amount{
+			Value:    "0",
+			Currency: currency,
+		}, nil
+	}
+
+	// In the case that we are syncing from arbitrary height,
+	// we may need to recover the balance of an account to
+	// perform validations.
+	_, value, err := reconciler.GetCurrencyBalance(
+		ctx,
+		h.fetcher,
+		h.network,
+		account,
+		currency,
+		types.ConstructPartialBlockIdentifier(block),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Amount{
+		Value:    value,
+		Currency: currency,
+	}, nil
 }
 
 // SkipOperation returns a boolean indicating whether

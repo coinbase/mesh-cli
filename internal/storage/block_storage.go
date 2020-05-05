@@ -363,7 +363,7 @@ func (b *BlockStorage) StoreBlock(
 	}
 
 	for _, change := range changes {
-		if err := b.UpdateBalance(ctx, transaction, change); err != nil {
+		if err := b.UpdateBalance(ctx, transaction, change, block.ParentBlockIdentifier); err != nil {
 			return nil, err
 		}
 	}
@@ -392,7 +392,7 @@ func (b *BlockStorage) RemoveBlock(
 	}
 
 	for _, change := range changes {
-		if err := b.UpdateBalance(ctx, transaction, change); err != nil {
+		if err := b.UpdateBalance(ctx, transaction, change, block.BlockIdentifier); err != nil {
 			return nil, err
 		}
 	}
@@ -480,6 +480,7 @@ func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
 	change *reconciler.BalanceChange,
+	parentBlock *types.BlockIdentifier,
 ) error {
 	if change.Currency == nil {
 		return errors.New("invalid currency")
@@ -501,8 +502,7 @@ func (b *BlockStorage) UpdateBalance(
 
 		existingValue = parseBal.Amount.Value
 	} else {
-		// TODO: must be block BEFORE current (should only occur when adding, not removing)
-		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, nil)
+		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
 		if err != nil {
 			return fmt.Errorf("%w: unable to get previous account balance", err)
 		}

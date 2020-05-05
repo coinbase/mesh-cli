@@ -311,7 +311,11 @@ func (r *Reconciler) CompareBalance(
 	}
 
 	// Check if live block < computed head
-	cachedBalance, balanceBlock, err := r.helper.AccountBalance(ctx, account, currency)
+	cachedBalance, balanceBlock, err := r.helper.AccountBalance(
+		ctx,
+		account,
+		currency,
+	)
 	if err != nil {
 		return zeroString, head.Index, err
 	}

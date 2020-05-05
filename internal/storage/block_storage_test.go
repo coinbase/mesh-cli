@@ -400,6 +400,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -422,6 +423,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -445,6 +447,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amountNilCurrency.Value,
 			},
+			nil,
 		)
 		assert.EqualError(t, err, "invalid currency")
 		txn.Discard(ctx)
@@ -466,6 +469,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock2,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -487,6 +491,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock3,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 
@@ -510,6 +515,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock3,
 				Difference: largeDeduction.Value,
 			},
+			nil,
 		)
 		assert.True(t, errors.Is(err, ErrNegativeBalance))
 		txn.Discard(ctx)
@@ -526,6 +532,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock2,
 				Difference: largeDeduction.Value,
 			},
+			nil,
 		)
 		assert.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNegativeBalance))
@@ -543,6 +550,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -564,6 +572,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
@@ -585,6 +594,7 @@ func TestBalance(t *testing.T) {
 				Block:      newBlock,
 				Difference: amount.Value,
 			},
+			nil,
 		)
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
