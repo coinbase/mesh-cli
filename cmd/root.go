@@ -23,6 +23,10 @@ var (
 		Use:   "rosetta-cli",
 		Short: "CLI for the Rosetta API",
 	}
+
+	// ServerURL is the base URL for a Rosetta
+	// server to validate.
+	ServerURL string
 )
 
 // Execute handles all invocations of the
@@ -32,5 +36,14 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringVar(
+		&ServerURL,
+		"server-url",
+		"http://localhost:8080",
+		"base URL for a Rosetta server",
+	)
+
 	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(viewBlockCmd)
+	rootCmd.AddCommand(viewAccountCmd)
 }

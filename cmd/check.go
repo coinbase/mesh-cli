@@ -75,10 +75,6 @@ index less than the last computed block index.`,
 	// and any data used to perform validation.
 	DataDir string
 
-	// ServerURL is the base URL for a Rosetta
-	// server to validate.
-	ServerURL string
-
 	// StartIndex is the block index to start syncing.
 	StartIndex int64
 
@@ -144,11 +140,7 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 		return nil, err
 	}
 
-	prettyAccounts, err := json.MarshalIndent(accounts, "", " ")
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, string(prettyAccounts))
+	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, utils.PrettyPrintStruct(accounts))
 
 	return accounts, nil
 }
@@ -159,12 +151,6 @@ func init() {
 		"data-dir",
 		"",
 		"folder used to store logs and any data used to perform validation",
-	)
-	checkCmd.Flags().StringVar(
-		&ServerURL,
-		"server-url",
-		"http://localhost:8080",
-		"base URL for a Rosetta server to validate",
 	)
 	checkCmd.Flags().Int64Var(
 		&StartIndex,

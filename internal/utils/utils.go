@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -102,7 +103,7 @@ func AccountString(account *types.AccountIdentifier) string {
 	// TODO: handle SubAccount.Metadata
 	// that contains pointer values.
 	return fmt.Sprintf(
-		"%s:%s:%v",
+		"%s:%s:%+v",
 		account.Address,
 		account.SubAccount.Address,
 		account.SubAccount.Metadata,
@@ -122,9 +123,22 @@ func CurrencyString(currency *types.Currency) string {
 	// TODO: Handle currency.Metadata
 	// that has pointer value.
 	return fmt.Sprintf(
-		"%s:%d:%v",
+		"%s:%d:%+v",
 		currency.Symbol,
 		currency.Decimals,
 		currency.Metadata,
 	)
+}
+
+func PrettyPrintStruct(val interface{}) string {
+	prettyStruct, err := json.MarshalIndent(
+		val,
+		"",
+		" ",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(prettyStruct)
 }
