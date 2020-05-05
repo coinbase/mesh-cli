@@ -17,6 +17,14 @@ in this specification will enable exchanges, block explorers,
 and wallets to integrate with much less communication overhead
 and network-specific work.
 
+
+## TODO:
+* Load block cache on restart from storage (to ensure reorgs are handled correctly)
+* Persist seen account balances and account balance queue across restarts
+* Add ability to view a block (view:block)
+* Exempt account types from reconciliation (hopefully from JSON initialization...ex: lockedGld balance in Celo)
+
+
 ## Install
 ```
 go get github.com/coinbase/rosetta-cli
