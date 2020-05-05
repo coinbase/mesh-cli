@@ -103,7 +103,11 @@ func TestBlock(t *testing.T) {
 	var (
 		newBlock = &types.Block{
 			BlockIdentifier: &types.BlockIdentifier{
-				Hash:  "blah",
+				Hash:  "blah 1",
+				Index: 1,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "blah 0",
 				Index: 0,
 			},
 			Timestamp: 1,
@@ -131,6 +135,10 @@ func TestBlock(t *testing.T) {
 		newBlock2 = &types.Block{
 			BlockIdentifier: &types.BlockIdentifier{
 				Hash:  "blah 2",
+				Index: 2,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "blah 1",
 				Index: 1,
 			},
 			Timestamp: 1,
@@ -169,6 +177,10 @@ func TestBlock(t *testing.T) {
 		block, err := storage.GetBlock(ctx, newBlock.BlockIdentifier)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock, block)
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock.BlockIdentifier, head)
 	})
 
 	t.Run("Get non-existent block", func(t *testing.T) {
@@ -197,11 +209,19 @@ func TestBlock(t *testing.T) {
 			ErrDuplicateTransactionHash,
 			"blahTx",
 		).Error())
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock.BlockIdentifier, head)
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
 		_, err := storage.RemoveBlock(ctx, newBlock)
 		assert.NoError(t, err)
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock.ParentBlockIdentifier, head)
 
 		_, err = storage.StoreBlock(ctx, newBlock)
 		assert.NoError(t, err)

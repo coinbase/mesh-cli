@@ -361,6 +361,10 @@ func (b *BlockStorage) StoreBlock(
 		}
 	}
 
+	if err = b.StoreHeadBlockIdentifier(ctx, transaction, block.BlockIdentifier); err != nil {
+		return nil, err
+	}
+
 	if err := transaction.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -406,6 +410,10 @@ func (b *BlockStorage) RemoveBlock(
 
 	// Remove block
 	if err := transaction.Delete(ctx, getBlockKey(block.BlockIdentifier)); err != nil {
+		return nil, err
+	}
+
+	if err = b.StoreHeadBlockIdentifier(ctx, transaction, block.ParentBlockIdentifier); err != nil {
 		return nil, err
 	}
 
