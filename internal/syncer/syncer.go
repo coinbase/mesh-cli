@@ -57,7 +57,12 @@ type Syncer struct {
 	// Used to keep track of sync state
 	genesisBlock *types.BlockIdentifier
 	nextIndex    int64
-	blockCache   []*types.Block
+
+	// TODO: to ensure reorgs are handled correctly, it should be possible
+	// to pass in recently processed blocks to the syncer. Without this, the
+	// syncer may process an index that is not connected to previously added
+	// blocks (ParentBlockIdentifier != lastProcessedBlock.BlockIdentifier).
+	blockCache []*types.Block
 }
 
 func New(
@@ -71,7 +76,7 @@ func New(
 		fetcher:    fetcher,
 		handler:    handler,
 		cancel:     cancel,
-		blockCache: make([]*types.Block, reorgCache),
+		blockCache: []*types.Block{},
 	}
 }
 
@@ -134,8 +139,7 @@ func (s *Syncer) nextSyncableRange(
 	return endIndex, false, nil
 }
 
-func (s *Syncer) removeBlock(
-	ctx context.Context,
+func (s *Syncer) checkRemove(
 	block *types.Block,
 ) (bool, *types.Block, error) {
 	if len(s.blockCache) == 0 {
@@ -168,7 +172,7 @@ func (s *Syncer) processBlock(
 	ctx context.Context,
 	block *types.Block,
 ) error {
-	shouldRemove, lastBlock, err := s.removeBlock(ctx, block)
+	shouldRemove, lastBlock, err := s.checkRemove(block)
 	if err != nil {
 		return err
 	}

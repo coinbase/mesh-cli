@@ -100,13 +100,6 @@ func hashBytes(data string) []byte {
 	return h.Sum(nil)
 }
 
-// hashString is used to construct a SHA1
-// hash to protect against arbitrarily
-// large key sizes.
-func hashString(data string) string {
-	return fmt.Sprintf("%x", hashBytes(data))
-}
-
 func getHeadBlockKey() []byte {
 	return hashBytes(headBlockKey)
 }

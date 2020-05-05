@@ -91,7 +91,7 @@ func (h *BlockStorageHelper) SkipOperation(
 
 	// Exempting account in BalanceChanges ensures that storage is not updated
 	// and that the account is not reconciled.
-	if h.accountExempt(ctx, op.Account, op.Amount.Currency) {
+	if h.accountExempt(op.Account, op.Amount.Currency) {
 		log.Printf("Skipping exempt account %+v\n", op.Account)
 		return true, nil
 	}
@@ -103,7 +103,6 @@ func (h *BlockStorageHelper) SkipOperation(
 // account and currency are exempt from balance tracking and
 // reconciliation.
 func (h *BlockStorageHelper) accountExempt(
-	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 ) bool {

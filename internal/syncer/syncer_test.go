@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
 
 	"github.com/stretchr/testify/assert"
@@ -168,47 +167,6 @@ var (
 			},
 		},
 	}
-
-	operationStatuses = []*types.OperationStatus{
-		{
-			Status:     "Success",
-			Successful: true,
-		},
-		{
-			Status:     "Failure",
-			Successful: false,
-		},
-	}
-
-	networkStatusResponse = &types.NetworkStatusResponse{
-		GenesisBlockIdentifier: &types.BlockIdentifier{
-			Index: 0,
-			Hash:  "block 0",
-		},
-		CurrentBlockIdentifier: &types.BlockIdentifier{
-			Index: 10000,
-			Hash:  "block 1000",
-		},
-		CurrentBlockTimestamp: asserter.MinUnixEpoch + 1,
-		Peers: []*types.Peer{
-			{
-				PeerID: "peer 1",
-			},
-		},
-	}
-
-	networkOptionsResponse = &types.NetworkOptionsResponse{
-		Version: &types.Version{
-			RosettaVersion: "1.3.1",
-			NodeVersion:    "1.0",
-		},
-		Allow: &types.Allow{
-			OperationStatuses: operationStatuses,
-			OperationTypes: []string{
-				"Transfer",
-			},
-		},
-	}
 )
 
 func lastBlockIdentifier(syncer *Syncer) *types.BlockIdentifier {
@@ -218,7 +176,7 @@ func lastBlockIdentifier(syncer *Syncer) *types.BlockIdentifier {
 func TestProcessBlock(t *testing.T) {
 	ctx := context.Background()
 
-	syncer := New(nil, nil, &MockSyncHandler{}, nil)
+	syncer := New(networkIdentifier, nil, &MockSyncHandler{}, nil)
 	syncer.genesisBlock = blockSequence[0].BlockIdentifier
 	syncer.blockCache = []*types.Block{}
 

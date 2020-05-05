@@ -329,9 +329,14 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if StartIndex != -1 {
+	if StartIndex != -1 { // attempt to remove blocks from storage (without handling)
 		if err = blockStorage.SetNewStartIndex(ctx, StartIndex); err != nil {
 			log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
+		}
+	} else { // attempt to load last processed index
+		head, err := blockStorage.GetHeadBlockIdentifier(ctx)
+		if err == nil {
+			StartIndex = head.Index + 1
 		}
 	}
 
