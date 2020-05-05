@@ -113,11 +113,6 @@ type ReconcilerHelper interface {
 		ctx context.Context,
 	) (*types.BlockIdentifier, error)
 
-	// always compare current balance...just need to set with previous seen if starting
-	// in middle
-	// TODO: always pass in head block to do lookup in case we need to fetch balance
-	// on previous block...this should always be set by the time it gets to the reconciler
-	// based on storage
 	AccountBalance(
 		ctx context.Context,
 		account *types.AccountIdentifier,
@@ -283,16 +278,16 @@ func (r *Reconciler) CompareBalance(
 	currency *types.Currency,
 	amount string,
 	liveBlock *types.BlockIdentifier,
-) (string, int64, error) {
+) (string, string, int64, error) {
 	// Head block should be set before we CompareBalance
 	head, err := r.helper.CurrentBlock(ctx)
 	if err != nil {
-		return zeroString, 0, fmt.Errorf("%w: unable to get current block for reconciliation", err)
+		return zeroString, "", 0, fmt.Errorf("%w: unable to get current block for reconciliation", err)
 	}
 
 	// Check if live block is < head (or wait)
 	if liveBlock.Index > head.Index {
-		return zeroString, head.Index, fmt.Errorf(
+		return zeroString, "", head.Index, fmt.Errorf(
 			"%w live block %d > head block %d",
 			ErrHeadBlockBehindLive,
 			liveBlock.Index,
@@ -301,9 +296,12 @@ func (r *Reconciler) CompareBalance(
 	}
 
 	// Check if live block is in store (ensure not reorged)
-	_, err = r.helper.BlockExists(ctx, liveBlock)
+	exists, err := r.helper.BlockExists(ctx, liveBlock)
 	if err != nil {
-		return zeroString, head.Index, fmt.Errorf(
+		return zeroString, "", 0, fmt.Errorf("%w: unable to check if block exists: %+v", err, liveBlock)
+	}
+	if !exists {
+		return zeroString, "", head.Index, fmt.Errorf(
 			"%w %+v",
 			ErrBlockGone,
 			liveBlock,
@@ -317,11 +315,11 @@ func (r *Reconciler) CompareBalance(
 		currency,
 	)
 	if err != nil {
-		return zeroString, head.Index, err
+		return zeroString, "", head.Index, fmt.Errorf("%w: unable to get cached balance for %+v:%+v", err, account, currency)
 	}
 
 	if liveBlock.Index < balanceBlock.Index {
-		return zeroString, head.Index, fmt.Errorf(
+		return zeroString, "", head.Index, fmt.Errorf(
 			"%w %+v updated at %d",
 			ErrAccountUpdated,
 			account,
@@ -331,14 +329,10 @@ func (r *Reconciler) CompareBalance(
 
 	difference, err := utils.SubtractStringValues(cachedBalance.Value, amount)
 	if err != nil {
-		return "", -1, err
+		return "", "", -1, err
 	}
 
-	if difference != zeroString {
-		return difference, head.Index, nil
-	}
-
-	return zeroString, head.Index, nil
+	return difference, cachedBalance.Value, head.Index, nil
 }
 
 // bestBalance returns the balance for an account
@@ -384,7 +378,7 @@ func (r *Reconciler) accountReconciliation(
 	for ctx.Err() == nil {
 		// If don't have previous balance because stateless, check diff on block
 		// instead of comparing entire computed balance
-		difference, headIndex, err := r.CompareBalance(
+		difference, cachedBalance, headIndex, err := r.CompareBalance(
 			ctx,
 			account,
 			currency,
@@ -443,7 +437,7 @@ func (r *Reconciler) accountReconciliation(
 				reconciliationType,
 				accountCurrency.Account,
 				accountCurrency.Currency,
-				"TODO",
+				cachedBalance,
 				liveAmount,
 				liveBlock,
 			)
