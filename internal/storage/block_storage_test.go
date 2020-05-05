@@ -47,9 +47,9 @@ func TestHeadBlockIdentifier(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -153,9 +153,9 @@ func TestBlock(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -374,9 +374,9 @@ func TestBalance(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -675,14 +675,14 @@ func TestBootstrapBalances(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
 	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
-	bootstrapBalancesFile := path.Join(*newDir, "balances.csv")
+	bootstrapBalancesFile := path.Join(newDir, "balances.csv")
 
 	t.Run("File doesn't exist", func(t *testing.T) {
 		err = storage.BootstrapBalances(

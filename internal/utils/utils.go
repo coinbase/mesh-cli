@@ -24,13 +24,13 @@ import (
 
 // CreateTempDir creates a directory in
 // /tmp for usage within testing.
-func CreateTempDir() (*string, error) {
-	storageDir, err := ioutil.TempDir("", "rosetta-worker")
+func CreateTempDir() (string, error) {
+	storageDir, err := ioutil.TempDir("", "rosetta-cli")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &storageDir, nil
+	return storageDir, nil
 }
 
 // RemoveTempDir deletes a directory at

@@ -28,9 +28,9 @@ func TestDatabase(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -59,9 +59,9 @@ func TestDatabaseTransaction(t *testing.T) {
 
 	newDir, err := utils.CreateTempDir()
 	assert.NoError(t, err)
-	defer utils.RemoveTempDir(*newDir)
+	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, *newDir)
+	database, err := NewBadgerStorage(ctx, newDir)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
