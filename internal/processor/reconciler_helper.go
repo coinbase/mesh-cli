@@ -47,6 +47,7 @@ func (h *ReconcilerHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
+	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
-	return h.storage.GetBalance(ctx, account, currency)
+	return h.storage.GetBalance(ctx, account, currency, headBlock)
 }

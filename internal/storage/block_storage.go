@@ -581,6 +581,7 @@ func (b *BlockStorage) GetBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
+	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
 	transaction := b.newDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
@@ -591,8 +592,35 @@ func (b *BlockStorage) GetBalance(
 		return nil, nil, err
 	}
 
+	// When beginning syncing from an arbitrary height, an account may
+	// not yet have a cached balance when requested. If this is the case,
+	// we fetch the balance from the node for the given height and persist
+	// it. This is particularly useful when monitoring interesting accounts.
 	if !exists {
-		return nil, nil, fmt.Errorf("%w %+v", ErrAccountNotFound, account)
+		amount, err := b.helper.AccountBalance(ctx, account, currency, headBlock)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: unable to get account balance from helper", err)
+		}
+
+		writeTransaction := b.newDatabaseTransaction(ctx, true)
+		defer writeTransaction.Discard(ctx)
+		err = b.SetBalance(
+			ctx,
+			writeTransaction,
+			account,
+			amount,
+			headBlock,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: unable to set account balance", err)
+		}
+
+		err = writeTransaction.Commit(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: unable to commit account balance transaction", err)
+		}
+
+		return amount, headBlock, nil
 	}
 
 	deserialBal, err := parseBalanceEntry(bal)

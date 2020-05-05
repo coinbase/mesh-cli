@@ -429,6 +429,7 @@ func (h *MockReconcilerHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
+	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
 	if h.BalanceAccount == nil || !reflect.DeepEqual(account, h.BalanceAccount) {
 		return nil, nil, errors.New("account does not exist")

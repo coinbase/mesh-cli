@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
@@ -58,7 +59,7 @@ func (h *BlockStorageHelper) AccountBalance(
 		types.ConstructPartialBlockIdentifier(block),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to get currency balance in storage helper", err)
 	}
 
 	return &types.Amount{

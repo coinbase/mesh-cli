@@ -404,10 +404,13 @@ func TestBalance(t *testing.T) {
 	storage := NewBlockStorage(ctx, database, mockHelper)
 
 	t.Run("Get unset balance", func(t *testing.T) {
-		amount, block, err := storage.GetBalance(ctx, account, currency)
-		assert.Nil(t, amount)
-		assert.Nil(t, block)
-		assert.EqualError(t, err, fmt.Errorf("%w %+v", ErrAccountNotFound, account).Error())
+		amount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
+		assert.NoError(t, err)
+		assert.Equal(t, &types.Amount{
+			Value:    "0",
+			Currency: currency,
+		}, amount)
+		assert.Equal(t, newBlock, block)
 	})
 
 	t.Run("Set and get balance", func(t *testing.T) {
@@ -426,7 +429,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -449,7 +452,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, account3, currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, account3, currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amountWithPrevious, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -473,7 +476,7 @@ func TestBalance(t *testing.T) {
 		assert.EqualError(t, err, "invalid currency")
 		txn.Discard(ctx)
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -495,7 +498,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock2)
 		assert.NoError(t, err)
 		assert.Equal(t, result, retrievedAmount)
 		assert.Equal(t, newBlock2, block)
@@ -517,7 +520,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Get balance during transaction
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock2)
 		assert.NoError(t, err)
 		assert.Equal(t, result, retrievedAmount)
 		assert.Equal(t, newBlock2, block)
@@ -576,7 +579,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountNewPointer, amount.Currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountNewPointer, amount.Currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -598,7 +601,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadataNewPointer, amount.Currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadataNewPointer, amount.Currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -620,7 +623,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadata2NewPointer, amount.Currency)
+		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadata2NewPointer, amount.Currency, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -748,6 +751,7 @@ func TestBootstrapBalances(t *testing.T) {
 			ctx,
 			account,
 			amount.Currency,
+			genesisBlockIdentifier,
 		)
 
 		assert.Equal(t, amount, retrievedAmount)

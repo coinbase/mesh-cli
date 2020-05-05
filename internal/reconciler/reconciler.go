@@ -117,6 +117,7 @@ type ReconcilerHelper interface {
 		ctx context.Context,
 		account *types.AccountIdentifier,
 		currency *types.Currency,
+		headBlock *types.BlockIdentifier,
 	) (*types.Amount, *types.BlockIdentifier, error)
 }
 
@@ -313,6 +314,7 @@ func (r *Reconciler) CompareBalance(
 		ctx,
 		account,
 		currency,
+		head,
 	)
 	if err != nil {
 		return zeroString, "", head.Index, fmt.Errorf("%w: unable to get cached balance for %+v:%+v", err, account, currency)
