@@ -463,8 +463,9 @@ func (b *BlockStorage) SetNewStartIndex(
 	}
 
 	currBlock := head
-	for currBlock.Index > startIndex {
-		block, err := b.GetBlock(ctx, head)
+	for currBlock.Index >= startIndex {
+		log.Printf("Removing block %+v\n", currBlock)
+		block, err := b.GetBlock(ctx, currBlock)
 		if err != nil {
 			return err
 		}

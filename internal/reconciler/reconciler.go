@@ -178,6 +178,7 @@ func NewReconciler(
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
 	interestingAccounts []*AccountCurrency,
+	// TODO: load seenAccts and inactiveQueue from prior run (if exists)
 ) *Reconciler {
 	r := &Reconciler{
 		network:              network,
@@ -206,18 +207,14 @@ func NewReconciler(
 	return r
 }
 
-// Reconciliation
 // QueueChanges enqueues a slice of *BalanceChanges
 // for reconciliation.
 func (r *Reconciler) QueueChanges(
 	ctx context.Context,
-	// If we pass in parentblock, then we always know what to compare on diff
 	block *types.BlockIdentifier,
 	balanceChanges []*BalanceChange,
 ) error {
 	// Ensure all interestingAccounts are checked
-	// TODO: refactor to automatically trigger once an inactive reconciliation error
-	// is discovered
 	for _, account := range r.interestingAccounts {
 		skipAccount := false
 		// Look through balance changes for account + currency
