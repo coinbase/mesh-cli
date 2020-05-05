@@ -228,72 +228,6 @@ func TestBlock(t *testing.T) {
 	})
 }
 
-func TestGetAccountKey(t *testing.T) {
-	var tests = map[string]struct {
-		account *types.AccountIdentifier
-		key     string
-	}{
-		"simple account": {
-			account: &types.AccountIdentifier{
-				Address: "hello",
-			},
-			key: "balance:hello",
-		},
-		"subaccount": {
-			account: &types.AccountIdentifier{
-				Address: "hello",
-				SubAccount: &types.SubAccountIdentifier{
-					Address: "stake",
-				},
-			},
-			key: "balance:hello:stake",
-		},
-		"subaccount with string metadata": {
-			account: &types.AccountIdentifier{
-				Address: "hello",
-				SubAccount: &types.SubAccountIdentifier{
-					Address: "stake",
-					Metadata: map[string]interface{}{
-						"cool": "neat",
-					},
-				},
-			},
-			key: "balance:hello:stake:map[cool:neat]",
-		},
-		"subaccount with number metadata": {
-			account: &types.AccountIdentifier{
-				Address: "hello",
-				SubAccount: &types.SubAccountIdentifier{
-					Address: "stake",
-					Metadata: map[string]interface{}{
-						"cool": 1,
-					},
-				},
-			},
-			key: "balance:hello:stake:map[cool:1]",
-		},
-		"subaccount with complex metadata": {
-			account: &types.AccountIdentifier{
-				Address: "hello",
-				SubAccount: &types.SubAccountIdentifier{
-					Address: "stake",
-					Metadata: map[string]interface{}{
-						"cool":    1,
-						"awesome": "neat",
-					},
-				},
-			},
-			key: "balance:hello:stake:map[awesome:neat cool:1]",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, test.key, GetAccountKey(test.account))
-		})
-	}
-}
-
 func TestBalance(t *testing.T) {
 	var (
 		account = &types.AccountIdentifier{
@@ -628,58 +562,6 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
 	})
-}
-
-func TestGetCurrencyKey(t *testing.T) {
-	var tests = map[string]struct {
-		currency *types.Currency
-		key      string
-	}{
-		"simple currency": {
-			currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-			},
-			key: "BTC:8",
-		},
-		"currency with string metadata": {
-			currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-				Metadata: map[string]interface{}{
-					"issuer": "satoshi",
-				},
-			},
-			key: "BTC:8:map[issuer:satoshi]",
-		},
-		"currency with number metadata": {
-			currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-				Metadata: map[string]interface{}{
-					"issuer": 1,
-				},
-			},
-			key: "BTC:8:map[issuer:1]",
-		},
-		"currency with complex metadata": {
-			currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-				Metadata: map[string]interface{}{
-					"issuer": "satoshi",
-					"count":  10,
-				},
-			},
-			key: "BTC:8:map[count:10 issuer:satoshi]",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, test.key, GetCurrencyKey(test.currency))
-		})
-	}
 }
 
 func TestBootstrapBalances(t *testing.T) {

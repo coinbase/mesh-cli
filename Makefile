@@ -3,14 +3,15 @@
 	watch-transactions watch-balances watch-reconciliations \
 	view-block-benchmarks view-account-benchmarks
 LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
+GO_INSTALL=GO111MODULE=off go get
 TEST_SCRIPT=go test -v ./internal/...
 
 deps:
 	go get ./...
 	go get github.com/stretchr/testify
-	go get github.com/google/addlicense
-	go get github.com/segmentio/golines
-	go get github.com/mattn/goveralls
+	${GO_INSTALL} github.com/google/addlicense
+	${GO_INSTALL} github.com/segmentio/golines
+	${GO_INSTALL} github.com/mattn/goveralls
 
 lint:
 	golangci-lint run -v \

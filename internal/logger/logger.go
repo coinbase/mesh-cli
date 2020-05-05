@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -167,7 +168,7 @@ func (l *Logger) TransactionStream(
 			}
 			participant := ""
 			if op.Account != nil {
-				participant = op.Account.Address
+				participant = utils.AccountString(op.Account)
 			}
 
 			networkIndex := op.OperationIdentifier.Index
@@ -187,13 +188,6 @@ func (l *Logger) TransactionStream(
 			))
 			if err != nil {
 				return err
-			}
-
-			if op.Account != nil && op.Account.Metadata != nil {
-				_, err = f.WriteString(fmt.Sprintf("Account Metadata: %+v\n", op.Account.Metadata))
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -223,10 +217,10 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s%s Block: %d:%s",
+			"Account: %s Change: %s:%s Block: %d:%s",
 			balanceChange.Account.Address,
 			balanceChange.Difference,
-			balanceChange.Currency.Symbol,
+			utils.CurrencyString(balanceChange.Currency),
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
@@ -263,17 +257,17 @@ func (l *Logger) ReconcileSuccessStream(
 	defer f.Close()
 
 	log.Printf(
-		"%s Reconciled %+v at %d\n",
+		"%s Reconciled %s at %d\n",
 		reconciliationType,
-		account,
+		utils.AccountString(account),
 		block.Index,
 	)
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
 		reconciliationType,
-		account.Address,
-		currency.Symbol,
+		utils.AccountString(account),
+		utils.CurrencyString(currency),
 		balance,
 		block.Index,
 		block.Hash,
@@ -298,9 +292,9 @@ func (l *Logger) ReconcileFailureStream(
 ) error {
 	// Always print out reconciliation failures
 	log.Printf(
-		"%s Reconciliation failed for %+v at %d computed: %s node: %s\n",
+		"%s Reconciliation failed for %s at %d computed: %s node: %s\n",
 		reconciliationType,
-		account,
+		utils.AccountString(account),
 		block.Index,
 		computedBalance,
 		nodeBalance,
@@ -321,10 +315,10 @@ func (l *Logger) ReconcileFailureStream(
 	defer f.Close()
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"Type:%s Account: %+v Currency: %+v Block: %s:%d computed: %s node: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s node: %s\n",
 		reconciliationType,
-		account,
-		currency,
+		utils.AccountString(account),
+		utils.CurrencyString(currency),
 		block.Hash,
 		block.Index,
 		computedBalance,

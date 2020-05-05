@@ -118,57 +118,9 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes(fmt.Sprintf("%s:%s", transactionHashNamespace, hash))
 }
 
-// GetCurrencyKey is used to identify a *types.Currency
-// in an account's map of currencies. It is not feasible
-// to create a map of [types.Currency]*types.Amount
-// because types.Currency contains a metadata pointer
-// that would prevent any equality.
-func GetCurrencyKey(currency *types.Currency) string {
-	if currency.Metadata == nil {
-		return fmt.Sprintf("%s:%d", currency.Symbol, currency.Decimals)
-	}
-
-	// TODO: Handle currency.Metadata
-	// that has pointer value.
-	return fmt.Sprintf(
-		"%s:%d:%v",
-		currency.Symbol,
-		currency.Decimals,
-		currency.Metadata,
-	)
-}
-
-// GetAccountKey returns a byte slice representing a *types.AccountIdentifier.
-// This byte slice automatically handles the existence of *types.SubAccount
-// detail.
-func GetAccountKey(account *types.AccountIdentifier) string {
-	if account.SubAccount == nil {
-		return fmt.Sprintf("%s:%s", balanceNamespace, account.Address)
-	}
-
-	if account.SubAccount.Metadata == nil {
-		return fmt.Sprintf(
-			"%s:%s:%s",
-			balanceNamespace,
-			account.Address,
-			account.SubAccount.Address,
-		)
-	}
-
-	// TODO: handle SubAccount.Metadata
-	// that contains pointer values.
-	return fmt.Sprintf(
-		"%s:%s:%s:%v",
-		balanceNamespace,
-		account.Address,
-		account.SubAccount.Address,
-		account.SubAccount.Metadata,
-	)
-}
-
 func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) []byte {
 	return hashBytes(
-		fmt.Sprintf("%s/%s", GetAccountKey(account), GetCurrencyKey(currency)),
+		fmt.Sprintf("%s/%s/%s", balanceNamespace, utils.AccountString(account), utils.CurrencyString(currency)),
 	)
 }
 
