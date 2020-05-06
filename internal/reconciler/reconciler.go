@@ -100,7 +100,7 @@ type BalanceChange struct {
 	Difference string                   `json:"difference,omitempty"`
 }
 
-type ReconcilerHelper interface {
+type Helper interface {
 	BlockExists(
 		ctx context.Context,
 		block *types.BlockIdentifier,
@@ -118,7 +118,7 @@ type ReconcilerHelper interface {
 	) (*types.Amount, *types.BlockIdentifier, error)
 }
 
-type ReconcilerHandler interface {
+type Handler interface {
 	ReconciliationFailed(
 		ctx context.Context,
 		reconciliationType string,
@@ -144,8 +144,8 @@ type ReconcilerHandler interface {
 // by a Rosetta Server.
 type Reconciler struct {
 	network              *types.NetworkIdentifier
-	helper               ReconcilerHelper
-	handler              ReconcilerHandler
+	helper               Helper
+	handler              Handler
 	fetcher              *fetcher.Fetcher
 	accountConcurrency   uint64
 	lookupBalanceByBlock bool
@@ -169,8 +169,8 @@ type Reconciler struct {
 // NewReconciler creates a new Reconciler.
 func NewReconciler(
 	network *types.NetworkIdentifier,
-	helper ReconcilerHelper,
-	handler ReconcilerHandler,
+	helper Helper,
+	handler Handler,
 	fetcher *fetcher.Fetcher,
 	accountConcurrency uint64,
 	lookupBalanceByBlock bool,
@@ -277,7 +277,10 @@ func (r *Reconciler) CompareBalance(
 	// Head block should be set before we CompareBalance
 	head, err := r.helper.CurrentBlock(ctx)
 	if err != nil {
-		return zeroString, "", 0, fmt.Errorf("%w: unable to get current block for reconciliation", err)
+		return zeroString, "", 0, fmt.Errorf(
+			"%w: unable to get current block for reconciliation",
+			err,
+		)
 	}
 
 	// Check if live block is < head (or wait)
@@ -293,7 +296,11 @@ func (r *Reconciler) CompareBalance(
 	// Check if live block is in store (ensure not reorged)
 	exists, err := r.helper.BlockExists(ctx, liveBlock)
 	if err != nil {
-		return zeroString, "", 0, fmt.Errorf("%w: unable to check if block exists: %+v", err, liveBlock)
+		return zeroString, "", 0, fmt.Errorf(
+			"%w: unable to check if block exists: %+v",
+			err,
+			liveBlock,
+		)
 	}
 	if !exists {
 		return zeroString, "", head.Index, fmt.Errorf(
@@ -311,7 +318,12 @@ func (r *Reconciler) CompareBalance(
 		head,
 	)
 	if err != nil {
-		return zeroString, "", head.Index, fmt.Errorf("%w: unable to get cached balance for %+v:%+v", err, account, currency)
+		return zeroString, "", head.Index, fmt.Errorf(
+			"%w: unable to get cached balance for %+v:%+v",
+			err,
+			account,
+			currency,
+		)
 	}
 
 	if liveBlock.Index < balanceBlock.Index {

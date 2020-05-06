@@ -526,7 +526,12 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountNewPointer, amount.Currency, newBlock)
+		retrievedAmount, block, err := storage.GetBalance(
+			ctx,
+			subAccountNewPointer,
+			amount.Currency,
+			newBlock,
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -548,7 +553,12 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadataNewPointer, amount.Currency, newBlock)
+		retrievedAmount, block, err := storage.GetBalance(
+			ctx,
+			subAccountMetadataNewPointer,
+			amount.Currency,
+			newBlock,
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
@@ -570,7 +580,12 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, txn.Commit(ctx))
 
-		retrievedAmount, block, err := storage.GetBalance(ctx, subAccountMetadata2NewPointer, amount.Currency, newBlock)
+		retrievedAmount, block, err := storage.GetBalance(
+			ctx,
+			subAccountMetadata2NewPointer,
+			amount.Currency,
+			newBlock,
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)

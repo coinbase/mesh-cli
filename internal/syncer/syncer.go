@@ -37,7 +37,7 @@ const (
 // SyncHandler is called at various times during the sync cycle
 // to handle different events. It is common to write logs or
 // perform reconciliation in the sync processor.
-type SyncHandler interface {
+type Handler interface {
 	BlockAdded(
 		ctx context.Context,
 		block *types.Block,
@@ -52,7 +52,7 @@ type SyncHandler interface {
 type Syncer struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
-	handler SyncHandler
+	handler Handler
 	cancel  context.CancelFunc
 
 	// Used to keep track of sync state
@@ -72,7 +72,7 @@ type Syncer struct {
 func New(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
-	handler SyncHandler,
+	handler Handler,
 	cancel context.CancelFunc,
 	pastBlocks []*types.BlockIdentifier,
 ) *Syncer {

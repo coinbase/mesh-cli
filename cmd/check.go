@@ -141,7 +141,12 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 		return nil, err
 	}
 
-	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, types.PrettyPrintStruct(accounts))
+	log.Printf(
+		"Found %d accounts at %s: %s\n",
+		len(accounts),
+		filePath,
+		types.PrettyPrintStruct(accounts),
+	)
 
 	return accounts, nil
 }

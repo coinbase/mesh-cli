@@ -124,7 +124,7 @@ func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) [
 	)
 }
 
-type BlockStorageHelper interface {
+type Helper interface {
 	AccountBalance(
 		ctx context.Context,
 		account *types.AccountIdentifier,
@@ -142,14 +142,14 @@ type BlockStorageHelper interface {
 // on top of a Database and DatabaseTransaction interface.
 type BlockStorage struct {
 	db     Database
-	helper BlockStorageHelper
+	helper Helper
 }
 
 // NewBlockStorage returns a new BlockStorage.
 func NewBlockStorage(
 	ctx context.Context,
 	db Database,
-	helper BlockStorageHelper,
+	helper Helper,
 ) *BlockStorage {
 	return &BlockStorage{
 		db:     db,
@@ -420,7 +420,11 @@ func (b *BlockStorage) SetNewStartIndex(
 	}
 
 	if head.Index < startIndex {
-		return fmt.Errorf("last processed block %d is less than start index %d", head.Index, startIndex)
+		return fmt.Errorf(
+			"last processed block %d is less than start index %d",
+			head.Index,
+			startIndex,
+		)
 	}
 
 	currBlock := head
