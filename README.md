@@ -19,15 +19,11 @@ and network-specific work.
 
 
 ## TODO:
-* Load block cache on restart from storage (to ensure reorgs are handled correctly)
-* Persist seen account balances and account balance queue across restarts (this allows inactive reconciliation to continue across restarts)
+! Load block cache on restart from storage (to ensure reorgs are handled correctly)
 ! Add ability to view a block (view:block, view:account)
   * add examples in README
-* Ensure basic endpoints are working as expected
-  * Test that account balance works without partial block identifier (returns current block)
-* Exempt account types from reconciliation (hopefully from JSON initialization...ex: lockedGld balance in Celo)
-  * goes hand in hand with changing SubAccount to type
 ! Create a spec file command
+  * add examples in README
 
 ## Install
 ```

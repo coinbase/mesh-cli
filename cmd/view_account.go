@@ -7,8 +7,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
-
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -34,7 +32,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if err := asserter.AccountIdentifier(account); err != nil {
-		log.Fatal(fmt.Errorf("%w: invalid account identifier %s", err, utils.AccountString(account)))
+		log.Fatal(fmt.Errorf("%w: invalid account identifier %+v", err, account))
 	}
 
 	// Create a new fetcher
@@ -54,7 +52,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 
 	// Print the primary network and network status
 	// TODO: support specifying which network to get block from
-	log.Printf("Primary Network: %s\n", utils.PrettyPrintStruct(primaryNetwork))
+	log.Printf("Primary Network: %s\n", types.PrettyPrintStruct(primaryNetwork))
 
 	var lookupBlock *types.PartialBlockIdentifier
 	if len(args) > 1 {
@@ -73,10 +71,10 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 		lookupBlock,
 	)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to fetch account %s", err, utils.AccountString(account)))
+		log.Fatal(fmt.Errorf("%w: unable to fetch account %+v", err, account))
 	}
 
-	log.Printf("Amounts: %s\n", utils.PrettyPrintStruct(amounts))
-	log.Printf("Metadata: %s\n", utils.PrettyPrintStruct(metadata))
-	log.Printf("Balance Fetched At: %s\n", utils.PrettyPrintStruct(block))
+	log.Printf("Amounts: %s\n", types.PrettyPrintStruct(amounts))
+	log.Printf("Metadata: %s\n", types.PrettyPrintStruct(metadata))
+	log.Printf("Balance Fetched At: %s\n", types.PrettyPrintStruct(block))
 }

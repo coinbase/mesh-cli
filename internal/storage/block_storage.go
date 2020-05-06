@@ -28,6 +28,7 @@ import (
 	"path"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
+	"github.com/coinbase/rosetta-cli/internal/syncer"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -733,4 +734,28 @@ func (b *BlockStorage) BalanceChanges(
 	}
 
 	return allChanges, nil
+}
+
+// CreateBlockCache populates a slice of blocks with the most recent
+// ones in storage.
+func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.Block {
+	cache := []*types.Block{}
+	head, err := b.GetHeadBlockIdentifier(ctx)
+	if err != nil {
+		return cache
+	}
+
+	for len(cache) < syncer.ReorgCache {
+		block, err := b.GetBlock(ctx, head)
+		if err != nil {
+			return cache
+		}
+
+		log.Printf("Added %+v to cache\n", block.BlockIdentifier)
+
+		cache = append([]*types.Block{block}, cache...)
+		head = block.ParentBlockIdentifier
+	}
+
+	return cache
 }

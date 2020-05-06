@@ -6,8 +6,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
@@ -47,7 +45,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 
 	// Print the primary network and network status
 	// TODO: support specifying which network to get block from
-	log.Printf("Primary Network: %s\n", utils.PrettyPrintStruct(primaryNetwork))
+	log.Printf("Primary Network: %s\n", types.PrettyPrintStruct(primaryNetwork))
 
 	// Fetch the specified block with retries (automatically
 	// asserted for correctness)
@@ -69,5 +67,5 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to fetch block", err))
 	}
 
-	log.Printf("Current Block: %s\n", utils.PrettyPrintStruct(block))
+	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
 }

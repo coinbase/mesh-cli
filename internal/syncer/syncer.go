@@ -59,10 +59,13 @@ type Syncer struct {
 	genesisBlock *types.BlockIdentifier
 	nextIndex    int64
 
-	// TODO: to ensure reorgs are handled correctly, it should be possible
-	// to pass in recently processed blocks to the syncer. Without this, the
+	// To ensure reorgs are handled correctly, the syncer must be able
+	// to observe blocks it has previously processed. Without this, the
 	// syncer may process an index that is not connected to previously added
 	// blocks (ParentBlockIdentifier != lastProcessedBlock.BlockIdentifier).
+	//
+	// If a blockchain does not have reorgs, it is not necessary to populate
+	// the blockCache on creation.
 	blockCache []*types.Block
 }
 
@@ -71,13 +74,19 @@ func New(
 	fetcher *fetcher.Fetcher,
 	handler SyncHandler,
 	cancel context.CancelFunc,
+	blockCache []*types.Block,
 ) *Syncer {
+	cache := blockCache
+	if cache == nil {
+		cache = []*types.Block{}
+	}
+
 	return &Syncer{
 		network:    network,
 		fetcher:    fetcher,
 		handler:    handler,
 		cancel:     cancel,
-		blockCache: []*types.Block{},
+		blockCache: cache,
 	}
 }
 

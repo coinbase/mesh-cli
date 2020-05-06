@@ -2,15 +2,14 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
-
-	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 )
 
@@ -38,24 +37,15 @@ func runCreateSpecCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	network, genesisBlock, operationTypes, operationStatuses, errors, err := newFetcher.Asserter.ClientConfiguration()
+	configuration, err := newFetcher.Asserter.ClientConfiguration()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("%w: unable to generate spec", err))
 	}
 
-	specFileContents := asserter.FileConfiguration{
-		NetworkIdentifier:        network,
-		GenesisBlockIdentifier:   genesisBlock,
-		AllowedOperationTypes:    operationTypes,
-		AllowedOperationStatuses: operationStatuses,
-		AllowedErrors:            errors,
-	}
-
-	specString := utils.PrettyPrintStruct(specFileContents)
+	specString := types.PrettyPrintStruct(configuration)
 	log.Printf("Spec File: %s\n", specString)
 
 	if err := ioutil.WriteFile(path.Clean(args[0]), []byte(specString), os.FileMode(0600)); err != nil {
 		log.Fatal(err)
 	}
-
 }

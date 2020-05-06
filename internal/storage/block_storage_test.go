@@ -99,65 +99,78 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	})
 }
 
-func TestBlock(t *testing.T) {
-	var (
-		newBlock = &types.Block{
-			BlockIdentifier: &types.BlockIdentifier{
-				Hash:  "blah 1",
-				Index: 1,
-			},
-			ParentBlockIdentifier: &types.BlockIdentifier{
-				Hash:  "blah 0",
-				Index: 0,
-			},
-			Timestamp: 1,
-			Transactions: []*types.Transaction{
-				{
-					TransactionIdentifier: &types.TransactionIdentifier{
-						Hash: "blahTx",
-					},
-					Operations: []*types.Operation{
-						{
-							OperationIdentifier: &types.OperationIdentifier{
-								Index: 0,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		badBlockIdentifier = &types.BlockIdentifier{
-			Hash:  "missing blah",
+var (
+	newBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 1",
+			Index: 1,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 0",
 			Index: 0,
-		}
-
-		newBlock2 = &types.Block{
-			BlockIdentifier: &types.BlockIdentifier{
-				Hash:  "blah 2",
-				Index: 2,
-			},
-			ParentBlockIdentifier: &types.BlockIdentifier{
-				Hash:  "blah 1",
-				Index: 1,
-			},
-			Timestamp: 1,
-			Transactions: []*types.Transaction{
-				{
-					TransactionIdentifier: &types.TransactionIdentifier{
-						Hash: "blahTx",
-					},
-					Operations: []*types.Operation{
-						{
-							OperationIdentifier: &types.OperationIdentifier{
-								Index: 0,
-							},
+		},
+		Timestamp: 1,
+		Transactions: []*types.Transaction{
+			{
+				TransactionIdentifier: &types.TransactionIdentifier{
+					Hash: "blahTx",
+				},
+				Operations: []*types.Operation{
+					{
+						OperationIdentifier: &types.OperationIdentifier{
+							Index: 0,
 						},
 					},
 				},
 			},
-		}
-	)
+		},
+	}
+
+	badBlockIdentifier = &types.BlockIdentifier{
+		Hash:  "missing blah",
+		Index: 0,
+	}
+
+	newBlock2 = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 2",
+			Index: 2,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 1",
+			Index: 1,
+		},
+		Timestamp: 1,
+		Transactions: []*types.Transaction{
+			{
+				TransactionIdentifier: &types.TransactionIdentifier{
+					Hash: "blahTx",
+				},
+				Operations: []*types.Operation{
+					{
+						OperationIdentifier: &types.OperationIdentifier{
+							Index: 0,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	newBlock3 = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 2",
+			Index: 2,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 1",
+			Index: 1,
+		},
+		Timestamp: 1,
+	}
+)
+
+func TestBlock(t *testing.T) {
 	ctx := context.Background()
 
 	newDir, err := utils.CreateTempDir()
@@ -973,6 +986,36 @@ func TestBalanceChanges(t *testing.T) {
 			assert.Equal(t, test.err, err)
 		})
 	}
+}
+
+func TestCreateBlockCache(t *testing.T) {
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
+
+	t.Run("no blocks processed", func(t *testing.T) {
+		assert.Equal(t, []*types.Block{}, storage.CreateBlockCache(ctx))
+	})
+
+	t.Run("1 block processed", func(t *testing.T) {
+		_, err = storage.StoreBlock(ctx, newBlock)
+		assert.NoError(t, err)
+		assert.Equal(t, []*types.Block{newBlock}, storage.CreateBlockCache(ctx))
+	})
+
+	t.Run("2 blocks processed", func(t *testing.T) {
+		_, err = storage.StoreBlock(ctx, newBlock3)
+		assert.NoError(t, err)
+		assert.Equal(t, []*types.Block{newBlock, newBlock3}, storage.CreateBlockCache(ctx))
+	})
 }
 
 type MockBlockStorageHelper struct {

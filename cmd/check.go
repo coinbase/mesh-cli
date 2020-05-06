@@ -31,6 +31,7 @@ import (
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -140,7 +141,7 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 		return nil, err
 	}
 
-	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, utils.PrettyPrintStruct(accounts))
+	log.Printf("Found %d accounts at %s: %s\n", len(accounts), filePath, types.PrettyPrintStruct(accounts))
 
 	return accounts, nil
 }
@@ -304,6 +305,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	)
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+	// Bootstrap balances if provided
 	if len(BootstrapBalances) > 0 {
 		err = blockStorage.BootstrapBalances(
 			ctx,
@@ -315,6 +317,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Ensure storage is in correct state for starting at index
 	if StartIndex != -1 { // attempt to remove blocks from storage (without handling)
 		if err = blockStorage.SetNewStartIndex(ctx, StartIndex); err != nil {
 			log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
@@ -360,11 +363,22 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		return r.Reconcile(ctx)
 	})
 
+	// Load in previous blocks into syncer cache to handle reorgs.
+	// If previously processed blocks exist in storage, they are fetched.
+	// Otherwise, none are provided to the cache (the syncer will not attempt
+	// a reorg if the cache is empty).
+	blockCache := []*types.Block{}
+	if StartIndex != -1 {
+		// This is the case if blocks already in storage or if stateless start
+		blockCache = blockStorage.CreateBlockCache(ctx)
+	}
+
 	syncer := syncer.New(
 		primaryNetwork,
 		fetcher,
 		syncHandler,
 		cancel,
+		blockCache,
 	)
 
 	g.Go(func() error {

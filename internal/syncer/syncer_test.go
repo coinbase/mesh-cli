@@ -176,11 +176,16 @@ func lastBlockIdentifier(syncer *Syncer) *types.BlockIdentifier {
 func TestProcessBlock(t *testing.T) {
 	ctx := context.Background()
 
-	syncer := New(networkIdentifier, nil, &MockSyncHandler{}, nil)
+	syncer := New(networkIdentifier, nil, &MockSyncHandler{}, nil, nil)
 	syncer.genesisBlock = blockSequence[0].BlockIdentifier
 	syncer.blockCache = []*types.Block{}
 
 	t.Run("No block exists", func(t *testing.T) {
+		assert.Equal(
+			t,
+			[]*types.Block{},
+			syncer.blockCache,
+		)
 		err := syncer.processBlock(
 			ctx,
 			blockSequence[0],
@@ -188,6 +193,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), syncer.nextIndex)
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0]},
+			syncer.blockCache,
+		)
 	})
 
 	t.Run("Orphan genesis", func(t *testing.T) {
@@ -199,6 +209,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.EqualError(t, err, "cannot remove genesis block")
 		assert.Equal(t, int64(1), syncer.nextIndex)
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0]},
+			syncer.blockCache,
+		)
 	})
 
 	t.Run("Block exists, no reorg", func(t *testing.T) {
@@ -209,6 +224,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(2), syncer.nextIndex)
 		assert.Equal(t, blockSequence[1].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0], blockSequence[1]},
+			syncer.blockCache,
+		)
 	})
 
 	t.Run("Orphan block", func(t *testing.T) {
@@ -219,6 +239,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), syncer.nextIndex)
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0]},
+			syncer.blockCache,
+		)
 
 		err = syncer.processBlock(
 			ctx,
@@ -227,6 +252,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(2), syncer.nextIndex)
 		assert.Equal(t, blockSequence[3].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0], blockSequence[3]},
+			syncer.blockCache,
+		)
 
 		err = syncer.processBlock(
 			ctx,
@@ -235,6 +265,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(3), syncer.nextIndex)
 		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0], blockSequence[3], blockSequence[2]},
+			syncer.blockCache,
+		)
 	})
 
 	t.Run("Out of order block", func(t *testing.T) {
@@ -245,6 +280,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.EqualError(t, err, "Got block 5 instead of 3")
 		assert.Equal(t, int64(3), syncer.nextIndex)
 		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.Block{blockSequence[0], blockSequence[3], blockSequence[2]},
+			syncer.blockCache,
+		)
 	})
 }
 
