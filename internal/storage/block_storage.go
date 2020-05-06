@@ -28,7 +28,6 @@ import (
 	"path"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
-	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -120,7 +119,7 @@ func getHashKey(hash string, isBlock bool) []byte {
 
 func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) []byte {
 	return hashBytes(
-		fmt.Sprintf("%s/%s/%s", balanceNamespace, utils.AccountString(account), utils.CurrencyString(currency)),
+		fmt.Sprintf("%s/%s/%s", balanceNamespace, types.Hash(account), types.Hash(currency)),
 	)
 }
 
@@ -493,7 +492,7 @@ func (b *BlockStorage) UpdateBalance(
 		existingValue = amount.Value
 	}
 
-	newVal, err := utils.AddStringValues(change.Difference, existingValue)
+	newVal, err := types.AddValues(change.Difference, existingValue)
 	if err != nil {
 		return err
 	}
@@ -719,7 +718,7 @@ func (b *BlockStorage) BalanceChanges(
 				continue
 			}
 
-			newDifference, err := utils.AddStringValues(val.Difference, amount.Value)
+			newDifference, err := types.AddValues(val.Difference, amount.Value)
 			if err != nil {
 				return nil, err
 			}

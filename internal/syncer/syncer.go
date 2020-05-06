@@ -19,7 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reflect"
+
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -30,7 +31,7 @@ const (
 	// to try and sync in a given SyncCycle.
 	maxSync = 999
 
-	reorgCache = 20
+	ReorgCache = 20
 )
 
 // SyncHandler is called at various times during the sync cycle
@@ -157,8 +158,8 @@ func (s *Syncer) checkRemove(
 
 	// Check if block parent is head
 	lastBlock := s.blockCache[len(s.blockCache)-1]
-	if !reflect.DeepEqual(block.ParentBlockIdentifier, lastBlock.BlockIdentifier) {
-		if reflect.DeepEqual(s.genesisBlock, lastBlock.BlockIdentifier) {
+	if !utils.Equal(block.ParentBlockIdentifier, lastBlock.BlockIdentifier) {
+		if utils.Equal(s.genesisBlock, lastBlock.BlockIdentifier) {
 			return false, nil, fmt.Errorf("cannot remove genesis block")
 		}
 
@@ -193,7 +194,7 @@ func (s *Syncer) processBlock(
 	}
 
 	s.blockCache = append(s.blockCache, block)
-	if len(s.blockCache) > reorgCache {
+	if len(s.blockCache) > ReorgCache {
 		s.blockCache = s.blockCache[1:]
 	}
 	s.nextIndex = block.BlockIdentifier.Index + 1

@@ -16,6 +16,7 @@ package reconciler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -55,9 +56,9 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: map[string]interface{}{
-						"neat": "stuff",
-					},
+					Metadata: json.RawMessage(`{
+						"neat": "stuff"
+					}`),
 				},
 			},
 			Currency: currency1,
@@ -109,9 +110,9 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: map[string]interface{}{
-						"neat": "stuff",
-					},
+					Metadata: json.RawMessage(`{
+						"neat": "stuff"
+					}`),
 				},
 			},
 			Currency: currency1,
@@ -124,9 +125,9 @@ func TestContainsAccountCurrency(t *testing.T) {
 				Address: "cool",
 				SubAccount: &types.SubAccountIdentifier{
 					Address: "test2",
-					Metadata: map[string]interface{}{
-						"neater": "stuff",
-					},
+					Metadata: json.RawMessage(`{
+						"neater": "stuff"
+					}`),
 				},
 			},
 			Currency: currency1,

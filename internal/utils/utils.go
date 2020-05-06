@@ -15,11 +15,8 @@
 package utils
 
 import (
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"os"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -44,101 +41,8 @@ func RemoveTempDir(dir string) {
 	}
 }
 
-// AddStringValues adds string amounts using
-// big.Int.
-func AddStringValues(
-	a string,
-	b string,
-) (string, error) {
-	aVal, ok := new(big.Int).SetString(a, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", a)
-	}
-
-	bVal, ok := new(big.Int).SetString(b, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", b)
-	}
-
-	newVal := new(big.Int).Add(aVal, bVal)
-	return newVal.String(), nil
-}
-
-// SubtractStringValues subtracts a-b using
-// big.Int.
-func SubtractStringValues(
-	a string,
-	b string,
-) (string, error) {
-	aVal, ok := new(big.Int).SetString(a, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", a)
-	}
-
-	bVal, ok := new(big.Int).SetString(b, 10)
-	if !ok {
-		return "", fmt.Errorf("%s is not an integer", b)
-	}
-
-	newVal := new(big.Int).Sub(aVal, bVal)
-	return newVal.String(), nil
-}
-
-// AccountString returns a byte slice representing a *types.AccountIdentifier.
-// This byte slice automatically handles the existence of *types.SubAccount
-// detail.
-func AccountString(account *types.AccountIdentifier) string {
-	if account.SubAccount == nil {
-		return account.Address
-	}
-
-	if account.SubAccount.Metadata == nil {
-		return fmt.Sprintf(
-			"%s:%s",
-			account.Address,
-			account.SubAccount.Address,
-		)
-	}
-
-	// TODO: handle SubAccount.Metadata
-	// that contains pointer values.
-	return fmt.Sprintf(
-		"%s:%s:%+v",
-		account.Address,
-		account.SubAccount.Address,
-		account.SubAccount.Metadata,
-	)
-}
-
-// CurrencyString is used to identify a *types.Currency
-// in an account's map of currencies. It is not feasible
-// to create a map of [types.Currency]*types.Amount
-// because types.Currency contains a metadata pointer
-// that would prevent any equality.
-func CurrencyString(currency *types.Currency) string {
-	if currency.Metadata == nil {
-		return fmt.Sprintf("%s:%d", currency.Symbol, currency.Decimals)
-	}
-
-	// TODO: Handle currency.Metadata
-	// that has pointer value.
-	return fmt.Sprintf(
-		"%s:%d:%+v",
-		currency.Symbol,
-		currency.Decimals,
-		currency.Metadata,
-	)
-}
-
-func PrettyPrintStruct(val interface{}) string {
-	prettyStruct, err := json.MarshalIndent(
-		val,
-		"",
-		" ",
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return string(prettyStruct)
+// Equal returns a boolean indicating if two
+// interfaces are equal.
+func Equal(a interface{}, b interface{}) bool {
+	return types.Hash(a) == types.Hash(b)
 }

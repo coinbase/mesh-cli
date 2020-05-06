@@ -19,12 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reflect"
 	"sync"
 	"time"
 
-	// TODO: remove all references to internal packages
-	// before transitioning to rosetta-sdk-go
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -219,8 +216,8 @@ func (r *Reconciler) QueueChanges(
 		skipAccount := false
 		// Look through balance changes for account + currency
 		for _, change := range balanceChanges {
-			if reflect.DeepEqual(change.Account, account.Account) &&
-				reflect.DeepEqual(change.Currency, account.Currency) {
+			if utils.Equal(change.Account, account.Account) &&
+				utils.Equal(change.Currency, account.Currency) {
 				skipAccount = true
 				break
 			}
@@ -326,7 +323,7 @@ func (r *Reconciler) CompareBalance(
 		)
 	}
 
-	difference, err := utils.SubtractStringValues(cachedBalance.Value, amount)
+	difference, err := types.SubtractValues(cachedBalance.Value, amount)
 	if err != nil {
 		return "", "", -1, err
 	}
@@ -626,7 +623,7 @@ func ExtractAmount(
 	currency *types.Currency,
 ) (*types.Amount, error) {
 	for _, b := range balances {
-		if !reflect.DeepEqual(b.Currency, currency) {
+		if !utils.Equal(b.Currency, currency) {
 			continue
 		}
 
@@ -651,8 +648,8 @@ func ContainsAccountCurrency(
 	change *AccountCurrency,
 ) bool {
 	for _, a := range arr {
-		if reflect.DeepEqual(a.Account, change.Account) &&
-			reflect.DeepEqual(a.Currency, change.Currency) {
+		if utils.Equal(a.Account, change.Account) &&
+			utils.Equal(a.Currency, change.Currency) {
 			return true
 		}
 	}
