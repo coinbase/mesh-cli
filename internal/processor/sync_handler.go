@@ -46,7 +46,7 @@ func (h *SyncHandler) BlockAdded(
 	log.Printf("Adding block %+v\n", block.BlockIdentifier)
 
 	// Log processed blocks and balance changes
-	if err := h.logger.BlockStream(ctx, block, false); err != nil {
+	if err := h.logger.AddBlockStream(ctx, block); err != nil {
 		return nil
 	}
 
@@ -68,16 +68,16 @@ func (h *SyncHandler) BlockAdded(
 // block is removed.
 func (h *SyncHandler) BlockRemoved(
 	ctx context.Context,
-	block *types.Block,
+	blockIdentifier *types.BlockIdentifier,
 ) error {
-	log.Printf("Orphaning block %+v\n", block.BlockIdentifier)
+	log.Printf("Orphaning block %+v\n", blockIdentifier)
 
 	// Log processed blocks and balance changes
-	if err := h.logger.BlockStream(ctx, block, true); err != nil {
+	if err := h.logger.RemoveBlockStream(ctx, blockIdentifier); err != nil {
 		return nil
 	}
 
-	balanceChanges, err := h.storage.RemoveBlock(ctx, block)
+	balanceChanges, err := h.storage.RemoveBlock(ctx, blockIdentifier)
 	if err != nil {
 		return err
 	}

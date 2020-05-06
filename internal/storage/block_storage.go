@@ -330,8 +330,13 @@ func (b *BlockStorage) StoreBlock(
 // detection. This is called within a re-org.
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
-	block *types.Block,
+	blockIdentifier *types.BlockIdentifier,
 ) ([]*reconciler.BalanceChange, error) {
+	block, err := b.GetBlock(ctx, blockIdentifier)
+	if err != nil {
+		return nil, err
+	}
+
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 
@@ -422,7 +427,7 @@ func (b *BlockStorage) SetNewStartIndex(
 			return err
 		}
 
-		if _, err = b.RemoveBlock(ctx, block); err != nil {
+		if _, err = b.RemoveBlock(ctx, block.BlockIdentifier); err != nil {
 			return err
 		}
 
@@ -738,8 +743,8 @@ func (b *BlockStorage) BalanceChanges(
 
 // CreateBlockCache populates a slice of blocks with the most recent
 // ones in storage.
-func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.Block {
-	cache := []*types.Block{}
+func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdentifier {
+	cache := []*types.BlockIdentifier{}
 	head, err := b.GetHeadBlockIdentifier(ctx)
 	if err != nil {
 		return cache
@@ -753,7 +758,7 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.Block {
 
 		log.Printf("Added %+v to cache\n", block.BlockIdentifier)
 
-		cache = append([]*types.Block{block}, cache...)
+		cache = append([]*types.BlockIdentifier{block.BlockIdentifier}, cache...)
 		head = block.ParentBlockIdentifier
 	}
 

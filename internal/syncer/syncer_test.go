@@ -170,7 +170,7 @@ var (
 )
 
 func lastBlockIdentifier(syncer *Syncer) *types.BlockIdentifier {
-	return syncer.blockCache[len(syncer.blockCache)-1].BlockIdentifier
+	return syncer.pastBlocks[len(syncer.pastBlocks)-1]
 }
 
 func TestProcessBlock(t *testing.T) {
@@ -178,13 +178,12 @@ func TestProcessBlock(t *testing.T) {
 
 	syncer := New(networkIdentifier, nil, &MockSyncHandler{}, nil, nil)
 	syncer.genesisBlock = blockSequence[0].BlockIdentifier
-	syncer.blockCache = []*types.Block{}
 
 	t.Run("No block exists", func(t *testing.T) {
 		assert.Equal(
 			t,
-			[]*types.Block{},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{},
+			syncer.pastBlocks,
 		)
 		err := syncer.processBlock(
 			ctx,
@@ -195,8 +194,8 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
 		)
 	})
 
@@ -211,8 +210,8 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
 		)
 	})
 
@@ -226,8 +225,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[1].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0], blockSequence[1]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[1].BlockIdentifier,
+			},
+			syncer.pastBlocks,
 		)
 	})
 
@@ -241,8 +243,8 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
 		)
 
 		err = syncer.processBlock(
@@ -254,8 +256,11 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[3].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0], blockSequence[3]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+			},
+			syncer.pastBlocks,
 		)
 
 		err = syncer.processBlock(
@@ -267,8 +272,12 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0], blockSequence[3], blockSequence[2]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+				blockSequence[2].BlockIdentifier,
+			},
+			syncer.pastBlocks,
 		)
 	})
 
@@ -282,8 +291,12 @@ func TestProcessBlock(t *testing.T) {
 		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
 		assert.Equal(
 			t,
-			[]*types.Block{blockSequence[0], blockSequence[3], blockSequence[2]},
-			syncer.blockCache,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+				blockSequence[2].BlockIdentifier,
+			},
+			syncer.pastBlocks,
 		)
 	})
 }
@@ -299,7 +312,7 @@ func (h *MockSyncHandler) BlockAdded(
 
 func (h *MockSyncHandler) BlockRemoved(
 	ctx context.Context,
-	block *types.Block,
+	block *types.BlockIdentifier,
 ) error {
 	return nil
 }

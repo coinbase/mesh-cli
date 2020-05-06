@@ -45,7 +45,7 @@ type SyncHandler interface {
 
 	BlockRemoved(
 		ctx context.Context,
-		block *types.Block,
+		block *types.BlockIdentifier,
 	) error
 }
 
@@ -66,7 +66,7 @@ type Syncer struct {
 	//
 	// If a blockchain does not have reorgs, it is not necessary to populate
 	// the blockCache on creation.
-	blockCache []*types.Block
+	pastBlocks []*types.BlockIdentifier
 }
 
 func New(
@@ -74,11 +74,11 @@ func New(
 	fetcher *fetcher.Fetcher,
 	handler SyncHandler,
 	cancel context.CancelFunc,
-	blockCache []*types.Block,
+	pastBlocks []*types.BlockIdentifier,
 ) *Syncer {
-	cache := blockCache
-	if cache == nil {
-		cache = []*types.Block{}
+	past := pastBlocks
+	if past == nil {
+		past = []*types.BlockIdentifier{}
 	}
 
 	return &Syncer{
@@ -86,7 +86,7 @@ func New(
 		fetcher:    fetcher,
 		handler:    handler,
 		cancel:     cancel,
-		blockCache: cache,
+		pastBlocks: past,
 	}
 }
 
@@ -151,8 +151,8 @@ func (s *Syncer) nextSyncableRange(
 
 func (s *Syncer) checkRemove(
 	block *types.Block,
-) (bool, *types.Block, error) {
-	if len(s.blockCache) == 0 {
+) (bool, *types.BlockIdentifier, error) {
+	if len(s.pastBlocks) == 0 {
 		return false, nil, nil
 	}
 
@@ -166,9 +166,9 @@ func (s *Syncer) checkRemove(
 	}
 
 	// Check if block parent is head
-	lastBlock := s.blockCache[len(s.blockCache)-1]
-	if !utils.Equal(block.ParentBlockIdentifier, lastBlock.BlockIdentifier) {
-		if utils.Equal(s.genesisBlock, lastBlock.BlockIdentifier) {
+	lastBlock := s.pastBlocks[len(s.pastBlocks)-1]
+	if !utils.Equal(block.ParentBlockIdentifier, lastBlock) {
+		if utils.Equal(s.genesisBlock, lastBlock) {
 			return false, nil, fmt.Errorf("cannot remove genesis block")
 		}
 
@@ -192,8 +192,8 @@ func (s *Syncer) processBlock(
 		if err != nil {
 			return err
 		}
-		s.blockCache = s.blockCache[:len(s.blockCache)-1]
-		s.nextIndex = lastBlock.BlockIdentifier.Index
+		s.pastBlocks = s.pastBlocks[:len(s.pastBlocks)-1]
+		s.nextIndex = lastBlock.Index
 		return nil
 	}
 
@@ -202,9 +202,9 @@ func (s *Syncer) processBlock(
 		return err
 	}
 
-	s.blockCache = append(s.blockCache, block)
-	if len(s.blockCache) > ReorgCache {
-		s.blockCache = s.blockCache[1:]
+	s.pastBlocks = append(s.pastBlocks, block.BlockIdentifier)
+	if len(s.pastBlocks) > ReorgCache {
+		s.pastBlocks = s.pastBlocks[1:]
 	}
 	s.nextIndex = block.BlockIdentifier.Index + 1
 	return nil

@@ -84,12 +84,11 @@ func NewLogger(
 	}
 }
 
-// BlockStream writes the next processed block to the end of the
+// AddBlockStream writes the next processed block to the end of the
 // blockStreamFile output file.
-func (l *Logger) BlockStream(
+func (l *Logger) AddBlockStream(
 	ctx context.Context,
 	block *types.Block,
-	orphan bool,
 ) error {
 	if !l.logBlocks {
 		return nil
@@ -105,14 +104,9 @@ func (l *Logger) BlockStream(
 	}
 	defer f.Close()
 
-	verb := addEvent
-	if orphan {
-		verb = removeEvent
-	}
-
 	_, err = f.WriteString(fmt.Sprintf(
 		"%s Block %d:%s with Parent Block %d:%s\n",
-		verb,
+		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
@@ -122,7 +116,40 @@ func (l *Logger) BlockStream(
 		return err
 	}
 
-	return l.TransactionStream(ctx, block, verb)
+	return l.TransactionStream(ctx, block)
+}
+
+// RemoveBlockStream writes the next processed block to the end of the
+// blockStreamFile output file.
+func (l *Logger) RemoveBlockStream(
+	ctx context.Context,
+	block *types.BlockIdentifier,
+) error {
+	if !l.logBlocks {
+		return nil
+	}
+
+	f, err := os.OpenFile(
+		path.Join(l.logDir, blockStreamFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		logFilePermissions,
+	)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf(
+		"%s Block %d:%s\n",
+		removeEvent,
+		block.Index,
+		block.Hash,
+	))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // TransactionStream writes the next processed block's transactions
@@ -130,7 +157,6 @@ func (l *Logger) BlockStream(
 func (l *Logger) TransactionStream(
 	ctx context.Context,
 	block *types.Block,
-	verb string,
 ) error {
 	if !l.logTransactions {
 		return nil
@@ -148,8 +174,7 @@ func (l *Logger) TransactionStream(
 
 	for _, tx := range block.Transactions {
 		_, err = f.WriteString(fmt.Sprintf(
-			"%s Transaction %s at Block %d:%s\n",
-			verb,
+			"Transaction %s at Block %d:%s\n",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,

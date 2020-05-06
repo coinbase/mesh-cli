@@ -229,7 +229,7 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
-		_, err := storage.RemoveBlock(ctx, newBlock)
+		_, err := storage.RemoveBlock(ctx, newBlock.BlockIdentifier)
 		assert.NoError(t, err)
 
 		head, err := storage.GetHeadBlockIdentifier(ctx)
@@ -1002,19 +1002,27 @@ func TestCreateBlockCache(t *testing.T) {
 	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
 
 	t.Run("no blocks processed", func(t *testing.T) {
-		assert.Equal(t, []*types.Block{}, storage.CreateBlockCache(ctx))
+		assert.Equal(t, []*types.BlockIdentifier{}, storage.CreateBlockCache(ctx))
 	})
 
 	t.Run("1 block processed", func(t *testing.T) {
 		_, err = storage.StoreBlock(ctx, newBlock)
 		assert.NoError(t, err)
-		assert.Equal(t, []*types.Block{newBlock}, storage.CreateBlockCache(ctx))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier},
+			storage.CreateBlockCache(ctx),
+		)
 	})
 
 	t.Run("2 blocks processed", func(t *testing.T) {
 		_, err = storage.StoreBlock(ctx, newBlock3)
 		assert.NoError(t, err)
-		assert.Equal(t, []*types.Block{newBlock, newBlock3}, storage.CreateBlockCache(ctx))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock3.BlockIdentifier},
+			storage.CreateBlockCache(ctx),
+		)
 	})
 }
 

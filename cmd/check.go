@@ -367,10 +367,10 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	// If previously processed blocks exist in storage, they are fetched.
 	// Otherwise, none are provided to the cache (the syncer will not attempt
 	// a reorg if the cache is empty).
-	blockCache := []*types.Block{}
+	pastBlocks := []*types.BlockIdentifier{}
 	if StartIndex != -1 {
 		// This is the case if blocks already in storage or if stateless start
-		blockCache = blockStorage.CreateBlockCache(ctx)
+		pastBlocks = blockStorage.CreateBlockCache(ctx)
 	}
 
 	syncer := syncer.New(
@@ -378,7 +378,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		fetcher,
 		syncHandler,
 		cancel,
-		blockCache,
+		pastBlocks,
 	)
 
 	g.Go(func() error {
