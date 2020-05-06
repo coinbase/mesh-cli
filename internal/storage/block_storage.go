@@ -419,6 +419,10 @@ func (b *BlockStorage) SetNewStartIndex(
 		return err
 	}
 
+	if head.Index < startIndex {
+		return fmt.Errorf("last processed block %d is less than start index %d", head.Index, startIndex)
+	}
+
 	currBlock := head
 	for currBlock.Index >= startIndex {
 		log.Printf("Removing block %+v\n", currBlock)
