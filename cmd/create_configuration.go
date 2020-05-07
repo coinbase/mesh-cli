@@ -28,16 +28,27 @@ import (
 )
 
 const (
+	// fileMode 0600 indicates that the user/owner can read and write
+	// but can't execute.
 	fileMode = 0600
 )
 
 var (
 	createConfigurationCmd = &cobra.Command{
 		Use:   "create:configuration",
-		Short: "",
-		Long:  ``,
-		Run:   runCreateConfigurationCmd,
-		Args:  cobra.ExactArgs(1),
+		Short: "Generate a static configuration file for the Asserter",
+		Long: `In production deployments, it is useful to initialize the response
+Asserter (https://github.com/coinbase/rosetta-sdk-go/tree/master/asserter) using
+a static configuration instead of intializing a configuration dynamically
+from the node. This allows a client to error on new types/statuses that may
+have been added in an update instead of silently erroring.
+
+To use this command, simply provide an absolute path as the argument for where
+the configuration file should be saved (in JSON). Populate the optional
+--server-url flag with the url of the server to generate the configuration
+from.`,
+		Run:  runCreateConfigurationCmd,
+		Args: cobra.ExactArgs(1),
 	}
 )
 

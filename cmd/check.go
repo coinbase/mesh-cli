@@ -49,15 +49,36 @@ const (
 var (
 	checkCmd = &cobra.Command{
 		Use:   "check",
-		Short: "Run a full check of the correctness of a Rosetta server",
+		Short: "Check the correctness of a Rosetta Node API Server",
 		Long: `Check all server responses are properly constructed, that
 there are no duplicate blocks and transactions, that blocks can be processed
 from genesis to the current block (re-orgs handled automatically), and that
 computed balance changes are equal to balance changes reported by the node.
 
-When re-running this command, it will start where it left off. If you want
-to discard some number of blocks populate the --start flag with some block
-index less than the last computed block index.`,
+When re-running this command, it will start where it left off if you specify
+some --data-dir. Otherwise, it will create a new temporary directory and start
+again from the genesis block. If you want to discard some number of blocks
+populate the --start flag with some block index. Starting from a given index
+can be useful to debug a small range of blocks for issues but it is highly
+recommended you sync from start to finish to ensure all correctness checks
+are performed.
+
+By default, account balances are looked up at specific heights (instead of
+only at the current block). If your node does not support this functionality
+set --lookup-balance-by-block to false. This will make reconciliation much
+less efficient but it will still work.
+
+To debug an INACTIVE account reconciliation error, set the
+--interesting-accounts flag to the absolute path of a JSON file containing
+accounts that will be actively checked for balance changes at each block. This
+will return an error at the block where a balance change occurred with no
+corresponding operations.
+
+If your blockchain has a genesis allocation of funds and you set
+--lookup-balance-by-block to false, you must provide an
+absolute path to a JSON file containing initial balances with the
+--bootstrap-balances flag. You can look at the examples folder for an example
+of what one of these files looks like.`,
 		Run: runCheckCmd,
 	}
 

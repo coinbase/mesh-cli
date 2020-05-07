@@ -28,10 +28,18 @@ import (
 var (
 	viewBlockCmd = &cobra.Command{
 		Use:   "view:block",
-		Short: "",
-		Long:  ``,
-		Run:   runViewBlockCmd,
-		Args:  cobra.ExactArgs(1),
+		Short: "View a block",
+		Long: `While debugging a Node API implementation, it can be very
+useful to inspect block contents. This command allows you to fetch any
+block by index to inspect its contents. It uses the
+fetcher (https://github.com/coinbase/rosetta-sdk-go/tree/master/fetcher) package
+to automatically get all transactions in the block and assert the format
+of the block is correct before printing.
+
+If this command errors, it is likely because the block you are trying to
+fetch is formatted incorrectly.`,
+		Run:  runViewBlockCmd,
+		Args: cobra.ExactArgs(1),
 	}
 )
 

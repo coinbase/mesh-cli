@@ -572,7 +572,7 @@ func (r *Reconciler) reconcileInactiveAccounts(
 		if err != nil {
 			time.Sleep(inactiveReconciliationSleep)
 			log.Printf(
-				"%s: unable to get current block for inactive reconciliation\n",
+				"%s: waiting to start inactive reconciliation until current block set\n",
 				err.Error(),
 			)
 			continue

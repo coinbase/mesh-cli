@@ -30,10 +30,17 @@ import (
 var (
 	viewAccountCmd = &cobra.Command{
 		Use:   "view:account",
-		Short: "",
-		Long:  ``,
-		Run:   runViewAccountCmd,
-		Args:  cobra.MinimumNArgs(1),
+		Short: "View an account balance",
+		Long: `While debugging, it is often useful to inspect the state
+of an account at a certain block. This command allows you to look up
+any account by providing a JSON representation of a types.AccountIdentifier
+(and optionally a height to perform the query).
+
+For example, you could run view:account '{"address":"interesting address"}' 1000
+to lookup the balance of an interesting address at block 1000. Allowing the
+address to specified as JSON allows for querying by SubAccountIdentifier.`,
+		Run:  runViewAccountCmd,
+		Args: cobra.MinimumNArgs(1),
 	}
 )
 
@@ -55,10 +62,6 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// Initialize the fetcher's asserter
-	//
-	// Behind the scenes this makes a call to get the
-	// network status and uses the response to inform
-	// the asserter what are valid responses.
 	primaryNetwork, _, err := newFetcher.InitializeAsserter(ctx)
 	if err != nil {
 		log.Fatal(err)
