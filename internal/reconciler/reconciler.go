@@ -239,7 +239,7 @@ func (r *Reconciler) QueueChanges(
 		balanceChanges = append(balanceChanges, &BalanceChange{
 			Account:    account.Account,
 			Currency:   account.Currency,
-			Difference: "0",
+			Difference: zeroString,
 			Block:      block,
 		})
 	}

@@ -380,7 +380,6 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		logger,
 		r,
 		fetcher,
-		exemptAccounts,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

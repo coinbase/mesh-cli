@@ -2,6 +2,11 @@
 	check-license shorten-lines salus validate watch-blocks \
 	watch-transactions watch-balances watch-reconciliations \
 	view-block-benchmarks view-account-benchmarks
+
+# To run the the following packages as commands,
+# it is necessary to use `go run <pkg>`. Running `go get` does
+# not install any binaries that could be used to run
+# the commands directly.
 ADDLICENSE_CMD=go run github.com/google/addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 GOLINES_CMD=go run github.com/segmentio/golines

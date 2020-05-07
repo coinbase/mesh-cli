@@ -32,8 +32,6 @@ type SyncerHandler struct {
 	logger     *logger.Logger
 	reconciler *reconciler.Reconciler
 	fetcher    *fetcher.Fetcher
-
-	exemptAccounts []*reconciler.AccountCurrency
 }
 
 // NewSyncerHandler returns a new SyncerHandler.
@@ -42,14 +40,12 @@ func NewSyncerHandler(
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
 	fetcher *fetcher.Fetcher,
-	exemptAccounts []*reconciler.AccountCurrency,
 ) *SyncerHandler {
 	return &SyncerHandler{
-		storage:        storage,
-		logger:         logger,
-		reconciler:     reconciler,
-		fetcher:        fetcher,
-		exemptAccounts: exemptAccounts,
+		storage:    storage,
+		logger:     logger,
+		reconciler: reconciler,
+		fetcher:    fetcher,
 	}
 }
 
