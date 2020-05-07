@@ -10,6 +10,8 @@ github.com/coinbase/rosetta-sdk-go v0.1.6 h1:l6vyt+Gad7TWIy2Tf7giXO8jniBcLPhhW60
 github.com/coinbase/rosetta-sdk-go v0.1.6/go.mod h1:lbmGsBpBiSZWP4WQqEW2CuTweGcU/ioQHwZ8CYo6yO8=
 github.com/coinbase/rosetta-sdk-go v0.1.7 h1:4NRMHWPSpmFNohtzQ/Nv9wsPLBEbgccNBbjwZTG1Owk=
 github.com/coinbase/rosetta-sdk-go v0.1.7/go.mod h1:lbmGsBpBiSZWP4WQqEW2CuTweGcU/ioQHwZ8CYo6yO8=
+github.com/coinbase/rosetta-sdk-go v0.1.8 h1:YJf5Us7Pl4G8CRBZ5+LEUIV4k9ZI/18nFloPaHBySFk=
+github.com/coinbase/rosetta-sdk-go v0.1.8/go.mod h1:y1wXRc1wod4fEp3jhW+9D6MSFtnm/9X5yNxJv92Cv2E=
 github.com/coinbase/rosetta-validator v0.1.2 h1:d1i/XuZu3tPEnc/HKLzixK0yXbMyg5UEzS2qba7tv5I=
 github.com/coinbase/rosetta-validator v0.1.2/go.mod h1:SgJPFHi1Ikr+tC5MkUhkrnLQKLT0Qzf7g+s1rnZ3kGo=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
@@ -35,6 +37,8 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
+github.com/mitchellh/mapstructure v1.3.0 h1:iDwIio/3gk2QtLLEsqU5lInaMzos0hDTz8a6lazSFVw=
+github.com/mitchellh/mapstructure v1.3.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

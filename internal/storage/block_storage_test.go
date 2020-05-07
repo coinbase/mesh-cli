@@ -268,36 +268,36 @@ func TestBalance(t *testing.T) {
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: json.RawMessage(`{
-					"cool": "hello"
-				}`),
+				Metadata: map[string]interface{}{
+					"cool": "hello",
+				},
 			},
 		}
 		subAccountMetadataNewPointer = &types.AccountIdentifier{
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: json.RawMessage(`{
-					"cool": "hello"
-				}`),
+				Metadata: map[string]interface{}{
+					"cool": "hello",
+				},
 			},
 		}
 		subAccountMetadata2 = &types.AccountIdentifier{
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: json.RawMessage(`{
-					"cool": 10
-				}`),
+				Metadata: map[string]interface{}{
+					"cool": 10,
+				},
 			},
 		}
 		subAccountMetadata2NewPointer = &types.AccountIdentifier{
 			Address: "blah",
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
-				Metadata: json.RawMessage(`{
-					"cool": 10
-				}`),
+				Metadata: map[string]interface{}{
+					"cool": 10,
+				},
 			},
 		}
 		currency = &types.Currency{

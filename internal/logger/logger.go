@@ -192,10 +192,7 @@ func (l *Logger) TransactionStream(
 			}
 			participant := ""
 			if op.Account != nil {
-				participant, err = types.AccountString(op.Account)
-				if err != nil {
-					return err
-				}
+				participant = types.AccountString(op.Account)
 			}
 
 			networkIndex := op.OperationIdentifier.Index
@@ -243,16 +240,11 @@ func (l *Logger) BalanceStream(
 	defer f.Close()
 
 	for _, balanceChange := range balanceChanges {
-		currencyString, err := types.CurrencyString(balanceChange.Currency)
-		if err != nil {
-			return err
-		}
-
 		balanceLog := fmt.Sprintf(
 			"Account: %s Change: %s:%s Block: %d:%s",
 			balanceChange.Account.Address,
 			balanceChange.Difference,
-			currencyString,
+			types.CurrencyString(balanceChange.Currency),
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
@@ -288,28 +280,18 @@ func (l *Logger) ReconcileSuccessStream(
 	}
 	defer f.Close()
 
-	accountString, err := types.AccountString(account)
-	if err != nil {
-		return err
-	}
-
 	log.Printf(
 		"%s Reconciled %s at %d\n",
 		reconciliationType,
-		accountString,
+		types.AccountString(account),
 		block.Index,
 	)
-
-	currencyString, err := types.CurrencyString(currency)
-	if err != nil {
-		return err
-	}
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
 		reconciliationType,
-		accountString,
-		currencyString,
+		types.AccountString(account),
+		types.CurrencyString(currency),
 		balance,
 		block.Index,
 		block.Hash,
@@ -333,15 +315,10 @@ func (l *Logger) ReconcileFailureStream(
 	block *types.BlockIdentifier,
 ) error {
 	// Always print out reconciliation failures
-	accountString, err := types.AccountString(account)
-	if err != nil {
-		return err
-	}
-
 	log.Printf(
 		"%s Reconciliation failed for %s at %d computed: %s node: %s\n",
 		reconciliationType,
-		accountString,
+		types.AccountString(account),
 		block.Index,
 		computedBalance,
 		nodeBalance,
@@ -361,16 +338,11 @@ func (l *Logger) ReconcileFailureStream(
 	}
 	defer f.Close()
 
-	currencyString, err := types.CurrencyString(currency)
-	if err != nil {
-		return err
-	}
-
 	_, err = f.WriteString(fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s node: %s\n",
 		reconciliationType,
-		accountString,
-		currencyString,
+		types.AccountString(account),
+		types.CurrencyString(currency),
 		block.Hash,
 		block.Index,
 		computedBalance,
