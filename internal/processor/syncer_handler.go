@@ -26,7 +26,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-type SyncHandler struct {
+// SyncerHandler implements the syncer.Handler interface.
+type SyncerHandler struct {
 	storage    *storage.BlockStorage
 	logger     *logger.Logger
 	reconciler *reconciler.Reconciler
@@ -35,14 +36,15 @@ type SyncHandler struct {
 	exemptAccounts []*reconciler.AccountCurrency
 }
 
-func NewSyncHandler(
+// NewSyncerHandler returns a new SyncerHandler.
+func NewSyncerHandler(
 	storage *storage.BlockStorage,
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
 	fetcher *fetcher.Fetcher,
 	exemptAccounts []*reconciler.AccountCurrency,
-) *SyncHandler {
-	return &SyncHandler{
+) *SyncerHandler {
+	return &SyncerHandler{
 		storage:        storage,
 		logger:         logger,
 		reconciler:     reconciler,
@@ -53,7 +55,7 @@ func NewSyncHandler(
 
 // BlockAdded is called by the syncer after a
 // block is added.
-func (h *SyncHandler) BlockAdded(
+func (h *SyncerHandler) BlockAdded(
 	ctx context.Context,
 	block *types.Block,
 ) error {
@@ -80,7 +82,7 @@ func (h *SyncHandler) BlockAdded(
 
 // BlockRemoved is called by the syncer after a
 // block is removed.
-func (h *SyncHandler) BlockRemoved(
+func (h *SyncerHandler) BlockRemoved(
 	ctx context.Context,
 	blockIdentifier *types.BlockIdentifier,
 ) error {

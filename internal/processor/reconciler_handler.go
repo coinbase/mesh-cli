@@ -23,12 +23,14 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+// ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	cancel                    context.CancelFunc
 	logger                    *logger.Logger
 	haltOnReconciliationError bool
 }
 
+// NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
 	cancel context.CancelFunc,
 	logger *logger.Logger,
@@ -41,6 +43,9 @@ func NewReconcilerHandler(
 	}
 }
 
+// ReconciliationFailed is called each time a reconciliation fails.
+// In this Handler implementation, we halt if haltOnReconciliationError
+// was set to true. We also cancel the context.
 func (h *ReconcilerHandler) ReconciliationFailed(
 	ctx context.Context,
 	reconciliationType string,
@@ -75,6 +80,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	return nil
 }
 
+// ReconciliationSucceeded is called each time a reconciliation succeeds.
 func (h *ReconcilerHandler) ReconciliationSucceeded(
 	ctx context.Context,
 	reconciliationType string,

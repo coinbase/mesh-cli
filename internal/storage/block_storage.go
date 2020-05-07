@@ -118,19 +118,23 @@ func getHashKey(hash string, isBlock bool) []byte {
 	return hashBytes(fmt.Sprintf("%s:%s", transactionHashNamespace, hash))
 }
 
+// GetBalanceKey returns a deterministic hash of an types.Account + types.Currency.
 func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) []byte {
 	return hashBytes(
 		fmt.Sprintf("%s/%s/%s", balanceNamespace, types.Hash(account), types.Hash(currency)),
 	)
 }
 
+// Helper functions are used by BlockStorage to process blocks. Defining an
+// interface allows the client to determine if they wish to query the node for
+// certain information or use another datastore.
 type Helper interface {
 	AccountBalance(
 		ctx context.Context,
 		account *types.AccountIdentifier,
 		currency *types.Currency,
 		block *types.BlockIdentifier,
-	) (*types.Amount, error) // returns an error if lookupBalanceByBlock disabled
+	) (*types.Amount, error)
 
 	SkipOperation(
 		ctx context.Context,
@@ -407,6 +411,8 @@ func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
 	return &bal, nil
 }
 
+// SetNewStartIndex attempts to remove all blocks
+// greater than or equal to the startIndex.
 func (b *BlockStorage) SetNewStartIndex(
 	ctx context.Context,
 	startIndex int64,
@@ -445,6 +451,8 @@ func (b *BlockStorage) SetNewStartIndex(
 	return nil
 }
 
+// SetBalance allows a client to set the balance of an account in a database
+// transaction. This is particularly useful for bootstrapping balances.
 func (b *BlockStorage) SetBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
@@ -758,7 +766,7 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 		return cache
 	}
 
-	for len(cache) < syncer.ReorgCache {
+	for len(cache) < syncer.PastBlockSize {
 		block, err := b.GetBlock(ctx, head)
 		if err != nil {
 			return cache

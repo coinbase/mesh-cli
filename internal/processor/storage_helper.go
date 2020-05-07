@@ -25,6 +25,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+// BlockStorageHelper implements the storage.Helper
+// interface.
 type BlockStorageHelper struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
@@ -34,6 +36,7 @@ type BlockStorageHelper struct {
 	exemptAccounts       []*reconciler.AccountCurrency
 }
 
+// NewBlockStorageHelper returns a new BlockStorageHelper.
 func NewBlockStorageHelper(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
@@ -48,6 +51,10 @@ func NewBlockStorageHelper(
 	}
 }
 
+// AccountBalance attempts to fetch the balance
+// for a missing account in storage. This is necessary
+// for running the "check" command at an arbitrary height
+// instead of syncing from genesis.
 func (h *BlockStorageHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,

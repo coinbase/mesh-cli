@@ -354,7 +354,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		interestingAccounts,
 	)
 
-	syncHandler := processor.NewSyncHandler(
+	syncerHandler := processor.NewSyncerHandler(
 		blockStorage,
 		logger,
 		r,
@@ -381,7 +381,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	syncer := syncer.New(
 		primaryNetwork,
 		fetcher,
-		syncHandler,
+		syncerHandler,
 		cancel,
 		pastBlocks,
 	)

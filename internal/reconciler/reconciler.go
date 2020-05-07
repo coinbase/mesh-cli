@@ -100,6 +100,11 @@ type BalanceChange struct {
 	Difference string                   `json:"difference,omitempty"`
 }
 
+// Helper functions are used by Reconciler to compare
+// computed balances from a block with the balance calculated
+// by the node. Defining an interface allows the client to determine
+// what sort of storage layer they want to use to provide the required
+// information.
 type Helper interface {
 	BlockExists(
 		ctx context.Context,
@@ -118,6 +123,9 @@ type Helper interface {
 	) (*types.Amount, *types.BlockIdentifier, error)
 }
 
+// Handler is called by Reconciler after a reconciliation
+// is performed. When a reconciliation failure is observed,
+// it is up to the client to halt syncing or log the result.
 type Handler interface {
 	ReconciliationFailed(
 		ctx context.Context,

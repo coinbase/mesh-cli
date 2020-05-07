@@ -31,10 +31,16 @@ const (
 	// to try and sync in a given SyncCycle.
 	maxSync = 999
 
-	ReorgCache = 20
+	// PastBlockSize is the maximum number of previously
+	// processed blocks we keep in the syncer to handle
+	// reorgs correctly. If there is a reorg greater than
+	// PastBlockSize, it will not be handled correctly.
+	//
+	// TODO: make configurable
+	PastBlockSize = 20
 )
 
-// SyncHandler is called at various times during the sync cycle
+// Handler is called at various times during the sync cycle
 // to handle different events. It is common to write logs or
 // perform reconciliation in the sync processor.
 type Handler interface {
@@ -49,6 +55,12 @@ type Handler interface {
 	) error
 }
 
+// Syncer coordinates blockchain syncing without relying on
+// a storage interface. Instead, it calls a provided Handler
+// whenever a block is added or removed. This provides the client
+// the opportunity to define the logic used to handle each new block.
+// In the rosetta-cli, we handle reconciliation, state storage, and
+// logging in the handler.
 type Syncer struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
@@ -69,6 +81,8 @@ type Syncer struct {
 	pastBlocks []*types.BlockIdentifier
 }
 
+// New creates a new Syncer. If pastBlocks is left nil, it will
+// be set to an empty slice.
 func New(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
@@ -203,7 +217,7 @@ func (s *Syncer) processBlock(
 	}
 
 	s.pastBlocks = append(s.pastBlocks, block.BlockIdentifier)
-	if len(s.pastBlocks) > ReorgCache {
+	if len(s.pastBlocks) > PastBlockSize {
 		s.pastBlocks = s.pastBlocks[1:]
 	}
 	s.nextIndex = block.BlockIdentifier.Index + 1

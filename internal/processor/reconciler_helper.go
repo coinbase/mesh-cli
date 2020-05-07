@@ -23,10 +23,13 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+// ReconcilerHelper implements the Reconciler.Helper
+// interface.
 type ReconcilerHelper struct {
 	storage *storage.BlockStorage
 }
 
+// NewReconcilerHelper returns a new ReconcilerHelper.
 func NewReconcilerHelper(
 	storage *storage.BlockStorage,
 ) *ReconcilerHelper {
@@ -35,6 +38,10 @@ func NewReconcilerHelper(
 	}
 }
 
+// BlockExists returns a boolean indicating if block_storage
+// contains a block. This is necessary to reconcile across
+// reorgs. If the block returned on an account balance fetch
+// does not exist, reconciliation will be skipped.
 func (h *ReconcilerHelper) BlockExists(
 	ctx context.Context,
 	block *types.BlockIdentifier,
@@ -51,12 +58,18 @@ func (h *ReconcilerHelper) BlockExists(
 	return false, err
 }
 
+// CurrentBlock returns the last processed block and is used
+// to determine which block to check account balances at during
+// inactive reconciliation.
 func (h *ReconcilerHelper) CurrentBlock(
 	ctx context.Context,
 ) (*types.BlockIdentifier, error) {
 	return h.storage.GetHeadBlockIdentifier(ctx)
 }
 
+// AccountBalance returns the balance of an account in block storage.
+// It is necessary to perform this check outside of the Reconciler
+// package to allow for separation from a default storage backend.
 func (h *ReconcilerHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
