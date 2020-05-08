@@ -2,15 +2,19 @@
 	check-license shorten-lines salus validate watch-blocks \
 	watch-transactions watch-balances watch-reconciliations \
 	view-block-benchmarks view-account-benchmarks
-LICENCE_SCRIPT=addlicense -c "Coinbase, Inc." -l "apache" -v
+
+# To run the the following packages as commands,
+# it is necessary to use `go run <pkg>`. Running `go get` does
+# not install any binaries that could be used to run
+# the commands directly.
+ADDLICENSE_CMD=go run github.com/google/addlicense
+ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
+GOLINES_CMD=go run github.com/segmentio/golines
+GOVERALLS_CMD=go run github.com/mattn/goveralls
 TEST_SCRIPT=go test -v ./internal/...
 
 deps:
 	go get ./...
-	go get github.com/stretchr/testify
-	go get github.com/google/addlicense
-	go get github.com/segmentio/golines
-	go get github.com/mattn/goveralls
 
 lint:
 	golangci-lint run -v \
@@ -27,16 +31,16 @@ test:
 
 test-cover:	
 	${TEST_SCRIPT} -coverprofile=c.out -covermode=count
-	goveralls -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}
+	${GOVERALLS_CMD} -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}
 
 add-license:
-	${LICENCE_SCRIPT} .
+	${ADDLICENCE_SCRIPT} .
 
 check-license:
-	${LICENCE_SCRIPT} -check .
+	${ADDLICENCE_SCRIPT} -check .
 
 shorten-lines:
-	golines -w --shorten-comments internal cmd
+	${GOLINES_CMD} -w --shorten-comments internal cmd
 
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus

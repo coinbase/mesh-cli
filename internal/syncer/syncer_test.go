@@ -18,217 +18,315 @@ import (
 	"context"
 	"testing"
 
-	"github.com/coinbase/rosetta-cli/internal/reconciler"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-
-	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
+
 	"github.com/stretchr/testify/assert"
 )
 
-func simpleTransactionFactory(
-	hash string,
-	address string,
-	value string,
-	currency *types.Currency,
-) *types.Transaction {
-	return &types.Transaction{
+var (
+	networkIdentifier = &types.NetworkIdentifier{
+		Blockchain: "blah",
+		Network:    "testnet",
+	}
+
+	currency = &types.Currency{
+		Symbol:   "Blah",
+		Decimals: 2,
+	}
+
+	recipient = &types.AccountIdentifier{
+		Address: "acct1",
+	}
+
+	recipientAmount = &types.Amount{
+		Value:    "100",
+		Currency: currency,
+	}
+
+	recipientOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
+			Index: 0,
+		},
+		Type:    "Transfer",
+		Status:  "Success",
+		Account: recipient,
+		Amount:  recipientAmount,
+	}
+
+	recipientFailureOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
+			Index: 1,
+		},
+		Type:    "Transfer",
+		Status:  "Failure",
+		Account: recipient,
+		Amount:  recipientAmount,
+	}
+
+	recipientTransaction = &types.Transaction{
 		TransactionIdentifier: &types.TransactionIdentifier{
-			Hash: hash,
+			Hash: "tx1",
 		},
 		Operations: []*types.Operation{
-			{
-				OperationIdentifier: &types.OperationIdentifier{
-					Index: 0,
-				},
-				Type:   "Transfer",
-				Status: "Success",
-				Account: &types.AccountIdentifier{
-					Address: address,
-				},
-				Amount: &types.Amount{
-					Value:    value,
-					Currency: currency,
-				},
+			recipientOperation,
+			recipientFailureOperation,
+		},
+	}
+
+	sender = &types.AccountIdentifier{
+		Address: "acct2",
+	}
+
+	senderAmount = &types.Amount{
+		Value:    "-100",
+		Currency: currency,
+	}
+
+	senderOperation = &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
+			Index: 0,
+		},
+		Type:    "Transfer",
+		Status:  "Success",
+		Account: sender,
+		Amount:  senderAmount,
+	}
+
+	senderTransaction = &types.Transaction{
+		TransactionIdentifier: &types.TransactionIdentifier{
+			Hash: "tx2",
+		},
+		Operations: []*types.Operation{
+			senderOperation,
+		},
+	}
+
+	orphanGenesis = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "1",
+			Index: 1,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "0a",
+			Index: 0,
+		},
+		Transactions: []*types.Transaction{},
+	}
+
+	blockSequence = []*types.Block{
+		{ // genesis
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "0",
+				Index: 0,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "0",
+				Index: 0,
+			},
+		},
+		{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "1",
+				Index: 1,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "0",
+				Index: 0,
+			},
+			Transactions: []*types.Transaction{
+				recipientTransaction,
+			},
+		},
+		{ // reorg
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "2",
+				Index: 2,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "1a",
+				Index: 1,
+			},
+		},
+		{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "1a",
+				Index: 1,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "0",
+				Index: 0,
+			},
+		},
+		{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "3",
+				Index: 3,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "2",
+				Index: 2,
+			},
+			Transactions: []*types.Transaction{
+				senderTransaction,
+			},
+		},
+		{ // invalid block
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "5",
+				Index: 5,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "4",
+				Index: 4,
 			},
 		},
 	}
+)
+
+func lastBlockIdentifier(syncer *Syncer) *types.BlockIdentifier {
+	return syncer.pastBlocks[len(syncer.pastBlocks)-1]
 }
 
-func TestBalanceChanges(t *testing.T) {
-	var tests = map[string]struct {
-		block          *types.Block
-		orphan         bool
-		changes        []*storage.BalanceChange
-		exemptAccounts []*reconciler.AccountCurrency
-		err            error
-	}{
-		"simple block": {
-			block: &types.Block{
-				BlockIdentifier: &types.BlockIdentifier{
-					Hash:  "1",
-					Index: 1,
-				},
-				ParentBlockIdentifier: &types.BlockIdentifier{
-					Hash:  "0",
-					Index: 0,
-				},
-				Transactions: []*types.Transaction{
-					recipientTransaction,
-				},
-				Timestamp: asserter.MinUnixEpoch + 1,
-			},
-			orphan: false,
-			changes: []*storage.BalanceChange{
-				{
-					Account:  recipient,
-					Currency: currency,
-					Block: &types.BlockIdentifier{
-						Hash:  "1",
-						Index: 1,
-					},
-					Difference: "100",
-				},
-			},
-			err: nil,
-		},
-		"simple block account exempt": {
-			block: &types.Block{
-				BlockIdentifier: &types.BlockIdentifier{
-					Hash:  "1",
-					Index: 1,
-				},
-				ParentBlockIdentifier: &types.BlockIdentifier{
-					Hash:  "0",
-					Index: 0,
-				},
-				Transactions: []*types.Transaction{
-					recipientTransaction,
-				},
-				Timestamp: asserter.MinUnixEpoch + 1,
-			},
-			orphan:  false,
-			changes: []*storage.BalanceChange{},
-			exemptAccounts: []*reconciler.AccountCurrency{
-				{
-					Account:  recipient,
-					Currency: currency,
-				},
-			},
-			err: nil,
-		},
-		"single account sum block": {
-			block: &types.Block{
-				BlockIdentifier: &types.BlockIdentifier{
-					Hash:  "1",
-					Index: 1,
-				},
-				ParentBlockIdentifier: &types.BlockIdentifier{
-					Hash:  "0",
-					Index: 0,
-				},
-				Transactions: []*types.Transaction{
-					simpleTransactionFactory("tx1", "addr1", "100", currency),
-					simpleTransactionFactory("tx2", "addr1", "150", currency),
-					simpleTransactionFactory("tx3", "addr2", "150", currency),
-				},
-				Timestamp: asserter.MinUnixEpoch + 1,
-			},
-			orphan: false,
-			changes: []*storage.BalanceChange{
-				{
-					Account: &types.AccountIdentifier{
-						Address: "addr1",
-					},
-					Currency: currency,
-					Block: &types.BlockIdentifier{
-						Hash:  "1",
-						Index: 1,
-					},
-					Difference: "250",
-				},
-				{
-					Account: &types.AccountIdentifier{
-						Address: "addr2",
-					},
-					Currency: currency,
-					Block: &types.BlockIdentifier{
-						Hash:  "1",
-						Index: 1,
-					},
-					Difference: "150",
-				},
-			},
-			err: nil,
-		},
-		"single account sum orphan block": {
-			block: &types.Block{
-				BlockIdentifier: &types.BlockIdentifier{
-					Hash:  "1",
-					Index: 1,
-				},
-				ParentBlockIdentifier: &types.BlockIdentifier{
-					Hash:  "0",
-					Index: 0,
-				},
-				Transactions: []*types.Transaction{
-					simpleTransactionFactory("tx1", "addr1", "100", currency),
-					simpleTransactionFactory("tx2", "addr1", "150", currency),
-					simpleTransactionFactory("tx3", "addr2", "150", currency),
-				},
-				Timestamp: asserter.MinUnixEpoch + 1,
-			},
-			orphan: true,
-			changes: []*storage.BalanceChange{
-				{
-					Account: &types.AccountIdentifier{
-						Address: "addr1",
-					},
-					Currency: currency,
-					Block: &types.BlockIdentifier{
-						Hash:  "0",
-						Index: 0,
-					},
-					Difference: "-250",
-				},
-				{
-					Account: &types.AccountIdentifier{
-						Address: "addr2",
-					},
-					Currency: currency,
-					Block: &types.BlockIdentifier{
-						Hash:  "0",
-						Index: 0,
-					},
-					Difference: "-150",
-				},
-			},
-			err: nil,
-		},
-	}
-
+func TestProcessBlock(t *testing.T) {
 	ctx := context.Background()
-	asserter, err := asserter.NewClientWithResponses(
-		networkIdentifier,
-		networkStatusResponse,
-		networkOptionsResponse,
-	)
-	assert.NotNil(t, asserter)
-	assert.NoError(t, err)
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			handler := NewBaseHandler(nil, nil, test.exemptAccounts)
-			changes, err := BalanceChanges(
-				ctx,
-				asserter,
-				test.block,
-				test.orphan,
-				handler,
-			)
+	syncer := New(networkIdentifier, nil, &MockSyncHandler{}, nil, nil)
+	syncer.genesisBlock = blockSequence[0].BlockIdentifier
 
-			assert.ElementsMatch(t, test.changes, changes)
-			assert.Equal(t, test.err, err)
-		})
-	}
+	t.Run("No block exists", func(t *testing.T) {
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{},
+			syncer.pastBlocks,
+		)
+		err := syncer.processBlock(
+			ctx,
+			blockSequence[0],
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), syncer.nextIndex)
+		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
+		)
+	})
+
+	t.Run("Orphan genesis", func(t *testing.T) {
+		err := syncer.processBlock(
+			ctx,
+			orphanGenesis,
+		)
+
+		assert.EqualError(t, err, "cannot remove genesis block")
+		assert.Equal(t, int64(1), syncer.nextIndex)
+		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
+		)
+	})
+
+	t.Run("Block exists, no reorg", func(t *testing.T) {
+		err := syncer.processBlock(
+			ctx,
+			blockSequence[1],
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), syncer.nextIndex)
+		assert.Equal(t, blockSequence[1].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[1].BlockIdentifier,
+			},
+			syncer.pastBlocks,
+		)
+	})
+
+	t.Run("Orphan block", func(t *testing.T) {
+		err := syncer.processBlock(
+			ctx,
+			blockSequence[2],
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), syncer.nextIndex)
+		assert.Equal(t, blockSequence[0].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{blockSequence[0].BlockIdentifier},
+			syncer.pastBlocks,
+		)
+
+		err = syncer.processBlock(
+			ctx,
+			blockSequence[3],
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), syncer.nextIndex)
+		assert.Equal(t, blockSequence[3].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+			},
+			syncer.pastBlocks,
+		)
+
+		err = syncer.processBlock(
+			ctx,
+			blockSequence[2],
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(3), syncer.nextIndex)
+		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+				blockSequence[2].BlockIdentifier,
+			},
+			syncer.pastBlocks,
+		)
+	})
+
+	t.Run("Out of order block", func(t *testing.T) {
+		err := syncer.processBlock(
+			ctx,
+			blockSequence[5],
+		)
+		assert.EqualError(t, err, "Got block 5 instead of 3")
+		assert.Equal(t, int64(3), syncer.nextIndex)
+		assert.Equal(t, blockSequence[2].BlockIdentifier, lastBlockIdentifier(syncer))
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{
+				blockSequence[0].BlockIdentifier,
+				blockSequence[3].BlockIdentifier,
+				blockSequence[2].BlockIdentifier,
+			},
+			syncer.pastBlocks,
+		)
+	})
+}
+
+type MockSyncHandler struct{}
+
+func (h *MockSyncHandler) BlockAdded(
+	ctx context.Context,
+	block *types.Block,
+) error {
+	return nil
+}
+
+func (h *MockSyncHandler) BlockRemoved(
+	ctx context.Context,
+	block *types.BlockIdentifier,
+) error {
+	return nil
 }
