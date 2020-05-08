@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
@@ -38,6 +39,12 @@ const (
 	//
 	// TODO: make configurable
 	PastBlockSize = 20
+)
+
+var (
+	// defaultSyncSleep is the amount of time to sleep
+	// when we are at tip but want to keep syncing.
+	defaultSyncSleep = 5 * time.Second
 )
 
 // Handler is called at various times during the sync cycle
@@ -282,8 +289,15 @@ func (s *Syncer) Sync(
 		if err != nil {
 			return fmt.Errorf("%w: unable to get next syncable range", err)
 		}
+
 		if halt {
-			break
+			if endIndex != -1 {
+				break
+			}
+
+			log.Printf("Syncer at tip %d...sleeping\n", s.nextIndex)
+			time.Sleep(defaultSyncSleep)
+			continue
 		}
 
 		log.Printf("Syncing %d-%d\n", s.nextIndex, rangeEnd)
@@ -296,6 +310,10 @@ func (s *Syncer) Sync(
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+	}
+
+	if startIndex == -1 {
+		startIndex = s.genesisBlock.Index
 	}
 
 	log.Printf("Finished syncing %d-%d\n", startIndex, endIndex)

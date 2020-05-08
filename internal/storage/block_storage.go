@@ -27,9 +27,10 @@ import (
 	"math/big"
 	"path"
 
-	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/syncer"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -136,10 +137,8 @@ type Helper interface {
 		block *types.BlockIdentifier,
 	) (*types.Amount, error)
 
-	SkipOperation(
-		ctx context.Context,
-		op *types.Operation,
-	) (bool, error)
+	ExemptFunc() parser.ExemptOperation
+	Asserter() *asserter.Asserter
 }
 
 // BlockStorage implements block specific storage methods
@@ -147,6 +146,7 @@ type Helper interface {
 type BlockStorage struct {
 	db     Database
 	helper Helper
+	parser *parser.Parser
 }
 
 // NewBlockStorage returns a new BlockStorage.
@@ -158,6 +158,7 @@ func NewBlockStorage(
 	return &BlockStorage{
 		db:     db,
 		helper: helper,
+		parser: parser.New(helper.Asserter(), helper.ExemptFunc()),
 	}
 }
 
@@ -277,7 +278,7 @@ func (b *BlockStorage) storeHash(
 func (b *BlockStorage) StoreBlock(
 	ctx context.Context,
 	block *types.Block,
-) ([]*reconciler.BalanceChange, error) {
+) ([]*parser.BalanceChange, error) {
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 	buf := new(bytes.Buffer)
@@ -306,9 +307,9 @@ func (b *BlockStorage) StoreBlock(
 		}
 	}
 
-	changes, err := b.BalanceChanges(ctx, block, false)
+	changes, err := b.parser.BalanceChanges(ctx, block, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
 	for _, change := range changes {
@@ -335,7 +336,7 @@ func (b *BlockStorage) StoreBlock(
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
 	blockIdentifier *types.BlockIdentifier,
-) ([]*reconciler.BalanceChange, error) {
+) ([]*parser.BalanceChange, error) {
 	block, err := b.GetBlock(ctx, blockIdentifier)
 	if err != nil {
 		return nil, err
@@ -344,9 +345,9 @@ func (b *BlockStorage) RemoveBlock(
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 
-	changes, err := b.BalanceChanges(ctx, block, true)
+	changes, err := b.parser.BalanceChanges(ctx, block, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
 	for _, change := range changes {
@@ -483,7 +484,7 @@ func (b *BlockStorage) SetBalance(
 func (b *BlockStorage) UpdateBalance(
 	ctx context.Context,
 	dbTransaction DatabaseTransaction,
-	change *reconciler.BalanceChange,
+	change *parser.BalanceChange,
 	parentBlock *types.BlockIdentifier,
 ) error {
 	if change.Currency == nil {
@@ -684,77 +685,6 @@ func (b *BlockStorage) BootstrapBalances(
 
 	log.Printf("%d Balances Bootstrapped\n", len(balances))
 	return nil
-}
-
-// BalanceChanges returns all balance changes for
-// a particular block. All balance changes for a
-// particular account are summed into a single
-// storage.BalanceChanges struct. If a block is being
-// orphaned, the opposite of each balance change is
-// returned.
-func (b *BlockStorage) BalanceChanges(
-	ctx context.Context,
-	block *types.Block,
-	blockRemoved bool,
-) ([]*reconciler.BalanceChange, error) {
-	balanceChanges := map[string]*reconciler.BalanceChange{}
-	for _, tx := range block.Transactions {
-		for _, op := range tx.Operations {
-			skip, err := b.helper.SkipOperation(
-				ctx,
-				op,
-			)
-			if err != nil {
-				return nil, err
-			}
-			if skip {
-				continue
-			}
-
-			amount := op.Amount
-			blockIdentifier := block.BlockIdentifier
-			if blockRemoved {
-				existing, ok := new(big.Int).SetString(amount.Value, 10)
-				if !ok {
-					return nil, fmt.Errorf("%s is not an integer", amount.Value)
-				}
-
-				amount.Value = new(big.Int).Neg(existing).String()
-				blockIdentifier = block.ParentBlockIdentifier
-			}
-
-			// Merge values by account and currency
-			key := fmt.Sprintf(
-				"%x",
-				GetBalanceKey(op.Account, op.Amount.Currency),
-			)
-
-			val, ok := balanceChanges[key]
-			if !ok {
-				balanceChanges[key] = &reconciler.BalanceChange{
-					Account:    op.Account,
-					Currency:   op.Amount.Currency,
-					Difference: amount.Value,
-					Block:      blockIdentifier,
-				}
-				continue
-			}
-
-			newDifference, err := types.AddValues(val.Difference, amount.Value)
-			if err != nil {
-				return nil, err
-			}
-			val.Difference = newDifference
-			balanceChanges[key] = val
-		}
-	}
-
-	allChanges := []*reconciler.BalanceChange{}
-	for _, change := range balanceChanges {
-		allChanges = append(allChanges, change)
-	}
-
-	return allChanges, nil
 }
 
 // CreateBlockCache populates a slice of blocks with the most recent

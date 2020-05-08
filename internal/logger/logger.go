@@ -21,8 +21,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/coinbase/rosetta-cli/internal/reconciler"
-
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -223,7 +222,7 @@ func (l *Logger) TransactionStream(
 // to the balanceStreamFile.
 func (l *Logger) BalanceStream(
 	ctx context.Context,
-	balanceChanges []*reconciler.BalanceChange,
+	balanceChanges []*parser.BalanceChange,
 ) error {
 	if !l.logBalanceChanges {
 		return nil
