@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 )
@@ -90,4 +91,12 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
+
+	parser := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
+	changes, err := parser.BalanceChanges(ctx, block, false)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to calculate balance changes", err))
+	}
+
+	log.Printf("Balance Changes: %s\n", types.PrettyPrintStruct(changes))
 }

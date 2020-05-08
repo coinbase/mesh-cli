@@ -25,6 +25,7 @@ import (
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -91,15 +92,6 @@ var (
 	ErrBlockGone = errors.New("block gone")
 )
 
-// BalanceChange represents a balance change that affected
-// a *types.AccountIdentifier and a *types.Currency.
-type BalanceChange struct {
-	Account    *types.AccountIdentifier `json:"account_identifier,omitempty"`
-	Currency   *types.Currency          `json:"currency,omitempty"`
-	Block      *types.BlockIdentifier   `json:"block_identifier,omitempty"`
-	Difference string                   `json:"difference,omitempty"`
-}
-
 // Helper functions are used by Reconciler to compare
 // computed balances from a block with the balance calculated
 // by the node. Defining an interface allows the client to determine
@@ -158,7 +150,7 @@ type Reconciler struct {
 	accountConcurrency   uint64
 	lookupBalanceByBlock bool
 	interestingAccounts  []*AccountCurrency
-	changeQueue          chan *BalanceChange
+	changeQueue          chan *parser.BalanceChange
 
 	// highWaterMark is used to skip requests when
 	// we are very far behind the live head.
@@ -167,7 +159,7 @@ type Reconciler struct {
 	// seenAccts are stored for inactive account
 	// reconciliation.
 	seenAccts     []*AccountCurrency
-	inactiveQueue []*BalanceChange
+	inactiveQueue []*parser.BalanceChange
 
 	// inactiveQueueMutex needed because we can't peek at the tip
 	// of a channel to determine when it is ready to look at.
@@ -195,18 +187,18 @@ func NewReconciler(
 		interestingAccounts:  interestingAccounts,
 		highWaterMark:        -1,
 		seenAccts:            make([]*AccountCurrency, 0),
-		inactiveQueue:        make([]*BalanceChange, 0),
+		inactiveQueue:        make([]*parser.BalanceChange, 0),
 	}
 
 	if lookupBalanceByBlock {
 		// When lookupBalanceByBlock is enabled, we check
 		// balance changes synchronously.
-		r.changeQueue = make(chan *BalanceChange)
+		r.changeQueue = make(chan *parser.BalanceChange)
 	} else {
 		// When lookupBalanceByBlock is disabled, we must check
 		// balance changes asynchronously. Using a buffered
 		// channel allows us to add balance changes without blocking.
-		r.changeQueue = make(chan *BalanceChange, backlogThreshold)
+		r.changeQueue = make(chan *parser.BalanceChange, backlogThreshold)
 	}
 
 	return r
@@ -217,7 +209,7 @@ func NewReconciler(
 func (r *Reconciler) QueueChanges(
 	ctx context.Context,
 	block *types.BlockIdentifier,
-	balanceChanges []*BalanceChange,
+	balanceChanges []*parser.BalanceChange,
 ) error {
 	// Ensure all interestingAccounts are checked
 	for _, account := range r.interestingAccounts {
@@ -236,7 +228,7 @@ func (r *Reconciler) QueueChanges(
 		}
 
 		// If account + currency not found, add with difference 0
-		balanceChanges = append(balanceChanges, &BalanceChange{
+		balanceChanges = append(balanceChanges, &parser.BalanceChange{
 			Account:    account.Account,
 			Currency:   account.Currency,
 			Difference: zeroString,
@@ -492,7 +484,7 @@ func (r *Reconciler) inactiveAccountQueue(
 
 	if inactive || shouldEnqueueInactive {
 		r.inactiveQueueMutex.Lock()
-		r.inactiveQueue = append(r.inactiveQueue, &BalanceChange{
+		r.inactiveQueue = append(r.inactiveQueue, &parser.BalanceChange{
 			Account:  accountCurrency.Account,
 			Currency: accountCurrency.Currency,
 			Block:    liveBlock,

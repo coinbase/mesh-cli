@@ -17,11 +17,12 @@ package processor
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/coinbase/rosetta-cli/internal/reconciler"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -89,50 +90,20 @@ func (h *BlockStorageHelper) AccountBalance(
 	}, nil
 }
 
-// SkipOperation returns a boolean indicating whether
-// an operation should be processed. An operation will
-// not be processed if it is considered unsuccessful
-// or affects an exempt account.
-func (h *BlockStorageHelper) SkipOperation(
-	ctx context.Context,
-	op *types.Operation,
-) (bool, error) {
-	successful, err := h.fetcher.Asserter.OperationSuccessful(op)
-	if err != nil {
-		// Should only occur if responses not validated
-		return false, err
-	}
-
-	if !successful {
-		return true, nil
-	}
-
-	if op.Account == nil {
-		return true, nil
-	}
-
-	// Exempting account in BalanceChanges ensures that storage is not updated
-	// and that the account is not reconciled.
-	if h.accountExempt(op.Account, op.Amount.Currency) {
-		log.Printf("Skipping exempt account %+v\n", op.Account)
-		return true, nil
-	}
-
-	return false, nil
+// Asserter returns a *asserter.Asserter.
+func (h *BlockStorageHelper) Asserter() *asserter.Asserter {
+	return h.fetcher.Asserter
 }
 
-// accountExempt returns a boolean indicating if the provided
-// account and currency are exempt from balance tracking and
-// reconciliation.
-func (h *BlockStorageHelper) accountExempt(
-	account *types.AccountIdentifier,
-	currency *types.Currency,
-) bool {
-	return reconciler.ContainsAccountCurrency(
-		h.exemptAccounts,
-		&reconciler.AccountCurrency{
-			Account:  account,
-			Currency: currency,
-		},
-	)
+// ExemptFunc returns a parser.ExemptOperation.
+func (h *BlockStorageHelper) ExemptFunc() parser.ExemptOperation {
+	return func(op *types.Operation) bool {
+		return reconciler.ContainsAccountCurrency(
+			h.exemptAccounts,
+			&reconciler.AccountCurrency{
+				Account:  op.Account,
+				Currency: op.Amount.Currency,
+			},
+		)
+	}
 }
