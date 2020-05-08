@@ -92,6 +92,8 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 
 	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
 
+	// Print out all balance changes in a given block. This does NOT exempt
+	// any operations/accounts from parsing.
 	parser := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
 	changes, err := parser.BalanceChanges(ctx, block, false)
 	if err != nil {
