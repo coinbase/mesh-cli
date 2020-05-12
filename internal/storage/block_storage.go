@@ -27,10 +27,9 @@ import (
 	"math/big"
 	"path"
 
-	"github.com/coinbase/rosetta-cli/internal/syncer"
-
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 

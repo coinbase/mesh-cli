@@ -25,12 +25,12 @@ import (
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/processor"
-	"github.com/coinbase/rosetta-cli/internal/reconciler"
 	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/syncer"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
