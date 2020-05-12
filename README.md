@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/coinbase/rosetta-cli.svg)](https://github.com/coinbase/rosetta-cli/blob/master/LICENSE.txt)
 
 ## What is Rosetta?
-Rosetta is a new project from Coinbase to standardize the process
+Rosetta is a new project to standardize the process
 of deploying and interacting with blockchains. With an explicit
 specification to adhere to, all parties involved in blockchain
 development can spend less time figuring out how to integrate
@@ -181,9 +181,9 @@ Global Flags:
 * `make release` to run one last check before opening a PR
 
 ### Helper/Handler
-Many of the internal packages use a `Helper/Handler` interface pattern to acquire
+Many of the packages use a `Helper/Handler` interface pattern to acquire
 required information or to send events to some client implementation. An example
-of this is in the `internal/reconciler` package where a `Helper` is used to get
+of this is in the `reconciler` package where a `Helper` is used to get
 the account balance and the `Handler` is called to incidate whether the
 reconciliation of an account was successful.
 
@@ -194,9 +194,7 @@ examples // examples of different config files
 internal
   logger // logic to write syncing information to stdout/files
   processor // Helper/Handler implementations for reconciler, storage, and syncer
-  reconciler // checks for equality between computed balance and node balance
   storage // persists block to temporary storage and allows for querying balances
-  syncer // coordinates block syncing (inlcuding re-orgs)
   utils // useful functions
 ```
 
@@ -220,24 +218,22 @@ negative from any operations.
 
 ### Balance Reconciliation
 #### Active Addresses
-The validator checks that the balance of an account computed by
+The CLI checks that the balance of an account computed by
 its operations is equal to the balance of the account according
-to the node. If this balance is not identical, the validator will
+to the node. If this balance is not identical, the CLI will
 exit.
 
 #### Inactive Addresses
-The validator randomly checks the balances of accounts that aren't
+The CLI randomly checks the balances of accounts that aren't
 involved in any transactions. The balances of accounts could change
 on the blockchain node without being included in an operation
-returned by the Rosetta Server. Recall that all balance-changing
-operations must be returned by the Rosetta Server.
+returned by the Rosetta Node API. Recall that all balance-changing
+operations should be returned by the Rosetta Node API.
 
 ## Future Work
-* Move syncer, reconciler, and storage packages to rosetta-sdk-go for better re-use.
 * Automatically test the correctness of a Rosetta Client SDK by constructing,
 signing, and submitting a transaction. This can be further extended by ensuring
 broadcast transactions eventually land in a block.
-* Change logging to utilize a more advanced output mechanism than CSV.
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
