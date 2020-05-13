@@ -33,6 +33,7 @@ Available Commands:
   check                Check the correctness of a Rosetta Node API Server
   create:configuration Generate a static configuration file for the Asserter
   help                 Help about any command
+  version              Print rosetta-cli version
   view:account         View an account balance
   view:block           View a block
 
@@ -41,6 +42,20 @@ Flags:
       --server-url string   base URL for a Rosetta server (default "http://localhost:8080")
 
 Use "rosetta-cli [command] --help" for more information about a command.
+```
+
+### version
+```
+Print rosetta-cli version
+
+Usage:
+  rosetta-cli version [flags]
+
+Flags:
+  -h, --help   help for version
+
+Global Flags:
+      --server-url string   base URL for a Rosetta server (default "http://localhost:8080")
 ```
 
 ### check
