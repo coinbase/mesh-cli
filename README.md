@@ -79,7 +79,6 @@ Usage:
   rosetta-cli check [flags]
 
 Flags:
-      --account-concurrency uint       concurrency to use while fetching accounts during reconciliation (default 8)
       --block-concurrency uint         concurrency to use while fetching blocks (default 8)
       --bootstrap-balances string      Absolute path to a file used to bootstrap balances before starting syncing.
                                        Populating this value after beginning syncing will return an error.
@@ -101,6 +100,7 @@ Flags:
       --lookup-balance-by-block        When set to true, balances are looked up at the block where a balance
                                        change occurred instead of at the current block. Blockchains that do not support
                                        historical balance lookup should set this to false. (default true)
+      --reconciler-concurrency uint    concurrency to use while fetching accounts during reconciliation (default 8)
       --start int                      block index to start syncing (default -1)
       --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
 
