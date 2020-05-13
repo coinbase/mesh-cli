@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -47,4 +49,13 @@ func init() {
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
 	rootCmd.AddCommand(createConfigurationCmd)
+	rootCmd.AddCommand(versionCmd)
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print rosett-cli version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("v0.2.1")
+	},
 }

@@ -94,11 +94,20 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 
 	// Print out all balance changes in a given block. This does NOT exempt
 	// any operations/accounts from parsing.
-	parser := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
-	changes, err := parser.BalanceChanges(ctx, block, false)
+	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
+	changes, err := p.BalanceChanges(ctx, block, false)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to calculate balance changes", err))
 	}
 
 	log.Printf("Balance Changes: %s\n", types.PrettyPrintStruct(changes))
+
+	// Print out all OperationGroups for each transaction in a block.
+	for _, tx := range block.Transactions {
+		log.Printf(
+			"Transaction %s Operation Groups: %s\n",
+			tx.TransactionIdentifier.Hash,
+			types.PrettyPrintStruct(parser.GroupOperations(tx)),
+		)
+	}
 }
