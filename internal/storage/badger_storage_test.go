@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -51,6 +52,21 @@ func TestDatabase(t *testing.T) {
 		assert.True(t, exists)
 		assert.Equal(t, []byte("hola"), value)
 		assert.NoError(t, err)
+	})
+
+	t.Run("Scan", func(t *testing.T) {
+		storedValues := make([][]byte, 100)
+		for i := 0; i < 100; i++ {
+			v := []byte(fmt.Sprintf("%d", i))
+			err := database.Set(ctx, []byte(fmt.Sprintf("test/%d", i)), v)
+			assert.NoError(t, err)
+
+			storedValues[i] = v
+		}
+
+		values, err := database.Scan(ctx, []byte("test/"))
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, storedValues, values)
 	})
 }
 

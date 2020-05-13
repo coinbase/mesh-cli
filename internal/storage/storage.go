@@ -25,6 +25,7 @@ type Database interface {
 	Close(context.Context) error
 	Set(context.Context, []byte, []byte) error
 	Get(context.Context, []byte) (bool, []byte, error)
+	Scan(ctx context.Context, prefix []byte) ([][]byte, error)
 }
 
 // DatabaseTransaction is an interface that provides
