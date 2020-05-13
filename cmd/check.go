@@ -355,6 +355,12 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Get all previously seen accounts
+	seenAccounts, err := blockStorage.GetAllAccountCurrency(ctx)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to get previously seen accounts", err))
+	}
+
 	reconcilerHelper := processor.NewReconcilerHelper(
 		blockStorage,
 	)
@@ -373,6 +379,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		reconciler.WithReconcilerConcurrency(int(ReconcilerConcurrency)),
 		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
 		reconciler.WithInterestingAccounts(interestingAccounts),
+		reconciler.WithSeenAccounts(seenAccounts),
 	)
 
 	syncerHandler := processor.NewSyncerHandler(

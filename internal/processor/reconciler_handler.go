@@ -17,7 +17,6 @@ package processor
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 
@@ -108,8 +107,7 @@ func (h *ReconcilerHandler) NewAccountSeen(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 ) error {
-	fmt.Printf("New Account Seen: %s\n", types.PrettyPrintStruct(account))
-	// TODO: store somewhere...should be append only otherwise we will need to
-	// load arbitrarily large structures into memory for each addition.
+	// We don't persist new accounts here because we are already storing
+	// them when we set their balance in the internal/storage package.
 	return nil
 }
