@@ -111,9 +111,9 @@ of what one of these files looks like.`,
 	// while fetching transactions (if required).
 	TransactionConcurrency uint64
 
-	// AccountConcurrency is the concurrency to use
+	// ReconcilerConcurrency is the concurrency to use
 	// while fetching accounts during reconciliation.
-	AccountConcurrency uint64
+	ReconcilerConcurrency uint64
 
 	// LogBlocks determines if blocks are
 	// logged.
@@ -204,8 +204,8 @@ func init() {
 		"concurrency to use while fetching transactions (if required)",
 	)
 	checkCmd.Flags().Uint64Var(
-		&AccountConcurrency,
-		"account-concurrency",
+		&ReconcilerConcurrency,
+		"reconciler-concurrency",
 		8,
 		"concurrency to use while fetching accounts during reconciliation",
 	)
@@ -355,6 +355,12 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Get all previously seen accounts
+	seenAccounts, err := blockStorage.GetAllAccountCurrency(ctx)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to get previously seen accounts", err))
+	}
+
 	reconcilerHelper := processor.NewReconcilerHelper(
 		blockStorage,
 	)
@@ -365,14 +371,15 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		HaltOnReconciliationError,
 	)
 
-	r := reconciler.NewReconciler(
+	r := reconciler.New(
 		primaryNetwork,
 		reconcilerHelper,
 		reconcilerHandler,
 		fetcher,
-		AccountConcurrency,
-		LookupBalanceByBlock,
-		interestingAccounts,
+		reconciler.WithReconcilerConcurrency(int(ReconcilerConcurrency)),
+		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
+		reconciler.WithInterestingAccounts(interestingAccounts),
+		reconciler.WithSeenAccounts(seenAccounts),
 	)
 
 	syncerHandler := processor.NewSyncerHandler(

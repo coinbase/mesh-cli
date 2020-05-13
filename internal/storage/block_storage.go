@@ -17,7 +17,6 @@ package storage
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -51,6 +51,9 @@ const (
 
 	// balanceNamespace is prepended to any stored balance.
 	balanceNamespace = "balance"
+
+	// blockNamespace is prepended to any stored block.
+	blockNamespace = "block"
 )
 
 var (
@@ -87,40 +90,27 @@ var (
   Key Construction
 */
 
-// hashBytes is used to construct a SHA1
-// hash to protect against arbitrarily
-// large key sizes.
-func hashBytes(data string) []byte {
-	h := sha256.New()
-	_, err := h.Write([]byte(data))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return h.Sum(nil)
-}
-
 func getHeadBlockKey() []byte {
-	return hashBytes(headBlockKey)
+	return []byte(headBlockKey)
 }
 
 func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
-	return hashBytes(
-		fmt.Sprintf("%s:%d", blockIdentifier.Hash, blockIdentifier.Index),
+	return []byte(
+		fmt.Sprintf("%s/%s/%d", blockNamespace, blockIdentifier.Hash, blockIdentifier.Index),
 	)
 }
 
 func getHashKey(hash string, isBlock bool) []byte {
 	if isBlock {
-		return hashBytes(fmt.Sprintf("%s:%s", blockHashNamespace, hash))
+		return []byte(fmt.Sprintf("%s/%s", blockHashNamespace, hash))
 	}
 
-	return hashBytes(fmt.Sprintf("%s:%s", transactionHashNamespace, hash))
+	return []byte(fmt.Sprintf("%s/%s", transactionHashNamespace, hash))
 }
 
 // GetBalanceKey returns a deterministic hash of an types.Account + types.Currency.
 func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) []byte {
-	return hashBytes(
+	return []byte(
 		fmt.Sprintf("%s/%s/%s", balanceNamespace, types.Hash(account), types.Hash(currency)),
 	)
 }
@@ -386,8 +376,9 @@ func (b *BlockStorage) RemoveBlock(
 }
 
 type balanceEntry struct {
-	Amount *types.Amount
-	Block  *types.BlockIdentifier
+	Account *types.AccountIdentifier
+	Amount  *types.Amount
+	Block   *types.BlockIdentifier
 }
 
 func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
@@ -463,8 +454,9 @@ func (b *BlockStorage) SetBalance(
 	key := GetBalanceKey(account, amount.Currency)
 
 	serialBal, err := serializeBalanceEntry(balanceEntry{
-		Amount: amount,
-		Block:  block,
+		Account: account,
+		Amount:  amount,
+		Block:   block,
 	})
 	if err != nil {
 		return err
@@ -536,6 +528,7 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	serialBal, err := serializeBalanceEntry(balanceEntry{
+		Account: change.Account,
 		Amount: &types.Amount{
 			Value:    newVal,
 			Currency: change.Currency,
@@ -708,4 +701,29 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 	}
 
 	return cache
+}
+
+// GetAllAccountCurrency scans the db for all balances and returns a slice
+// of reconciler.AccountCurrency. This is useful for bootstrapping the reconciler
+// after restart.
+func (b *BlockStorage) GetAllAccountCurrency(ctx context.Context) ([]*reconciler.AccountCurrency, error) {
+	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := make([]*reconciler.AccountCurrency, len(rawBalances))
+	for i, rawBalance := range rawBalances {
+		deserialBal, err := parseBalanceEntry(rawBalance)
+		if err != nil {
+			return nil, err
+		}
+
+		accounts[i] = &reconciler.AccountCurrency{
+			Account:  deserialBal.Account,
+			Currency: deserialBal.Amount.Currency,
+		}
+	}
+
+	return accounts, nil
 }

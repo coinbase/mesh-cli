@@ -156,3 +156,32 @@ func (b *BadgerStorage) Get(
 
 	return true, value, nil
 }
+
+// Scan fetches all items at a given prefix. This is typically
+// used to get all items in a namespace.
+func (b *BadgerStorage) Scan(
+	ctx context.Context,
+	prefix []byte,
+) ([][]byte, error) {
+	values := [][]byte{}
+	err := b.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				values = append(values, v)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
