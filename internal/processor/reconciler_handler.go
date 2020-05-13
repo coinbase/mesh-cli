@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 
@@ -97,4 +98,18 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 		balance,
 		block,
 	)
+}
+
+// NewAccountSeen is called each time the reconciler adds a new
+// AccountCurrency to the inactiveQueue. These AccountCurrency
+// should be persisted to pass to the reconciler on restart.
+func (h *ReconcilerHandler) NewAccountSeen(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+) error {
+	fmt.Printf("New Account Seen: %s\n", types.PrettyPrintStruct(account))
+	// TODO: store somewhere...should be append only otherwise we will need to
+	// load arbitrarily large structures into memory for each addition.
+	return nil
 }
