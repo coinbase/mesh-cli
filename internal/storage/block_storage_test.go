@@ -598,6 +598,33 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, amount, retrievedAmount)
 		assert.Equal(t, newBlock, block)
 	})
+
+	t.Run("get all set AccountCurrency", func(t *testing.T) {
+		accounts, err := storage.GetAllAccountCurrency(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*reconciler.AccountCurrency{
+			{
+				Account:  account,
+				Currency: currency,
+			},
+			{
+				Account:  account3,
+				Currency: currency,
+			},
+			{
+				Account:  subAccount,
+				Currency: currency,
+			},
+			{
+				Account:  subAccountMetadata,
+				Currency: currency,
+			},
+			{
+				Account:  subAccountMetadata2,
+				Currency: currency,
+			},
+		}, accounts)
+	})
 }
 
 func TestBootstrapBalances(t *testing.T) {
