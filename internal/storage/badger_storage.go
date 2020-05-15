@@ -44,12 +44,14 @@ func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
 
 // Close closes the database to prevent corruption.
 // The caller should defer this in main.
-func (b *BadgerStorage) Close(ctx context.Context) {
+func (b *BadgerStorage) Close(ctx context.Context) error {
 	log.Println("closing database...")
 	if err := b.db.Close(); err != nil {
-		log.Fatal(fmt.Errorf("%w unable to close database", err))
+		return fmt.Errorf("%w unable to close database", err)
 	}
 	log.Println("database closed")
+
+	return nil
 }
 
 // BadgerTransaction is a wrapper around a Badger
