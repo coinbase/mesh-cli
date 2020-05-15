@@ -314,6 +314,14 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to initialize data store", err))
 	}
+	defer func() {
+		log.Println("closing data store...")
+		if err := localStore.Close(ctx); err != nil {
+			log.Fatal(fmt.Errorf("%w: unable to close data store", err))
+		}
+
+		log.Println("data store closed")
+	}()
 
 	logger := logger.NewLogger(
 		DataDir,
@@ -423,6 +431,8 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	err = g.Wait()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		// log.Fatal here prevents db from closing correctly
+		// log.Fatal(err)
 	}
 }
