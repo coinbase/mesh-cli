@@ -339,6 +339,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	)
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+
 	// Bootstrap balances if provided
 	if len(BootstrapBalances) > 0 {
 		err = blockStorage.BootstrapBalances(
