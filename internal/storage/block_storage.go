@@ -709,14 +709,14 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 func (b *BlockStorage) GetAllAccountCurrency(ctx context.Context) ([]*reconciler.AccountCurrency, error) {
 	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w database scan failed", err)
 	}
 
 	accounts := make([]*reconciler.AccountCurrency, len(rawBalances))
 	for i, rawBalance := range rawBalances {
 		deserialBal, err := parseBalanceEntry(rawBalance)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w unable to parse balance entry for %s", err, string(rawBalance))
 		}
 
 		accounts[i] = &reconciler.AccountCurrency{

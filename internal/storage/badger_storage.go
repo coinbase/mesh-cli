@@ -16,6 +16,8 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/dgraph-io/badger"
 )
@@ -28,10 +30,12 @@ type BadgerStorage struct {
 
 // NewBadgerStorage creates a new BadgerStorage.
 func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
+	log.Println("opening database...")
 	db, err := badger.Open(badger.DefaultOptions(dir))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w could not open badger database", err)
 	}
+	log.Println("database opened")
 
 	return &BadgerStorage{
 		db: db,
@@ -41,7 +45,13 @@ func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
 // Close closes the database to prevent corruption.
 // The caller should defer this in main.
 func (b *BadgerStorage) Close(ctx context.Context) error {
-	return b.db.Close()
+	log.Println("closing database...")
+	if err := b.db.Close(); err != nil {
+		return fmt.Errorf("%w unable to close database", err)
+	}
+	log.Println("database closed")
+
+	return nil
 }
 
 // BadgerTransaction is a wrapper around a Badger
@@ -165,17 +175,30 @@ func (b *BadgerStorage) Scan(
 ) ([][]byte, error) {
 	values := [][]byte{}
 	err := b.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchValues = false
+
+		it := txn.NewIterator(opts)
 		defer it.Close()
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
-			err := item.Value(func(v []byte) error {
-				values = append(values, v)
-				return nil
-			})
+			key := item.Key()
+
+			// There is some strange issue with BadgerDB where the value returned
+			// on the item is sometimes corrupted (which causes decoding errors).
+			// Until this is fixed, the workaround I found was to fetch the value
+			// in a separate transaction with the key from the scan. Instead of
+			// spending more time investigating these issues, we will work
+			// on prioritizing a switch to a different backend.
+			exists, v, err := b.Get(ctx, key)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w unable to get key %s", err, string(key))
 			}
+			if !exists {
+				return fmt.Errorf("key %s does not exist", string(key))
+			}
+
+			values = append(values, v)
 		}
 		return nil
 	})

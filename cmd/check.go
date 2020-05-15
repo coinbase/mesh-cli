@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"os/signal"
 	"path"
+	"syscall"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
@@ -312,8 +315,9 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 	localStore, err := storage.NewBadgerStorage(ctx, DataDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize data store", err))
+		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
 	}
+	defer localStore.Close(ctx)
 
 	logger := logger.NewLogger(
 		DataDir,
@@ -331,6 +335,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	)
 
 	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+
 	// Bootstrap balances if provided
 	if len(BootstrapBalances) > 0 {
 		err = blockStorage.BootstrapBalances(
@@ -421,8 +426,23 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		)
 	})
 
+	// Handle OS signals so we can ensure we close database
+	// correctly.
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		fmt.Printf("Received Signal: %s\n", sig)
+		cancel()
+	}()
+
 	err = g.Wait()
 	if err != nil {
-		log.Fatal(err)
+		// TODO: return status code that indicates if reconciliation succeeded or
+		// failed (currently returning exit code 0 no matter what). If we use
+		// log.Fatal on error, the database will not close properly.
+		//
+		// Issue: https://github.com/coinbase/rosetta-cli/issues/20
+		log.Println(err)
 	}
 }
