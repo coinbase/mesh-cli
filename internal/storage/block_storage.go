@@ -709,7 +709,7 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 func (b *BlockStorage) GetAllAccountCurrency(ctx context.Context) ([]*reconciler.AccountCurrency, error) {
 	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
 	if err != nil {
-		return nil, fmt.Errorf("%w databse scan failed", err)
+		return nil, fmt.Errorf("%w database scan failed", err)
 	}
 
 	accounts := make([]*reconciler.AccountCurrency, len(rawBalances))

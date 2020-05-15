@@ -22,7 +22,7 @@ import (
 // access to a KV store.
 type Database interface {
 	NewDatabaseTransaction(context.Context, bool) DatabaseTransaction
-	Close(context.Context) error
+	Close(context.Context)
 	Set(context.Context, []byte, []byte) error
 	Get(context.Context, []byte) (bool, []byte, error)
 	Scan(ctx context.Context, prefix []byte) ([][]byte, error)

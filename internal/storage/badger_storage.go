@@ -30,12 +30,12 @@ type BadgerStorage struct {
 
 // NewBadgerStorage creates a new BadgerStorage.
 func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
-	log.Println("opening badger database...")
+	log.Println("opening database...")
 	db, err := badger.Open(badger.DefaultOptions(dir))
 	if err != nil {
 		return nil, fmt.Errorf("%w could not open badger database", err)
 	}
-	log.Println("badger database opened")
+	log.Println("database opened")
 
 	return &BadgerStorage{
 		db: db,
@@ -44,8 +44,12 @@ func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
 
 // Close closes the database to prevent corruption.
 // The caller should defer this in main.
-func (b *BadgerStorage) Close(ctx context.Context) error {
-	return b.db.Close()
+func (b *BadgerStorage) Close(ctx context.Context) {
+	log.Println("closing database...")
+	if err := b.db.Close(); err != nil {
+		log.Fatal(fmt.Errorf("%w unable to close database", err))
+	}
+	log.Println("database closed")
 }
 
 // BadgerTransaction is a wrapper around a Badger

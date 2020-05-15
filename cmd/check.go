@@ -315,16 +315,9 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 	localStore, err := storage.NewBadgerStorage(ctx, DataDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize data store", err))
+		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
 	}
-	defer func() {
-		log.Println("closing data store...")
-		if err := localStore.Close(ctx); err != nil {
-			log.Fatal(fmt.Errorf("%w: unable to close data store", err))
-		}
-
-		log.Println("data store closed")
-	}()
+	defer localStore.Close(ctx)
 
 	logger := logger.NewLogger(
 		DataDir,
@@ -433,7 +426,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		)
 	})
 
-	// Handle OS signals so we can ensure we close the data store
+	// Handle OS signals so we can ensure we close database
 	// correctly.
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -446,7 +439,10 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	err = g.Wait()
 	if err != nil {
 		// TODO: return status code that indicates if reconciliation succeeded or
-		// failed. If we use log.Fatal, the data store will not close properly.
+		// failed (currently returning exit code 0 no matter what). If we use
+		// log.Fatal on error, the database will not close properly.
+		//
+		// Issue: https://github.com/coinbase/rosetta-cli/issues/20
 		log.Println(err)
 	}
 }
