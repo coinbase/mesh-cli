@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"os/signal"
 	"path"
+	"syscall"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
@@ -430,10 +433,20 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		)
 	})
 
+	// Handle OS signals so we can ensure we close the data store
+	// correctly.
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		fmt.Printf("Received Signal: %s\n", sig)
+		cancel()
+	}()
+
 	err = g.Wait()
 	if err != nil {
+		// TODO: return status code that indicates if reconciliation succeeded or
+		// failed. If we use log.Fatal, the data store will not close properly.
 		log.Println(err)
-		// log.Fatal here prevents db from closing correctly
-		// log.Fatal(err)
 	}
 }
