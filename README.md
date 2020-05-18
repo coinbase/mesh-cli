@@ -94,30 +94,31 @@ Usage:
   rosetta-cli check [flags]
 
 Flags:
-      --block-concurrency uint         concurrency to use while fetching blocks (default 8)
-      --bootstrap-balances string      Absolute path to a file used to bootstrap balances before starting syncing.
-                                       Populating this value after beginning syncing will return an error.
-      --data-dir string                folder used to store logs and any data used to perform validation
-      --end int                        block index to stop syncing (default -1)
-      --exempt-accounts string         Absolute path to a file listing all accounts to exempt from balance
-                                       tracking and reconciliation. Look at the examples directory for an example of
-                                       how to structure this file.
-      --halt-on-reconciliation-error   Determines if block processing should halt on a reconciliation
-                                       error. It can be beneficial to collect all reconciliation errors or silence
-                                       reconciliation errors during development. (default true)
-  -h, --help                           help for check
-      --interesting-accounts string    Absolute path to a file listing all accounts to check on each block. Look
-                                       at the examples directory for an example of how to structure this file.
-      --log-balance-changes            log balance changes
-      --log-blocks                     log processed blocks
-      --log-reconciliations            log balance reconciliations
-      --log-transactions               log processed transactions
-      --lookup-balance-by-block        When set to true, balances are looked up at the block where a balance
-                                       change occurred instead of at the current block. Blockchains that do not support
-                                       historical balance lookup should set this to false. (default true)
-      --reconciler-concurrency uint    concurrency to use while fetching accounts during reconciliation (default 8)
-      --start int                      block index to start syncing (default -1)
-      --transaction-concurrency uint   concurrency to use while fetching transactions (if required) (default 16)
+      --active-reconciliation-concurrency uint     concurrency to use while fetching accounts during active reconciliation (default 8)
+      --block-concurrency uint                     concurrency to use while fetching blocks (default 8)
+      --bootstrap-balances string                  Absolute path to a file used to bootstrap balances before starting syncing.
+                                                   Populating this value after beginning syncing will return an error.
+      --data-dir string                            folder used to store logs and any data used to perform validation
+      --end int                                    block index to stop syncing (default -1)
+      --exempt-accounts string                     Absolute path to a file listing all accounts to exempt from balance
+                                                   tracking and reconciliation. Look at the examples directory for an example of
+                                                   how to structure this file.
+      --halt-on-reconciliation-error               Determines if block processing should halt on a reconciliation
+                                                   error. It can be beneficial to collect all reconciliation errors or silence
+                                                   reconciliation errors during development. (default true)
+  -h, --help                                       help for check
+      --inactive-reconciliation-concurrency uint   concurrency to use while fetching accounts during inactive reconciliation (default 4)
+      --interesting-accounts string                Absolute path to a file listing all accounts to check on each block. Look
+                                                   at the examples directory for an example of how to structure this file.
+      --log-balance-changes                        log balance changes
+      --log-blocks                                 log processed blocks
+      --log-reconciliations                        log balance reconciliations
+      --log-transactions                           log processed transactions
+      --lookup-balance-by-block                    When set to true, balances are looked up at the block where a balance
+                                                   change occurred instead of at the current block. Blockchains that do not support
+                                                   historical balance lookup should set this to false. (default true)
+      --start int                                  block index to start syncing (default -1)
+      --transaction-concurrency uint               concurrency to use while fetching transactions (if required) (default 16)
 
 Global Flags:
       --server-url string   base URL for a Rosetta server (default "http://localhost:8080")

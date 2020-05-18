@@ -114,9 +114,13 @@ of what one of these files looks like.`,
 	// while fetching transactions (if required).
 	TransactionConcurrency uint64
 
-	// ReconcilerConcurrency is the concurrency to use
-	// while fetching accounts during reconciliation.
-	ReconcilerConcurrency uint64
+	// ActiveReconciliationConcurrency is the concurrency to use
+	// while fetching accounts during active reconciliation.
+	ActiveReconciliationConcurrency uint64
+
+	// InactiveReconciliationConcurrency is the concurrency to use
+	// while fetching accounts during inactive reconciliation.
+	InactiveReconciliationConcurrency uint64
 
 	// LogBlocks determines if blocks are
 	// logged.
@@ -207,10 +211,16 @@ func init() {
 		"concurrency to use while fetching transactions (if required)",
 	)
 	checkCmd.Flags().Uint64Var(
-		&ReconcilerConcurrency,
-		"reconciler-concurrency",
+		&ActiveReconciliationConcurrency,
+		"active-reconciliation-concurrency",
 		8,
-		"concurrency to use while fetching accounts during reconciliation",
+		"concurrency to use while fetching accounts during active reconciliation",
+	)
+	checkCmd.Flags().Uint64Var(
+		&InactiveReconciliationConcurrency,
+		"inactive-reconciliation-concurrency",
+		4,
+		"concurrency to use while fetching accounts during inactive reconciliation",
 	)
 	checkCmd.Flags().BoolVar(
 		&LogBlocks,
@@ -381,7 +391,8 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		reconcilerHelper,
 		reconcilerHandler,
 		fetcher,
-		reconciler.WithReconcilerConcurrency(int(ReconcilerConcurrency)),
+		reconciler.WithActiveConcurrency(int(ActiveReconciliationConcurrency)),
+		reconciler.WithInactiveConcurrency(int(InactiveReconciliationConcurrency)),
 		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
 		reconciler.WithInterestingAccounts(interestingAccounts),
 		reconciler.WithSeenAccounts(seenAccounts),
