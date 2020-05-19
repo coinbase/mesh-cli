@@ -25,19 +25,16 @@ import (
 
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
-	cancel                    context.CancelFunc
 	logger                    *logger.Logger
 	haltOnReconciliationError bool
 }
 
 // NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
-	cancel context.CancelFunc,
 	logger *logger.Logger,
 	haltOnReconciliationError bool,
 ) *ReconcilerHandler {
 	return &ReconcilerHandler{
-		cancel:                    cancel,
 		logger:                    logger,
 		haltOnReconciliationError: haltOnReconciliationError,
 	}
@@ -69,7 +66,6 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	}
 
 	if h.haltOnReconciliationError {
-		h.cancel()
 		return errors.New("halting due to reconciliation error")
 	}
 

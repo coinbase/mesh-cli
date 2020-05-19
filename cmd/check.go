@@ -381,7 +381,6 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
-		cancel,
 		logger,
 		HaltOnReconciliationError,
 	)
@@ -425,7 +424,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		primaryNetwork,
 		fetcher,
 		syncerHandler,
-		cancel,
+		cancel, // needed to exit without error when --end flag provided
 		pastBlocks,
 	)
 
