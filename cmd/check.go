@@ -286,6 +286,121 @@ at the examples directory for an example of how to structure this file.`,
 	)
 }
 
+func findMissingOps(
+	ctx context.Context,
+	accountCurrency *reconciler.AccountCurrency,
+	startIndex int64,
+	endIndex int64,
+) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	fetcher := fetcher.New(
+		ServerURL,
+		fetcher.WithBlockConcurrency(BlockConcurrency),
+		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+	)
+
+	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
+	}
+
+	// Always use a temporary directory to find missing ops
+	tmpDir, err := utils.CreateTempDir()
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to create temporary directory", err))
+	}
+	defer utils.RemoveTempDir(tmpDir)
+
+	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
+	}
+
+	logger := logger.NewLogger(
+		tmpDir,
+		false,
+		false,
+		false,
+		false,
+	)
+
+	blockStorageHelper := processor.NewBlockStorageHelper(
+		primaryNetwork,
+		fetcher,
+		LookupBalanceByBlock,
+		nil,
+	)
+
+	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+
+	// Ensure storage is in correct state for starting at index
+	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
+	}
+
+	reconcilerHelper := processor.NewReconcilerHelper(
+		blockStorage,
+	)
+
+	reconcilerHandler := processor.NewReconcilerHandler(
+		logger,
+		true, // halt on reconciliation error
+	)
+
+	r := reconciler.New(
+		primaryNetwork,
+		reconcilerHelper,
+		reconcilerHandler,
+		fetcher,
+		reconciler.WithActiveConcurrency(int(ActiveReconciliationConcurrency)),
+		reconciler.WithInactiveConcurrency(0), // do not do any inactive lookups
+		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
+		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
+	)
+
+	syncerHandler := processor.NewSyncerHandler(
+		blockStorage,
+		logger,
+		r,
+		fetcher,
+	)
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return r.Reconcile(ctx)
+	})
+
+	syncer := syncer.New(
+		primaryNetwork,
+		fetcher,
+		syncerHandler,
+		cancel,
+		nil,
+	)
+
+	g.Go(func() error {
+		return syncer.Sync(
+			ctx,
+			startIndex,
+			endIndex,
+		)
+	})
+
+	// TODO: Handle signals
+
+	err = g.Wait()
+	localStore.Close(ctx) // close database before starting another search
+	if err == nil || err == context.Canceled {
+		log.Printf("unable to find missing ops in block range %d-%d\n", startIndex, endIndex)
+		findMissingOps(ctx, accountCurrency, startIndex-100, endIndex-100)
+	}
+
+	// TODO: handle case where unable to find missing op (startIndex is negative)
+}
+
 func runCheckCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -450,6 +565,15 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	if err == nil || err == context.Canceled {
 		log.Println("check succeeded")
 	} else {
+		if reconcilerHandler.InactiveFailure != nil {
+			log.Println("looking for block containing missing ops")
+			findMissingOps(
+				context.Background(),
+				reconcilerHandler.InactiveFailure,
+				reconcilerHandler.InactiveFailureBlock.Index-100,
+				reconcilerHandler.InactiveFailureBlock.Index-1,
+			)
+		}
 		log.Printf("check failed: %s\n", err.Error())
 		os.Exit(1)
 	}

@@ -20,6 +20,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -27,6 +28,9 @@ import (
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
 	haltOnReconciliationError bool
+
+	InactiveFailure      *reconciler.AccountCurrency
+	InactiveFailureBlock *types.BlockIdentifier
 }
 
 // NewReconcilerHandler creates a new ReconcilerHandler.
@@ -66,13 +70,16 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	}
 
 	if h.haltOnReconciliationError {
+		if reconciliationType == "INACTIVE" { // TODO: export reconciliation types
+			h.InactiveFailure = &reconciler.AccountCurrency{
+				Account:  account,
+				Currency: currency,
+			}
+			h.InactiveFailureBlock = block
+		}
 		return errors.New("halting due to reconciliation error")
 	}
 
-	// TODO: automatically find block with missing operation
-	// if inactive reconciliation error. Can do this by asserting
-	// the impacted address has a balance change of 0 on all blocks
-	// it is not active.
 	return nil
 }
 
