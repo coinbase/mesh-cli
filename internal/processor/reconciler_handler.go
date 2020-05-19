@@ -98,16 +98,3 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 		block,
 	)
 }
-
-// NewAccountSeen is called each time the reconciler adds a new
-// AccountCurrency to the inactiveQueue. These AccountCurrency
-// should be persisted to pass to the reconciler on restart.
-func (h *ReconcilerHandler) NewAccountSeen(
-	ctx context.Context,
-	account *types.AccountIdentifier,
-	currency *types.Currency,
-) error {
-	// We don't persist new accounts here because we are already storing
-	// them when we set their balance in the internal/storage package.
-	return nil
-}
