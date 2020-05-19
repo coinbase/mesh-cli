@@ -448,12 +448,10 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}()
 
 	err = g.Wait()
-	if err != nil {
-		// TODO: return status code that indicates if reconciliation succeeded or
-		// failed (currently returning exit code 0 no matter what). If we use
-		// log.Fatal on error, the database will not close properly.
-		//
-		// Issue: https://github.com/coinbase/rosetta-cli/issues/20
-		log.Println(err)
+	if err == nil || err == context.Canceled {
+		log.Println("check succeeded")
+	} else {
+		log.Printf("check failed: %s\n", err.Error())
+		os.Exit(1)
 	}
 }
