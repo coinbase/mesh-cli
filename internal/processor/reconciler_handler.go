@@ -80,13 +80,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			}
 			h.InactiveFailureBlock = block
 		} else {
-			if h.ActiveFailureBlock == nil {
-				h.ActiveFailureBlock = block
-			} else {
-				if block.Index < h.ActiveFailureBlock.Index {
-					h.ActiveFailureBlock = block
-				}
-			}
+			h.ActiveFailureBlock = block
 		}
 		return errors.New("halting due to reconciliation error")
 	}

@@ -36,6 +36,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -373,7 +374,7 @@ func findMissingOps(
 		reconcilerHelper,
 		reconcilerHandler,
 		fetcher,
-		reconciler.WithActiveConcurrency(int(ActiveReconciliationConcurrency)),
+		reconciler.WithActiveConcurrency(1),   // when using concurrency more than 1, we may lookup more than 1 block at once
 		reconciler.WithInactiveConcurrency(0), // do not do any inactive lookups
 		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
@@ -596,7 +597,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	sigListeners := []context.CancelFunc{cancel} // need multiple listeners in case we exit findMissingOps
 	go func() {
 		sig := <-sigs
-		log.Printf("Received Signal: %s\n", sig)
+		color.Red("Received Signal: %s", sig)
 		signalReceived = true
 		for _, listener := range sigListeners {
 			listener()
@@ -605,27 +606,27 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	err = g.Wait()
 	if signalReceived {
-		log.Println("check cancelled")
+		color.Red("check cancelled")
 		os.Exit(1)
 		return
 	}
 
 	if err == nil || err == context.Canceled { // err == context.Canceled when --end
-		log.Println("check succeeded")
+		color.Green("check succeeded")
 		os.Exit(0)
 	}
 
 	if reconcilerHandler.InactiveFailure == nil {
-		log.Printf("check failed: %s\n", err.Error())
+		color.Red("check failed: %s", err.Error())
 		os.Exit(1)
 	}
 
 	if !LookupBalanceByBlock {
-		log.Println("Inactive reconciliation failure detected (often caused by missing balance changing operations in a block). To find the source of this error automatically, enable --lookup-balance-by-block.")
+		color.Red("To find the block missing operations automatically, enable --lookup-balance-by-block")
 		os.Exit(1)
 	}
 
-	log.Println("Inactive reconciliation failure detected (often caused by missing balance changing operations in a block). Beginning search for block with missing operations now.")
+	color.Red("Beginning search for block with missing operations...hold tight")
 	badBlock, err := findMissingOps(
 		context.Background(),
 		&sigListeners,
@@ -634,12 +635,13 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		reconcilerHandler.InactiveFailureBlock.Index-1,
 	)
 	if err != nil {
-		log.Printf("%s: could not find block with missing ops\n", err.Error())
+		color.Red("%s: could not find block with missing ops", err.Error())
 		os.Exit(1)
 	}
 
-	log.Printf(
-		"missing ops found in block %d:%s\n",
+	color.Red(
+		"missing ops for %s in block %d:%s",
+		types.AccountString(reconcilerHandler.InactiveFailure.Account),
 		badBlock.Index,
 		badBlock.Hash,
 	)
