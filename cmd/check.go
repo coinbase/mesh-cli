@@ -79,7 +79,12 @@ only at the current block). If your node does not support this functionality
 set --lookup-balance-by-block to false. This will make reconciliation much
 less efficient but it will still work.
 
-To debug an INACTIVE account reconciliation error, set the
+If check fails due to an INACTIVE reconciliation error (balance changed without
+any corresponding operation), the cli will automatically try to find the block
+missing an operation. If --lookup-balance-by-block is not enabled, this automatic
+debugging tool does not work.
+
+To debug an INACTIVE account reconciliation error without --lookup-balance-by-block, set the
 --interesting-accounts flag to the absolute path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
