@@ -31,6 +31,8 @@ type ReconcilerHandler struct {
 
 	InactiveFailure      *reconciler.AccountCurrency
 	InactiveFailureBlock *types.BlockIdentifier
+
+	ActiveFailureBlock *types.BlockIdentifier
 }
 
 // NewReconcilerHandler creates a new ReconcilerHandler.
@@ -71,11 +73,20 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 
 	if h.haltOnReconciliationError {
 		if reconciliationType == "INACTIVE" { // TODO: export reconciliation types
+			// Populate inactive failure information so we try to find missing ops.
 			h.InactiveFailure = &reconciler.AccountCurrency{
 				Account:  account,
 				Currency: currency,
 			}
 			h.InactiveFailureBlock = block
+		} else {
+			if h.ActiveFailureBlock == nil {
+				h.ActiveFailureBlock = block
+			} else {
+				if block.Index < h.ActiveFailureBlock.Index {
+					h.ActiveFailureBlock = block
+				}
+			}
 		}
 		return errors.New("halting due to reconciliation error")
 	}

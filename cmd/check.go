@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -47,6 +48,12 @@ const (
 	//
 	// TODO: make configurable
 	ExtendedRetryElapsedTime = 5 * time.Minute
+
+	// InactiveFailureLookbackWindow is the size of each window to check
+	// for missing ops. If a block with missing ops is not found in this
+	// window, another window is created with the preceeding
+	// InactiveFailureLookbackWindow blocks.
+	InactiveFailureLookbackWindow = 250
 )
 
 var (
@@ -152,6 +159,8 @@ of what one of these files looks like.`,
 	// to actively reconcile on each block (if there are no operations
 	// present for the account, the reconciler asserts a balance change of 0).
 	InterestingFile string
+
+	signalReceived = false
 )
 
 func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
@@ -288,12 +297,11 @@ at the examples directory for an example of how to structure this file.`,
 
 func findMissingOps(
 	ctx context.Context,
+	sigListeners *[]context.CancelFunc,
 	accountCurrency *reconciler.AccountCurrency,
 	startIndex int64,
 	endIndex int64,
-) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+) (*types.BlockIdentifier, error) {
 	fetcher := fetcher.New(
 		ServerURL,
 		fetcher.WithBlockConcurrency(BlockConcurrency),
@@ -301,21 +309,32 @@ func findMissingOps(
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 	)
 
-	primaryNetwork, _, err := fetcher.InitializeAsserter(ctx)
+	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
+		return nil, fmt.Errorf("%w: unable to initialize asserter", err)
 	}
+
+	if startIndex < networkStatus.GenesisBlockIdentifier.Index {
+		return nil, fmt.Errorf(
+			"next window to check has start index %d < genesis index %d",
+			startIndex,
+			networkStatus.GenesisBlockIdentifier.Index,
+		)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	*sigListeners = append(*sigListeners, cancel)
 
 	// Always use a temporary directory to find missing ops
 	tmpDir, err := utils.CreateTempDir()
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to create temporary directory", err))
+		return nil, fmt.Errorf("%w: unable to create temporary directory", err)
 	}
 	defer utils.RemoveTempDir(tmpDir)
 
 	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
+		return nil, fmt.Errorf("%w: unable to initialize database", err)
 	}
 
 	logger := logger.NewLogger(
@@ -337,7 +356,7 @@ func findMissingOps(
 
 	// Ensure storage is in correct state for starting at index
 	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
+		return nil, fmt.Errorf("%w: unable to set new start index", err)
 	}
 
 	reconcilerHelper := processor.NewReconcilerHelper(
@@ -390,16 +409,33 @@ func findMissingOps(
 		)
 	})
 
-	// TODO: Handle signals
-
 	err = g.Wait()
 	localStore.Close(ctx) // close database before starting another search
-	if err == nil || err == context.Canceled {
-		log.Printf("unable to find missing ops in block range %d-%d\n", startIndex, endIndex)
-		findMissingOps(ctx, accountCurrency, startIndex-100, endIndex-100)
+	if signalReceived {
+		return nil, errors.New("signal received")
 	}
 
-	// TODO: handle case where unable to find missing op (startIndex is negative)
+	if err == nil || err == context.Canceled {
+		log.Printf(
+			"unable to find missing ops in block range %d-%d, now searching %d-%d\n",
+			startIndex, endIndex,
+			startIndex-InactiveFailureLookbackWindow,
+			endIndex-InactiveFailureLookbackWindow,
+		)
+		return findMissingOps(
+			context.Background(), // need to use new context because provided context cancelled by syncer
+			sigListeners,
+			accountCurrency,
+			startIndex-InactiveFailureLookbackWindow,
+			endIndex-InactiveFailureLookbackWindow,
+		)
+	}
+
+	if reconcilerHandler.ActiveFailureBlock == nil {
+		return nil, errors.New("unable to find missing ops")
+	}
+
+	return reconcilerHandler.ActiveFailureBlock, nil
 }
 
 func runCheckCmd(cmd *cobra.Command, args []string) {
@@ -557,26 +593,55 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	// correctly.
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	sigListeners := []context.CancelFunc{cancel} // need multiple listeners in case we exit findMissingOps
 	go func() {
 		sig := <-sigs
-		fmt.Printf("Received Signal: %s\n", sig)
-		cancel()
+		log.Printf("Received Signal: %s\n", sig)
+		signalReceived = true
+		for _, listener := range sigListeners {
+			listener()
+		}
 	}()
 
 	err = g.Wait()
-	if err == nil || err == context.Canceled {
+	if signalReceived {
+		log.Println("check cancelled")
+		os.Exit(1)
+		return
+	}
+
+	if err == nil || err == context.Canceled { // err == context.Canceled when --end
 		log.Println("check succeeded")
-	} else {
-		if reconcilerHandler.InactiveFailure != nil {
-			log.Println("looking for block containing missing ops")
-			findMissingOps(
-				context.Background(),
-				reconcilerHandler.InactiveFailure,
-				reconcilerHandler.InactiveFailureBlock.Index-100,
-				reconcilerHandler.InactiveFailureBlock.Index-1,
-			)
-		}
+		os.Exit(0)
+	}
+
+	if reconcilerHandler.InactiveFailure == nil {
 		log.Printf("check failed: %s\n", err.Error())
 		os.Exit(1)
 	}
+
+	if !LookupBalanceByBlock {
+		log.Println("Inactive reconciliation failure detected (often caused by missing balance changing operations in a block). To find the source of this error automatically, enable --lookup-balance-by-block.")
+		os.Exit(1)
+	}
+
+	log.Println("Inactive reconciliation failure detected (often caused by missing balance changing operations in a block). Beginning search for block with missing operations now.")
+	badBlock, err := findMissingOps(
+		context.Background(),
+		&sigListeners,
+		reconcilerHandler.InactiveFailure,
+		reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,
+		reconcilerHandler.InactiveFailureBlock.Index-1,
+	)
+	if err != nil {
+		log.Printf("%s: could not find block with missing ops\n", err.Error())
+		os.Exit(1)
+	}
+
+	log.Printf(
+		"missing ops found in block %d:%s\n",
+		badBlock.Index,
+		badBlock.Hash,
+	)
+	os.Exit(1)
 }
