@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -35,6 +36,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -47,6 +49,13 @@ const (
 	//
 	// TODO: make configurable
 	ExtendedRetryElapsedTime = 5 * time.Minute
+
+	// InactiveFailureLookbackWindow is the size of each window to check
+	// for missing ops. If a block with missing ops is not found in this
+	// window, another window is created with the preceding
+	// InactiveFailureLookbackWindow blocks (this process continues
+	// until the client halts the search or the block is found).
+	InactiveFailureLookbackWindow = 250
 )
 
 var (
@@ -71,7 +80,12 @@ only at the current block). If your node does not support this functionality
 set --lookup-balance-by-block to false. This will make reconciliation much
 less efficient but it will still work.
 
-To debug an INACTIVE account reconciliation error, set the
+If check fails due to an INACTIVE reconciliation error (balance changed without
+any corresponding operation), the cli will automatically try to find the block
+missing an operation. If --lookup-balance-by-block is not enabled, this automatic
+debugging tool does not work.
+
+To debug an INACTIVE account reconciliation error without --lookup-balance-by-block, set the
 --interesting-accounts flag to the absolute path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
@@ -152,32 +166,11 @@ of what one of these files looks like.`,
 	// to actively reconcile on each block (if there are no operations
 	// present for the account, the reconciler asserts a balance change of 0).
 	InterestingFile string
+
+	// signalReceived is set to true when a signal causes us to exit. This makes
+	// determining the error message to show on exit much more easy.
+	signalReceived = false
 )
-
-func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
-	if len(filePath) == 0 {
-		return []*reconciler.AccountCurrency{}, nil
-	}
-
-	accountsRaw, err := ioutil.ReadFile(path.Clean(filePath))
-	if err != nil {
-		return nil, err
-	}
-
-	accounts := []*reconciler.AccountCurrency{}
-	if err := json.Unmarshal(accountsRaw, &accounts); err != nil {
-		return nil, err
-	}
-
-	log.Printf(
-		"Found %d accounts at %s: %s\n",
-		len(accounts),
-		filePath,
-		types.PrettyPrintStruct(accounts),
-	)
-
-	return accounts, nil
-}
 
 func init() {
 	checkCmd.Flags().StringVar(
@@ -286,6 +279,203 @@ at the examples directory for an example of how to structure this file.`,
 	)
 }
 
+// loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
+// in a file.
+func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
+	if len(filePath) == 0 {
+		return []*reconciler.AccountCurrency{}, nil
+	}
+
+	accountsRaw, err := ioutil.ReadFile(path.Clean(filePath))
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []*reconciler.AccountCurrency{}
+	if err := json.Unmarshal(accountsRaw, &accounts); err != nil {
+		return nil, err
+	}
+
+	log.Printf(
+		"Found %d accounts at %s: %s\n",
+		len(accounts),
+		filePath,
+		types.PrettyPrintStruct(accounts),
+	)
+
+	return accounts, nil
+}
+
+// findMissingOps returns the types.BlockIdentifier of a block
+// that is missing balance-changing operations for a
+// *reconciler.AccountCurrency.
+func findMissingOps(
+	ctx context.Context,
+	sigListeners *[]context.CancelFunc,
+	accountCurrency *reconciler.AccountCurrency,
+	startIndex int64,
+	endIndex int64,
+) (*types.BlockIdentifier, error) {
+	fetcher := fetcher.New(
+		ServerURL,
+		fetcher.WithBlockConcurrency(BlockConcurrency),
+		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+	)
+
+	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to initialize asserter", err)
+	}
+
+	// To cancel all execution, need to call multiple cancel functions.
+	ctx, cancel := context.WithCancel(ctx)
+	*sigListeners = append(*sigListeners, cancel)
+
+	// Always use a temporary directory to find missing ops
+	tmpDir, err := utils.CreateTempDir()
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to create temporary directory", err)
+	}
+	defer utils.RemoveTempDir(tmpDir)
+
+	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to initialize database", err)
+	}
+
+	logger := logger.NewLogger(
+		tmpDir,
+		false,
+		false,
+		false,
+		false,
+	)
+
+	blockStorageHelper := processor.NewBlockStorageHelper(
+		primaryNetwork,
+		fetcher,
+		LookupBalanceByBlock,
+		nil,
+	)
+
+	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+
+	// Ensure storage is in correct state for starting at index
+	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
+		return nil, fmt.Errorf("%w: unable to set new start index", err)
+	}
+
+	reconcilerHelper := processor.NewReconcilerHelper(
+		blockStorage,
+	)
+
+	reconcilerHandler := processor.NewReconcilerHandler(
+		logger,
+		true, // halt on reconciliation error
+	)
+
+	r := reconciler.New(
+		primaryNetwork,
+		reconcilerHelper,
+		reconcilerHandler,
+		fetcher,
+
+		// When using concurrency > 1, we could start looking up balance changes
+		// on multiple blocks at once. This can cause us to return the wrong block
+		// that is missing operations.
+		reconciler.WithActiveConcurrency(1),
+
+		// Do not do any inactive lookups when looking for the block with missing
+		// operations.
+		reconciler.WithInactiveConcurrency(0),
+		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
+		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
+	)
+
+	syncerHandler := processor.NewSyncerHandler(
+		blockStorage,
+		logger,
+		r,
+		fetcher,
+		accountCurrency,
+	)
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return r.Reconcile(ctx)
+	})
+
+	syncer := syncer.New(
+		primaryNetwork,
+		fetcher,
+		syncerHandler,
+		cancel,
+		nil,
+	)
+
+	g.Go(func() error {
+		return syncer.Sync(
+			ctx,
+			startIndex,
+			endIndex,
+		)
+	})
+
+	err = g.Wait()
+
+	// Close database before starting another search, otherwise we will
+	// have n databases open when we find the offending block.
+	if storageErr := localStore.Close(ctx); storageErr != nil {
+		return nil, fmt.Errorf("%w: unable to close database", storageErr)
+	}
+
+	if signalReceived {
+		return nil, errors.New("Search for block with missing ops halted")
+	}
+
+	if err == nil || err == context.Canceled {
+		newStart := startIndex - InactiveFailureLookbackWindow
+		if newStart < networkStatus.GenesisBlockIdentifier.Index {
+			newStart = networkStatus.GenesisBlockIdentifier.Index
+		}
+
+		newEnd := endIndex - InactiveFailureLookbackWindow
+		if newEnd <= newStart {
+			return nil, fmt.Errorf(
+				"Next window to check has start index %d <= end index %d",
+				newStart,
+				newEnd,
+			)
+		}
+
+		color.Red(
+			"Unable to find missing ops in block range %d-%d, now searching %d-%d",
+			startIndex, endIndex,
+			newStart,
+			newEnd,
+		)
+
+		return findMissingOps(
+			// We need to use new context for each invocation because the syncer
+			// cancels the provided context when it reaches the end of a syncing
+			// window.
+			context.Background(),
+			sigListeners,
+			accountCurrency,
+			startIndex-InactiveFailureLookbackWindow,
+			endIndex-InactiveFailureLookbackWindow,
+		)
+	}
+
+	if reconcilerHandler.ActiveFailureBlock == nil {
+		return nil, errors.New("unable to find missing ops")
+	}
+
+	return reconcilerHandler.ActiveFailureBlock, nil
+}
+
 func runCheckCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -381,7 +571,6 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
-		cancel,
 		logger,
 		HaltOnReconciliationError,
 	)
@@ -403,6 +592,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		logger,
 		r,
 		fetcher,
+		nil,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -425,7 +615,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		primaryNetwork,
 		fetcher,
 		syncerHandler,
-		cancel,
+		cancel, // needed to exit without error when --end flag provided
 		pastBlocks,
 	)
 
@@ -438,20 +628,60 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	})
 
 	// Handle OS signals so we can ensure we close database
-	// correctly.
+	// correctly. We call multiple sigListeners because we
+	// may need to cancel more than 1 context.
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	sigListeners := []context.CancelFunc{cancel}
 	go func() {
 		sig := <-sigs
-		fmt.Printf("Received Signal: %s\n", sig)
-		cancel()
+		color.Red("Received signal: %s", sig)
+		signalReceived = true
+		for _, listener := range sigListeners {
+			listener()
+		}
 	}()
 
 	err = g.Wait()
-	if err == nil || err == context.Canceled {
-		log.Println("check succeeded")
-	} else {
-		log.Printf("check failed: %s\n", err.Error())
+	if signalReceived {
+		color.Red("Check halted")
+		os.Exit(1)
+		return
+	}
+
+	if err == nil || err == context.Canceled { // err == context.Canceled when --end
+		color.Green("Check succeeded")
+		os.Exit(0)
+	}
+
+	color.Red("Check failed: %s", err.Error())
+	if reconcilerHandler.InactiveFailure == nil {
 		os.Exit(1)
 	}
+
+	if !LookupBalanceByBlock {
+		color.Red("Can't find the block missing operations automatically, please enable --lookup-balance-by-block")
+		os.Exit(1)
+	}
+
+	color.Red("Searching for block with missing operations...hold tight")
+	badBlock, err := findMissingOps(
+		context.Background(),
+		&sigListeners,
+		reconcilerHandler.InactiveFailure,
+		reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,
+		reconcilerHandler.InactiveFailureBlock.Index,
+	)
+	if err != nil {
+		color.Red("%s: could not find block with missing ops", err.Error())
+		os.Exit(1)
+	}
+
+	color.Red(
+		"Missing ops for %s in block %d:%s",
+		types.AccountString(reconcilerHandler.InactiveFailure.Account),
+		badBlock.Index,
+		badBlock.Hash,
+	)
+	os.Exit(1)
 }

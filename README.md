@@ -78,7 +78,12 @@ only at the current block). If your node does not support this functionality
 set --lookup-balance-by-block to false. This will make reconciliation much
 less efficient but it will still work.
 
-To debug an INACTIVE account reconciliation error, set the
+If check fails due to an INACTIVE reconciliation error (balance changed without
+any corresponding operation), the cli will automatically try to find the block
+missing an operation. If --lookup-balance-by-block is not enabled, this automatic
+debugging tool does not work.
+
+To debug an INACTIVE account reconciliation error without --lookup-balance-by-block, set the
 --interesting-accounts flag to the absolute path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
@@ -123,6 +128,11 @@ Flags:
 Global Flags:
       --server-url string   base URL for a Rosetta server (default "http://localhost:8080")
 ```
+
+#### Status Codes
+If there are no issues found while running `check`, it will exit with a `0` status code.
+If there are any issues, it will exit with a `1` status code. It can be useful
+to run this command as an integration test for any changes to your implementation.
 
 ### create:configuration
 ```
@@ -216,7 +226,7 @@ internal
 
 ## Correctness Checks
 This tool performs a variety of correctness checks using the Rosetta Server. If
-any correctness check fails, the validator will exit and print out a detailed
+any correctness check fails, the CLI will exit and print out a detailed
 message explaining the error.
 
 ### Response Correctness
@@ -245,11 +255,6 @@ involved in any transactions. The balances of accounts could change
 on the blockchain node without being included in an operation
 returned by the Rosetta Node API. Recall that all balance-changing
 operations should be returned by the Rosetta Node API.
-
-## Future Work
-* Automatically test the correctness of a Rosetta Client SDK by constructing,
-signing, and submitting a transaction. This can be further extended by ensuring
-broadcast transactions eventually land in a block.
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
