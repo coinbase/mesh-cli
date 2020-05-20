@@ -53,7 +53,8 @@ const (
 	// InactiveFailureLookbackWindow is the size of each window to check
 	// for missing ops. If a block with missing ops is not found in this
 	// window, another window is created with the preceding
-	// InactiveFailureLookbackWindow blocks.
+	// InactiveFailureLookbackWindow blocks (this process continues
+	// until the client halts the search or the block is found).
 	InactiveFailureLookbackWindow = 250
 )
 
@@ -382,7 +383,7 @@ func findMissingOps(
 
 		// When using concurrency > 1, we could start looking up balance changes
 		// on multiple blocks at once. This can cause us to return the wrong block
-		// that is missing blocks.
+		// that is missing operations.
 		reconciler.WithActiveConcurrency(1),
 
 		// Do not do any inactive lookups when looking for the block with missing
