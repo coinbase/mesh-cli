@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/dgraph-io/badger"
 )
@@ -30,12 +29,12 @@ type BadgerStorage struct {
 
 // NewBadgerStorage creates a new BadgerStorage.
 func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
-	log.Println("opening database...")
-	db, err := badger.Open(badger.DefaultOptions(dir))
+	options := badger.DefaultOptions(dir)
+	options.Logger = nil
+	db, err := badger.Open(options)
 	if err != nil {
 		return nil, fmt.Errorf("%w could not open badger database", err)
 	}
-	log.Println("database opened")
 
 	return &BadgerStorage{
 		db: db,
@@ -45,11 +44,9 @@ func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
 // Close closes the database to prevent corruption.
 // The caller should defer this in main.
 func (b *BadgerStorage) Close(ctx context.Context) error {
-	log.Println("closing database...")
 	if err := b.db.Close(); err != nil {
 		return fmt.Errorf("%w unable to close database", err)
 	}
-	log.Println("database closed")
 
 	return nil
 }

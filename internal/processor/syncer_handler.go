@@ -23,15 +23,17 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 // SyncerHandler implements the syncer.Handler interface.
 type SyncerHandler struct {
-	storage    *storage.BlockStorage
-	logger     *logger.Logger
-	reconciler *reconciler.Reconciler
-	fetcher    *fetcher.Fetcher
+	storage            *storage.BlockStorage
+	logger             *logger.Logger
+	reconciler         *reconciler.Reconciler
+	fetcher            *fetcher.Fetcher
+	interestingAccount *reconciler.AccountCurrency
 }
 
 // NewSyncerHandler returns a new SyncerHandler.
@@ -40,12 +42,14 @@ func NewSyncerHandler(
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
 	fetcher *fetcher.Fetcher,
+	interestingAccount *reconciler.AccountCurrency,
 ) *SyncerHandler {
 	return &SyncerHandler{
-		storage:    storage,
-		logger:     logger,
-		reconciler: reconciler,
-		fetcher:    fetcher,
+		storage:            storage,
+		logger:             logger,
+		reconciler:         reconciler,
+		fetcher:            fetcher,
+		interestingAccount: interestingAccount,
 	}
 }
 
@@ -69,6 +73,28 @@ func (h *SyncerHandler) BlockAdded(
 
 	if err := h.logger.BalanceStream(ctx, balanceChanges); err != nil {
 		return nil
+	}
+
+	// When an interesting account is provided, only reconcile
+	// balance changes affecting that account. This makes finding missing
+	// ops much faster.
+	if h.interestingAccount != nil {
+		var interestingChange *parser.BalanceChange
+		for _, change := range balanceChanges {
+			if types.Hash(&reconciler.AccountCurrency{
+				Account:  change.Account,
+				Currency: change.Currency,
+			}) == types.Hash(h.interestingAccount) {
+				interestingChange = change
+				break
+			}
+		}
+
+		if interestingChange != nil {
+			balanceChanges = []*parser.BalanceChange{interestingChange}
+		} else {
+			balanceChanges = []*parser.BalanceChange{}
+		}
 	}
 
 	// Mark accounts for reconciliation...this may be

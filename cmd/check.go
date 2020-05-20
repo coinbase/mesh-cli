@@ -365,6 +365,7 @@ func findMissingOps(
 		logger,
 		r,
 		fetcher,
+		accountCurrency,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -517,6 +518,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		logger,
 		r,
 		fetcher,
+		nil,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
