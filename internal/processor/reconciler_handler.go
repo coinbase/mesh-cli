@@ -72,17 +72,19 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	}
 
 	if h.haltOnReconciliationError {
-		if reconciliationType == "INACTIVE" { // TODO: export reconciliation types
-			// Populate inactive failure information so we try to find missing ops.
+		if reconciliationType == reconciler.InactiveReconciliation {
+			// Populate inactive failure information so we can try to find block with
+			// missing ops.
 			h.InactiveFailure = &reconciler.AccountCurrency{
 				Account:  account,
 				Currency: currency,
 			}
 			h.InactiveFailureBlock = block
 		} else {
+			// If we halt on an active reconciliation error, store in the handler.
 			h.ActiveFailureBlock = block
 		}
-		return errors.New("halting due to reconciliation error")
+		return errors.New("reconciliation error")
 	}
 
 	return nil

@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
 )
@@ -315,7 +316,7 @@ func (l *Logger) ReconcileFailureStream(
 	block *types.BlockIdentifier,
 ) error {
 	// Always print out reconciliation failures
-	if reconciliationType == "INACTIVE" { // TODO: export type
+	if reconciliationType == reconciler.InactiveReconciliation {
 		color.Yellow(
 			"Missing balance-changing operation detected for %s computed balance: %s%s node balance: %s%s",
 			types.AccountString(account),

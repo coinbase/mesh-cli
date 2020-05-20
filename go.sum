@@ -29,6 +29,8 @@ github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200518143022-cea5733d9710 h1:XlYar
 github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200518143022-cea5733d9710/go.mod h1:XKM7urGHLqGQJi9kM97N+GpMLJuCAGYXy2wOm3KzxEE=
 github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200519145152-620dbd4e42bd h1:qnKzVb26+2aEEkN7fi1yuDrknocch2M0PqHt5GTpqAQ=
 github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200519145152-620dbd4e42bd/go.mod h1:XKM7urGHLqGQJi9kM97N+GpMLJuCAGYXy2wOm3KzxEE=
+github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200520212551-1f6ff35ffe98 h1:FFhhwaOOGqgYsGBPn/u/ZLk87ZmI7gRpp9oz1RLuPvw=
+github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200520212551-1f6ff35ffe98/go.mod h1:XKM7urGHLqGQJi9kM97N+GpMLJuCAGYXy2wOm3KzxEE=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
@@ -84,6 +86,7 @@ github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
+github.com/mattn/go-colorable v0.1.4 h1:snbPLB8fVfU9iwbbo30TPtbLRzwWu6aJS6Xh4eaaviA=
 github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.10/go.mod h1:qgIWMr58cqv1PHHyhnkY9lrL7etaEgOFcMEpPG5Rm84=
