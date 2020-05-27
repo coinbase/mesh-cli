@@ -490,7 +490,10 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	var existingValue string
-	if exists {
+	// Initialize to zero if change.Block == parentBlock == genesis block
+	if parentBlock != nil && change.Block.Hash == parentBlock.Hash {
+		existingValue = "0"
+	} else if exists {
 		parseBal, err := parseBalanceEntry(balance)
 		if err != nil {
 			return err
