@@ -251,6 +251,9 @@ func TestBlock(t *testing.T) {
 
 func TestBalance(t *testing.T) {
 	var (
+		genesisAccount = &types.AccountIdentifier{
+			Address: "genesis",
+		}
 		account = &types.AccountIdentifier{
 			Address: "blah",
 		}
@@ -323,6 +326,10 @@ func TestBalance(t *testing.T) {
 		amountNilCurrency = &types.Amount{
 			Value: "100",
 		}
+		genesisBlock = &types.BlockIdentifier{
+			Hash:  "0",
+			Index: 0,
+		}
 		newBlock = &types.BlockIdentifier{
 			Hash:  "kdasdj",
 			Index: 123890,
@@ -343,7 +350,11 @@ func TestBalance(t *testing.T) {
 			Value:    "-1000",
 			Currency: currency,
 		}
-		mockHelper = &MockBlockStorageHelper{}
+		mockHelper = &MockBlockStorageHelper{
+			AccountBalances: map[string]string{
+				"genesis": "100",
+			},
+		}
 	)
 
 	ctx := context.Background()
@@ -366,6 +377,31 @@ func TestBalance(t *testing.T) {
 			Currency: currency,
 		}, amount)
 		assert.Equal(t, newBlock, block)
+	})
+
+	t.Run("Set and get genesis balance", func(t *testing.T) {
+		txn := storage.newDatabaseTransaction(ctx, true)
+		err := storage.UpdateBalance(
+			ctx,
+			txn,
+			&parser.BalanceChange{
+				Account:    genesisAccount,
+				Currency:   currency,
+				Block:      genesisBlock,
+				Difference: amount.Value,
+			},
+			genesisBlock,
+		)
+		assert.NoError(t, err)
+		assert.NoError(t, txn.Commit(ctx))
+
+		amount, block, err := storage.GetBalance(ctx, genesisAccount, currency, genesisBlock)
+		assert.NoError(t, err)
+		assert.Equal(t, &types.Amount{
+			Value:    "100",
+			Currency: currency,
+		}, amount)
+		assert.Equal(t, genesisBlock, block)
 	})
 
 	t.Run("Set and get balance", func(t *testing.T) {
@@ -604,6 +640,10 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, []*reconciler.AccountCurrency{
 			{
+				Account:  genesisAccount,
+				Currency: currency,
+			},
+			{
 				Account:  account,
 				Currency: currency,
 			},
@@ -823,6 +863,7 @@ func TestCreateBlockCache(t *testing.T) {
 
 type MockBlockStorageHelper struct {
 	AccountBalanceAmount string
+	AccountBalances      map[string]string
 	ExemptAccounts       []*reconciler.AccountCurrency
 }
 
@@ -835,6 +876,13 @@ func (h *MockBlockStorageHelper) AccountBalance(
 	value := "0"
 	if len(h.AccountBalanceAmount) > 0 {
 		value = h.AccountBalanceAmount
+	}
+
+	if balance, ok := h.AccountBalances[account.Address]; ok {
+		return &types.Amount{
+			Value:    balance,
+			Currency: currency,
+		}, nil
 	}
 
 	return &types.Amount{
