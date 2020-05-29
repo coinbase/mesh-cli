@@ -873,16 +873,16 @@ func (h *MockBlockStorageHelper) AccountBalance(
 	currency *types.Currency,
 	block *types.BlockIdentifier,
 ) (*types.Amount, error) {
-	value := "0"
-	if len(h.AccountBalanceAmount) > 0 {
-		value = h.AccountBalanceAmount
-	}
-
 	if balance, ok := h.AccountBalances[account.Address]; ok {
 		return &types.Amount{
 			Value:    balance,
 			Currency: currency,
 		}, nil
+	}
+
+	value := "0"
+	if len(h.AccountBalanceAmount) > 0 {
+		value = h.AccountBalanceAmount
 	}
 
 	return &types.Amount{
