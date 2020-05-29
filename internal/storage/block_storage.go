@@ -490,17 +490,18 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	var existingValue string
-	// Avoid double counting genesis block
-	if parentBlock != nil && change.Block.Hash == parentBlock.Hash {
+	switch {
+	case parentBlock != nil && change.Block.Hash == parentBlock.Hash:
+		// Avoid double counting genesis block
 		existingValue = "0"
-	} else if exists {
+	case exists:
 		parseBal, err := parseBalanceEntry(balance)
 		if err != nil {
 			return err
 		}
 
 		existingValue = parseBal.Amount.Value
-	} else {
+	default:
 		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
 		if err != nil {
 			return fmt.Errorf("%w: unable to get previous account balance", err)
