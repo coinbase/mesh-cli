@@ -491,9 +491,7 @@ func (b *BlockStorage) UpdateBalance(
 
 	var existingValue string
 	switch {
-	case parentBlock != nil && change.Block.Hash == parentBlock.Hash:
-		// Avoid double counting genesis block
-		existingValue = "0"
+	// this could happen if balances are bootstrapped and should not be overridden
 	case exists:
 		parseBal, err := parseBalanceEntry(balance)
 		if err != nil {
@@ -501,6 +499,11 @@ func (b *BlockStorage) UpdateBalance(
 		}
 
 		existingValue = parseBal.Amount.Value
+	// don't attempt to use the helper if we are going to query the same block
+	// we are processing (causes the duplicate issue).
+	case parentBlock != nil && change.Block.Hash == parentBlock.Hash:
+		existingValue = "0"
+	// use helper
 	default:
 		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
 		if err != nil {
