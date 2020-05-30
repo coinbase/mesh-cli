@@ -490,14 +490,22 @@ func (b *BlockStorage) UpdateBalance(
 	}
 
 	var existingValue string
-	if exists {
+	switch {
+	case exists:
+		// This could happen if balances are bootstrapped and should not be
+		// overridden.
 		parseBal, err := parseBalanceEntry(balance)
 		if err != nil {
 			return err
 		}
 
 		existingValue = parseBal.Amount.Value
-	} else {
+	case parentBlock != nil && change.Block.Hash == parentBlock.Hash:
+		// Don't attempt to use the helper if we are going to query the same
+		// block we are processing (causes the duplicate issue).
+		existingValue = "0"
+	default:
+		// Use helper to fetch existing balance.
 		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
 		if err != nil {
 			return fmt.Errorf("%w: unable to get previous account balance", err)
