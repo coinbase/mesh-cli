@@ -10,7 +10,8 @@ require (
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/mattn/goveralls v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/spf13/cobra v0.0.5
+	github.com/spf13/cobra v1.0.0
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.6.0
 	golang.org/x/net v0.0.0-20200513185701-a91f0712d120 // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
