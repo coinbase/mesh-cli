@@ -1,21 +1,32 @@
-# rosetta-cli
+<p align="center">
+  <a href="https://www.rosetta-api.org">
+    <img height="400" alt="Rosetta" src="https://www.rosetta-api.org/img/rosetta_header.png">
+  </a>
+</p>
+<h3 align="center">
+   Rosetta CLI
+</h3>
+<p align="center">
+CLI to validate the correctness of Rosetta API implementations
+</p>
+<p align="center">
+  <a href="https://circleci.com/gh/coinbase/rosetta-cli/tree/master"><img src="https://circleci.com/gh/coinbase/rosetta-cli/tree/master.svg?style=shield" /></a>
+  <a href="https://coveralls.io/github/coinbase/rosetta-cli"><img src="https://coveralls.io/repos/github/coinbase/rosetta-cli/badge.svg" /></a>
+  <a href="https://goreportcard.com/report/github.com/coinbase/rosetta-cli"><img src="https://goreportcard.com/badge/github.com/coinbase/rosetta-cli" /></a>
+  <a href="https://github.com/coinbase/rosetta-cli/blob/master/LICENSE.txt"><img src="https://img.shields.io/github/license/coinbase/rosetta-cli.svg" /></a>
+</p>
 
-[![Coinbase](https://circleci.com/gh/coinbase/rosetta-cli/tree/master.svg?style=shield)](https://circleci.com/gh/coinbase/rosetta-cli/tree/master)
-[![Coverage Status](https://coveralls.io/repos/github/coinbase/rosetta-cli/badge.svg)](https://coveralls.io/github/coinbase/rosetta-cli)
-[![Go Report Card](https://goreportcard.com/badge/github.com/coinbase/rosetta-cli)](https://goreportcard.com/report/github.com/coinbase/rosetta-cli)
-[![License](https://img.shields.io/github/license/coinbase/rosetta-cli.svg)](https://github.com/coinbase/rosetta-cli/blob/master/LICENSE.txt)
+## Overview
+The `rosetta-cli` is used by developers to test the correctness of their Rosetta
+API implementations. The CLI also provides the ability to look up block contents
+and account balances.
 
-## What is Rosetta?
-Rosetta is a new project to standardize the process
-of deploying and interacting with blockchains. With an explicit
-specification to adhere to, all parties involved in blockchain
-development can spend less time figuring out how to integrate
-with each other and more time working on the novel advances that
-will push the blockchain ecosystem forward. In practice, this means
-that any blockchain project that implements the requirements outlined
-in this specification will enable exchanges, block explorers,
-and wallets to integrate with much less communication overhead
-and network-specific work.
+## Documentation
+Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
+
+* [Overview](https://www.rosetta-api.org/docs/welcome.html)
+* [Node API](https://www.rosetta-api.org/docs/node_api_introduction.html)
+* [Wallet API (coming soon!)](https://www.rosetta-api.org/docs/wallet_api_introduction.html)
 
 ## Install
 ```
