@@ -104,13 +104,7 @@ func (l *Logger) AddBlockStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"%s Block %d:%s with Parent Block %d:%s\n",
@@ -146,13 +140,7 @@ func (l *Logger) RemoveBlockStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"%s Block %d:%s\n",
@@ -186,13 +174,7 @@ func (l *Logger) TransactionStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	for _, tx := range block.Transactions {
 		_, err = f.WriteString(fmt.Sprintf(
@@ -260,13 +242,7 @@ func (l *Logger) BalanceStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
@@ -308,13 +284,7 @@ func (l *Logger) ReconcileSuccessStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	log.Printf(
 		"%s Reconciled %s at %d\n",
@@ -385,13 +355,7 @@ func (l *Logger) ReconcileFailureStream(
 		return err
 	}
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}()
+	defer closeFile(f)
 
 	_, err = f.WriteString(fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s node: %s\n",
@@ -408,4 +372,12 @@ func (l *Logger) ReconcileFailureStream(
 	}
 
 	return nil
+}
+
+// Helper function to close log file
+func closeFile(f *os.File) {
+	err := f.Close()
+	if err != nil {
+		log.Fatal(fmt.Errorf("%w: unable to close file", err))
+	}
 }

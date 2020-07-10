@@ -714,7 +714,9 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 // GetAllAccountCurrency scans the db for all balances and returns a slice
 // of reconciler.AccountCurrency. This is useful for bootstrapping the reconciler
 // after restart.
-func (b *BlockStorage) GetAllAccountCurrency(ctx context.Context) ([]*reconciler.AccountCurrency, error) {
+func (b *BlockStorage) GetAllAccountCurrency(
+	ctx context.Context,
+) ([]*reconciler.AccountCurrency, error) {
 	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
 	if err != nil {
 		return nil, fmt.Errorf("%w database scan failed", err)
@@ -724,7 +726,11 @@ func (b *BlockStorage) GetAllAccountCurrency(ctx context.Context) ([]*reconciler
 	for i, rawBalance := range rawBalances {
 		deserialBal, err := parseBalanceEntry(rawBalance)
 		if err != nil {
-			return nil, fmt.Errorf("%w unable to parse balance entry for %s", err, string(rawBalance))
+			return nil, fmt.Errorf(
+				"%w unable to parse balance entry for %s",
+				err,
+				string(rawBalance),
+			)
 		}
 
 		accounts[i] = &reconciler.AccountCurrency{
