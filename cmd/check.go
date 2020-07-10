@@ -660,7 +660,9 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if !LookupBalanceByBlock {
-		color.Red("Can't find the block missing operations automatically, please enable --lookup-balance-by-block")
+		color.Red(
+			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
+		)
 		os.Exit(1)
 	}
 
