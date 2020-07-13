@@ -176,6 +176,69 @@ var (
 		},
 		Timestamp: 1,
 	}
+
+	complexBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 3",
+			Index: 3,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 2",
+			Index: 2,
+		},
+		Timestamp: 1,
+		Transactions: []*types.Transaction{
+			{
+				TransactionIdentifier: &types.TransactionIdentifier{
+					Hash: "blahTx 2",
+				},
+				Operations: []*types.Operation{
+					{
+						OperationIdentifier: &types.OperationIdentifier{
+							Index: 0,
+						},
+						Type:   "Transfer",
+						Status: "Success",
+						Account: &types.AccountIdentifier{
+							Address: "addr1",
+							SubAccount: &types.SubAccountIdentifier{
+								Address: "staking",
+								Metadata: map[string]interface{}{
+									"other_complex_stuff": []interface{}{
+										map[string]interface{}{
+											"neat": "test",
+											"more complex": map[string]interface{}{
+												"neater": "testier",
+											},
+										},
+										map[string]interface{}{
+											"i love": "ice cream",
+										},
+									},
+								},
+							},
+						},
+						Amount: &types.Amount{
+							Value: "100",
+							Currency: &types.Currency{
+								Symbol: "hello",
+							},
+						},
+					},
+				},
+				Metadata: map[string]interface{}{
+					"other_stuff":  []interface{}{"stuff"},
+					"simple_stuff": "abc",
+					"super_complex_stuff": map[string]interface{}{
+						"neat": "test",
+						"more complex": map[string]interface{}{
+							"neater": "testier",
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func TestBlock(t *testing.T) {
@@ -247,6 +310,19 @@ func TestBlock(t *testing.T) {
 		_, err = storage.StoreBlock(ctx, newBlock)
 		assert.NoError(t, err)
 	})
+
+	t.Run("Add block with complex metadata", func(t *testing.T) {
+		_, err := storage.StoreBlock(ctx, complexBlock)
+		assert.NoError(t, err)
+
+		block, err := storage.GetBlock(ctx, complexBlock.BlockIdentifier)
+		assert.NoError(t, err)
+		assert.Equal(t, complexBlock, block)
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, complexBlock.BlockIdentifier, head)
+	})
 }
 
 func TestBalance(t *testing.T) {
@@ -298,7 +374,7 @@ func TestBalance(t *testing.T) {
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
 				Metadata: map[string]interface{}{
-					"cool": 10,
+					"cool": float64(10),
 				},
 			},
 		}
@@ -307,7 +383,7 @@ func TestBalance(t *testing.T) {
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
 				Metadata: map[string]interface{}{
-					"cool": 10,
+					"cool": float64(10),
 				},
 			},
 		}

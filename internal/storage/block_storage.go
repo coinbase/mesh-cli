@@ -17,14 +17,16 @@ package storage
 import (
 	"bytes"
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"path"
+
+	msgpack "github.com/vmihailenco/msgpack/v5"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -115,6 +117,20 @@ func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) [
 	)
 }
 
+func getEncoder(w io.Writer) *msgpack.Encoder {
+	enc := msgpack.NewEncoder(w)
+	enc.UseJSONTag(true)
+
+	return enc
+}
+
+func getDecoder(r io.Reader) *msgpack.Decoder {
+	dec := msgpack.NewDecoder(r)
+	dec.UseJSONTag(true)
+
+	return dec
+}
+
 // Helper functions are used by BlockStorage to process blocks. Defining an
 // interface allows the client to determine if they wish to query the node for
 // certain information or use another datastore.
@@ -177,9 +193,8 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 		return nil, ErrHeadBlockNotFound
 	}
 
-	dec := gob.NewDecoder(bytes.NewReader(block))
 	var blockIdentifier types.BlockIdentifier
-	err = dec.Decode(&blockIdentifier)
+	err = getDecoder(bytes.NewReader(block)).Decode(&blockIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +210,7 @@ func (b *BlockStorage) StoreHeadBlockIdentifier(
 	blockIdentifier *types.BlockIdentifier,
 ) error {
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(blockIdentifier)
+	err := getEncoder(buf).Encode(blockIdentifier)
 	if err != nil {
 		return err
 	}
@@ -221,7 +236,7 @@ func (b *BlockStorage) GetBlock(
 	}
 
 	var rosettaBlock types.Block
-	err = gob.NewDecoder(bytes.NewBuffer(block)).Decode(&rosettaBlock)
+	err = getDecoder(bytes.NewBuffer(block)).Decode(&rosettaBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +286,7 @@ func (b *BlockStorage) StoreBlock(
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(block)
+	err := getEncoder(buf).Encode(block)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +398,7 @@ type balanceEntry struct {
 
 func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(bal)
+	err := getEncoder(buf).Encode(bal)
 	if err != nil {
 		return nil, err
 	}
@@ -392,9 +407,8 @@ func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
 }
 
 func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
-	dec := gob.NewDecoder(bytes.NewReader(buf))
 	var bal balanceEntry
-	err := dec.Decode(&bal)
+	err := getDecoder(bytes.NewReader(buf)).Decode(&bal)
 	if err != nil {
 		return nil, err
 	}
