@@ -25,8 +25,8 @@ and account balances.
 Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 
 * [Overview](https://www.rosetta-api.org/docs/welcome.html)
-* [Node API](https://www.rosetta-api.org/docs/node_api_introduction.html)
-* [Wallet API (coming soon!)](https://www.rosetta-api.org/docs/wallet_api_introduction.html)
+* [Data API](https://www.rosetta-api.org/docs/data_api_introduction.html)
+* [Construction API](https://www.rosetta-api.org/docs/construction_api_introduction.html)
 
 ## Install
 ```
