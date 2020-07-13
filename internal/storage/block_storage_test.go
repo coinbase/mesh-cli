@@ -204,14 +204,14 @@ var (
 							SubAccount: &types.SubAccountIdentifier{
 								Address: "staking",
 								Metadata: map[string]interface{}{
-									"other_complex_stuff": []map[string]interface{}{
-										{
+									"other_complex_stuff": []interface{}{
+										map[string]interface{}{
 											"neat": "test",
 											"more complex": map[string]interface{}{
 												"neater": "testier",
 											},
 										},
-										{
+										map[string]interface{}{
 											"i love": "ice cream",
 										},
 									},
@@ -227,7 +227,7 @@ var (
 					},
 				},
 				Metadata: map[string]interface{}{
-					"other_stuff":  []string{"stuff"},
+					"other_stuff":  []interface{}{"stuff"},
 					"simple_stuff": "abc",
 					"super_complex_stuff": map[string]interface{}{
 						"neat": "test",
@@ -374,7 +374,7 @@ func TestBalance(t *testing.T) {
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
 				Metadata: map[string]interface{}{
-					"cool": 10,
+					"cool": float64(10),
 				},
 			},
 		}
@@ -383,7 +383,7 @@ func TestBalance(t *testing.T) {
 			SubAccount: &types.SubAccountIdentifier{
 				Address: "stake",
 				Metadata: map[string]interface{}{
-					"cool": 10,
+					"cool": float64(10),
 				},
 			},
 		}

@@ -17,7 +17,6 @@ package storage
 import (
 	"bytes"
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +24,8 @@ import (
 	"log"
 	"math/big"
 	"path"
+
+	msgpack "github.com/vmihailenco/msgpack/v5"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -177,7 +178,8 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 		return nil, ErrHeadBlockNotFound
 	}
 
-	dec := gob.NewDecoder(bytes.NewReader(block))
+	dec := msgpack.NewDecoder(bytes.NewReader(block))
+	dec.UseJSONTag(true)
 	var blockIdentifier types.BlockIdentifier
 	err = dec.Decode(&blockIdentifier)
 	if err != nil {
@@ -195,7 +197,9 @@ func (b *BlockStorage) StoreHeadBlockIdentifier(
 	blockIdentifier *types.BlockIdentifier,
 ) error {
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(blockIdentifier)
+	enc := msgpack.NewEncoder(buf)
+	enc.UseJSONTag(true)
+	err := enc.Encode(blockIdentifier)
 	if err != nil {
 		return err
 	}
@@ -221,7 +225,9 @@ func (b *BlockStorage) GetBlock(
 	}
 
 	var rosettaBlock types.Block
-	err = gob.NewDecoder(bytes.NewBuffer(block)).Decode(&rosettaBlock)
+	dec := msgpack.NewDecoder(bytes.NewBuffer(block))
+	dec.UseJSONTag(true)
+	err = dec.Decode(&rosettaBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +277,9 @@ func (b *BlockStorage) StoreBlock(
 	transaction := b.newDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(block)
+	enc := msgpack.NewEncoder(buf)
+	enc.UseJSONTag(true)
+	err := enc.Encode(block)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +391,9 @@ type balanceEntry struct {
 
 func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	err := gob.NewEncoder(buf).Encode(bal)
+	enc := msgpack.NewEncoder(buf)
+	enc.UseJSONTag(true)
+	err := enc.Encode(bal)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +402,8 @@ func serializeBalanceEntry(bal balanceEntry) ([]byte, error) {
 }
 
 func parseBalanceEntry(buf []byte) (*balanceEntry, error) {
-	dec := gob.NewDecoder(bytes.NewReader(buf))
+	dec := msgpack.NewDecoder(bytes.NewReader(buf))
+	dec.UseJSONTag(true)
 	var bal balanceEntry
 	err := dec.Decode(&bal)
 	if err != nil {
