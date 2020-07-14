@@ -239,6 +239,22 @@ var (
 			},
 		},
 	}
+
+	duplicateTxBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 4",
+			Index: 4,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 3",
+			Index: 3,
+		},
+		Timestamp: 1,
+		Transactions: []*types.Transaction{
+			simpleTransactionFactory("blahTx3", "addr1", "100", &types.Currency{Symbol: "hello"}),
+			simpleTransactionFactory("blahTx3", "addr1", "100", &types.Currency{Symbol: "hello"}),
+		},
+	}
 )
 
 func TestBlock(t *testing.T) {
@@ -286,7 +302,7 @@ func TestBlock(t *testing.T) {
 		).Error())
 	})
 
-	t.Run("Set duplicate transaction hash", func(t *testing.T) {
+	t.Run("Set duplicate transaction hash (from prior block)", func(t *testing.T) {
 		_, err = storage.StoreBlock(ctx, newBlock2)
 		assert.EqualError(t, err, fmt.Errorf(
 			"%w %s",
@@ -318,6 +334,19 @@ func TestBlock(t *testing.T) {
 		block, err := storage.GetBlock(ctx, complexBlock.BlockIdentifier)
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock, block)
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, complexBlock.BlockIdentifier, head)
+	})
+
+	t.Run("Set duplicate transaction hash (same block)", func(t *testing.T) {
+		_, err = storage.StoreBlock(ctx, duplicateTxBlock)
+		assert.EqualError(t, err, fmt.Errorf(
+			"%w %s",
+			ErrDuplicateTransactionHash,
+			"blahTx3",
+		).Error())
 
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
