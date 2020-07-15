@@ -24,17 +24,14 @@ const (
 	// BlockCounter is the number of added blocks.
 	BlockCounter = "blocks"
 
-	// OrphansCounter is the number of orphaned blocks.
-	OrphansCounter = "orphans"
+	// OrphanCounter is the number of orphaned blocks.
+	OrphanCounter = "orphans"
 
 	// TransactionCounter is the number of processed transactions.
 	TransactionCounter = "transactions"
 
 	// OperationCounter is the number of processed operations.
 	OperationCounter = "operations"
-
-	// AccountsCounter is the number of seen accounts.
-	AccountsCounter = "accounts"
 
 	// ActiveReconciliationCounter is the number of active
 	// reconciliations performed.

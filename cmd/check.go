@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"path"
@@ -354,7 +355,10 @@ func findMissingOps(
 		return nil, fmt.Errorf("%w: unable to initialize database", err)
 	}
 
+	counterStorage := storage.NewCounterStorage(localStore)
+
 	logger := logger.NewLogger(
+		counterStorage,
 		tmpDir,
 		false,
 		false,
@@ -529,7 +533,10 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 	defer localStore.Close(ctx)
 
+	counterStorage := storage.NewCounterStorage(localStore)
+
 	logger := logger.NewLogger(
+		counterStorage,
 		DataDir,
 		LogBlocks,
 		LogTransactions,
@@ -610,6 +617,15 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
+		for ctx.Err() == nil {
+			logger.LogCounterStorage(ctx)
+			time.Sleep(10 * time.Second)
+		}
+
+		return nil
+	})
+
+	g.Go(func() error {
 		return r.Reconcile(ctx)
 	})
 
@@ -662,8 +678,26 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if err == nil || err == context.Canceled { // err == context.Canceled when --end
-		color.Green("Check succeeded")
+		newCtx := context.Background()
+		activeReconciliations, err := counterStorage.Get(newCtx, storage.ActiveReconciliationCounter)
+		if err != nil {
+			color.Green("Check succeeded")
+			os.Exit(0)
+		}
+
+		inactiveReconciliations, err := counterStorage.Get(newCtx, storage.InactiveReconciliationCounter)
+		if err != nil {
+			color.Green("Check succeeded")
+			os.Exit(0)
+		}
+
+		if new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() == 0 {
+			color.Yellow("Check succeeded, however, no reconciliations were performed!")
+		} else {
+			color.Green("Check succeeded")
+		}
 		os.Exit(0)
+
 	}
 
 	color.Red("Check failed: %s", err.Error())

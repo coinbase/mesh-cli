@@ -18,8 +18,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"path"
+
+	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -66,10 +69,14 @@ type Logger struct {
 	logTransactions   bool
 	logBalanceChanges bool
 	logReconciliation bool
+
+	// CounterStorage is some initialized CounterStorage.
+	CounterStorage *storage.CounterStorage
 }
 
 // NewLogger constructs a new Logger.
 func NewLogger(
+	counterStorage *storage.CounterStorage,
 	logDir string,
 	logBlocks bool,
 	logTransactions bool,
@@ -77,12 +84,62 @@ func NewLogger(
 	logReconciliation bool,
 ) *Logger {
 	return &Logger{
+		CounterStorage:    counterStorage,
 		logDir:            logDir,
 		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
 	}
+}
+
+// LogCounterStorage logs all values in CounterStorage.
+func (l *Logger) LogCounterStorage(ctx context.Context) error {
+	blocks, err := l.CounterStorage.Get(ctx, storage.BlockCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get block counter", err)
+	}
+
+	if blocks.Sign() == 0 { // wait for at least 1 block to be processed
+		return nil
+	}
+
+	orphans, err := l.CounterStorage.Get(ctx, storage.OrphanCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get orphan counter", err)
+	}
+
+	txs, err := l.CounterStorage.Get(ctx, storage.TransactionCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get transaction counter", err)
+	}
+
+	ops, err := l.CounterStorage.Get(ctx, storage.OperationCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get operations counter", err)
+	}
+
+	activeReconciliations, err := l.CounterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get active reconciliations counter", err)
+	}
+
+	inactiveReconciliations, err := l.CounterStorage.Get(ctx, storage.InactiveReconciliationCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get inactive reconciliations counter", err)
+	}
+
+	color.Cyan(
+		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s Reconciliations: %s (Inactive: %s)",
+		blocks.String(),
+		orphans.String(),
+		txs.String(),
+		ops.String(),
+		new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
+		inactiveReconciliations.String(),
+	)
+
+	return nil
 }
 
 // AddBlockStream writes the next processed block to the end of the

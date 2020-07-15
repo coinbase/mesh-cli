@@ -17,8 +17,10 @@ package processor
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -99,6 +101,13 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	balance string,
 	block *types.BlockIdentifier,
 ) error {
+	// Update counters
+	if reconciliationType == reconciler.InactiveReconciliation {
+		h.logger.CounterStorage.Update(ctx, storage.InactiveReconciliationCounter, big.NewInt(1))
+	} else {
+		h.logger.CounterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
+	}
+
 	return h.logger.ReconcileSuccessStream(
 		ctx,
 		reconciliationType,
