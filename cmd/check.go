@@ -57,6 +57,12 @@ const (
 	// InactiveFailureLookbackWindow blocks (this process continues
 	// until the client halts the search or the block is found).
 	InactiveFailureLookbackWindow = 250
+
+	// PeriodicLoggingFrequency is the frequency that stats are printed
+	// to the terminal.
+	//
+	// TODO: make configurable
+	PeriodicLoggingFrequency = 10 * time.Second
 )
 
 var (
@@ -618,8 +624,8 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	g.Go(func() error {
 		for ctx.Err() == nil {
-			logger.LogCounterStorage(ctx)
-			time.Sleep(10 * time.Second)
+			_ = logger.LogCounterStorage(ctx)
+			time.Sleep(PeriodicLoggingFrequency)
 		}
 
 		return nil
@@ -670,7 +676,22 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	err = g.Wait()
+	handleCheckResult(g, counterStorage, reconcilerHandler, sigListeners)
+}
+
+// handleCheckResult interprets the check exectution result
+// and terminates with the correct exit status.
+func handleCheckResult(
+	g *errgroup.Group,
+	counterStorage *storage.CounterStorage,
+	reconcilerHandler *processor.ReconcilerHandler,
+	sigListeners []context.CancelFunc,
+) {
+	// Initialize new context because calling context
+	// will no longer be usable when after termination.
+	ctx := context.Background()
+
+	err := g.Wait()
 	if signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
@@ -678,26 +699,22 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if err == nil || err == context.Canceled { // err == context.Canceled when --end
-		newCtx := context.Background()
-		activeReconciliations, err := counterStorage.Get(newCtx, storage.ActiveReconciliationCounter)
-		if err != nil {
-			color.Green("Check succeeded")
-			os.Exit(0)
-		}
+		activeReconciliations, activeErr := counterStorage.Get(
+			ctx,
+			storage.ActiveReconciliationCounter,
+		)
+		inactiveReconciliations, inactiveErr := counterStorage.Get(
+			ctx,
+			storage.InactiveReconciliationCounter,
+		)
 
-		inactiveReconciliations, err := counterStorage.Get(newCtx, storage.InactiveReconciliationCounter)
-		if err != nil {
+		if activeErr != nil || inactiveErr != nil ||
+			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
 			color.Green("Check succeeded")
-			os.Exit(0)
-		}
-
-		if new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() == 0 {
+		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
 			color.Yellow("Check succeeded, however, no reconciliations were performed!")
-		} else {
-			color.Green("Check succeeded")
 		}
 		os.Exit(0)
-
 	}
 
 	color.Red("Check failed: %s", err.Error())
@@ -714,7 +731,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	color.Red("Searching for block with missing operations...hold tight")
 	badBlock, err := findMissingOps(
-		context.Background(),
+		ctx,
 		&sigListeners,
 		reconcilerHandler.InactiveFailure,
 		reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,

@@ -96,13 +96,17 @@ func (h *SyncerHandler) BlockAdded(
 	}
 
 	// Update Counters
-	h.logger.CounterStorage.Update(ctx, storage.BlockCounter, big.NewInt(1))
-	h.logger.CounterStorage.Update(ctx, storage.TransactionCounter, big.NewInt(int64(len(block.Transactions))))
+	_, _ = h.logger.CounterStorage.Update(ctx, storage.BlockCounter, big.NewInt(1))
+	_, _ = h.logger.CounterStorage.Update(
+		ctx,
+		storage.TransactionCounter,
+		big.NewInt(int64(len(block.Transactions))),
+	)
 	opCount := int64(0)
 	for _, txn := range block.Transactions {
 		opCount += int64(len(txn.Operations))
 	}
-	h.logger.CounterStorage.Update(ctx, storage.OperationCounter, big.NewInt(opCount))
+	_, _ = h.logger.CounterStorage.Update(ctx, storage.OperationCounter, big.NewInt(opCount))
 
 	// Mark accounts for reconciliation...this may be
 	// blocking
@@ -130,7 +134,7 @@ func (h *SyncerHandler) BlockRemoved(
 	}
 
 	// Update Counters
-	h.logger.CounterStorage.Update(ctx, storage.OrphanCounter, big.NewInt(1))
+	_, _ = h.logger.CounterStorage.Update(ctx, storage.OrphanCounter, big.NewInt(1))
 
 	// We only attempt to reconciler changes when blocks are added,
 	// not removed
