@@ -86,6 +86,10 @@ var (
 	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
 	// balances after syncing has started.
 	ErrAlreadyStartedSyncing = errors.New("cannot bootstrap accounts, already started syncing")
+
+	// ErrDuplicateKey is returned when trying to store a key that
+	// already exists (this is used by storeHash).
+	ErrDuplicateKey = errors.New("duplicate key")
 )
 
 /*
@@ -102,12 +106,12 @@ func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
 	)
 }
 
-func getHashKey(hash string, isBlock bool) []byte {
-	if isBlock {
-		return []byte(fmt.Sprintf("%s/%s", blockHashNamespace, hash))
-	}
+func getBlockHashKey(hash string) []byte {
+	return []byte(fmt.Sprintf("%s/%s", blockHashNamespace, hash))
+}
 
-	return []byte(fmt.Sprintf("%s/%s", transactionHashNamespace, hash))
+func getTransactionHashKey(blockHash string, transactionHash string) []byte {
+	return []byte(fmt.Sprintf("%s/%s/%s", transactionHashNamespace, blockHash, transactionHash))
 }
 
 // GetBalanceKey returns a deterministic hash of an types.Account + types.Currency.
@@ -248,32 +252,18 @@ func (b *BlockStorage) GetBlock(
 func (b *BlockStorage) storeHash(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	hash string,
-	isBlock bool,
+	hashKey []byte,
 ) error {
-	key := getHashKey(hash, isBlock)
-	exists, _, err := transaction.Get(ctx, key)
+	exists, _, err := transaction.Get(ctx, hashKey)
 	if err != nil {
 		return err
 	}
 
-	if !exists {
-		return transaction.Set(ctx, key, []byte(""))
+	if exists {
+		return ErrDuplicateKey
 	}
 
-	if isBlock {
-		return fmt.Errorf(
-			"%w %s",
-			ErrDuplicateBlockHash,
-			hash,
-		)
-	}
-
-	return fmt.Errorf(
-		"%w %s",
-		ErrDuplicateTransactionHash,
-		hash,
-	)
+	return transaction.Set(ctx, hashKey, []byte(""))
 }
 
 // StoreBlock stores a block or returns an error.
@@ -298,16 +288,30 @@ func (b *BlockStorage) StoreBlock(
 	}
 
 	// Store block hash
-	err = b.storeHash(ctx, transaction, block.BlockIdentifier.Hash, true)
-	if err != nil {
-		return nil, err
+	blockHashKey := getBlockHashKey(block.BlockIdentifier.Hash)
+	err = b.storeHash(ctx, transaction, blockHashKey)
+	if errors.Is(err, ErrDuplicateKey) {
+		return nil, fmt.Errorf(
+			"%w %s",
+			ErrDuplicateBlockHash,
+			block.BlockIdentifier.Hash,
+		)
+	} else if err != nil {
+		return nil, fmt.Errorf("%w: unable to store block hash", err)
 	}
 
 	// Store all transaction hashes
 	for _, txn := range block.Transactions {
-		err = b.storeHash(ctx, transaction, txn.TransactionIdentifier.Hash, false)
-		if err != nil {
-			return nil, err
+		transactionHashKey := getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash)
+		err = b.storeHash(ctx, transaction, transactionHashKey)
+		if errors.Is(err, ErrDuplicateKey) {
+			return nil, fmt.Errorf(
+				"%w %s",
+				ErrDuplicateTransactionHash,
+				txn.TransactionIdentifier.Hash,
+			)
+		} else if err != nil {
+			return nil, fmt.Errorf("%w: unable to store transaction hash", err)
 		}
 	}
 
@@ -362,14 +366,14 @@ func (b *BlockStorage) RemoveBlock(
 
 	// Remove all transaction hashes
 	for _, txn := range block.Transactions {
-		err = transaction.Delete(ctx, getHashKey(txn.TransactionIdentifier.Hash, false))
+		err = transaction.Delete(ctx, getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Remove block hash
-	err = transaction.Delete(ctx, getHashKey(block.BlockIdentifier.Hash, true))
+	err = transaction.Delete(ctx, getBlockHashKey(block.BlockIdentifier.Hash))
 	if err != nil {
 		return nil, err
 	}
