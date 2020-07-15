@@ -44,6 +44,9 @@ func NewBlockStorageHelper(
 	exemptAccounts []*reconciler.AccountCurrency,
 ) *BlockStorageHelper {
 	exemptMap := map[string]struct{}{}
+
+	// Pre-process exemptAccounts on initialization
+	// to provide fast lookup while syncing.
 	for _, account := range exemptAccounts {
 		exemptMap[types.Hash(account)] = struct{}{}
 	}
