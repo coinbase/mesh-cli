@@ -136,6 +136,10 @@ of what one of these files looks like.`,
 	// while fetching accounts during inactive reconciliation.
 	InactiveReconciliationConcurrency uint64
 
+	// InactiveReconciliationFrequency is the number of blocks
+	// to wait between inactive reconiliations on each account.
+	InactiveReconciliationFrequency uint64
+
 	// LogBlocks determines if blocks are
 	// logged.
 	LogBlocks bool
@@ -214,6 +218,12 @@ func init() {
 		"inactive-reconciliation-concurrency",
 		4,
 		"concurrency to use while fetching accounts during inactive reconciliation",
+	)
+	checkCmd.Flags().Uint64Var(
+		&InactiveReconciliationFrequency,
+		"inactive-reconciliation-frequency",
+		250,
+		"the number of blocks to wait between inactive reconiliations on each account",
 	)
 	checkCmd.Flags().BoolVar(
 		&LogBlocks,
@@ -585,6 +595,8 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
 		reconciler.WithInterestingAccounts(interestingAccounts),
 		reconciler.WithSeenAccounts(seenAccounts),
+		reconciler.WithDebugLogging(LogReconciliations),
+		reconciler.WithInactiveFrequency(int64(InactiveReconciliationFrequency)),
 	)
 
 	syncerHandler := processor.NewSyncerHandler(

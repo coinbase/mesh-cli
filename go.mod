@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
-	github.com/coinbase/rosetta-sdk-go v0.2.1-0.20200520212551-1f6ff35ffe98
+	github.com/coinbase/rosetta-sdk-go v0.3.1
 	github.com/dgraph-io/badger v1.6.1
 	github.com/fatih/color v1.9.0
 	github.com/golang/protobuf v1.4.2 // indirect
