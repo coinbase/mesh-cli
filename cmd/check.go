@@ -369,7 +369,7 @@ func findMissingOps(
 		nil,
 	)
 
-	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
 
 	// Ensure storage is in correct state for starting at index
 	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
@@ -544,7 +544,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		exemptAccounts,
 	)
 
-	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
 
 	// Bootstrap balances if provided
 	if len(BootstrapBalances) > 0 {
