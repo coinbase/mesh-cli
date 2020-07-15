@@ -347,9 +347,10 @@ func TestBlock(t *testing.T) {
 	t.Run("Set duplicate transaction hash (same block)", func(t *testing.T) {
 		_, err = storage.StoreBlock(ctx, duplicateTxBlock)
 		assert.EqualError(t, err, fmt.Errorf(
-			"%w %s",
+			"%w transaction %s appears multiple times in block %s",
 			ErrDuplicateTransactionHash,
 			"blahTx3",
+			"blah 4",
 		).Error())
 
 		head, err := storage.GetHeadBlockIdentifier(ctx)

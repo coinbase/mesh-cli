@@ -306,9 +306,10 @@ func (b *BlockStorage) StoreBlock(
 		err = b.storeHash(ctx, transaction, transactionHashKey)
 		if errors.Is(err, ErrDuplicateKey) {
 			return nil, fmt.Errorf(
-				"%w %s",
+				"%w transaction %s appears multiple times in block %s",
 				ErrDuplicateTransactionHash,
 				txn.TransactionIdentifier.Hash,
+				block.BlockIdentifier.Hash,
 			)
 		} else if err != nil {
 			return nil, fmt.Errorf("%w: unable to store transaction hash", err)
