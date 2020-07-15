@@ -33,7 +33,7 @@ type BlockStorageHelper struct {
 
 	// Configuration settings
 	lookupBalanceByBlock bool
-	exemptAccounts       []*reconciler.AccountCurrency
+	exemptAccounts       map[string]struct{}
 }
 
 // NewBlockStorageHelper returns a new BlockStorageHelper.
@@ -43,11 +43,16 @@ func NewBlockStorageHelper(
 	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
 ) *BlockStorageHelper {
+	exemptMap := map[string]struct{}{}
+	for _, account := range exemptAccounts {
+		exemptMap[types.Hash(account)] = struct{}{}
+	}
+
 	return &BlockStorageHelper{
 		network:              network,
 		fetcher:              fetcher,
 		lookupBalanceByBlock: lookupBalanceByBlock,
-		exemptAccounts:       exemptAccounts,
+		exemptAccounts:       exemptMap,
 	}
 }
 
@@ -97,12 +102,12 @@ func (h *BlockStorageHelper) Asserter() *asserter.Asserter {
 // ExemptFunc returns a parser.ExemptOperation.
 func (h *BlockStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
-		return reconciler.ContainsAccountCurrency(
-			h.exemptAccounts,
-			&reconciler.AccountCurrency{
-				Account:  op.Account,
-				Currency: op.Amount.Currency,
-			},
-		)
+		thisAcct := types.Hash(&reconciler.AccountCurrency{
+			Account:  op.Account,
+			Currency: op.Amount.Currency,
+		})
+
+		_, exists := h.exemptAccounts[thisAcct]
+		return exists
 	}
 }

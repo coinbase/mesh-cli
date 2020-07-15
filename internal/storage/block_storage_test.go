@@ -991,9 +991,17 @@ func (h *MockBlockStorageHelper) Asserter() *asserter.Asserter {
 
 func (h *MockBlockStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
-		return reconciler.ContainsAccountCurrency(h.ExemptAccounts, &reconciler.AccountCurrency{
+		thisAcct := &reconciler.AccountCurrency{
 			Account:  op.Account,
 			Currency: op.Amount.Currency,
-		})
+		}
+
+		for _, acct := range h.ExemptAccounts {
+			if types.Hash(acct) == types.Hash(thisAcct) {
+				return true
+			}
+		}
+
+		return false
 	}
 }
