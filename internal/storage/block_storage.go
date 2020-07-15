@@ -302,7 +302,10 @@ func (b *BlockStorage) StoreBlock(
 
 	// Store all transaction hashes
 	for _, txn := range block.Transactions {
-		transactionHashKey := getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash)
+		transactionHashKey := getTransactionHashKey(
+			block.BlockIdentifier.Hash,
+			txn.TransactionIdentifier.Hash,
+		)
 		err = b.storeHash(ctx, transaction, transactionHashKey)
 		if errors.Is(err, ErrDuplicateKey) {
 			return nil, fmt.Errorf(
@@ -367,7 +370,10 @@ func (b *BlockStorage) RemoveBlock(
 
 	// Remove all transaction hashes
 	for _, txn := range block.Transactions {
-		err = transaction.Delete(ctx, getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash))
+		err = transaction.Delete(
+			ctx,
+			getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash),
+		)
 		if err != nil {
 			return nil, err
 		}

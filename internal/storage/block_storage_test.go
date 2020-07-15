@@ -251,8 +251,8 @@ var (
 		},
 		Timestamp: 1,
 		Transactions: []*types.Transaction{
-			simpleTransactionFactory("blahTx3", "addr1", "100", &types.Currency{Symbol: "hello"}),
-			simpleTransactionFactory("blahTx3", "addr1", "100", &types.Currency{Symbol: "hello"}),
+			simpleTransactionFactory("blahTx3", "addr2", "200", &types.Currency{Symbol: "hello"}),
+			simpleTransactionFactory("blahTx3", "addr2", "200", &types.Currency{Symbol: "hello"}),
 		},
 	}
 )
