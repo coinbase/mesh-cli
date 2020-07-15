@@ -124,6 +124,7 @@ Flags:
                                                    reconciliation errors during development. (default true)
   -h, --help                                       help for check
       --inactive-reconciliation-concurrency uint   concurrency to use while fetching accounts during inactive reconciliation (default 4)
+      --inactive-reconciliation-frequency uint     the number of blocks to wait between inactive reconiliations on each account (default 250)
       --interesting-accounts string                Absolute path to a file listing all accounts to check on each block. Look
                                                    at the examples directory for an example of how to structure this file.
       --log-balance-changes                        log balance changes
