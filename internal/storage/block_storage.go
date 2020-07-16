@@ -160,7 +160,6 @@ type BlockStorage struct {
 
 // NewBlockStorage returns a new BlockStorage.
 func NewBlockStorage(
-	ctx context.Context,
 	db Database,
 	helper Helper,
 ) *BlockStorage {

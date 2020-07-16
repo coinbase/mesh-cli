@@ -55,7 +55,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
 
 	t.Run("No head block set", func(t *testing.T) {
 		blockIdentifier, err := storage.GetHeadBlockIdentifier(ctx)
@@ -268,7 +268,7 @@ func TestBlock(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
 
 	t.Run("Set and get block", func(t *testing.T) {
 		_, err := storage.StoreBlock(ctx, newBlock)
@@ -477,7 +477,7 @@ func TestBalance(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(ctx, database, mockHelper)
+	storage := NewBlockStorage(database, mockHelper)
 
 	t.Run("Get unset balance", func(t *testing.T) {
 		amount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
@@ -800,7 +800,7 @@ func TestBootstrapBalances(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
 	bootstrapBalancesFile := path.Join(newDir, "balances.csv")
 
 	t.Run("File doesn't exist", func(t *testing.T) {
@@ -944,7 +944,7 @@ func TestCreateBlockCache(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(ctx, database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
 
 	t.Run("no blocks processed", func(t *testing.T) {
 		assert.Equal(t, []*types.BlockIdentifier{}, storage.CreateBlockCache(ctx))

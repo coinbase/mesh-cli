@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"path"
@@ -56,6 +57,12 @@ const (
 	// InactiveFailureLookbackWindow blocks (this process continues
 	// until the client halts the search or the block is found).
 	InactiveFailureLookbackWindow = 250
+
+	// PeriodicLoggingFrequency is the frequency that stats are printed
+	// to the terminal.
+	//
+	// TODO: make configurable
+	PeriodicLoggingFrequency = 10 * time.Second
 )
 
 var (
@@ -354,7 +361,10 @@ func findMissingOps(
 		return nil, fmt.Errorf("%w: unable to initialize database", err)
 	}
 
+	counterStorage := storage.NewCounterStorage(localStore)
+
 	logger := logger.NewLogger(
+		counterStorage,
 		tmpDir,
 		false,
 		false,
@@ -369,7 +379,7 @@ func findMissingOps(
 		nil,
 	)
 
-	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
 
 	// Ensure storage is in correct state for starting at index
 	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
@@ -529,7 +539,10 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 	defer localStore.Close(ctx)
 
+	counterStorage := storage.NewCounterStorage(localStore)
+
 	logger := logger.NewLogger(
+		counterStorage,
 		DataDir,
 		LogBlocks,
 		LogTransactions,
@@ -544,7 +557,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		exemptAccounts,
 	)
 
-	blockStorage := storage.NewBlockStorage(ctx, localStore, blockStorageHelper)
+	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
 
 	// Bootstrap balances if provided
 	if len(BootstrapBalances) > 0 {
@@ -610,6 +623,15 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
+		for ctx.Err() == nil {
+			_ = logger.LogCounterStorage(ctx)
+			time.Sleep(PeriodicLoggingFrequency)
+		}
+
+		return nil
+	})
+
+	g.Go(func() error {
 		return r.Reconcile(ctx)
 	})
 
@@ -654,7 +676,22 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	err = g.Wait()
+	handleCheckResult(g, counterStorage, reconcilerHandler, sigListeners)
+}
+
+// handleCheckResult interprets the check exectution result
+// and terminates with the correct exit status.
+func handleCheckResult(
+	g *errgroup.Group,
+	counterStorage *storage.CounterStorage,
+	reconcilerHandler *processor.ReconcilerHandler,
+	sigListeners []context.CancelFunc,
+) {
+	// Initialize new context because calling context
+	// will no longer be usable when after termination.
+	ctx := context.Background()
+
+	err := g.Wait()
 	if signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
@@ -662,7 +699,21 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if err == nil || err == context.Canceled { // err == context.Canceled when --end
-		color.Green("Check succeeded")
+		activeReconciliations, activeErr := counterStorage.Get(
+			ctx,
+			storage.ActiveReconciliationCounter,
+		)
+		inactiveReconciliations, inactiveErr := counterStorage.Get(
+			ctx,
+			storage.InactiveReconciliationCounter,
+		)
+
+		if activeErr != nil || inactiveErr != nil ||
+			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
+			color.Green("Check succeeded")
+		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
+			color.Yellow("Check succeeded, however, no reconciliations were performed!")
+		}
 		os.Exit(0)
 	}
 
@@ -680,7 +731,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	color.Red("Searching for block with missing operations...hold tight")
 	badBlock, err := findMissingOps(
-		context.Background(),
+		ctx,
 		&sigListeners,
 		reconcilerHandler.InactiveFailure,
 		reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,

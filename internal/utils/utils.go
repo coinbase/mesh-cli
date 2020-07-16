@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 )
 
 // CreateTempDir creates a directory in
@@ -30,6 +31,7 @@ func CreateTempDir() (string, error) {
 		return "", err
 	}
 
+	color.Cyan("Using temporary directory %s", storageDir)
 	return storageDir, nil
 }
 
