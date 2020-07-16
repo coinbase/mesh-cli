@@ -83,10 +83,6 @@ var (
 	// hash cannot be stored because it is a duplicate.
 	ErrDuplicateTransactionHash = errors.New("duplicate transaction hash")
 
-	// ErrAlreadyStartedSyncing is returned when trying to bootstrap
-	// balances after syncing has started.
-	ErrAlreadyStartedSyncing = errors.New("cannot bootstrap accounts, already started syncing")
-
 	// ErrDuplicateKey is returned when trying to store a key that
 	// already exists (this is used by storeHash).
 	ErrDuplicateKey = errors.New("duplicate key")
@@ -662,7 +658,8 @@ func (b *BlockStorage) BootstrapBalances(
 
 	_, err = b.GetHeadBlockIdentifier(ctx)
 	if err != ErrHeadBlockNotFound {
-		return ErrAlreadyStartedSyncing
+		log.Println("Skipping balance bootstrapping because already started syncing")
+		return nil
 	}
 
 	// Update balances in database

@@ -929,7 +929,7 @@ func TestBootstrapBalances(t *testing.T) {
 
 		// Use the created CSV file from the last test
 		err = storage.BootstrapBalances(ctx, bootstrapBalancesFile, genesisBlockIdentifier)
-		assert.EqualError(t, err, ErrAlreadyStartedSyncing.Error())
+		assert.NoError(t, err)
 	})
 }
 
