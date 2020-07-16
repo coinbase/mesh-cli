@@ -48,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
+	rootCmd.AddCommand(viewNetworkCmd)
 	rootCmd.AddCommand(createConfigurationCmd)
 	rootCmd.AddCommand(versionCmd)
 }

@@ -103,7 +103,11 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 ) error {
 	// Update counters
 	if reconciliationType == reconciler.InactiveReconciliation {
-		_, _ = h.logger.CounterStorage.Update(ctx, storage.InactiveReconciliationCounter, big.NewInt(1))
+		_, _ = h.logger.CounterStorage.Update(
+			ctx,
+			storage.InactiveReconciliationCounter,
+			big.NewInt(1),
+		)
 	} else {
 		_, _ = h.logger.CounterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
 	}

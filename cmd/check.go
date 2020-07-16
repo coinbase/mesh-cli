@@ -628,6 +628,9 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 			time.Sleep(PeriodicLoggingFrequency)
 		}
 
+		// Print stats one last time before exiting
+		_ = logger.LogCounterStorage(ctx)
+
 		return nil
 	})
 
