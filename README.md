@@ -41,12 +41,13 @@ Usage:
   rosetta-cli [command]
 
 Available Commands:
-  check                Check the correctness of a Rosetta Node API Server
+  check                Check the correctness of a Rosetta Data API Server
   create:configuration Generate a static configuration file for the Asserter
   help                 Help about any command
   version              Print rosetta-cli version
   view:account         View an account balance
   view:block           View a block
+  view:network         View network status
 
 Flags:
   -h, --help                help for rosetta-cli
@@ -169,6 +170,25 @@ Global Flags:
       --server-url string   base URL for a Rosetta server (default "http://localhost:8080")
 ```
 
+### view:network
+```
+While debugging a Data API implementation, it can be very
+useful to view network(s) status. This command fetches the network
+status from all available networks and prints it to the terminal.
+
+If this command errors, it is likely because the /network/* endpoints are
+not formatted correctly.
+
+Usage:
+  rosetta-cli view:network [flags]
+
+Flags:
+  -h, --help   help for view:network
+
+Global Flags:
+      --server-url string   base URL for a Rosetta server (default "http://localhost:8080")
+```
+
 ### view:account
 ```
 While debugging, it is often useful to inspect the state
@@ -192,7 +212,7 @@ Global Flags:
 
 ### view:block
 ```
-While debugging a Node API implementation, it can be very
+While debugging a Data API implementation, it can be very
 useful to inspect block contents. This command allows you to fetch any
 block by index to inspect its contents. It uses the
 fetcher (https://github.com/coinbase/rosetta-sdk-go/tree/master/fetcher) package
@@ -265,8 +285,8 @@ exit.
 The CLI randomly checks the balances of accounts that aren't
 involved in any transactions. The balances of accounts could change
 on the blockchain node without being included in an operation
-returned by the Rosetta Node API. Recall that all balance-changing
-operations should be returned by the Rosetta Node API.
+returned by the Rosetta Data API. Recall that all balance-changing
+operations should be returned by the Rosetta Data API.
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).

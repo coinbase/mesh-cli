@@ -30,7 +30,7 @@ var (
 	viewBlockCmd = &cobra.Command{
 		Use:   "view:block",
 		Short: "View a block",
-		Long: `While debugging a Node API implementation, it can be very
+		Long: `While debugging a Data API implementation, it can be very
 useful to inspect block contents. This command allows you to fetch any
 block by index to inspect its contents. It uses the
 fetcher (https://github.com/coinbase/rosetta-sdk-go/tree/master/fetcher) package
