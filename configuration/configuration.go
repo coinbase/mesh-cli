@@ -38,89 +38,144 @@ const (
 	UtxoModel AccountingModel = "utxo"
 )
 
-// TODO: Add support for sophisticated end conditions(https://github.com/coinbase/rosetta-cli/issues/66)
+// Default Configuration Values
+const (
+	DefaultURL                               = "http://localhost:8080"
+	DefaultMinimumBalance                    = "0"
+	DefaultMaximumFee                        = "50000"
+	DefaultCurveType                         = types.Secp256k1
+	DefaultAccountingModel                   = AccountModel
+	DefaultBlockConcurrency                  = 8
+	DefaultTransactionConcurrency            = 16
+	DefaultActiveReconciliationConcurrency   = 16
+	DefaultInactiveReconciliationConcurrency = 4
+	DefaultInactiveReconciliationFrequency   = 250
+)
+
+// Default Configuration Values
+var (
+	DefaultNetwork = &types.NetworkIdentifier{
+		Blockchain: "Ethereum",
+		Network:    "Ropsten",
+	}
+	DefaultCurrency = &types.Currency{
+		Symbol:   "ETH",
+		Decimals: 18,
+	}
+	DefaultTransferScenario = []*types.Operation{
+		{
+			OperationIdentifier: &types.OperationIdentifier{
+				Index: 0,
+			},
+			Account: &types.AccountIdentifier{
+				Address: scenario.Sender,
+			},
+			Type: "transfer",
+			Amount: &types.Amount{
+				Value: scenario.SenderValue,
+			},
+		},
+		{
+			OperationIdentifier: &types.OperationIdentifier{
+				Index: 1,
+			},
+			RelatedOperations: []*types.OperationIdentifier{
+				{
+					Index: 0,
+				},
+			},
+			Account: &types.AccountIdentifier{
+				Address: scenario.Recipient,
+			},
+			Type: "transfer",
+			Amount: &types.Amount{
+				Value: scenario.RecipientValue,
+			},
+		},
+	}
+)
+
+// TODO: Add support for sophisticated end conditions (https://github.com/coinbase/rosetta-cli/issues/66)
 
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
-	// TODO: Write comments about each value
-	Network               *types.NetworkIdentifier `json:"network"`
-	OnlineURL             string                   `json:"online_url"`
-	OfflineURL            string                   `json:"offline_url"`
-	Currency              *types.Currency          `json:"currency"`
-	MinimumAccountBalance string                   `json:"minimum_account_balance"`
-	MinimumFee            string                   `json:"minimum_fee"`
-	MaximumFee            string                   `json:"maximum_fee"`
-	CurveType             types.CurveType          `json:"curve_type"`
-	AccountingModel       AccountingModel          `json:"accounting_model"`
-	TransferScenario      []*types.Operation       `json:"transfer_scenario"`
+	// Network is the *types.NetworkIdentifier where transactions should
+	// be constructed and where blocks should be synced to monitor
+	// for broadcast success.
+	Network *types.NetworkIdentifier `json:"network"`
+
+	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
+	// default: http://localhost:8080
+	OnlineURL string `json:"online_url"`
+
+	// OfflineURL is the URL of a Rosetta API implementation in "online mode".
+	// default: http://localhost:8080
+	OfflineURL string `json:"offline_url"`
+
+	// Currency is the *types.Currency to track and use for transactions.
+	// default: {Symbol: "ETH", Decimals: 18}
+	Currency *types.Currency `json:"currency"`
+
+	// MinimumBalance is balance at a particular address
+	// that is not considered spendable.
+	// default: "0"
+	MinimumBalance string `json:"minimum_balance"`
+
+	// MaximumFee is the maximum fee that could be used
+	// to send a transaction. The sendable balance
+	// of any address is calculated as balance - minimum_balance - maximum_fee.
+	// default: "10000000"
+	MaximumFee string `json:"maximum_fee"`
+
+	// CurveType is the curve to use when generating a *keys.KeyPair.
+	// default: "secp256k1"
+	CurveType types.CurveType `json:"curve_type"`
+
+	// AccountingModel is the type of acccount model to use for
+	// testing (account vs UTXO).
+	// default: "account"
+	AccountingModel AccountingModel `json:"accounting_model"`
+
+	// TransferScenario contains a slice of operations that
+	// indicate how to perform a transfer on a blockchain. In the future
+	// this will be expanded to support all kinds of construction scenarios (like
+	// staking or governance).
+	// default: ETH transfer
+	TransferScenario []*types.Operation `json:"transfer_scenario"`
 }
 
+// DefaultConstructionConfiguration returns the *ConstructionConfiguration
+// used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
-	// DEFAULT IS ETH
 	return &ConstructionConfiguration{
-		Network: &types.NetworkIdentifier{
-			Blockchain: "Ethereum",
-			Network:    "Ropsten",
-		},
-		OnlineURL:  "http://localhost:8080",
-		OfflineURL: "http://localhost:8080",
-		Currency: &types.Currency{
-			Symbol:   "ETH",
-			Decimals: 18,
-		},
-		MinimumAccountBalance: "0",
-		MinimumFee:            "21000",
-		MaximumFee:            "10000000",
-		CurveType:             types.Secp256k1,
-		AccountingModel:       AccountModel,
-		TransferScenario: []*types.Operation{
-			{
-				OperationIdentifier: &types.OperationIdentifier{
-					Index: 0,
-				},
-				Account: &types.AccountIdentifier{
-					Address: scenario.Sender,
-				},
-				Type: "transfer",
-				Amount: &types.Amount{
-					Value: scenario.SenderValue,
-				},
-			},
-			{
-				OperationIdentifier: &types.OperationIdentifier{
-					Index: 1,
-				},
-				RelatedOperations: []*types.OperationIdentifier{
-					{
-						Index: 0,
-					},
-				},
-				Account: &types.AccountIdentifier{
-					Address: scenario.Recipient,
-				},
-				Type: "transfer",
-				Amount: &types.Amount{
-					Value: scenario.RecipientValue,
-				},
-			},
-		},
+		Network:          DefaultNetwork,
+		OnlineURL:        DefaultURL,
+		OfflineURL:       DefaultURL,
+		Currency:         DefaultCurrency,
+		MinimumBalance:   DefaultMinimumBalance,
+		MaximumFee:       DefaultMaximumFee,
+		CurveType:        DefaultCurveType,
+		AccountingModel:  DefaultAccountingModel,
+		TransferScenario: DefaultTransferScenario,
 	}
 }
 
+// DefaultDataConfiguration returns the default *DataConfiguration
+// for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
 	return &DataConfiguration{
-		OnlineURL:                         "http://localhost:8080",
-		BlockConcurrency:                  8,
-		TransactionConcurrency:            16,
-		ActiveReconciliationConcurrency:   16,
-		InactiveReconciliationConcurrency: 4,
-		InactiveReconciliationFrequency:   250,
-		HaltOnReconciliationError:         true,
-		LookupBalanceByBlock:              true, // override with setting returned by node?
+		OnlineURL:                         DefaultURL,
+		BlockConcurrency:                  DefaultBlockConcurrency,
+		TransactionConcurrency:            DefaultTransactionConcurrency,
+		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
+		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
+		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
 	}
 }
 
+// DefaultConfiguration returns a *Configuration with the
+// DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
 		Construction: DefaultConstructionConfiguration(),
@@ -129,7 +184,7 @@ func DefaultConfiguration() *Configuration {
 }
 
 // DataConfiguration contains all configurations to run check:data.
-// TODO: Add timeout!!
+// TODO: Add configurable timeout (https://github.com/coinbase/rosetta-cli/issues/64)
 type DataConfiguration struct {
 	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
 	// default: http://localhost:8080
@@ -178,11 +233,11 @@ type DataConfiguration struct {
 	// default: false
 	LogReconciliations bool `json:"log_reconciliations"`
 
-	// HaltOnReconciliationError determines if block processing should halt on a reconciliation
+	// IgnoreReconciliationError determines if block processing should halt on a reconciliation
 	// error. It can be beneficial to collect all reconciliation errors or silence
 	// reconciliation errors during development.
-	// default: true
-	HaltOnReconciliationError bool `json:"halt_on_reconciliation_error"`
+	// default: false
+	IgnoreReconciliationError bool `json:"ignore_reconciliation_error"`
 
 	// ExemptAccounts is a path to a file listing all accounts to exempt from balance
 	// tracking and reconciliation. Look at the examples directory for an example of
@@ -196,12 +251,12 @@ type DataConfiguration struct {
 	// default: ""
 	BootstrapBalances string `json:"bootstrap_balances"`
 
-	// LookupBalanceByBlock is a boolean that dictates how balance lookup is performed.
+	// HistoricalBalanceDisabled is a boolean that dictates how balance lookup is performed.
 	// When set to true, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
 	// historical balance lookup should set this to false.
-	// default: true
-	LookupBalanceByBlock bool `json:"lookup_balance_by_block"`
+	// default: false
+	HistoricalBalanceDisabled bool `json:"historical_balance_disabled"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.
@@ -214,6 +269,72 @@ type DataConfiguration struct {
 type Configuration struct {
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
+}
+
+func populateMissingFields(config *Configuration) {
+	// Ensure ConstructionConfiguration populated
+	constructionConfig := config.Construction
+	if constructionConfig.Network == nil {
+		constructionConfig.Network = DefaultNetwork
+	}
+
+	if len(constructionConfig.OnlineURL) == 0 {
+		constructionConfig.OnlineURL = DefaultURL
+	}
+
+	if len(constructionConfig.OfflineURL) == 0 {
+		constructionConfig.OfflineURL = DefaultURL
+	}
+
+	if constructionConfig.Currency == nil {
+		constructionConfig.Currency = DefaultCurrency
+	}
+
+	if len(constructionConfig.MinimumBalance) == 0 {
+		constructionConfig.MinimumBalance = DefaultMinimumBalance
+	}
+
+	if len(constructionConfig.MaximumFee) == 0 {
+		constructionConfig.MaximumFee = DefaultMaximumFee
+	}
+
+	if len(constructionConfig.CurveType) == 0 {
+		constructionConfig.CurveType = DefaultCurveType
+	}
+
+	if len(constructionConfig.AccountingModel) == 0 {
+		constructionConfig.AccountingModel = DefaultAccountingModel
+	}
+
+	if len(constructionConfig.TransferScenario) == 0 {
+		constructionConfig.TransferScenario = DefaultTransferScenario
+	}
+
+	// Ensure DataConfiguration populated
+	dataConfig := config.Data
+	if len(dataConfig.OnlineURL) == 0 {
+		dataConfig.OnlineURL = DefaultURL
+	}
+
+	if dataConfig.BlockConcurrency == 0 {
+		dataConfig.BlockConcurrency = DefaultBlockConcurrency
+	}
+
+	if dataConfig.TransactionConcurrency == 0 {
+		dataConfig.TransactionConcurrency = DefaultTransactionConcurrency
+	}
+
+	if dataConfig.ActiveReconciliationConcurrency == 0 {
+		dataConfig.ActiveReconciliationConcurrency = DefaultActiveReconciliationConcurrency
+	}
+
+	if dataConfig.InactiveReconciliationConcurrency == 0 {
+		dataConfig.InactiveReconciliationConcurrency = DefaultInactiveReconciliationConcurrency
+	}
+
+	if dataConfig.InactiveReconciliationFrequency == 0 {
+		dataConfig.InactiveReconciliationFrequency = DefaultInactiveReconciliationFrequency
+	}
 }
 
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
@@ -242,6 +363,8 @@ func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error
 		return nil, fmt.Errorf("%w: unable to open configuration file", err)
 	}
 
+	populateMissingFields(&config)
+
 	switch mode {
 	case ConstructionMode:
 		if err := assertConstructionConfiguration(config.Construction); err != nil {
@@ -256,14 +379,9 @@ func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error
 	}
 
 	log.Printf(
-		"loaded configuration file: %s\n",
+		"loaded configuration: %s\n",
 		types.PrettyPrintStruct(config),
 	)
 
-	// TODO: Populate defaults
-
 	return &config, nil
 }
-
-// TODO: Create Default Configuration File (print out all defaults to the console
-// so it is easy for someone to create their own...print out settings for ETH Construction API).

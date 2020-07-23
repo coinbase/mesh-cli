@@ -48,13 +48,6 @@ const (
 	// TODO: make configurable
 	ExtendedRetryElapsedTime = 5 * time.Minute
 
-	// InactiveFailureLookbackWindow is the size of each window to check
-	// for missing ops. If a block with missing ops is not found in this
-	// window, another window is created with the preceding
-	// InactiveFailureLookbackWindow blocks (this process continues
-	// until the client halts the search or the block is found).
-	InactiveFailureLookbackWindow = 250
-
 	// PeriodicLoggingFrequency is the frequency that stats are printed
 	// to the terminal.
 	//
@@ -103,77 +96,11 @@ of what one of these files looks like.`,
 		Run: runCheckCmd,
 	}
 
-	// BootstrapBalances is a path to a file used to bootstrap
-	// balances before starting syncing. Populating this value
-	// after beginning syncing will return an error.
-	BootstrapBalances string
-
-	// LookupBalanceByBlock determines if balances are looked up
-	// at the block where a balance change occurred instead of at the current
-	// block. Blockchains that do not support historical balance lookup
-	// should set this to false.
-	LookupBalanceByBlock bool
-
-	// DataDir is a folder used to store logs
-	// and any data used to perform validation.
-	DataDir string
-
 	// StartIndex is the block index to start syncing.
 	StartIndex int64
 
 	// EndIndex is the block index to stop syncing.
 	EndIndex int64
-
-	// BlockConcurrency is the concurrency to use
-	// while fetching blocks.
-	BlockConcurrency uint64
-
-	// TransactionConcurrency is the concurrency to use
-	// while fetching transactions (if required).
-	TransactionConcurrency uint64
-
-	// ActiveReconciliationConcurrency is the concurrency to use
-	// while fetching accounts during active reconciliation.
-	ActiveReconciliationConcurrency uint64
-
-	// InactiveReconciliationConcurrency is the concurrency to use
-	// while fetching accounts during inactive reconciliation.
-	InactiveReconciliationConcurrency uint64
-
-	// InactiveReconciliationFrequency is the number of blocks
-	// to wait between inactive reconiliations on each account.
-	InactiveReconciliationFrequency uint64
-
-	// LogBlocks determines if blocks are
-	// logged.
-	LogBlocks bool
-
-	// LogTransactions determines if transactions are
-	// logged.
-	LogTransactions bool
-
-	// LogBalanceChanges determines if balance changes are
-	// logged.
-	LogBalanceChanges bool
-
-	// LogReconciliations determines if reconciliations are
-	// logged.
-	LogReconciliations bool
-
-	// HaltOnReconciliationError determines if processing
-	// should stop when encountering a reconciliation error.
-	// It can be beneficial to collect all reconciliation errors
-	// during development.
-	HaltOnReconciliationError bool
-
-	// ExemptFile is an absolute path to a file listing all accounts
-	// to exempt from balance tracking and reconciliation.
-	ExemptFile string
-
-	// InterestingFile is an absolute path to a file listing all accounts
-	// to actively reconcile on each block (if there are no operations
-	// present for the account, the reconciler asserts a balance change of 0).
-	InterestingFile string
 
 	// signalReceived is set to true when a signal causes us to exit. This makes
 	// determining the error message to show on exit much more easy.
