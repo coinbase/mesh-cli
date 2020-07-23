@@ -44,7 +44,7 @@ var (
 			MaximumFee:       "1",
 			CurveType:        types.Edwards25519,
 			AccountingModel:  UtxoModel,
-			TransferScenario: DefaultTransferScenario,
+			TransferScenario: EthereumTransfer,
 		},
 		Data: &DataConfiguration{
 			BlockConcurrency:                  12,

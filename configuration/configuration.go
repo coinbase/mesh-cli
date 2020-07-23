@@ -41,10 +41,6 @@ const (
 // Default Configuration Values
 const (
 	DefaultURL                               = "http://localhost:8080"
-	DefaultMinimumBalance                    = "0"
-	DefaultMaximumFee                        = "50000"
-	DefaultCurveType                         = types.Secp256k1
-	DefaultAccountingModel                   = AccountModel
 	DefaultBlockConcurrency                  = 8
 	DefaultTransactionConcurrency            = 16
 	DefaultActiveReconciliationConcurrency   = 16
@@ -53,24 +49,28 @@ const (
 	DefaultTimeout                           = 10
 
 	// ETH Defaults
-	EthereumBlockchain = "Ethereum"
-	EthereumNetwork    = "Ropsten"
-	EthereumTransfer   = "transfer"
-	EthereumSymbol     = "ETH"
-	EthereumDecimals   = 18
+	EthereumIDBlockchain    = "Ethereum"
+	EthereumIDNetwork       = "Ropsten"
+	EthereumTransferType    = "transfer"
+	EthereumSymbol          = "ETH"
+	EthereumDecimals        = 18
+	EthereumMinimumBalance  = "0"
+	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
+	EthereumCurveType       = types.Secp256k1
+	EthereumAccountingModel = AccountModel
 )
 
 // Default Configuration Values
 var (
-	DefaultNetwork = &types.NetworkIdentifier{
-		Blockchain: EthereumBlockchain,
-		Network:    EthereumNetwork,
+	EthereumNetwork = &types.NetworkIdentifier{
+		Blockchain: EthereumIDBlockchain,
+		Network:    EthereumIDNetwork,
 	}
-	DefaultCurrency = &types.Currency{
+	EthereumCurrency = &types.Currency{
 		Symbol:   EthereumSymbol,
 		Decimals: EthereumDecimals,
 	}
-	DefaultTransferScenario = []*types.Operation{
+	EthereumTransfer = []*types.Operation{
 		{
 			OperationIdentifier: &types.OperationIdentifier{
 				Index: 0,
@@ -78,7 +78,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Sender,
 			},
-			Type: EthereumTransfer,
+			Type: EthereumTransferType,
 			Amount: &types.Amount{
 				Value: scenario.SenderValue,
 			},
@@ -95,7 +95,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Recipient,
 			},
-			Type: EthereumTransfer,
+			Type: EthereumTransferType,
 			Amount: &types.Amount{
 				Value: scenario.RecipientValue,
 			},
@@ -154,14 +154,14 @@ type ConstructionConfiguration struct {
 // used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
-		Network:          DefaultNetwork,
+		Network:          EthereumNetwork,
 		OfflineURL:       DefaultURL,
-		Currency:         DefaultCurrency,
-		MinimumBalance:   DefaultMinimumBalance,
-		MaximumFee:       DefaultMaximumFee,
-		CurveType:        DefaultCurveType,
-		AccountingModel:  DefaultAccountingModel,
-		TransferScenario: DefaultTransferScenario,
+		Currency:         EthereumCurrency,
+		MinimumBalance:   EthereumMinimumBalance,
+		MaximumFee:       EthereumMaximumFee,
+		CurveType:        EthereumCurveType,
+		AccountingModel:  EthereumAccountingModel,
+		TransferScenario: EthereumTransfer,
 	}
 }
 
@@ -287,7 +287,7 @@ func populateConstructionMissingFields(
 	}
 
 	if constructionConfig.Network == nil {
-		constructionConfig.Network = DefaultNetwork
+		constructionConfig.Network = EthereumNetwork
 	}
 
 	if len(constructionConfig.OfflineURL) == 0 {
@@ -295,27 +295,27 @@ func populateConstructionMissingFields(
 	}
 
 	if constructionConfig.Currency == nil {
-		constructionConfig.Currency = DefaultCurrency
+		constructionConfig.Currency = EthereumCurrency
 	}
 
 	if len(constructionConfig.MinimumBalance) == 0 {
-		constructionConfig.MinimumBalance = DefaultMinimumBalance
+		constructionConfig.MinimumBalance = EthereumMinimumBalance
 	}
 
 	if len(constructionConfig.MaximumFee) == 0 {
-		constructionConfig.MaximumFee = DefaultMaximumFee
+		constructionConfig.MaximumFee = EthereumMaximumFee
 	}
 
 	if len(constructionConfig.CurveType) == 0 {
-		constructionConfig.CurveType = DefaultCurveType
+		constructionConfig.CurveType = EthereumCurveType
 	}
 
 	if len(constructionConfig.AccountingModel) == 0 {
-		constructionConfig.AccountingModel = DefaultAccountingModel
+		constructionConfig.AccountingModel = EthereumAccountingModel
 	}
 
 	if len(constructionConfig.TransferScenario) == 0 {
-		constructionConfig.TransferScenario = DefaultTransferScenario
+		constructionConfig.TransferScenario = EthereumTransfer
 	}
 
 	return constructionConfig
