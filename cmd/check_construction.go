@@ -15,5 +15,6 @@ var (
 )
 
 func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
+	// ensureDataDirectoryExists()
 	log.Fatal("not implemented!")
 }

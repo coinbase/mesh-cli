@@ -325,6 +325,7 @@ func findMissingOps(
 }
 
 func runCheckDataCmd(cmd *cobra.Command, args []string) {
+	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	exemptAccounts, err := loadAccounts(Config.Data.ExemptAccounts)

@@ -87,7 +87,9 @@ func initConfig() {
 	if err != nil {
 		log.Fatalf("%s: unable to load configuration", err.Error())
 	}
+}
 
+func ensureDataDirectoryExists() {
 	// If data directory is not specified, we use a temporary directory
 	// and delete its contents when execution is complete.
 	if len(Config.Data.DataDirectory) == 0 {
