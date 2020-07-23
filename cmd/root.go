@@ -16,6 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -26,9 +30,12 @@ var (
 		Short: "CLI for the Rosetta API",
 	}
 
-	// ServerURL is the base URL for a Rosetta
-	// server to validate.
-	ServerURL string
+	configurationFile string
+
+	// Config is the populated *configuration.Configuration from
+	// the configurationFile. If none is provided, this is set
+	// to the default settings.
+	Config *configuration.Configuration
 )
 
 // Execute handles all invocations of the
@@ -38,25 +45,67 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(
-		&ServerURL,
-		"server-url",
-		"http://localhost:8080",
-		"base URL for a Rosetta server",
-	)
+	cobra.OnInitialize(initConfig)
 
-	rootCmd.AddCommand(checkCmd)
+	rootCmd.PersistentFlags().StringVar(
+		&configurationFile,
+		"configuration-file",
+		"",
+		`Configuration file that provides connection and test settings.
+If you would like to generate a starter configuration file (populated
+with the defaults), run rosetta-cli configuration:create.
+
+Any fields not populated in the configuration file will be populated with
+default values.`,
+	)
+	rootCmd.AddCommand(versionCmd)
+
+	// Configuration Commands
+	rootCmd.AddCommand(configurationCreateCmd)
+	rootCmd.AddCommand(configurationValidateCmd)
+
+	// Check commands
+	rootCmd.AddCommand(checkDataCmd)
+	rootCmd.AddCommand(checkConstructionCmd)
+
+	// View Commands
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
 	rootCmd.AddCommand(viewNetworkCmd)
-	rootCmd.AddCommand(createConfigurationCmd)
-	rootCmd.AddCommand(versionCmd)
+
+	// Utils
+	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
+}
+
+func initConfig() {
+	var err error
+	if len(configurationFile) == 0 {
+		Config = configuration.DefaultConfiguration()
+	} else {
+		Config, err = configuration.LoadConfiguration(configurationFile)
+	}
+	if err != nil {
+		log.Fatalf("%s: unable to load configuration", err.Error())
+	}
+}
+
+func ensureDataDirectoryExists() {
+	// If data directory is not specified, we use a temporary directory
+	// and delete its contents when execution is complete.
+	if len(Config.Data.DataDirectory) == 0 {
+		tmpDir, err := utils.CreateTempDir()
+		if err != nil {
+			log.Fatalf("%s: unable to create temporary directory", err.Error())
+		}
+
+		Config.Data.DataDirectory = tmpDir
+	}
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.3.1")
+		fmt.Println("v0.3.2")
 	},
 }

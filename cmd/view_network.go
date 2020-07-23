@@ -41,7 +41,7 @@ not formatted correctly.`,
 func runViewNetworkCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
-	f := fetcher.New(ServerURL)
+	f := fetcher.New(Config.Data.OnlineURL)
 
 	// Attempt to fetch network list
 	networkList, err := f.NetworkListRetry(ctx, nil)
