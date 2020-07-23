@@ -17,10 +17,12 @@ package cmd
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/tester"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -64,7 +66,18 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	go handleSignals([]context.CancelFunc{cancel})
 
-	if err := g.Wait(); err != nil {
-		log.Fatalf("%s:recieved error while running tests", err.Error())
+	err = g.Wait()
+	if SignalReceived {
+		color.Red("Check halted")
+		os.Exit(1)
+		return
 	}
+
+	if err != nil {
+		color.Red("Check failed: %s", err.Error())
+		os.Exit(1)
+	}
+
+	// Will only hit this once error conditions are added
+	color.Green("Check succeeded")
 }
