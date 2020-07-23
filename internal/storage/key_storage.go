@@ -17,7 +17,10 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -29,6 +32,10 @@ import (
 const (
 	keyNamespace = "key"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 func getAddressKey(address string) []byte {
 	return []byte(
@@ -183,4 +190,18 @@ func (k *KeyStorage) Sign(
 	}
 
 	return signatures, nil
+}
+
+// RandomAddress returns a random address from all addresses.
+func (k *KeyStorage) RandomAddress(ctx context.Context) (string, error) {
+	addresses, err := k.GetAllAddresses(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%w: unable to get addresses", err)
+	}
+
+	if len(addresses) == 0 {
+		return "", errors.New("no addresses available")
+	}
+
+	return addresses[rand.Intn(len(addresses))], nil
 }

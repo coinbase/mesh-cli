@@ -15,9 +15,14 @@
 package cmd
 
 import (
+	"context"
 	"log"
 
+	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/tester"
+
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -29,6 +34,33 @@ var (
 )
 
 func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
-	// ensureDataDirectoryExists()
-	log.Fatal("not implemented!")
+	ensureDataDirectoryExists()
+
+	ctx := context.Background()
+
+	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
+	if err != nil {
+		log.Fatalf("%s: unable to initialize database", err.Error())
+	}
+	defer localStore.Close(ctx)
+
+	keyStorage := storage.NewKeyStorage(localStore)
+
+	t, err := tester.NewConstruction(ctx, Config.Construction, keyStorage)
+	if err != nil {
+		log.Fatalf("%s: unable to initialize construction tester", err.Error())
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return t.StartSyncer(ctx)
+	})
+
+	g.Go(func() error {
+		return t.TransferLoop(ctx)
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Fatalf("%s:recieved error while running tests", err.Error())
+	}
 }

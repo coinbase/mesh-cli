@@ -12,16 +12,24 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/internal/processor"
+	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/keys"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 )
 
 var (
 	ErrBelowWaterMark = errors.New("below water mark")
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 type ConstructionTester struct {
 	onlineFetcher  *fetcher.Fetcher
@@ -31,9 +39,13 @@ type ConstructionTester struct {
 	keyStorage     *storage.KeyStorage
 	handler        *processor.CheckConstructionHandler
 	startBlock     *types.BlockIdentifier
+
+	// parsed configuration
+	minimumBalance *big.Int
+	maximumFee     *big.Int
 }
 
-func New(
+func NewConstruction(
 	ctx context.Context,
 	config *configuration.ConstructionConfiguration,
 	keyStorage *storage.KeyStorage,
@@ -43,6 +55,18 @@ func New(
 		highWaterMark: -1,
 		keyStorage:    keyStorage,
 	}
+
+	minimumBalance, ok := new(big.Int).SetString(t.configuration.MinimumBalance, 10)
+	if !ok {
+		return nil, errors.New("cannot parse minimum balance")
+	}
+	t.minimumBalance = minimumBalance
+
+	maximumFee, ok := new(big.Int).SetString(t.configuration.MaximumFee, 10)
+	if !ok {
+		return nil, errors.New("cannot parse maximum fee")
+	}
+	t.maximumFee = maximumFee
 
 	// Initialize Fetchers
 	t.onlineFetcher = fetcher.New(t.configuration.OnlineURL)
@@ -92,10 +116,7 @@ func New(
 	return t, nil
 }
 
-func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation) (*types.TransactionIdentifier, error) {
-	log := ctxzap.Extract(ctx)
-	log.Debug("created operations", zap.Any("operations", ops))
-
+func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*types.Operation) (*types.TransactionIdentifier, error) {
 	metadataRequest, err := t.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		t.configuration.Network,
@@ -105,7 +126,6 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to preprocess", err)
 	}
-	log.Debug("created metadata request", zap.Any("request", metadataRequest))
 
 	requiredMetadata, err := t.onlineFetcher.ConstructionMetadata(
 		ctx,
@@ -115,7 +135,6 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to construct metadata", err)
 	}
-	log.Debug("recieved construction metadata", zap.Any("metadata", requiredMetadata))
 
 	unsignedTransaction, payloads, err := t.offlineFetcher.ConstructionPayloads(
 		ctx,
@@ -136,9 +155,8 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to parse unsigned transaction", err)
 	}
-	log.Debug("parsed unsigned transaction", zap.Any("operations", parsedOps))
 
-	if err := parser.OperationsIntent(ctx, ops, parsedOps); err != nil {
+	if err := parser.ExpectedOperations(ops, parsedOps, false); err != nil {
 		return nil, fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
 
@@ -146,13 +164,11 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	for _, payload := range payloads {
 		requestedSigners = append(requestedSigners, payload.Address)
 	}
-	log.Debug("requested signers", zap.Any("signers", requestedSigners))
 
-	signatures, err := t.keys.SignPayloads(payloads)
+	signatures, err := t.keyStorage.Sign(ctx, payloads)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to sign payloads", err)
 	}
-	log.Debug("created signatures", zap.Any("signatures", signatures))
 
 	networkTransaction, err := t.offlineFetcher.ConstructionCombine(
 		ctx,
@@ -163,7 +179,6 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to combine signatures", err)
 	}
-	log.Debug("created network payload", zap.Any("payload", networkTransaction))
 
 	signedParsedOps, signers, _, err := t.offlineFetcher.ConstructionParse(
 		ctx,
@@ -174,14 +189,12 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to parse signed transaction", err)
 	}
-	log.Debug("parsed signed transaction", zap.Any("operations", signedParsedOps))
-	log.Debug("parsed signers", zap.Any("signers", signers))
 
-	if err := parser.OperationsIntent(ctx, ops, signedParsedOps); err != nil {
+	if err := parser.ExpectedOperations(ops, signedParsedOps, false); err != nil {
 		return nil, fmt.Errorf("%w: signed parsed ops do not match intent", err)
 	}
 
-	if err := parser.SignersIntent(payloads, signers); err != nil {
+	if err := parser.ExpectedSigners(payloads, signers); err != nil {
 		return nil, fmt.Errorf("%w: signed transactions signers do not match intent", err)
 	}
 
@@ -203,7 +216,7 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if err != nil {
 		return nil, fmt.Errorf("%w transaction submission failed", err)
 	}
-	log.Info("trasaction broadcast", zap.String("hash", txID.Hash))
+	log.Printf("trasaction broadcast %s\n", txID.Hash)
 
 	if txID.Hash != txHash {
 		return nil, fmt.Errorf("derived transaction hash %s does not match hash returned by submit %s", txHash, txID.Hash)
@@ -216,10 +229,8 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	var block *types.BlockIdentifier
 	var chainTransaction *types.Transaction
 	for ctx.Err() == nil {
-		block, chainTransaction = t.transactionHandler.Transaction(ctx, txID)
-		if block == nil || chainTransaction == nil {
-			log.Debug("waiting for tx on chain", zap.String("hash", txID.Hash))
-
+		block, chainTransaction = t.handler.Transaction(ctx, txID)
+		if block == nil { // wait for transaction to appear on-chain
 			time.Sleep(10 * time.Second)
 		} else {
 			break
@@ -228,10 +239,9 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	log.Info("transaction found", zap.String("transaction hash", txHash), zap.Int64("block index", block.Index), zap.String("block hash", block.Hash))
-	log.Debug("parsed on-chain transaction", zap.Any("operations", chainTransaction.Operations))
+	log.Printf("transaction found on-chain in block %s:%d\n", block.Hash, block.Index)
 
-	if err := parser.OperationsIntent(ctx, ops, chainTransaction.Operations); err != nil {
+	if err := parser.ExpectedOperations(ops, chainTransaction.Operations, false); err != nil {
 		return nil, fmt.Errorf("%w: on-chain parsed ops do not match intent", err)
 	}
 
@@ -239,15 +249,15 @@ func (t *Tester) ProduceTransaction(ctx context.Context, ops []*types.Operation)
 	return txID, nil
 }
 
-func (t *Tester) StartSyncer(
+func (t *ConstructionTester) StartSyncer(
 	ctx context.Context,
 ) error {
 	trackUtxos := false
-	if t.configuration.Model == configuration.Utxo {
+	if t.configuration.AccountingModel == configuration.UtxoModel {
 		trackUtxos = true
 	}
 
-	t.transactionHandler = processor.NewTransactionHandler(
+	t.handler = processor.NewCheckConstructionHandler(
 		ctx,
 		trackUtxos,
 	)
@@ -255,7 +265,7 @@ func (t *Tester) StartSyncer(
 	syncer := syncer.New(
 		t.configuration.Network,
 		t.onlineFetcher,
-		t.transactionHandler,
+		t.handler,
 		nil,
 		nil,
 	)
@@ -263,46 +273,62 @@ func (t *Tester) StartSyncer(
 	return syncer.Sync(ctx, t.startBlock.Index, -1)
 }
 
-func (t *Tester) NewAddress(
+func (t *ConstructionTester) NewAddress(
 	ctx context.Context,
 ) (string, error) {
-	return t.keys.AddKey(
+	kp, err := keys.GenerateKeypair(t.configuration.CurveType)
+	if err != nil {
+		return "", fmt.Errorf("%w unable to generate keypair", err)
+	}
+
+	address, _, err := t.offlineFetcher.ConstructionDerive(
 		ctx,
 		t.configuration.Network,
-		t.onlineFetcher,
-		t.configuration.CurveType,
+		kp.PublicKey,
+		nil,
 	)
+
+	if err != nil {
+		return "", fmt.Errorf("%w: unable to derive address", err)
+	}
+
+	err = t.keyStorage.Store(ctx, address, kp)
+	if err != nil {
+		return "", fmt.Errorf("%w: unable to store address", err)
+	}
+
+	return address, nil
 }
 
-func (t *Tester) RequestLoad(
+func (t *ConstructionTester) RequestLoad(
 	ctx context.Context,
 	address string,
 ) (*big.Int, error) {
-	log := ctxzap.Extract(ctx)
-
-	for {
+	for ctx.Err() == nil {
 		sendableBalance, err := t.SendableBalance(ctx, address)
 		if err != nil {
 			return nil, err
 		}
 
 		if sendableBalance != nil {
-			log.Info("found sendable balance", zap.String("address", address), zap.String("balance", sendableBalance.String()))
+			log.Printf("found sendable balance %s on %s\n", sendableBalance.String(), address)
 			return sendableBalance, nil
 		}
 
-		log.Warn("waiting for funds", zap.String("address", address))
+		color.Yellow("waiting for funds on %s", address)
 		time.Sleep(10 * time.Second)
 	}
+
+	return nil, ctx.Err()
 }
 
 // returns spendable amount or error
-func (t *Tester) SendableBalance(
+func (t *ConstructionTester) SendableBalance(
 	ctx context.Context,
 	address string,
 ) (*big.Int, error) {
 	var bal *big.Int
-	if t.configuration.Model == configuration.Account {
+	if t.configuration.AccountingModel == configuration.AccountModel {
 		block, balances, _, err := t.onlineFetcher.AccountBalanceRetry(
 			ctx,
 			t.configuration.Network,
@@ -336,8 +362,8 @@ func (t *Tester) SendableBalance(
 		}
 
 		bal = val
-	} else if t.configuration.Model == configuration.Utxo {
-		balance, _, lastSynced, err := t.transactionHandler.GetUTXOBalance(address)
+	} else {
+		balance, _, lastSynced, err := t.handler.GetUTXOBalance(address)
 		if err != nil {
 			return nil, fmt.Errorf("%w: unable to get utxo balance for %s", err, address)
 		}
@@ -347,11 +373,9 @@ func (t *Tester) SendableBalance(
 		}
 
 		bal = balance
-	} else {
-		return nil, errors.New("invalid model")
 	}
 
-	sendableBalance := new(big.Int).Sub(bal, t.minimumAccountBalance)
+	sendableBalance := new(big.Int).Sub(bal, t.minimumBalance)
 	sendableBalance = new(big.Int).Sub(sendableBalance, t.maximumFee)
 
 	if sendableBalance.Sign() != 1 {
@@ -361,10 +385,15 @@ func (t *Tester) SendableBalance(
 	return sendableBalance, nil
 }
 
-func (t *Tester) FindSender(
+func (t *ConstructionTester) FindSender(
 	ctx context.Context,
 ) (string, *big.Int, error) {
-	if len(t.keys.Keys) == 0 { // create new and load
+	addresses, err := t.keyStorage.GetAllAddresses(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("%w: unable to get addresses", err)
+	}
+
+	if len(addresses) == 0 { // create new and load
 		addr, err := t.NewAddress(ctx)
 		if err != nil {
 			return "", nil, fmt.Errorf("%w: unable to create address", err)
@@ -378,7 +407,7 @@ func (t *Tester) FindSender(
 	}
 
 	sendableAddresses := map[string]*big.Int{}
-	for address, _ := range t.keys.Keys {
+	for _, address := range addresses {
 		sendableBalance, err := t.SendableBalance(ctx, address)
 		if err != nil {
 			return "", nil, err
@@ -392,13 +421,18 @@ func (t *Tester) FindSender(
 	}
 
 	if len(sendableAddresses) > 0 {
-		addr := randomKey(sendableAddresses)
+		sendableKeys := reflect.ValueOf(sendableAddresses).MapKeys()
+		addr := sendableKeys[rand.Intn(len(sendableKeys))].String()
 
 		return addr, sendableAddresses[addr], nil
 	}
 
 	// pick random to load up
-	addr := randomKey(t.keys.Keys)
+	addr, err := t.keyStorage.RandomAddress(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("%w: unable to get random address", err)
+	}
+
 	sendableBalance, err := t.RequestLoad(ctx, addr)
 	if err != nil {
 		return "", nil, fmt.Errorf("%w: unable to get load", err)
@@ -407,23 +441,26 @@ func (t *Tester) FindSender(
 	return addr, sendableBalance, nil
 }
 
-func (t *Tester) FindRecipient(
+func (t *ConstructionTester) FindRecipient(
 	ctx context.Context,
 	sender string,
 ) (string, error) {
 	validRecipients := []string{}
-	for k, _ := range t.keys.Keys {
-		if k == sender {
+	addresses, err := t.keyStorage.GetAllAddresses(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%w: unable to get address", err)
+	}
+	for _, a := range addresses {
+		if a == sender {
 			continue
 		}
 
-		validRecipients = append(validRecipients, k)
+		validRecipients = append(validRecipients, a)
 	}
 
 	// Randomly generate new recipients
 	coinFlip := false
-	randomness := rand.New(rand.NewSource(time.Now().Unix())).Float64()
-	if randomness > 0.5 {
+	if rand.Float64() > 0.5 {
 		coinFlip = true
 	}
 
@@ -436,28 +473,16 @@ func (t *Tester) FindRecipient(
 		return addr, nil
 	}
 
-	return validRecipients[rand.New(rand.NewSource(time.Now().Unix())).Intn(len(validRecipients))], nil
-}
-
-// must be map with string keys
-func randomKey(m interface{}) string {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
-	keys := reflect.ValueOf(m).MapKeys()
-
-	return keys[r.Intn(len(keys))].String()
+	return validRecipients[rand.Intn(len(validRecipients))], nil
 }
 
 // TODO: monitor mempool for deposits and transfers (useful for testing on blockchains with slow blocks like BTC)
 
-func (t *Tester) TransferLoop(ctx context.Context) error {
-	log := ctxzap.Extract(ctx)
-
+func (t *ConstructionTester) TransferLoop(ctx context.Context) error {
 	transactionsBroadcast := 0
 	for ctx.Err() == nil {
 		sender, sendableBalance, err := t.FindSender(ctx)
-		if errors.Is(err, ErrBelowWaterMark) {
-			log.Info("waiting for block to start next run", zap.Int64("block required", t.highWaterMark))
-
+		if errors.Is(err, ErrBelowWaterMark) { // wait until above high water mark to start next loop
 			time.Sleep(10 * time.Second)
 			continue
 		} else if err != nil {
@@ -471,31 +496,31 @@ func (t *Tester) TransferLoop(ctx context.Context) error {
 
 		var senderValue, recipientValue *big.Int
 		var utxo *processor.UTXO
-		if t.configuration.Model == configuration.Account {
+		if t.configuration.AccountingModel == configuration.AccountModel {
 			senderValue = new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendableBalance)
 			recipientValue = senderValue
 		} else {
-			_, utxos, _, err := t.transactionHandler.GetUTXOBalance(sender)
+			_, utxos, _, err := t.handler.GetUTXOBalance(sender)
 			if err != nil {
 				return fmt.Errorf("%w: unable to get utxo balance for %s", err, sender)
 			}
 
 			utxo = utxos[0] // TODO: perform more complicated coin selection...right now it is FIFO
 			senderValue, _ = new(big.Int).SetString(utxo.Operation.Amount.Value, 10)
-			recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
+			recipientValue = new(big.Int).Sub(senderValue, t.maximumFee) // TODO: send less than max fee and provide change address
 		}
 
 		// Populate Scenario
-		scenarioContext := &scenarios.ScenarioContext{
+		scenarioContext := &scenario.Context{
 			Sender:         sender,
 			SenderValue:    senderValue,
 			Recipient:      recipient,
 			RecipientValue: recipientValue,
-			UTXO:           utxo,
+			UTXOIdentifier: utxo.Identifier,
 			Currency:       t.configuration.Currency,
 		}
 
-		ops, err := scenarios.PopulateScenario(ctx, scenarioContext, t.transferScenario)
+		ops, err := scenario.PopulateScenario(ctx, scenarioContext, t.configuration.TransferScenario)
 		if err != nil {
 			return fmt.Errorf("%w: unable to populate scenario", err)
 		}
@@ -508,10 +533,13 @@ func (t *Tester) TransferLoop(ctx context.Context) error {
 
 		transactionsBroadcast++
 
-		log.Info("transfer run completed",
-			zap.Int("transactions broadcast", transactionsBroadcast),
-			zap.Int("total accounts", len(t.keys.Keys)),
-		)
+		// TODO: replace this with counter logger
+		addresses, err := t.keyStorage.GetAllAddresses(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to get addresses", err)
+		}
+
+		color.Cyan("[STATS] transfers completed: %d total accounts: %d", transactionsBroadcast, len(addresses))
 	}
 
 	return ctx.Err()
