@@ -47,8 +47,8 @@ func init() {
 		&configurationFile,
 		"configuration-file",
 		"",
-		"configuration file that provides connection and test settings",
-		`If you would like to generate a starter configuration file (populated
+		`Configuration file that provides connection and test settings.
+If you would like to generate a starter configuration file (populated
 with the defaults), run rosetta-cli configuration:create.
 
 Any fields not populated in the configuration file will be populated with
