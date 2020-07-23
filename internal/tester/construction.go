@@ -317,6 +317,7 @@ func (t *ConstructionTester) RequestLoad(
 	ctx context.Context,
 	address string,
 ) (*big.Int, error) {
+	printedMessage := false
 	for ctx.Err() == nil {
 		sendableBalance, err := t.SendableBalance(ctx, address)
 		if err != nil {
@@ -328,7 +329,10 @@ func (t *ConstructionTester) RequestLoad(
 			return sendableBalance, nil
 		}
 
-		color.Yellow("waiting for funds on %s", address)
+		if !printedMessage {
+			color.Yellow("waiting for funds on %s", address)
+			printedMessage = true
+		}
 		time.Sleep(10 * time.Second)
 	}
 

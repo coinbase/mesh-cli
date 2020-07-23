@@ -67,6 +67,8 @@ type Logger struct {
 	logBalanceChanges bool
 	logReconciliation bool
 
+	lastStatsMessage string
+
 	// CounterStorage is some initialized CounterStorage.
 	CounterStorage *storage.CounterStorage
 }
@@ -126,7 +128,7 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 		return fmt.Errorf("%w cannot get inactive reconciliations counter", err)
 	}
 
-	color.Cyan(
+	statsMessage := fmt.Sprintf(
 		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s Reconciliations: %s (Inactive: %s)",
 		blocks.String(),
 		orphans.String(),
@@ -135,6 +137,12 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 		new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
 		inactiveReconciliations.String(),
 	)
+	if statsMessage == l.lastStatsMessage {
+		return nil
+	}
+
+	l.lastStatsMessage = statsMessage
+	color.Cyan(statsMessage)
 
 	return nil
 }
@@ -440,11 +448,17 @@ func (l *Logger) LogConstructionStats(ctx context.Context) error {
 		return fmt.Errorf("%w cannot get addresses created counter", err)
 	}
 
-	color.Cyan(
+	statsMessage := fmt.Sprintf(
 		"[STATS] Transactions Confirmed: %d Addresses Created: %d",
 		txsCreated,
 		addressesCreated,
 	)
+	if statsMessage == l.lastStatsMessage {
+		return nil
+	}
+
+	l.lastStatsMessage = statsMessage
+	color.Cyan(statsMessage)
 
 	return nil
 }
