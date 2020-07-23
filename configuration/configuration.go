@@ -3,6 +3,7 @@ package configuration
 import (
 	"fmt"
 	"log"
+	"math/big"
 
 	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -344,7 +345,29 @@ func populateMissingFields(config *Configuration) {
 	return
 }
 
+func checkStringUint(input string) error {
+	val, ok := new(big.Int).SetString(input, 10)
+	if !ok {
+		return fmt.Errorf("%s is not an integer", input)
+	}
+
+	if val.Sign() == -1 {
+		return fmt.Errorf("%s must not be negative", input)
+	}
+
+	return nil
+}
+
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
+	if err := asserter.NetworkIdentifier(config.Network); err != nil {
+		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	// TODO: add asserter.Currency method
+	if err := asserter.Amount(&types.Amount{Value: "0", Currency: config.Currency}); err != nil {
+		return fmt.Errorf("%w: invalid currency", err)
+	}
+
 	switch config.AccountingModel {
 	case AccountModel, UtxoModel:
 	default:
@@ -353,6 +376,14 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 
 	if err := asserter.CurveType(config.CurveType); err != nil {
 		return fmt.Errorf("%w: invalid curve type", err)
+	}
+
+	if err := checkStringUint(config.MinimumBalance); err != nil {
+		return fmt.Errorf("%w: invalid value for MinimumBalance", err)
+	}
+
+	if err := checkStringUint(config.MaximumFee); err != nil {
+		return fmt.Errorf("%w: invalid value for MaximumFee", err)
 	}
 
 	return nil
