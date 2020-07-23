@@ -26,9 +26,7 @@ var (
 		Short: "CLI for the Rosetta API",
 	}
 
-	// ServerURL is the base URL for a Rosetta
-	// server to validate.
-	ServerURL string
+	ConfigurationFile string
 )
 
 // Execute handles all invocations of the
@@ -39,24 +37,39 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(
-		&ServerURL,
-		"server-url",
-		"http://localhost:8080",
-		"base URL for a Rosetta server",
-	)
+		&ConfigurationFile,
+		"configuration-file",
+		"",
+		"configuration file that provides connection and test settings",
+		`If you would like to generate a starter configuration file (populated
+with the defaults), run rosetta-cli configuration:create.
 
-	rootCmd.AddCommand(checkCmd)
+Any fields not populated in the configuration file will be populated with
+default values.`,
+	)
+	rootCmd.AddCommand(versionCmd)
+
+	// Configuration Commands
+	rootCmd.AddCommand(configurationCreateCmd)
+	rootCmd.AddCommand(configurationValidateCmd)
+
+	// Check commands
+	rootCmd.AddCommand(checkDataCmd)
+	rootCmd.AddCommand(checkConstructionCmd)
+
+	// View Commands
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
 	rootCmd.AddCommand(viewNetworkCmd)
-	rootCmd.AddCommand(createConfigurationCmd)
-	rootCmd.AddCommand(versionCmd)
+
+	// Utils
+	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.3.1")
+		fmt.Println("v0.3.2")
 	},
 }
