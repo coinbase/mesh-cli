@@ -23,6 +23,7 @@ import (
 	"path"
 
 	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -55,10 +56,6 @@ const (
 	// removeEvent is printed in a stream
 	// when an event is orphaned.
 	removeEvent = "Remove"
-
-	// logFilePermissions specifies that the user can
-	// read and write the file.
-	logFilePermissions = 0600
 )
 
 // Logger contains all logic to record validator output
@@ -155,7 +152,7 @@ func (l *Logger) AddBlockStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, blockStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err
@@ -191,7 +188,7 @@ func (l *Logger) RemoveBlockStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, blockStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err
@@ -225,7 +222,7 @@ func (l *Logger) TransactionStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, transactionStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err
@@ -293,7 +290,7 @@ func (l *Logger) BalanceStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, balanceStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err
@@ -335,7 +332,7 @@ func (l *Logger) ReconcileSuccessStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, reconcileSuccessStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err
@@ -406,7 +403,7 @@ func (l *Logger) ReconcileFailureStream(
 	f, err := os.OpenFile(
 		path.Join(l.logDir, reconcileFailureStreamFile),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		logFilePermissions,
+		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
 		return err

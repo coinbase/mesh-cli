@@ -11,21 +11,6 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-// TestingMode is a type representing possible test types.
-// This determines how strictly to parse the configuration file.
-type TestingMode string
-
-const (
-	// DataMode is testing of the Data API using check:data.
-	DataMode TestingMode = "data"
-
-	// ViewMode is viewing certain objects using the Data API.
-	ViewMode TestingMode = "view"
-
-	// ConstructionMode is testing of the Construction API using check:construction.
-	ConstructionMode TestingMode = "construction"
-)
-
 // AccountingModel is a type representing possible accounting models
 // in the Construction API.
 type AccountingModel string
@@ -271,9 +256,11 @@ type Configuration struct {
 	Data         *DataConfiguration         `json:"data"`
 }
 
-func populateMissingFields(config *Configuration) {
-	// Ensure ConstructionConfiguration populated
-	constructionConfig := config.Construction
+func populateConstructionMissingFields(constructionConfig *ConstructionConfiguration) *ConstructionConfiguration {
+	if constructionConfig == nil {
+		return DefaultConstructionConfiguration()
+	}
+
 	if constructionConfig.Network == nil {
 		constructionConfig.Network = DefaultNetwork
 	}
@@ -310,8 +297,14 @@ func populateMissingFields(config *Configuration) {
 		constructionConfig.TransferScenario = DefaultTransferScenario
 	}
 
-	// Ensure DataConfiguration populated
-	dataConfig := config.Data
+	return constructionConfig
+}
+
+func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration {
+	if dataConfig == nil {
+		return DefaultDataConfiguration()
+	}
+
 	if len(dataConfig.OnlineURL) == 0 {
 		dataConfig.OnlineURL = DefaultURL
 	}
@@ -335,6 +328,20 @@ func populateMissingFields(config *Configuration) {
 	if dataConfig.InactiveReconciliationFrequency == 0 {
 		dataConfig.InactiveReconciliationFrequency = DefaultInactiveReconciliationFrequency
 	}
+
+	return dataConfig
+}
+
+func populateMissingFields(config *Configuration) {
+	if config == nil {
+		config = DefaultConfiguration()
+		return
+	}
+
+	config.Construction = populateConstructionMissingFields(config.Construction)
+	config.Data = populateDataMissingFields(config.Data)
+
+	return
 }
 
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
@@ -351,13 +358,9 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	return nil
 }
 
-func assertDataConfiguration(config *DataConfiguration) error {
-	return fmt.Errorf("not implemented")
-}
-
 // LoadConfiguration returns a parsed and asserted Configuration for running
 // tests.
-func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error) {
+func LoadConfiguration(filePath string) (*Configuration, error) {
 	var config Configuration
 	if err := utils.LoadAndParse(filePath, &config); err != nil {
 		return nil, fmt.Errorf("%w: unable to open configuration file", err)
@@ -365,17 +368,8 @@ func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error
 
 	populateMissingFields(&config)
 
-	switch mode {
-	case ConstructionMode:
-		if err := assertConstructionConfiguration(config.Construction); err != nil {
-			return nil, fmt.Errorf("%w: invalid construction configuration", err)
-		}
-	case DataMode, ViewMode:
-		if err := assertDataConfiguration(config.Data); err != nil {
-			return nil, fmt.Errorf("%w: invalid data configuration", err)
-		}
-	default:
-		return nil, fmt.Errorf("testing more %s not supported", mode)
+	if err := assertConstructionConfiguration(config.Construction); err != nil {
+		return nil, fmt.Errorf("%w: invalid construction configuration", err)
 	}
 
 	log.Printf(

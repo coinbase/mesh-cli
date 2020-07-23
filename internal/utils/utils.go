@@ -26,6 +26,12 @@ import (
 	"github.com/fatih/color"
 )
 
+const (
+	// DefaultFilePermissions specifies that the user can
+	// read and write the file.
+	DefaultFilePermissions = 0600
+)
+
 // CreateTempDir creates a directory in
 // /tmp for usage within testing.
 func CreateTempDir() (string, error) {
@@ -52,8 +58,24 @@ func Equal(a interface{}, b interface{}) bool {
 	return types.Hash(a) == types.Hash(b)
 }
 
+// SerializeAndWrite attempts to serialize the provided object
+// into a file at filePath.
+func SerializeAndWrite(filePath string, object interface{}) error {
+	bytes, err := json.Marshal(object)
+	if err != nil {
+		return fmt.Errorf("%w: unable to serialize object", err)
+	}
+
+	err = ioutil.WriteFile(filePath, bytes, os.FileMode(DefaultFilePermissions))
+	if err != nil {
+		return fmt.Errorf("%w: unable to write to file path %s", err, filePath)
+	}
+
+	return nil
+}
+
 // LoadAndParse reads the file at the provided path
-// and attempts to marshal it into output.
+// and attempts to unmarshal it into output.
 func LoadAndParse(filePath string, output interface{}) error {
 	bytes, err := ioutil.ReadFile(path.Clean(filePath))
 	if err != nil {

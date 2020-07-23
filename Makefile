@@ -11,7 +11,7 @@ ADDLICENSE_CMD=go run github.com/google/addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 GOLINES_CMD=go run github.com/segmentio/golines
 GOVERALLS_CMD=go run github.com/mattn/goveralls
-TEST_SCRIPT=go test -v ./internal/...
+TEST_SCRIPT=go test -v ./internal/... ./configuration/...
 
 deps:
 	go get ./...
@@ -39,7 +39,7 @@ check-license:
 	${ADDLICENCE_SCRIPT} -check .
 
 shorten-lines:
-	${GOLINES_CMD} -w --shorten-comments internal cmd
+	${GOLINES_CMD} -w --shorten-comments internal cmd configuration
 
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
