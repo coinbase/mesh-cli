@@ -95,7 +95,7 @@ func ensureDataDirectoryExists() {
 	if len(Config.Data.DataDirectory) == 0 {
 		tmpDir, err := utils.CreateTempDir()
 		if err != nil {
-			log.Fatal(fmt.Errorf("%w: unable to create temporary directory", err))
+			log.Fatalf("%s: unable to create temporary directory", err.Error())
 		}
 
 		Config.Data.DataDirectory = tmpDir
