@@ -61,12 +61,11 @@ func Equal(a interface{}, b interface{}) bool {
 // SerializeAndWrite attempts to serialize the provided object
 // into a file at filePath.
 func SerializeAndWrite(filePath string, object interface{}) error {
-	bytes, err := json.Marshal(object)
-	if err != nil {
-		return fmt.Errorf("%w: unable to serialize object", err)
-	}
-
-	err = ioutil.WriteFile(filePath, bytes, os.FileMode(DefaultFilePermissions))
+	err := ioutil.WriteFile(
+		filePath,
+		[]byte(types.PrettyPrintStruct(object)),
+		os.FileMode(DefaultFilePermissions),
+	)
 	if err != nil {
 		return fmt.Errorf("%w: unable to write to file path %s", err, filePath)
 	}

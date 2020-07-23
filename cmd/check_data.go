@@ -64,7 +64,7 @@ const (
 
 var (
 	checkDataCmd = &cobra.Command{
-		Use:   "check",
+		Use:   "check:data",
 		Short: "Check the correctness of a Rosetta Data API Implementation",
 		Long: `Check all server responses are properly constructed, that
 there are no duplicate blocks and transactions, that blocks can be processed
