@@ -169,6 +169,7 @@ func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*type
 	if err := parser.ExpectedOperations(ops, parsedOps, false); err != nil {
 		return nil, fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
+	color.Magenta("Transaction constructed")
 
 	requestedSigners := []string{}
 	for _, payload := range payloads {
@@ -207,6 +208,7 @@ func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*type
 	if err := parser.ExpectedSigners(payloads, signers); err != nil {
 		return nil, fmt.Errorf("%w: signed transactions signers do not match intent", err)
 	}
+	color.Magenta("Transaction signed")
 
 	txHash, err := t.offlineFetcher.ConstructionHash(
 		ctx,
@@ -226,7 +228,7 @@ func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*type
 	if err != nil {
 		return nil, fmt.Errorf("%w transaction submission failed", err)
 	}
-	log.Printf("trasaction broadcast %s\n", txID.Hash)
+	color.Magenta("Transaction %s broadcast", txID.Hash)
 
 	if txID.Hash != txHash {
 		return nil, fmt.Errorf("derived transaction hash %s does not match hash returned by submit %s", txHash, txID.Hash)
@@ -235,21 +237,12 @@ func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*type
 	// TODO: Look for TX in mempool (if enabled) and compare intent vs parsed ops
 	// -> may need to differentiate between /mempool and /mempool/transaction support
 
-	// Look at blocks and wait for tx
-	var block *types.BlockIdentifier
-	var chainTransaction *types.Transaction
-	for ctx.Err() == nil {
-		block, chainTransaction = t.handler.Transaction(ctx, txID)
-		if block == nil { // wait for transaction to appear on-chain
-			time.Sleep(10 * time.Second)
-		} else {
-			break
-		}
+	block, chainTransaction, err := t.handler.Transaction(ctx, txID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to find transaction", err)
 	}
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-	log.Printf("transaction found on-chain in block %s:%d\n", block.Hash, block.Index)
+
+	color.Magenta("Transaction found in block %s:%d", block.Hash, block.Index)
 
 	if err := parser.ExpectedOperations(ops, chainTransaction.Operations, false); err != nil {
 		return nil, fmt.Errorf("%w: on-chain parsed ops do not match intent", err)
@@ -544,6 +537,7 @@ func (t *ConstructionTester) TransferLoop(ctx context.Context) error {
 		}
 
 		// Perform and Recognize Transaction
+		color.Magenta("Sending %s from %s to %s", recipientValue.String(), sender, recipient)
 		_, err = t.ProduceTransaction(ctx, ops)
 		if err != nil {
 			return fmt.Errorf("%w: unable to produce transaction with operations %s", err, types.PrettyPrintStruct(ops))

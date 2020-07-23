@@ -7,8 +7,10 @@ import (
 	"log"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 )
 
 const (
@@ -125,24 +127,27 @@ func (t *CheckConstructionHandler) BlockRemoved(
 	return nil
 }
 
+// Transaction waits for a certain transaction to be present
+// before returning.
 func (t *CheckConstructionHandler) Transaction(
 	ctx context.Context,
 	transaction *types.TransactionIdentifier,
-) (*types.BlockIdentifier, *types.Transaction) {
-	block, ok := t.txStore[transaction.Hash]
-	if !ok {
-		return nil, nil
-	}
-
-	var matchingTx *types.Transaction
-	for _, txn := range block.Transactions {
-		if types.Hash(transaction) == types.Hash(txn.TransactionIdentifier) {
-			matchingTx = txn
-			break
+) (*types.BlockIdentifier, *types.Transaction, error) {
+	color.Magenta("Waiting for transaction %s on-chain", transaction.Hash)
+	for ctx.Err() == nil {
+		block, ok := t.txStore[transaction.Hash]
+		if ok {
+			for _, txn := range block.Transactions {
+				if types.Hash(transaction) == types.Hash(txn.TransactionIdentifier) {
+					return block.BlockIdentifier, txn, nil
+				}
+			}
 		}
+
+		time.Sleep(10 * time.Second)
 	}
 
-	return block.BlockIdentifier, matchingTx
+	return nil, nil, ctx.Err()
 }
 
 type UTXO struct {
