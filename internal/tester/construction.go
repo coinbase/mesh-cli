@@ -75,7 +75,10 @@ func NewConstruction(
 	t.maximumFee = maximumFee
 
 	// Initialize Fetchers
-	t.onlineFetcher = fetcher.New(t.onlineURL)
+	t.onlineFetcher = fetcher.New(
+		t.onlineURL,
+		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
+	)
 
 	_, _, err := t.onlineFetcher.InitializeAsserter(ctx)
 	if err != nil {
@@ -109,6 +112,7 @@ func NewConstruction(
 	t.offlineFetcher = fetcher.New(
 		t.configuration.OfflineURL,
 		fetcher.WithAsserter(t.onlineFetcher.Asserter), // use online asserter
+		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
 	)
 
 	// Load all accounts for network

@@ -29,6 +29,7 @@ var (
 	whackyConfig = &Configuration{
 		OnlineURL:     "http://hasudhasjkdk",
 		DataDirectory: "validation-data",
+		HTTPTimeout:   100,
 		Construction: &ConstructionConfiguration{
 			Network: &types.NetworkIdentifier{
 				Blockchain: "sweet",

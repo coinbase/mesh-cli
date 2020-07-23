@@ -50,6 +50,7 @@ const (
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
+	DefaultTimeout                           = 10
 
 	// ETH Defaults
 	EthereumBlockchain = "Ethereum"
@@ -181,6 +182,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
 		OnlineURL:    DefaultURL,
+		HTTPTimeout:  DefaultTimeout,
 		Construction: DefaultConstructionConfiguration(),
 		Data:         DefaultDataConfiguration(),
 	}
@@ -269,6 +271,9 @@ type Configuration struct {
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
 	// default: ""
 	DataDirectory string `json:"data_directory"`
+
+	// HTTPTimeout is the timeout for HTTP requests in seconds.
+	HTTPTimeout uint64 `json:"http_timeout"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`

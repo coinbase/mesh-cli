@@ -154,6 +154,7 @@ func findMissingOps(
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
@@ -331,6 +332,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	// TODO: sync and reconcile on subnetworks, if they exist.
