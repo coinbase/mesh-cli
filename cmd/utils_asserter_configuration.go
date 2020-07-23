@@ -16,26 +16,17 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path"
+
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 )
 
-const (
-	// fileMode 0600 indicates that the user/owner can read and write
-	// but can't execute.
-	fileMode = 0600
-)
-
 var (
-	createConfigurationCmd = &cobra.Command{
-		Use:   "create:configuration",
+	utilsAsserterConfigurationCmd = &cobra.Command{
+		Use:   "utils:asserter-configuration",
 		Short: "Generate a static configuration file for the Asserter",
 		Long: `In production deployments, it is useful to initialize the response
 Asserter (https://github.com/coinbase/rosetta-sdk-go/tree/master/asserter) using
@@ -44,9 +35,7 @@ from the node. This allows a client to error on new types/statuses that may
 have been added in an update instead of silently erroring.
 
 To use this command, simply provide an absolute path as the argument for where
-the configuration file should be saved (in JSON). Populate the optional
---server-url flag with the url of the server to generate the configuration
-from.`,
+the configuration file should be saved (in JSON).`,
 		Run:  runCreateConfigurationCmd,
 		Args: cobra.ExactArgs(1),
 	}
@@ -57,24 +46,21 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) {
 
 	// Create a new fetcher
 	newFetcher := fetcher.New(
-		ServerURL,
+		Config.Data.OnlineURL,
 	)
 
 	// Initialize the fetcher's asserter
 	_, _, err := newFetcher.InitializeAsserter(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%s: failed to initialize asserter", err.Error())
 	}
 
 	configuration, err := newFetcher.Asserter.ClientConfiguration()
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to generate spec", err))
+		log.Fatalf("%s: unable to generate spec", err.Error())
 	}
 
-	specString := types.PrettyPrintStruct(configuration)
-	log.Printf("Spec File: %s\n", specString)
-
-	if err := ioutil.WriteFile(path.Clean(args[0]), []byte(specString), os.FileMode(fileMode)); err != nil {
-		log.Fatal(err)
+	if err := utils.SerializeAndWrite(args[0], configuration); err != nil {
+		log.Fatalf("%s: unable to serialize asserter configuration", err.Error())
 	}
 }
