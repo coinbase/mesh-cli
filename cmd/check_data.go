@@ -21,8 +21,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
@@ -108,10 +106,6 @@ of what one of these files looks like.`,
 
 	// EndIndex is the block index to stop syncing.
 	EndIndex int64
-
-	// signalReceived is set to true when a signal causes us to exit. This makes
-	// determining the error message to show on exit much more easy.
-	signalReceived = false
 )
 
 func init() {
@@ -279,7 +273,7 @@ func findMissingOps(
 		return nil, fmt.Errorf("%w: unable to close database", storageErr)
 	}
 
-	if signalReceived {
+	if SignalReceived {
 		return nil, errors.New("Search for block with missing ops halted")
 	}
 
@@ -482,20 +476,8 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		)
 	})
 
-	// Handle OS signals so we can ensure we close database
-	// correctly. We call multiple sigListeners because we
-	// may need to cancel more than 1 context.
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	sigListeners := []context.CancelFunc{cancel}
-	go func() {
-		sig := <-sigs
-		color.Red("Received signal: %s", sig)
-		signalReceived = true
-		for _, listener := range sigListeners {
-			listener()
-		}
-	}()
+	go handleSignals(sigListeners)
 
 	handleCheckResult(g, counterStorage, reconcilerHandler, sigListeners)
 }
@@ -513,7 +495,7 @@ func handleCheckResult(
 	ctx := context.Background()
 
 	err := g.Wait()
-	if signalReceived {
+	if SignalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
 		return

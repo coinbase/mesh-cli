@@ -36,7 +36,9 @@ var (
 func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	ensureDataDirectoryExists()
 
+	// To cancel all execution, need to call multiple cancel functions.
 	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
 
 	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
 	if err != nil {
@@ -59,6 +61,8 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	g.Go(func() error {
 		return t.TransferLoop(ctx)
 	})
+
+	go handleSignals([]context.CancelFunc{cancel})
 
 	if err := g.Wait(); err != nil {
 		log.Fatalf("%s:recieved error while running tests", err.Error())
