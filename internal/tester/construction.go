@@ -32,26 +32,28 @@ func init() {
 }
 
 type ConstructionTester struct {
-	onlineFetcher  *fetcher.Fetcher
-	offlineFetcher *fetcher.Fetcher
-	configuration  *configuration.ConstructionConfiguration
-	highWaterMark  int64
-	keyStorage     *storage.KeyStorage
-	handler        *processor.CheckConstructionHandler
-	startBlock     *types.BlockIdentifier
+	configuration *configuration.ConstructionConfiguration
+	onlineURL     string
+	highWaterMark int64
+	keyStorage    *storage.KeyStorage
+	handler       *processor.CheckConstructionHandler
+	startBlock    *types.BlockIdentifier
 
 	// parsed configuration
 	minimumBalance *big.Int
 	maximumFee     *big.Int
+	onlineFetcher  *fetcher.Fetcher
+	offlineFetcher *fetcher.Fetcher
 }
 
 func NewConstruction(
 	ctx context.Context,
-	config *configuration.ConstructionConfiguration,
+	config *configuration.Configuration,
 	keyStorage *storage.KeyStorage,
 ) (*ConstructionTester, error) {
 	t := &ConstructionTester{
-		configuration: config,
+		configuration: config.Construction,
+		onlineURL:     config.OnlineURL,
 		highWaterMark: -1,
 		keyStorage:    keyStorage,
 	}
@@ -69,7 +71,7 @@ func NewConstruction(
 	t.maximumFee = maximumFee
 
 	// Initialize Fetchers
-	t.onlineFetcher = fetcher.New(t.configuration.OnlineURL)
+	t.onlineFetcher = fetcher.New(t.onlineURL)
 
 	_, _, err := t.onlineFetcher.InitializeAsserter(ctx)
 	if err != nil {

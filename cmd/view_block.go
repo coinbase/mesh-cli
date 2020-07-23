@@ -53,7 +53,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 
 	// Create a new fetcher
 	newFetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
 	)
 
 	// Initialize the fetcher's asserter

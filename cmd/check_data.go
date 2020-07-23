@@ -156,7 +156,7 @@ func findMissingOps(
 	endIndex int64,
 ) (*types.BlockIdentifier, error) {
 	fetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
@@ -333,7 +333,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	}
 
 	fetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
@@ -345,7 +345,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
 	}
 
-	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
+	localStore, err := storage.NewBadgerStorage(ctx, Config.DataDirectory)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
 	}
@@ -355,7 +355,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	logger := logger.NewLogger(
 		counterStorage,
-		Config.Data.DataDirectory,
+		Config.DataDirectory,
 		Config.Data.LogBlocks,
 		Config.Data.LogTransactions,
 		Config.Data.LogBalanceChanges,

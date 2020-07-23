@@ -113,10 +113,6 @@ type ConstructionConfiguration struct {
 	// for broadcast success.
 	Network *types.NetworkIdentifier `json:"network"`
 
-	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
-	OnlineURL string `json:"online_url"`
-
 	// OfflineURL is the URL of a Rosetta API implementation in "online mode".
 	// default: http://localhost:8080
 	OfflineURL string `json:"offline_url"`
@@ -158,7 +154,6 @@ type ConstructionConfiguration struct {
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
 		Network:          DefaultNetwork,
-		OnlineURL:        DefaultURL,
 		OfflineURL:       DefaultURL,
 		Currency:         DefaultCurrency,
 		MinimumBalance:   DefaultMinimumBalance,
@@ -173,7 +168,6 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 // for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
 	return &DataConfiguration{
-		OnlineURL:                         DefaultURL,
 		BlockConcurrency:                  DefaultBlockConcurrency,
 		TransactionConcurrency:            DefaultTransactionConcurrency,
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
@@ -186,6 +180,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
+		OnlineURL:    DefaultURL,
 		Construction: DefaultConstructionConfiguration(),
 		Data:         DefaultDataConfiguration(),
 	}
@@ -194,14 +189,6 @@ func DefaultConfiguration() *Configuration {
 // DataConfiguration contains all configurations to run check:data.
 // TODO: Add configurable timeout (https://github.com/coinbase/rosetta-cli/issues/64)
 type DataConfiguration struct {
-	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
-	OnlineURL string `json:"online_url"`
-
-	// DataDirectory is a folder used to store logs and any data used to perform validation.
-	// default: ""
-	DataDirectory string `json:"data_directory"`
-
 	// BlockConcurrency is the concurrency to use while fetching blocks.
 	// default: 8
 	BlockConcurrency uint64 `json:"block_concurrency"`
@@ -275,6 +262,14 @@ type DataConfiguration struct {
 // Configuration contains all configuration settings for running
 // check:data or check:construction.
 type Configuration struct {
+	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
+	// default: http://localhost:8080
+	OnlineURL string `json:"online_url"`
+
+	// DataDirectory is a folder used to store logs and any data used to perform validation.
+	// default: ""
+	DataDirectory string `json:"data_directory"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -288,10 +283,6 @@ func populateConstructionMissingFields(
 
 	if constructionConfig.Network == nil {
 		constructionConfig.Network = DefaultNetwork
-	}
-
-	if len(constructionConfig.OnlineURL) == 0 {
-		constructionConfig.OnlineURL = DefaultURL
 	}
 
 	if len(constructionConfig.OfflineURL) == 0 {
@@ -330,10 +321,6 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 		return DefaultDataConfiguration()
 	}
 
-	if len(dataConfig.OnlineURL) == 0 {
-		dataConfig.OnlineURL = DefaultURL
-	}
-
 	if dataConfig.BlockConcurrency == 0 {
 		dataConfig.BlockConcurrency = DefaultBlockConcurrency
 	}
@@ -360,6 +347,10 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 func populateMissingFields(config *Configuration) *Configuration {
 	if config == nil {
 		return DefaultConfiguration()
+	}
+
+	if len(config.OnlineURL) == 0 {
+		config.OnlineURL = DefaultURL
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)

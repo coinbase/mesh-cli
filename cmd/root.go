@@ -101,13 +101,13 @@ func initConfig() {
 func ensureDataDirectoryExists() {
 	// If data directory is not specified, we use a temporary directory
 	// and delete its contents when execution is complete.
-	if len(Config.Data.DataDirectory) == 0 {
+	if len(Config.DataDirectory) == 0 {
 		tmpDir, err := utils.CreateTempDir()
 		if err != nil {
 			log.Fatalf("%s: unable to create temporary directory", err.Error())
 		}
 
-		Config.Data.DataDirectory = tmpDir
+		Config.DataDirectory = tmpDir
 	}
 }
 

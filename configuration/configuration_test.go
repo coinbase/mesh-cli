@@ -27,12 +27,13 @@ import (
 
 var (
 	whackyConfig = &Configuration{
+		OnlineURL:     "http://hasudhasjkdk",
+		DataDirectory: "validation-data",
 		Construction: &ConstructionConfiguration{
 			Network: &types.NetworkIdentifier{
 				Blockchain: "sweet",
 				Network:    "sweeter",
 			},
-			OnlineURL:  "http://hasudhasjkdk",
 			OfflineURL: "https://ashdjaksdkjshdk",
 			Currency: &types.Currency{
 				Symbol:   "FIRE",
@@ -45,7 +46,6 @@ var (
 			TransferScenario: DefaultTransferScenario,
 		},
 		Data: &DataConfiguration{
-			OnlineURL:                         "https://asjdlkasjdklajsdlkj",
 			BlockConcurrency:                  12,
 			TransactionConcurrency:            2,
 			ActiveReconciliationConcurrency:   100,

@@ -40,7 +40,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
+	localStore, err := storage.NewBadgerStorage(ctx, Config.DataDirectory)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
@@ -48,7 +48,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	keyStorage := storage.NewKeyStorage(localStore)
 
-	t, err := tester.NewConstruction(ctx, Config.Construction, keyStorage)
+	t, err := tester.NewConstruction(ctx, Config, keyStorage)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize construction tester", err.Error())
 	}
