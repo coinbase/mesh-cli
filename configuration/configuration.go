@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -42,6 +43,7 @@ const (
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
+	// TODO: Write comments about each value
 	Network               *types.NetworkIdentifier `json:"network"`
 	OnlineURL             string                   `json:"online_url"`
 	OfflineURL            string                   `json:"offline_url"`
@@ -54,7 +56,80 @@ type ConstructionConfiguration struct {
 	TransferScenario      []*types.Operation       `json:"transfer_scenario"`
 }
 
+func DefaultConstructionConfiguration() *ConstructionConfiguration {
+	// DEFAULT IS ETH
+	return &ConstructionConfiguration{
+		Network: &types.NetworkIdentifier{
+			Blockchain: "Ethereum",
+			Network:    "Ropsten",
+		},
+		OnlineURL:  "http://localhost:8080",
+		OfflineURL: "http://localhost:8080",
+		Currency: &types.Currency{
+			Symbol:   "ETH",
+			Decimals: 18,
+		},
+		MinimumAccountBalance: "0",
+		MinimumFee:            "21000",
+		MaximumFee:            "10000000",
+		CurveType:             types.Secp256k1,
+		AccountingModel:       AccountModel,
+		TransferScenario: []*types.Operation{
+			{
+				OperationIdentifier: &types.OperationIdentifier{
+					Index: 0,
+				},
+				Account: &types.AccountIdentifier{
+					Address: scenario.Sender,
+				},
+				Type: "transfer",
+				Amount: &types.Amount{
+					Value: scenario.SenderValue,
+				},
+			},
+			{
+				OperationIdentifier: &types.OperationIdentifier{
+					Index: 1,
+				},
+				RelatedOperations: []*types.OperationIdentifier{
+					{
+						Index: 0,
+					},
+				},
+				Account: &types.AccountIdentifier{
+					Address: scenario.Recipient,
+				},
+				Type: "transfer",
+				Amount: &types.Amount{
+					Value: scenario.RecipientValue,
+				},
+			},
+		},
+	}
+}
+
+func DefaultDataConfiguration() *DataConfiguration {
+	return &DataConfiguration{
+		OnlineURL:                         "http://localhost:8080",
+		BlockConcurrency:                  8,
+		TransactionConcurrency:            16,
+		ActiveReconciliationConcurrency:   16,
+		InactiveReconciliationConcurrency: 4,
+		InactiveReconciliationFrequency:   250,
+		HaltOnReconciliationError:         true,
+		LookupBalanceByBlock:              true, // override with setting returned by node?
+	}
+}
+
+func DefaultConfiguration() *Configuration {
+	return &Configuration{
+		Construction: DefaultConstructionConfiguration(),
+		Data:         DefaultDataConfiguration(),
+	}
+}
+
 // DataConfiguration contains all configurations to run check:data.
+// TODO: Add timeout!!
 type DataConfiguration struct {
 	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
 	// default: http://localhost:8080
