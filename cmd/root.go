@@ -16,6 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -26,7 +30,8 @@ var (
 		Short: "CLI for the Rosetta API",
 	}
 
-	ConfigurationFile string
+	configurationFile string
+	Config            *configuration.Configuration
 )
 
 // Execute handles all invocations of the
@@ -36,8 +41,10 @@ func Execute() error {
 }
 
 func init() {
+	cobra.OnInitialize(initConfig)
+
 	rootCmd.PersistentFlags().StringVar(
-		&ConfigurationFile,
+		&configurationFile,
 		"configuration-file",
 		"",
 		"configuration file that provides connection and test settings",
@@ -64,6 +71,29 @@ default values.`,
 
 	// Utils
 	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
+}
+
+func initConfig() {
+	var err error
+	if len(configurationFile) == 0 {
+		Config = configuration.DefaultConfiguration()
+	} else {
+		Config, err = configuration.LoadConfiguration(configurationFile)
+	}
+	if err != nil {
+		log.Fatalf("%s: unable to load configuration", err.Error())
+	}
+
+	// If data directory is not specified, we use a temporary directory
+	// and delete its contents when execution is complete.
+	if len(Config.Data.DataDirectory) == 0 {
+		tmpDir, err := utils.CreateTempDir()
+		if err != nil {
+			log.Fatal(fmt.Errorf("%w: unable to create temporary directory", err))
+		}
+
+		Config.Data.DataDirectory = tmpDir
+	}
 }
 
 var versionCmd = &cobra.Command{

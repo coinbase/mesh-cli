@@ -48,6 +48,13 @@ const (
 	// TODO: make configurable
 	ExtendedRetryElapsedTime = 5 * time.Minute
 
+	// InactiveFailureLookbackWindow is the size of each window to check
+	// for missing ops. If a block with missing ops is not found in this
+	// window, another window is created with the preceding
+	// InactiveFailureLookbackWindow blocks (this process continues
+	// until the client halts the search or the block is found).
+	InactiveFailureLookbackWindow = 250
+
 	// PeriodicLoggingFrequency is the frequency that stats are printed
 	// to the terminal.
 	//
@@ -56,7 +63,7 @@ const (
 )
 
 var (
-	checkCmd = &cobra.Command{
+	checkDataCmd = &cobra.Command{
 		Use:   "check",
 		Short: "Check the correctness of a Rosetta Data API Server",
 		Long: `Check all server responses are properly constructed, that
@@ -65,7 +72,7 @@ from genesis to the current block (re-orgs handled automatically), and that
 computed balance changes are equal to balance changes reported by the node.
 
 When re-running this command, it will start where it left off if you specify
-some --data-dir. Otherwise, it will create a new temporary directory and start
+some data directory. Otherwise, it will create a new temporary directory and start
 again from the genesis block. If you want to discard some number of blocks
 populate the --start flag with some block index. Starting from a given index
 can be useful to debug a small range of blocks for issues but it is highly
@@ -74,26 +81,26 @@ are performed.
 
 By default, account balances are looked up at specific heights (instead of
 only at the current block). If your node does not support this functionality
-set --lookup-balance-by-block to false. This will make reconciliation much
+set historical balance disabled to true. This will make reconciliation much
 less efficient but it will still work.
 
 If check fails due to an INACTIVE reconciliation error (balance changed without
 any corresponding operation), the cli will automatically try to find the block
-missing an operation. If --lookup-balance-by-block is not enabled, this automatic
+missing an operation. If historical balance disabled is true, this automatic
 debugging tool does not work.
 
-To debug an INACTIVE account reconciliation error without --lookup-balance-by-block, set the
---interesting-accounts flag to the absolute path of a JSON file containing
+To debug an INACTIVE account reconciliation error without historical balance lookup,
+set the interesting accunts to the path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
 corresponding operations.
 
 If your blockchain has a genesis allocation of funds and you set
---lookup-balance-by-block to false, you must provide an
+historical balance disabled to true, you must provide an
 absolute path to a JSON file containing initial balances with the
---bootstrap-balances flag. You can look at the examples folder for an example
+bootstrap balance config. You can look at the examples folder for an example
 of what one of these files looks like.`,
-		Run: runCheckCmd,
+		Run: runCheckDataCmd,
 	}
 
 	// StartIndex is the block index to start syncing.
@@ -108,13 +115,13 @@ of what one of these files looks like.`,
 )
 
 func init() {
-	checkCmd.Flags().Int64Var(
+	checkDataCmd.Flags().Int64Var(
 		&StartIndex,
 		"start",
 		-1,
 		"block index to start syncing",
 	)
-	checkCmd.Flags().Int64Var(
+	checkDataCmd.Flags().Int64Var(
 		&EndIndex,
 		"end",
 		-1,
@@ -155,9 +162,9 @@ func findMissingOps(
 	endIndex int64,
 ) (*types.BlockIdentifier, error) {
 	fetcher := fetcher.New(
-		ServerURL,
-		fetcher.WithBlockConcurrency(BlockConcurrency),
-		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		Config.Data.OnlineURL,
+		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
+		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 	)
 
@@ -196,7 +203,7 @@ func findMissingOps(
 	blockStorageHelper := processor.NewBlockStorageHelper(
 		primaryNetwork,
 		fetcher,
-		LookupBalanceByBlock,
+		!Config.Data.HistoricalBalanceDisabled,
 		nil,
 	)
 
@@ -230,7 +237,7 @@ func findMissingOps(
 		// Do not do any inactive lookups when looking for the block with missing
 		// operations.
 		reconciler.WithInactiveConcurrency(0),
-		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
+		reconciler.WithLookupBalanceByBlock(!Config.Data.HistoricalBalanceDisabled),
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
 	)
 
@@ -317,23 +324,23 @@ func findMissingOps(
 	return reconcilerHandler.ActiveFailureBlock, nil
 }
 
-func runCheckCmd(cmd *cobra.Command, args []string) {
+func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	exemptAccounts, err := loadAccounts(ExemptFile)
+	exemptAccounts, err := loadAccounts(Config.Data.ExemptAccounts)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to load exempt accounts", err))
 	}
 
-	interestingAccounts, err := loadAccounts(InterestingFile)
+	interestingAccounts, err := loadAccounts(Config.Data.InterestingAccounts)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to load interesting accounts", err))
 	}
 
 	fetcher := fetcher.New(
-		ServerURL,
-		fetcher.WithBlockConcurrency(BlockConcurrency),
-		fetcher.WithTransactionConcurrency(TransactionConcurrency),
+		Config.Data.OnlineURL,
+		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
+		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 	)
 
@@ -343,18 +350,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
 	}
 
-	// If data directory is not specified, we use a temporary directory
-	// and delete its contents when execution is complete.
-	if len(DataDir) == 0 {
-		tmpDir, err := utils.CreateTempDir()
-		if err != nil {
-			log.Fatal(fmt.Errorf("%w: unable to create temporary directory", err))
-		}
-		defer utils.RemoveTempDir(tmpDir)
-
-		DataDir = tmpDir
-	}
-	localStore, err := storage.NewBadgerStorage(ctx, DataDir)
+	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
 	}
@@ -364,27 +360,27 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	logger := logger.NewLogger(
 		counterStorage,
-		DataDir,
-		LogBlocks,
-		LogTransactions,
-		LogBalanceChanges,
-		LogReconciliations,
+		Config.Data.DataDirectory,
+		Config.Data.LogBlocks,
+		Config.Data.LogTransactions,
+		Config.Data.LogBalanceChanges,
+		Config.Data.LogReconciliations,
 	)
 
 	blockStorageHelper := processor.NewBlockStorageHelper(
 		primaryNetwork,
 		fetcher,
-		LookupBalanceByBlock,
+		!Config.Data.HistoricalBalanceDisabled,
 		exemptAccounts,
 	)
 
 	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
 
 	// Bootstrap balances if provided
-	if len(BootstrapBalances) > 0 {
+	if len(Config.Data.BootstrapBalances) > 0 {
 		err = blockStorage.BootstrapBalances(
 			ctx,
-			BootstrapBalances,
+			Config.Data.BootstrapBalances,
 			networkStatus.GenesisBlockIdentifier,
 		)
 		if err != nil {
@@ -416,7 +412,7 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
-		HaltOnReconciliationError,
+		!Config.Data.IgnoreReconciliationError,
 	)
 
 	r := reconciler.New(
@@ -424,13 +420,13 @@ func runCheckCmd(cmd *cobra.Command, args []string) {
 		reconcilerHelper,
 		reconcilerHandler,
 		fetcher,
-		reconciler.WithActiveConcurrency(int(ActiveReconciliationConcurrency)),
-		reconciler.WithInactiveConcurrency(int(InactiveReconciliationConcurrency)),
-		reconciler.WithLookupBalanceByBlock(LookupBalanceByBlock),
+		reconciler.WithActiveConcurrency(int(Config.Data.ActiveReconciliationConcurrency)),
+		reconciler.WithInactiveConcurrency(int(Config.Data.InactiveReconciliationConcurrency)),
+		reconciler.WithLookupBalanceByBlock(!Config.Data.HistoricalBalanceDisabled),
 		reconciler.WithInterestingAccounts(interestingAccounts),
 		reconciler.WithSeenAccounts(seenAccounts),
-		reconciler.WithDebugLogging(LogReconciliations),
-		reconciler.WithInactiveFrequency(int64(InactiveReconciliationFrequency)),
+		reconciler.WithDebugLogging(Config.Data.LogReconciliations),
+		reconciler.WithInactiveFrequency(int64(Config.Data.InactiveReconciliationFrequency)),
 	)
 
 	syncerHandler := processor.NewSyncerHandler(
@@ -546,7 +542,7 @@ func handleCheckResult(
 		os.Exit(1)
 	}
 
-	if !LookupBalanceByBlock {
+	if Config.Data.HistoricalBalanceDisabled {
 		color.Red(
 			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
 		)
