@@ -253,6 +253,7 @@ func (t *ConstructionTester) ProduceTransaction(ctx context.Context, ops []*type
 
 func (t *ConstructionTester) StartSyncer(
 	ctx context.Context,
+	cancel context.CancelFunc,
 ) error {
 	trackUtxos := false
 	if t.configuration.AccountingModel == configuration.UtxoModel {
@@ -268,7 +269,7 @@ func (t *ConstructionTester) StartSyncer(
 		t.configuration.Network,
 		t.onlineFetcher,
 		t.handler,
-		nil,
+		cancel,
 		nil,
 	)
 
@@ -518,8 +519,10 @@ func (t *ConstructionTester) TransferLoop(ctx context.Context) error {
 			SenderValue:    senderValue,
 			Recipient:      recipient,
 			RecipientValue: recipientValue,
-			UTXOIdentifier: utxo.Identifier,
 			Currency:       t.configuration.Currency,
+		}
+		if utxo != nil {
+			scenarioContext.UTXOIdentifier = utxo.Identifier
 		}
 
 		ops, err := scenario.PopulateScenario(ctx, scenarioContext, t.configuration.TransferScenario)

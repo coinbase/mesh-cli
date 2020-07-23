@@ -55,7 +55,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return t.StartSyncer(ctx)
+		return t.StartSyncer(ctx, cancel)
 	})
 
 	g.Go(func() error {
