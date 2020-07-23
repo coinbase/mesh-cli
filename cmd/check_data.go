@@ -241,7 +241,7 @@ func findMissingOps(
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
 	)
 
-	syncerHandler := processor.NewSyncerHandler(
+	syncerHandler := processor.NewCheckDataHandler(
 		blockStorage,
 		logger,
 		r,
@@ -430,7 +430,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		reconciler.WithInactiveFrequency(int64(Config.Data.InactiveReconciliationFrequency)),
 	)
 
-	syncerHandler := processor.NewSyncerHandler(
+	syncerHandler := processor.NewCheckDataHandler(
 		blockStorage,
 		logger,
 		r,
