@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package configuration
 
 import (
@@ -81,7 +95,8 @@ var (
 	}
 )
 
-// TODO: Add support for sophisticated end conditions (https://github.com/coinbase/rosetta-cli/issues/66)
+// TODO: Add support for sophisticated end conditions
+// (https://github.com/coinbase/rosetta-cli/issues/66)
 
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
@@ -257,7 +272,9 @@ type Configuration struct {
 	Data         *DataConfiguration         `json:"data"`
 }
 
-func populateConstructionMissingFields(constructionConfig *ConstructionConfiguration) *ConstructionConfiguration {
+func populateConstructionMissingFields(
+	constructionConfig *ConstructionConfiguration,
+) *ConstructionConfiguration {
 	if constructionConfig == nil {
 		return DefaultConstructionConfiguration()
 	}
@@ -333,16 +350,15 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 	return dataConfig
 }
 
-func populateMissingFields(config *Configuration) {
+func populateMissingFields(config *Configuration) *Configuration {
 	if config == nil {
-		config = DefaultConfiguration()
-		return
+		return DefaultConfiguration()
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
 
-	return
+	return config
 }
 
 func checkStringUint(input string) error {
@@ -392,12 +408,12 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 // LoadConfiguration returns a parsed and asserted Configuration for running
 // tests.
 func LoadConfiguration(filePath string) (*Configuration, error) {
-	var config Configuration
-	if err := utils.LoadAndParse(filePath, &config); err != nil {
+	var configRaw Configuration
+	if err := utils.LoadAndParse(filePath, &configRaw); err != nil {
 		return nil, fmt.Errorf("%w: unable to open configuration file", err)
 	}
 
-	populateMissingFields(&config)
+	config := populateMissingFields(&configRaw)
 
 	if err := assertConstructionConfiguration(config.Construction); err != nil {
 		return nil, fmt.Errorf("%w: invalid construction configuration", err)
@@ -408,5 +424,5 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 		types.PrettyPrintStruct(config),
 	)
 
-	return &config, nil
+	return config, nil
 }
