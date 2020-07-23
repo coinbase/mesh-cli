@@ -37,10 +37,13 @@ const (
 	UtxoModel AccountingModel = "utxo"
 )
 
+// TODO: Add support for sophisticated end conditions(https://github.com/coinbase/rosetta-cli/issues/66)
+
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
 	Network               *types.NetworkIdentifier `json:"network"`
+	OnlineURL             string                   `json:"online_url"`
 	OfflineURL            string                   `json:"offline_url"`
 	Currency              *types.Currency          `json:"currency"`
 	MinimumAccountBalance string                   `json:"minimum_account_balance"`
@@ -52,12 +55,88 @@ type ConstructionConfiguration struct {
 }
 
 // DataConfiguration contains all configurations to run check:data.
-type DataConfiguration struct{} // TODO: Populate and Assert DataConfiguration, Add end conditions, populate defaults that aren't filled in
+type DataConfiguration struct {
+	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
+	// default: http://localhost:8080
+	OnlineURL string `json:"online_url"`
+
+	// DataDirectory is a folder used to store logs and any data used to perform validation.
+	// default: ""
+	DataDirectory string `json:"data_directory"`
+
+	// BlockConcurrency is the concurrency to use while fetching blocks.
+	// default: 8
+	BlockConcurrency uint64 `json:"block_concurrency"`
+
+	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
+	// default: 16
+	TransactionConcurrency uint64 `json:"transaction_concurrency"`
+
+	// ActiveReconciliationConcurrency is the concurrency to use while fetching accounts
+	// during active reconciliation.
+	// default: 8
+	ActiveReconciliationConcurrency uint64 `json:"active_reconciliation_concurrency"`
+
+	// InactiveReconciliationConcurrency is the concurrency to use while fetching accounts
+	// during inactive reconciliation.
+	// default: 4
+	InactiveReconciliationConcurrency uint64 `json:"inactive_reconciliation_concurrency"`
+
+	// InactiveReconciliationFrequency is the number of blocks to wait between
+	// inactive reconiliations on each account.
+	// default: 250
+	InactiveReconciliationFrequency uint64 `json:"inactive_reconciliation_frequency"`
+
+	// LogBlocks is a boolean indicating whether to log processed blocks.
+	// default: false
+	LogBlocks bool `json:"log_blocks"`
+
+	// LogTransactions is a boolean indicating whether to log processed transactions.
+	// default: false
+	LogTransactions bool `json:"log_transactions"`
+
+	// LogBalanceChanges is a boolean indicating whether to log all balance changes.
+	// default: false
+	LogBalanceChanges bool `json:"log_balance_changes"`
+
+	// LogReconciliations is a boolean indicating whether to log all reconciliations.
+	// default: false
+	LogReconciliations bool `json:"log_reconciliations"`
+
+	// HaltOnReconciliationError determines if block processing should halt on a reconciliation
+	// error. It can be beneficial to collect all reconciliation errors or silence
+	// reconciliation errors during development.
+	// default: true
+	HaltOnReconciliationError bool `json:"halt_on_reconciliation_error"`
+
+	// ExemptAccounts is a path to a file listing all accounts to exempt from balance
+	// tracking and reconciliation. Look at the examples directory for an example of
+	// how to structure this file.
+	// default: ""
+	ExemptAccounts string `json:"exempt_accounts"`
+
+	// BootstrapBalances is a path to a file used to bootstrap balances
+	// before starting syncing. If this value is populated after beginning syncing,
+	// it will be ignored.
+	// default: ""
+	BootstrapBalances string `json:"bootstrap_balances"`
+
+	// LookupBalanceByBlock is a boolean that dictates how balance lookup is performed.
+	// When set to true, balances are looked up at the block where a balance
+	// change occurred instead of at the current block. Blockchains that do not support
+	// historical balance lookup should set this to false.
+	// default: true
+	LookupBalanceByBlock bool `json:"lookup_balance_by_block"`
+
+	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
+	// at the examples directory for an example of how to structure this file.
+	// default: ""
+	InterestingAccounts string `json:"interesting_accounts"`
+}
 
 // Configuration contains all configuration settings for running
 // check:data or check:construction.
 type Configuration struct {
-	OnlineURL    string                     `json:"online_url"`
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -76,6 +155,10 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	return nil
 }
 
+func assertDataConfiguration(config *DataConfiguration) error {
+	return fmt.Errorf("not implemented")
+}
+
 // LoadConfiguration returns a parsed and asserted Configuration for running
 // tests.
 func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error) {
@@ -90,6 +173,9 @@ func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error
 			return nil, fmt.Errorf("%w: invalid construction configuration", err)
 		}
 	case DataMode, ViewMode:
+		if err := assertDataConfiguration(config.Data); err != nil {
+			return nil, fmt.Errorf("%w: invalid data configuration", err)
+		}
 	default:
 		return nil, fmt.Errorf("testing more %s not supported", mode)
 	}
@@ -98,6 +184,8 @@ func LoadConfiguration(filePath string, mode TestingMode) (*Configuration, error
 		"loaded configuration file: %s\n",
 		types.PrettyPrintStruct(config),
 	)
+
+	// TODO: Populate defaults
 
 	return &config, nil
 }

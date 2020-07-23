@@ -181,12 +181,6 @@ of what one of these files looks like.`,
 )
 
 func init() {
-	checkCmd.Flags().StringVar(
-		&DataDir,
-		"data-dir",
-		"",
-		"folder used to store logs and any data used to perform validation",
-	)
 	checkCmd.Flags().Int64Var(
 		&StartIndex,
 		"start",
@@ -198,98 +192,6 @@ func init() {
 		"end",
 		-1,
 		"block index to stop syncing",
-	)
-	checkCmd.Flags().Uint64Var(
-		&BlockConcurrency,
-		"block-concurrency",
-		8,
-		"concurrency to use while fetching blocks",
-	)
-	checkCmd.Flags().Uint64Var(
-		&TransactionConcurrency,
-		"transaction-concurrency",
-		16,
-		"concurrency to use while fetching transactions (if required)",
-	)
-	checkCmd.Flags().Uint64Var(
-		&ActiveReconciliationConcurrency,
-		"active-reconciliation-concurrency",
-		8,
-		"concurrency to use while fetching accounts during active reconciliation",
-	)
-	checkCmd.Flags().Uint64Var(
-		&InactiveReconciliationConcurrency,
-		"inactive-reconciliation-concurrency",
-		4,
-		"concurrency to use while fetching accounts during inactive reconciliation",
-	)
-	checkCmd.Flags().Uint64Var(
-		&InactiveReconciliationFrequency,
-		"inactive-reconciliation-frequency",
-		250,
-		"the number of blocks to wait between inactive reconiliations on each account",
-	)
-	checkCmd.Flags().BoolVar(
-		&LogBlocks,
-		"log-blocks",
-		false,
-		"log processed blocks",
-	)
-	checkCmd.Flags().BoolVar(
-		&LogTransactions,
-		"log-transactions",
-		false,
-		"log processed transactions",
-	)
-	checkCmd.Flags().BoolVar(
-		&LogBalanceChanges,
-		"log-balance-changes",
-		false,
-		"log balance changes",
-	)
-	checkCmd.Flags().BoolVar(
-		&LogReconciliations,
-		"log-reconciliations",
-		false,
-		"log balance reconciliations",
-	)
-	checkCmd.Flags().BoolVar(
-		&HaltOnReconciliationError,
-		"halt-on-reconciliation-error",
-		true,
-		`Determines if block processing should halt on a reconciliation
-error. It can be beneficial to collect all reconciliation errors or silence
-reconciliation errors during development.`,
-	)
-	checkCmd.Flags().StringVar(
-		&ExemptFile,
-		"exempt-accounts",
-		"",
-		`Absolute path to a file listing all accounts to exempt from balance
-tracking and reconciliation. Look at the examples directory for an example of
-how to structure this file.`,
-	)
-	checkCmd.Flags().StringVar(
-		&BootstrapBalances,
-		"bootstrap-balances",
-		"",
-		`Absolute path to a file used to bootstrap balances before starting syncing.
-Populating this value after beginning syncing will return an error.`,
-	)
-	checkCmd.Flags().BoolVar(
-		&LookupBalanceByBlock,
-		"lookup-balance-by-block",
-		true,
-		`When set to true, balances are looked up at the block where a balance
-change occurred instead of at the current block. Blockchains that do not support
-historical balance lookup should set this to false.`,
-	)
-	checkCmd.Flags().StringVar(
-		&InterestingFile,
-		"interesting-accounts",
-		"",
-		`Absolute path to a file listing all accounts to check on each block. Look
-at the examples directory for an example of how to structure this file.`,
 	)
 }
 
