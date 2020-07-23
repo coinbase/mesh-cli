@@ -16,15 +16,12 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
 	"os/signal"
-	"path"
 	"syscall"
 	"time"
 
@@ -303,14 +300,9 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 		return []*reconciler.AccountCurrency{}, nil
 	}
 
-	accountsRaw, err := ioutil.ReadFile(path.Clean(filePath))
-	if err != nil {
-		return nil, err
-	}
-
 	accounts := []*reconciler.AccountCurrency{}
-	if err := json.Unmarshal(accountsRaw, &accounts); err != nil {
-		return nil, err
+	if err := utils.LoadAndParse(filePath, &accounts); err != nil {
+		return nil, fmt.Errorf("%w: unable to open account file", err)
 	}
 
 	log.Printf(

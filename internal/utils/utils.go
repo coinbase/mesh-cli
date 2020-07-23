@@ -15,9 +15,12 @@
 package utils
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
@@ -47,4 +50,19 @@ func RemoveTempDir(dir string) {
 // interfaces are equal.
 func Equal(a interface{}, b interface{}) bool {
 	return types.Hash(a) == types.Hash(b)
+}
+
+// LoadAndParse reads the file at the provided path
+// and attempts to marshal it into output.
+func LoadAndParse(filePath string, output interface{}) error {
+	bytes, err := ioutil.ReadFile(path.Clean(filePath))
+	if err != nil {
+		return fmt.Errorf("%w: unable to load file %s", err, filePath)
+	}
+
+	if err := json.Unmarshal(bytes, &output); err != nil {
+		return fmt.Errorf("%w: unable to unmarshal", err)
+	}
+
+	return nil
 }
