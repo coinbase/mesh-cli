@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/processor"
 	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/storage"
@@ -33,6 +34,7 @@ func init() {
 
 type ConstructionTester struct {
 	configuration *configuration.ConstructionConfiguration
+	logger        *logger.Logger
 	onlineURL     string
 	highWaterMark int64
 	keyStorage    *storage.KeyStorage
@@ -50,8 +52,10 @@ func NewConstruction(
 	ctx context.Context,
 	config *configuration.Configuration,
 	keyStorage *storage.KeyStorage,
+	logger *logger.Logger,
 ) (*ConstructionTester, error) {
 	t := &ConstructionTester{
+		logger:        logger,
 		configuration: config.Construction,
 		onlineURL:     config.OnlineURL,
 		highWaterMark: -1,
@@ -300,6 +304,8 @@ func (t *ConstructionTester) NewAddress(
 		return "", fmt.Errorf("%w: unable to store address", err)
 	}
 
+	_, _ = t.logger.CounterStorage.Update(ctx, storage.AddressesCreatedCounter, big.NewInt(1))
+
 	return address, nil
 }
 
@@ -482,7 +488,6 @@ func (t *ConstructionTester) FindRecipient(
 // TODO: monitor mempool for deposits and transfers (useful for testing on blockchains with slow blocks like BTC)
 
 func (t *ConstructionTester) TransferLoop(ctx context.Context) error {
-	transactionsBroadcast := 0
 	for ctx.Err() == nil {
 		sender, sendableBalance, err := t.FindSender(ctx)
 		if errors.Is(err, ErrBelowWaterMark) { // wait until above high water mark to start next loop
@@ -536,15 +541,7 @@ func (t *ConstructionTester) TransferLoop(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to produce transaction with operations %s", err, types.PrettyPrintStruct(ops))
 		}
 
-		transactionsBroadcast++
-
-		// TODO: replace this with counter logger
-		addresses, err := t.keyStorage.GetAllAddresses(ctx)
-		if err != nil {
-			return fmt.Errorf("%w: unable to get addresses", err)
-		}
-
-		color.Cyan("[STATS] transfers completed: %d total accounts: %d", transactionsBroadcast, len(addresses))
+		_, _ = t.logger.CounterStorage.Update(ctx, storage.TransactionsCreatedCounter, big.NewInt(1))
 	}
 
 	return ctx.Err()

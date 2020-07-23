@@ -52,12 +52,6 @@ const (
 	// InactiveFailureLookbackWindow blocks (this process continues
 	// until the client halts the search or the block is found).
 	InactiveFailureLookbackWindow = 250
-
-	// PeriodicLoggingFrequency is the frequency that stats are printed
-	// to the terminal.
-	//
-	// TODO: make configurable
-	PeriodicLoggingFrequency = 10 * time.Second
 )
 
 var (
@@ -436,12 +430,12 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	g.Go(func() error {
 		for ctx.Err() == nil {
-			_ = logger.LogCounterStorage(ctx)
+			_ = logger.LogDataStats(ctx)
 			time.Sleep(PeriodicLoggingFrequency)
 		}
 
 		// Print stats one last time before exiting
-		_ = logger.LogCounterStorage(ctx)
+		_ = logger.LogDataStats(ctx)
 
 		return nil
 	})

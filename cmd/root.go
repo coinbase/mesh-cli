@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -45,6 +46,12 @@ var (
 	// SignalReceived is set to true when a signal causes us to exit. This makes
 	// determining the error message to show on exit much more easy.
 	SignalReceived = false
+
+	// PeriodicLoggingFrequency is the frequency that stats are printed
+	// to the terminal.
+	//
+	// TODO: make configurable
+	PeriodicLoggingFrequency = 10 * time.Second
 )
 
 // Execute handles all invocations of the

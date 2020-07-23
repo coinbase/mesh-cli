@@ -41,6 +41,14 @@ const (
 	// reconciliations performed.
 	InactiveReconciliationCounter = "inactive_reconciliations"
 
+	// TransactionsCreatedCounter is the number of broadcast
+	// and recognized transactions.
+	TransactionsCreatedCounter = "transactions_created"
+
+	// AddressesCreatedCounter is the number of addresses
+	// created.
+	AddressesCreatedCounter = "addresses_created"
+
 	// counterNamespace is preprended to any counter.
 	counterNamespace = "counter"
 )

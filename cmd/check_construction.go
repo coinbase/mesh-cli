@@ -18,7 +18,9 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
+	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/tester"
 
@@ -48,14 +50,37 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	}
 	defer localStore.Close(ctx)
 
+	counterStorage := storage.NewCounterStorage(localStore)
+
+	logger := logger.NewLogger(
+		counterStorage,
+		Config.DataDirectory,
+		false,
+		false,
+		false,
+		false,
+	)
+
 	keyStorage := storage.NewKeyStorage(localStore)
 
-	t, err := tester.NewConstruction(ctx, Config, keyStorage)
+	t, err := tester.NewConstruction(ctx, Config, keyStorage, logger)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize construction tester", err.Error())
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		for ctx.Err() == nil {
+			_ = logger.LogConstructionStats(ctx)
+			time.Sleep(PeriodicLoggingFrequency)
+		}
+
+		// Print stats one last time before exiting
+		_ = logger.LogConstructionStats(ctx)
+
+		return nil
+	})
+
 	g.Go(func() error {
 		return t.StartSyncer(ctx, cancel)
 	})

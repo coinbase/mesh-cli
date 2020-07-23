@@ -90,8 +90,8 @@ func NewLogger(
 	}
 }
 
-// LogCounterStorage logs all values in CounterStorage.
-func (l *Logger) LogCounterStorage(ctx context.Context) error {
+// LogDataStats logs all data values in CounterStorage.
+func (l *Logger) LogDataStats(ctx context.Context) error {
 	blocks, err := l.CounterStorage.Get(ctx, storage.BlockCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get block counter", err)
@@ -424,6 +424,27 @@ func (l *Logger) ReconcileFailureStream(
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// LogConstructionStats logs all construction testing stats in CounterStorage.
+func (l *Logger) LogConstructionStats(ctx context.Context) error {
+	txsCreated, err := l.CounterStorage.Get(ctx, storage.TransactionsCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get transactions created counter", err)
+	}
+
+	addressesCreated, err := l.CounterStorage.Get(ctx, storage.AddressesCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get addresses created counter", err)
+	}
+
+	color.Cyan(
+		"[STATS] Transactions Confirmed: %d Addresses Created: %d",
+		txsCreated,
+		addressesCreated,
+	)
 
 	return nil
 }
