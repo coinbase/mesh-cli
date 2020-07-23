@@ -50,17 +50,24 @@ const (
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
+
+	// ETH Defaults
+	EthereumBlockchain = "Ethereum"
+	EthereumNetwork    = "Ropsten"
+	EthereumTransfer   = "transfer"
+	EthereumSymbol     = "ETH"
+	EthereumDecimals   = 18
 )
 
 // Default Configuration Values
 var (
 	DefaultNetwork = &types.NetworkIdentifier{
-		Blockchain: "Ethereum",
-		Network:    "Ropsten",
+		Blockchain: EthereumBlockchain,
+		Network:    EthereumNetwork,
 	}
 	DefaultCurrency = &types.Currency{
-		Symbol:   "ETH",
-		Decimals: 18,
+		Symbol:   EthereumSymbol,
+		Decimals: EthereumDecimals,
 	}
 	DefaultTransferScenario = []*types.Operation{
 		{
@@ -70,7 +77,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Sender,
 			},
-			Type: "transfer",
+			Type: EthereumTransfer,
 			Amount: &types.Amount{
 				Value: scenario.SenderValue,
 			},
@@ -87,7 +94,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Recipient,
 			},
-			Type: "transfer",
+			Type: EthereumTransfer,
 			Amount: &types.Amount{
 				Value: scenario.RecipientValue,
 			},
@@ -420,8 +427,8 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 	}
 
 	log.Printf(
-		"loaded configuration: %s\n",
-		types.PrettyPrintStruct(config),
+		"loaded configuration file: %s\n",
+		filePath,
 	)
 
 	return config, nil
