@@ -192,7 +192,7 @@ func (b *BlockStorage) RemoveBlock(
 		return err
 	}
 
-	transaction := b.NewDatabaseTransaction(ctx, true)
+	transaction := b.db.NewDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 
 	// Remove block
@@ -222,6 +222,7 @@ func (b *BlockStorage) RemoveBlock(
 func (b *BlockStorage) SetNewStartIndex(
 	ctx context.Context,
 	startIndex int64,
+	workers []BlockWorker,
 ) error {
 	head, err := b.GetHeadBlockIdentifier(ctx)
 	if errors.Is(err, ErrHeadBlockNotFound) {
@@ -247,7 +248,7 @@ func (b *BlockStorage) SetNewStartIndex(
 			return err
 		}
 
-		if _, err = b.RemoveBlock(ctx, block.BlockIdentifier); err != nil {
+		if err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
 			return err
 		}
 
