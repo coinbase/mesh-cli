@@ -273,6 +273,12 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 1)
+		assert.Equal(t, newBlock.BlockIdentifier, txBlocks[0])
+		assert.Equal(t, 0, headDistance)
 	})
 
 	t.Run("Get non-existent block", func(t *testing.T) {
@@ -305,6 +311,12 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 2)
+		assert.ElementsMatch(t, []*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock.BlockIdentifier}, txBlocks)
+		assert.Equal(t, 1, headDistance)
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
@@ -321,6 +333,12 @@ func TestBlock(t *testing.T) {
 		head, err = storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 2)
+		assert.ElementsMatch(t, []*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock.BlockIdentifier}, txBlocks)
+		assert.Equal(t, 1, headDistance)
 	})
 
 	t.Run("Add block with complex metadata", func(t *testing.T) {

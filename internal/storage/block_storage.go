@@ -53,6 +53,10 @@ var (
 	// found in BlockStorage.
 	ErrBlockNotFound = errors.New("block not found")
 
+	// ErrTransactionNotFound is returned when a transaction
+	// is not found in BlockStorage.
+	ErrTransactionNotFound = errors.New("transaction not found")
+
 	// ErrDuplicateBlockHash is returned when a block hash
 	// cannot be stored because it is a duplicate.
 	ErrDuplicateBlockHash = errors.New("duplicate block hash")
@@ -415,4 +419,13 @@ func (b *BlockStorage) storeHash(
 	return transaction.Set(ctx, hashKey, []byte(""))
 }
 
-// TODO: Wait until a transaction has a depth of X
+// FindTransaction returns the []*types.BlockIdentifier containing the
+// transaction and the depth from the current head of the first transaction
+// sigting (almost always this will just be a single block). If not found,
+// it returns a ErrTransactionNotFound error.
+func (b *BlockStorage) FindTransaction(
+	ctx context.Context,
+	transaction *types.TransactionIdentifier,
+) ([]*types.BlockIdentifier, int64, error) {
+	return nil, -1, ErrTransactionNotFound
+}
