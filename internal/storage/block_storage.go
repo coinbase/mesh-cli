@@ -402,10 +402,10 @@ func (b *BlockStorage) storeBlockHash(
 func (b *BlockStorage) storeTransactionHash(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	block *types.BlockIdentifier,
-	blockTransaction *types.TransactionIdentifier,
+	blockIdentifier *types.BlockIdentifier,
+	transactionIdentifier *types.TransactionIdentifier,
 ) error {
-	hashKey := getTransactionHashKey(blockTransaction)
+	hashKey := getTransactionHashKey(transactionIdentifier)
 	exists, val, err := transaction.Get(ctx, hashKey)
 	if err != nil {
 		return err
@@ -413,7 +413,7 @@ func (b *BlockStorage) storeTransactionHash(
 
 	if !exists {
 		m := make(map[string]int64)
-		m[block.Hash] = block.Index
+		m[blockIdentifier.Hash] = blockIdentifier.Index
 		encodedResult, err := encode(m)
 		if err != nil {
 			return fmt.Errorf("%w: unable to encode transaction data", err)
@@ -427,17 +427,17 @@ func (b *BlockStorage) storeTransactionHash(
 		return fmt.Errorf("%w: could not decode transaction hash contents", err)
 	}
 
-	if _, exists := blocks[block.Hash]; exists {
+	if _, exists := blocks[blockIdentifier.Hash]; exists {
 		return fmt.Errorf(
 			"%w: duplicate transaction %s found in block %s:%d",
 			ErrDuplicateTransactionHash,
-			blockTransaction.Hash,
-			block.Hash,
-			block.Index,
+			transactionIdentifier.Hash,
+			blockIdentifier.Hash,
+			blockIdentifier.Index,
 		)
 	}
 
-	blocks[block.Hash] = block.Index
+	blocks[blockIdentifier.Hash] = blockIdentifier.Index
 	encodedResult, err := encode(blocks)
 	if err != nil {
 		return fmt.Errorf("%w: unable to encode transaction data", err)
@@ -449,17 +449,17 @@ func (b *BlockStorage) storeTransactionHash(
 func (b *BlockStorage) removeTransactionHash(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	block *types.BlockIdentifier,
-	blockTransaction *types.TransactionIdentifier,
+	blockIdentifier *types.BlockIdentifier,
+	transactionIdentifier *types.TransactionIdentifier,
 ) error {
-	hashKey := getTransactionHashKey(blockTransaction)
+	hashKey := getTransactionHashKey(transactionIdentifier)
 	exists, val, err := transaction.Get(ctx, hashKey)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		return fmt.Errorf("could not remove transaction %s", blockTransaction.Hash)
+		return fmt.Errorf("could not remove transaction %s", transactionIdentifier.Hash)
 	}
 
 	var blocks map[string]int64
@@ -467,11 +467,11 @@ func (b *BlockStorage) removeTransactionHash(
 		return fmt.Errorf("%w: could not decode transaction hash contents", err)
 	}
 
-	if _, exists := blocks[block.Hash]; !exists {
-		return fmt.Errorf("saved blocks at transaction does not contain %s", block.Hash)
+	if _, exists := blocks[blockIdentifier.Hash]; !exists {
+		return fmt.Errorf("saved blocks at transaction does not contain %s", blockIdentifier.Hash)
 	}
 
-	delete(blocks, block.Hash)
+	delete(blocks, blockIdentifier.Hash)
 
 	if len(blocks) == 0 {
 		return transaction.Delete(ctx, hashKey)
@@ -491,12 +491,12 @@ func (b *BlockStorage) removeTransactionHash(
 // it returns a ErrTransactionNotFound error.
 func (b *BlockStorage) FindTransaction(
 	ctx context.Context,
-	transaction *types.TransactionIdentifier,
+	transactionIdentifier *types.TransactionIdentifier,
 ) ([]*types.BlockIdentifier, int64, error) {
 	txn := b.db.NewDatabaseTransaction(ctx, false)
 	defer txn.Discard(ctx)
 
-	txExists, tx, err := txn.Get(ctx, getTransactionHashKey(transaction))
+	txExists, tx, err := txn.Get(ctx, getTransactionHashKey(transactionIdentifier))
 	if err != nil {
 		return nil, -1, fmt.Errorf("%w: unable to query database for transaction", err)
 	}
@@ -516,6 +516,9 @@ func (b *BlockStorage) FindTransaction(
 	}
 
 	if !blockExists {
+		// It should not be possible to enter this conditional
+		// as the existence of a tx hash implies at least
+		// one block is synced.
 		return nil, -1, ErrHeadBlockNotFound
 	}
 
