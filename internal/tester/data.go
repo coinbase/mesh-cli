@@ -86,22 +86,28 @@ func InitializeData(
 	interestingAccount *reconciler.AccountCurrency,
 	signalReceived *bool,
 ) *DataTester {
+	// Create a unique path for invocation to avoid collision when parsing
+	// multiple networks.
+	dataPath := path.Join(config.Data.DataDirectory, "data", types.Hash(network))
+	if err := utils.EnsurePathExists(dataPath); err != nil {
+		log.Fatalf("%s: cannot populate path", err.Error())
+	}
+
+	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
+	if err != nil {
+		log.Fatalf("%s: unable to initialize database", err.Error())
+	}
+	defer localStore.Close(ctx)
+
 	exemptAccounts, err := loadAccounts(config.Data.ExemptAccounts)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to load exempt accounts", err))
+		log.Fatalf("%s: unable to load exempt accounts", err.Error())
 	}
 
 	interestingAccounts, err := loadAccounts(config.Data.InterestingAccounts)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to load interesting accounts", err))
+		log.Fatalf("%s: unable to load interesting accounts", err.Error())
 	}
-
-	dataPath := path.Join(config.Data.DataDirectory, "data", types.Hash(network))
-	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
-	}
-	defer localStore.Close(ctx)
 
 	counterStorage := storage.NewCounterStorage(localStore)
 	blockStorage := storage.NewBlockStorage(localStore)
@@ -129,7 +135,7 @@ func InitializeData(
 	// Get all previously seen accounts
 	seenAccounts, err := balanceStorage.GetAllAccountCurrency(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to get previously seen accounts", err))
+		log.Fatalf("%s: unable to get previously seen accounts", err.Error())
 	}
 
 	r := reconciler.New(
@@ -172,7 +178,7 @@ func InitializeData(
 				genesisBlock,
 			)
 			if err != nil {
-				log.Fatal(fmt.Errorf("%w: unable to bootstrap balances", err))
+				log.Fatalf("%s: unable to bootstrap balances", err.Error())
 			}
 		} else {
 			log.Println("Skipping balance bootstrapping because already started syncing")

@@ -30,6 +30,10 @@ const (
 	// DefaultFilePermissions specifies that the user can
 	// read and write the file.
 	DefaultFilePermissions = 0600
+
+	// AllFilePermissions specifies anyone can do anything
+	// to the file.
+	AllFilePermissions = 0777
 )
 
 // CreateTempDir creates a directory in
@@ -50,6 +54,16 @@ func RemoveTempDir(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// EnsurePathExists creates directories along
+// a path if they do not exist.
+func EnsurePathExists(path string) error {
+	if err := os.MkdirAll(path, os.FileMode(AllFilePermissions)); err != nil {
+		return fmt.Errorf("%w: unable to create data and network directory", err)
+	}
+
+	return nil
 }
 
 // Equal returns a boolean indicating if two
