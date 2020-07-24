@@ -27,6 +27,9 @@ import (
 
 var _ storage.BalanceStorageHandler = (*BalanceStorageHandler)(nil)
 
+// BalanceStorageHandler is invoked whenever a block is added
+// or removed from block storage so that balance changes
+// can be sent to other functions (ex: reconciler).
 type BalanceStorageHandler struct {
 	logger     *logger.Logger
 	reconciler *reconciler.Reconciler
@@ -35,6 +38,7 @@ type BalanceStorageHandler struct {
 	interestingAccount *reconciler.AccountCurrency
 }
 
+// NewBalanceStorageHandler returns a new *BalanceStorageHandler.
 func NewBalanceStorageHandler(
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
@@ -49,7 +53,7 @@ func NewBalanceStorageHandler(
 	}
 }
 
-// May make sense to define a separate handler that is created during initializiation
+// BlockAdded is called whenever a block is committed to BlockStorage.
 func (h *BalanceStorageHandler) BlockAdded(
 	ctx context.Context,
 	block *types.Block,
@@ -90,6 +94,7 @@ func (h *BalanceStorageHandler) BlockAdded(
 	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, changes)
 }
 
+// BlockRemoved is called whenever a block is removed from BlockStorage.
 func (h *BalanceStorageHandler) BlockRemoved(
 	ctx context.Context,
 	block *types.Block,

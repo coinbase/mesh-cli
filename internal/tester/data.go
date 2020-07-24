@@ -53,6 +53,7 @@ const (
 	PeriodicLoggingFrequency = 10 * time.Second
 )
 
+// DataTester coordinates the `check:data` test.
 type DataTester struct {
 	network           *types.NetworkIdentifier
 	database          storage.Database
@@ -90,12 +91,14 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 	return accounts, nil
 }
 
+// CloseDatabase closes the database used by DataTester.
 func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		log.Fatalf("%s: error closing database", err.Error())
 	}
 }
 
+// InitializeData returns a new *DataTester.
 func InitializeData(
 	ctx context.Context,
 	config *configuration.Configuration,
@@ -233,6 +236,10 @@ func InitializeData(
 	}
 }
 
+// StartSyncing syncs from startIndex to endIndex.
+// If startIndex is -1, it will start from the last
+// saved block. If endIndex is -1, it will sync
+// continuously (or until an error).
 func (t *DataTester) StartSyncing(
 	ctx context.Context,
 	startIndex int64,
@@ -241,6 +248,8 @@ func (t *DataTester) StartSyncing(
 	return t.syncer.Sync(ctx, startIndex, endIndex)
 }
 
+// StartReconciler starts the reconciler if
+// reconciliation is enabled.
 func (t *DataTester) StartReconciler(
 	ctx context.Context,
 ) error {
@@ -251,6 +260,8 @@ func (t *DataTester) StartReconciler(
 	return t.reconciler.Reconcile(ctx)
 }
 
+// StartPeriodicLogger prints out periodic
+// stats about a run of `check:data`.
 func (t *DataTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
@@ -262,9 +273,12 @@ func (t *DataTester) StartPeriodicLogger(
 	// Print stats one last time before exiting
 	_ = t.logger.LogCounterStorage(ctx)
 
-	return nil
+	return ctx.Err()
 }
 
+// HandleErr is called when `check:data` returns an error.
+// If historical balance lookups are enabled, HandleErr will attempt to
+// automatically find any missing balance-changing operations.
 func (t *DataTester) HandleErr(ctx context.Context, err error) {
 	if *t.signalReceived {
 		color.Red("Check halted")

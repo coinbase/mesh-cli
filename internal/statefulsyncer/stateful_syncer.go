@@ -29,6 +29,11 @@ import (
 
 var _ syncer.Handler = (*StatefulSyncer)(nil)
 
+// StatefulSyncer is an abstraction layer over
+// the stateless syncer package. This layer
+// handles sync restarts and provides
+// fully populated blocks during reorgs (not
+// provided by stateless syncer).
 type StatefulSyncer struct {
 	network        *types.NetworkIdentifier
 	fetcher        *fetcher.Fetcher
@@ -39,6 +44,7 @@ type StatefulSyncer struct {
 	workers        []storage.BlockWorker
 }
 
+// New returns a new *StatefulSyncer.
 func New(
 	ctx context.Context,
 	network *types.NetworkIdentifier,
@@ -60,6 +66,7 @@ func New(
 	}
 }
 
+// Sync starts a new sync run after properly initializing blockStorage.
 func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex int64) error {
 	s.blockStorage.Initialize(s.workers)
 
@@ -92,6 +99,7 @@ func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex in
 	return syncer.Sync(ctx, startIndex, endIndex)
 }
 
+// BlockAdded is called by the syncer when a block is added.
 func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) error {
 	err := s.blockStorage.AddBlock(ctx, block)
 	if err != nil {
@@ -123,6 +131,7 @@ func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) err
 	return nil
 }
 
+// BlockRemoved is called by the syncer when a block is removed.
 func (s *StatefulSyncer) BlockRemoved(
 	ctx context.Context,
 	blockIdentifier *types.BlockIdentifier,

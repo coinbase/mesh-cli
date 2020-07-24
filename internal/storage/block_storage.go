@@ -114,6 +114,11 @@ func NewBlockStorage(
 	}
 }
 
+// Initialize adds a []BlockWorker to BlockStorage. Usually
+// all block workers are not created by the time block storage
+// is constructed.
+//
+// This must be called prior to syncing!
 func (b *BlockStorage) Initialize(workers []BlockWorker) {
 	b.workers = workers
 }

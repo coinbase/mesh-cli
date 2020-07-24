@@ -57,6 +57,7 @@ func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) [
 	)
 }
 
+// BalanceStorageHandler is invoked after balance changes are committed to the database.
 type BalanceStorageHandler interface {
 	BlockAdded(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
 	BlockRemoved(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
@@ -96,14 +97,15 @@ func NewBalanceStorage(
 	}
 }
 
-// Needed to initialize in write order ... must be called before beginning syncing but allows
-// for certain queries to be performed that just access/modify balance state
+// Initialize adds a BalanceStorageHelper and BalanceStorageHandler to BalanceStorage.
+// This must be called prior to syncing!
 func (b *BalanceStorage) Initialize(helper BalanceStorageHelper, handler BalanceStorageHandler) {
 	b.helper = helper
 	b.handler = handler
 	b.parser = parser.New(helper.Asserter(), helper.ExemptFunc())
 }
 
+// AddingBlock is called by BlockStorage when adding a block to storage.
 func (b *BalanceStorage) AddingBlock(
 	ctx context.Context,
 	block *types.Block,
@@ -125,6 +127,7 @@ func (b *BalanceStorage) AddingBlock(
 	}, nil
 }
 
+// RemovingBlock is called by BlockStorage when removing a block from storage.
 func (b *BalanceStorage) RemovingBlock(
 	ctx context.Context,
 	block *types.Block,
