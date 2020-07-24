@@ -17,7 +17,6 @@ deps:
 	go get ./...
 
 lint:
-	! golint ./cmd/... ./internal/... ./configuration/... | read;
 	golangci-lint run -v \
 		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd;
 
