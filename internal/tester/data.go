@@ -350,13 +350,6 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 	)
 
-	balanceStorageHelper := processor.NewBalanceStorageHelper(
-		t.network,
-		t.fetcher,
-		!t.config.Data.HistoricalBalanceDisabled,
-		nil,
-	)
-
 	reconcilerHelper := processor.NewReconcilerHelper(
 		blockStorage,
 		balanceStorage,
@@ -383,6 +376,13 @@ func (t *DataTester) recursiveOpSearch(
 		reconciler.WithInactiveConcurrency(0),
 		reconciler.WithLookupBalanceByBlock(!t.config.Data.HistoricalBalanceDisabled),
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
+	)
+
+	balanceStorageHelper := processor.NewBalanceStorageHelper(
+		t.network,
+		t.fetcher,
+		!t.config.Data.HistoricalBalanceDisabled,
+		nil,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

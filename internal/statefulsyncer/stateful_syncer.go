@@ -48,9 +48,11 @@ func New(
 }
 
 func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex int64) error {
+	s.blockStorage.Initialize(s.workers)
+
 	// Ensure storage is in correct state for starting at index
 	if startIndex != -1 { // attempt to remove blocks from storage (without handling)
-		if err := s.blockStorage.SetNewStartIndex(ctx, startIndex, s.workers); err != nil {
+		if err := s.blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
 			return fmt.Errorf("%w: unable to set new start index", err)
 		}
 	} else { // attempt to load last processed index
@@ -78,7 +80,7 @@ func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex in
 }
 
 func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) error {
-	err := s.blockStorage.AddBlock(ctx, block, s.workers)
+	err := s.blockStorage.AddBlock(ctx, block)
 	if err != nil {
 		return fmt.Errorf("%w: unable to add block to storage %s:%d", err, block.BlockIdentifier.Hash, block.BlockIdentifier.Index)
 	}
@@ -104,7 +106,7 @@ func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) err
 }
 
 func (s *StatefulSyncer) BlockRemoved(ctx context.Context, blockIdentifier *types.BlockIdentifier) error {
-	err := s.blockStorage.RemoveBlock(ctx, blockIdentifier, s.workers)
+	err := s.blockStorage.RemoveBlock(ctx, blockIdentifier)
 	if err != nil {
 		return fmt.Errorf("%w: unable to remove block from storage %s:%d", err, blockIdentifier.Hash, blockIdentifier.Index)
 	}

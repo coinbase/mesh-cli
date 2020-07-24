@@ -101,6 +101,8 @@ type CommitWorker func(context.Context) error
 // on top of a Database and DatabaseTransaction interface.
 type BlockStorage struct {
 	db Database
+
+	workers []BlockWorker
 }
 
 // NewBlockStorage returns a new BlockStorage.
@@ -110,6 +112,10 @@ func NewBlockStorage(
 	return &BlockStorage{
 		db: db,
 	}
+}
+
+func (b *BlockStorage) Initialize(workers []BlockWorker) {
+	b.workers = workers
 }
 
 // GetHeadBlockIdentifier returns the head block identifier,
@@ -183,7 +189,6 @@ func (b *BlockStorage) GetBlock(
 func (b *BlockStorage) AddBlock(
 	ctx context.Context,
 	block *types.Block,
-	workers []BlockWorker,
 ) error {
 	transaction := b.db.NewDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
@@ -235,7 +240,7 @@ func (b *BlockStorage) AddBlock(
 		}
 	}
 
-	return callWorkersAndCommit(ctx, block, transaction, workers, true)
+	return b.callWorkersAndCommit(ctx, block, transaction, true)
 }
 
 // RemoveBlock removes a block or returns an error.
@@ -245,7 +250,6 @@ func (b *BlockStorage) AddBlock(
 func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
 	blockIdentifier *types.BlockIdentifier,
-	workers []BlockWorker,
 ) error {
 	block, err := b.GetBlock(ctx, blockIdentifier)
 	if err != nil {
@@ -281,12 +285,12 @@ func (b *BlockStorage) RemoveBlock(
 		return err
 	}
 
-	return callWorkersAndCommit(ctx, block, transaction, workers, false)
+	return b.callWorkersAndCommit(ctx, block, transaction, false)
 }
 
-func callWorkersAndCommit(ctx context.Context, block *types.Block, txn DatabaseTransaction, workers []BlockWorker, adding bool) error {
-	commitWorkers := make([]CommitWorker, len(workers))
-	for i, w := range workers {
+func (b *BlockStorage) callWorkersAndCommit(ctx context.Context, block *types.Block, txn DatabaseTransaction, adding bool) error {
+	commitWorkers := make([]CommitWorker, len(b.workers))
+	for i, w := range b.workers {
 		var cw CommitWorker
 		var err error
 		if adding {
@@ -323,7 +327,6 @@ func callWorkersAndCommit(ctx context.Context, block *types.Block, txn DatabaseT
 func (b *BlockStorage) SetNewStartIndex(
 	ctx context.Context,
 	startIndex int64,
-	workers []BlockWorker,
 ) error {
 	head, err := b.GetHeadBlockIdentifier(ctx)
 	if errors.Is(err, ErrHeadBlockNotFound) {
@@ -349,7 +352,7 @@ func (b *BlockStorage) SetNewStartIndex(
 			return err
 		}
 
-		if err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
+		if err := b.RemoveBlock(ctx, block.BlockIdentifier); err != nil {
 			return err
 		}
 
