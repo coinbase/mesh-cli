@@ -43,6 +43,11 @@ func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) [
 	)
 }
 
+type BalanceHandler interface {
+	BlockAdded(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
+	BlockRemoved(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
+}
+
 // BalanceStorage implements block specific storage methods
 // on top of a Database and DatabaseTransaction interface.
 type BalanceStorage struct {
@@ -51,6 +56,7 @@ type BalanceStorage struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 	parser  *parser.Parser
+	handler BalanceHandler
 
 	// Configuration settings
 	lookupBalanceByBlock bool
@@ -64,6 +70,7 @@ func NewBalanceStorage(
 	fetcher *fetcher.Fetcher,
 	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
+	handler BalanceHandler,
 ) *BalanceStorage {
 	exemptMap := map[string]struct{}{}
 
@@ -79,6 +86,7 @@ func NewBalanceStorage(
 		fetcher:              fetcher,
 		lookupBalanceByBlock: lookupBalanceByBlock,
 		exemptAccounts:       exemptMap,
+		handler:              handler,
 	}
 
 	b.parser = parser.New(fetcher.Asserter, b.ExemptFunc())
@@ -112,25 +120,25 @@ func (b *BalanceStorage) AddingBlock(ctx context.Context, block *types.Block, tr
 	}
 
 	return func(ctx context.Context) error {
-		fmt.Println(changes)
-
-		return nil
+		return b.handler.BlockAdded(ctx, block, changes)
 	}, nil
 }
 
 func (b *BalanceStorage) RemovingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) (CommitWorker, error) {
 	changes, err := b.parser.BalanceChanges(ctx, block, true)
 	if err != nil {
-		return fmt.Errorf("%w: unable to calculate balance changes", err)
+		return nil, fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
 	for _, change := range changes {
 		if err := b.UpdateBalance(ctx, transaction, change, block.BlockIdentifier); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return func(ctx context.Context) error {
+		return b.handler.BlockRemoved(ctx, block, changes)
+	}, nil
 }
 
 type balanceEntry struct {

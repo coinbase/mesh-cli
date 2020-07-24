@@ -85,12 +85,16 @@ func getTransactionHashKey(blockHash string, transactionHash string) []byte {
 }
 
 // BlockWorker is an interface that allows for work
-// to be done while a block is added to storage.
+// to be done while a block is added/removed from storage
+// in the same database transaction as the change.
 type BlockWorker interface {
 	AddingBlock(context.Context, *types.Block, DatabaseTransaction) (CommitWorker, error)
 	RemovingBlock(context.Context, *types.Block, DatabaseTransaction) (CommitWorker, error)
 }
 
+// CommitWorker is returned by a BlockWorker to be called after
+// changes have been commited. It is common to put logging activities
+// in here (that shouldn't be printed until the block is committed).
 type CommitWorker func(context.Context) error
 
 // BlockStorage implements block specific storage methods
@@ -231,27 +235,7 @@ func (b *BlockStorage) AddBlock(
 		}
 	}
 
-	commitWorkers := make([]CommitWorker, len(workers))
-	for i, w := range workers {
-		cw, err := w.AddingBlock(ctx, block, transaction)
-		if err != nil {
-			return err
-		}
-
-		commitWorkers[i] = cw
-	}
-
-	if err := transaction.Commit(ctx); err != nil {
-		return err
-	}
-
-	for _, cw := range commitWorkers {
-		if err := cw(ctx); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return callWorkersAndCommit(ctx, block, transaction, workers, true)
 }
 
 // RemoveBlock removes a block or returns an error.
@@ -297,17 +281,41 @@ func (b *BlockStorage) RemoveBlock(
 		return err
 	}
 
-	for _, w := range workers {
-		if err := w.RemovingBlock(ctx, block, transaction); err != nil {
-			return nil, err
+	return callWorkersAndCommit(ctx, block, transaction, workers, false)
+}
+
+func callWorkersAndCommit(ctx context.Context, block *types.Block, txn DatabaseTransaction, workers []BlockWorker, adding bool) error {
+	commitWorkers := make([]CommitWorker, len(workers))
+	for i, w := range workers {
+		var cw CommitWorker
+		var err error
+		if adding {
+			cw, err = w.AddingBlock(ctx, block, txn)
+		} else {
+			cw, err = w.RemovingBlock(ctx, block, txn)
+		}
+		if err != nil {
+			return err
+		}
+
+		commitWorkers[i] = cw
+	}
+
+	if err := txn.Commit(ctx); err != nil {
+		return err
+	}
+
+	for _, cw := range commitWorkers {
+		if cw == nil {
+			continue
+		}
+
+		if err := cw(ctx); err != nil {
+			return err
 		}
 	}
 
-	if err := transaction.Commit(ctx); err != nil {
-		return nil, err
-	}
-
-	return block, nil
+	return nil
 }
 
 // SetNewStartIndex attempts to remove all blocks
@@ -341,7 +349,7 @@ func (b *BlockStorage) SetNewStartIndex(
 			return err
 		}
 
-		if _, err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
+		if err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
 			return err
 		}
 

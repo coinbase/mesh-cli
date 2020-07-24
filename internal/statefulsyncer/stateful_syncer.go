@@ -28,21 +28,28 @@ import (
 var _ syncer.Handler = (*StatefulSyncer)(nil)
 
 type StatefulSyncer struct {
-	blockStorage *storage.BlockStorage
-	syncer       *syncer.Syncer
-	workers      []storage.BlockWorker
-	handlers     []Handler
+	blockStorage   *storage.BlockStorage
+	counterStorage *storage.CounterStorage
+	logger         *logger.Logger
+	syncer         *syncer.Syncer
+	workers        []storage.BlockWorker
+	handlers       []Handler
 }
 
 func New(
 	ctx context.Context,
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
-	blockStorage *storage.BlockStorage,
+	db storage.Database,
+	logger *logger.Logger,
 	cancel context.CancelFunc,
 	workers []storage.BlockWorker,
 	handlers []Handler,
 ) *StatefulSyncer {
+	// Load storage backends
+	counterStorage := storage.NewCounterStorage(db)
+	blockStorage := storage.NewBlockStorage(db)
+
 	// Load in previous blocks into syncer cache to handle reorgs.
 	// If previously processed blocks exist in storage, they are fetched.
 	// Otherwise, none are provided to the cache (the syncer will not attempt
@@ -76,6 +83,23 @@ func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) err
 		return fmt.Errorf("%w: unable to add block to storage %s:%d", err, block.BlockIdentifier.Hash, block.BlockIdentifier.Index)
 	}
 
+	if err := s.logger.AddBlockStream(ctx, block); err != nil {
+		return nil
+	}
+
+	// Update Counters
+	_, _ = s.counterStorage.Update(ctx, storage.BlockCounter, big.NewInt(1))
+	_, _ = s.counterStorage.Update(
+		ctx,
+		storage.TransactionCounter,
+		big.NewInt(int64(len(block.Transactions))),
+	)
+	opCount := int64(0)
+	for _, txn := range block.Transactions {
+		opCount += int64(len(txn.Operations))
+	}
+	_, _ = s.counterStorage.Update(ctx, storage.OperationCounter, big.NewInt(opCount))
+
 	return nil
 
 	// how to get info out of workers to log? (i.e. balance changes if we don't know when commit happens?)
@@ -87,6 +111,13 @@ func (s *StatefulSyncer) BlockRemoved(ctx context.Context, blockIdentifier *type
 	if err != nil {
 		return fmt.Errorf("%w: unable to remove block from storage %s:%d", err, blockIdentifier.Hash, blockIdentifier.Index)
 	}
+
+	if err := s.logger.RemoveBlockStream(ctx, blockIdentifier); err != nil {
+		return nil
+	}
+
+	// Update Counters
+	_, _ = s.counterStorage.Update(ctx, storage.OrphanCounter, big.NewInt(1))
 
 	return err
 }
