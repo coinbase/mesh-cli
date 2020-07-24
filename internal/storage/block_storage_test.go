@@ -263,7 +263,10 @@ func TestBlock(t *testing.T) {
 	storage := NewBlockStorage(database)
 
 	t.Run("Get non-existent tx", func(t *testing.T) {
-		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
 		assert.NoError(t, err)
 		assert.Nil(t, txBlocks)
 		assert.Equal(t, int64(-1), headDistance)
@@ -281,7 +284,10 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock.BlockIdentifier, head)
 
-		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, txBlocks, 1)
 		assert.Equal(t, newBlock.BlockIdentifier, txBlocks[0])
@@ -315,10 +321,17 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, txBlocks, 2)
-		assert.ElementsMatch(t, []*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier}, txBlocks)
+		assert.ElementsMatch(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
+			txBlocks,
+		)
 		assert.Equal(t, int64(1), headDistance)
 	})
 
@@ -337,10 +350,17 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		txBlocks, headDistance, err := storage.FindTransaction(ctx, newBlock.Transactions[0].TransactionIdentifier)
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, txBlocks, 2)
-		assert.ElementsMatch(t, []*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier}, txBlocks)
+		assert.ElementsMatch(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
+			txBlocks,
+		)
 		assert.Equal(t, int64(1), headDistance)
 	})
 

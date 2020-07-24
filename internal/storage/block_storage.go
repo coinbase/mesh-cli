@@ -222,7 +222,12 @@ func (b *BlockStorage) AddBlock(
 
 	// Store all transaction hashes
 	for _, txn := range block.Transactions {
-		err = b.storeTransactionHash(ctx, transaction, block.BlockIdentifier, txn.TransactionIdentifier)
+		err = b.storeTransactionHash(
+			ctx,
+			transaction,
+			block.BlockIdentifier,
+			txn.TransactionIdentifier,
+		)
 		if err != nil {
 			return fmt.Errorf("%w: unable to store transaction hash", err)
 		}
@@ -423,7 +428,13 @@ func (b *BlockStorage) storeTransactionHash(
 	}
 
 	if _, exists := blocks[block.Hash]; exists {
-		return fmt.Errorf("%w: duplicate transaction %s found in block %s:%d", ErrDuplicateTransactionHash, blockTransaction.Hash, block.Hash, block.Index)
+		return fmt.Errorf(
+			"%w: duplicate transaction %s found in block %s:%d",
+			ErrDuplicateTransactionHash,
+			blockTransaction.Hash,
+			block.Hash,
+			block.Index,
+		)
 	}
 
 	blocks[block.Hash] = block.Index
