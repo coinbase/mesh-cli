@@ -60,6 +60,24 @@ func getCoinAccountKey(accountIdentifier *types.AccountIdentifier) []byte {
 	return []byte(fmt.Sprintf("%s/%s", coinAccountNamespace, types.Hash(accountIdentifier)))
 }
 
+func getAndDecodeCoin(ctx context.Context, transaction DatabaseTransaction, coinIdentifier string) (bool, *Coin, error) {
+	exists, val, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
+	if err != nil {
+		return false, nil, fmt.Errorf("%w: unable to query for coin", err)
+	}
+
+	if !exists { // this could occur if coin was created before we started syncing
+		return false, nil, nil
+	}
+
+	var coin Coin
+	if err := decode(val, &coin); err != nil {
+		return false, nil, fmt.Errorf("%w: unable to decode coin", err)
+	}
+
+	return true, &coin, nil
+}
+
 func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTransaction, blockTransaction *types.Transaction, operation *types.Operation, identiferKey string) error {
 	rawIdentifier, ok := operation.Metadata[identiferKey]
 	if ok {
@@ -228,4 +246,32 @@ func (c *CoinStorage) RemovingBlock(
 	return nil, nil
 }
 
-// func (c *CoinStorage) GetCoins(ctx context.Context, accountIdentifier *types.AccountIdentifier) (*Coin, error) {}
+func (c *CoinStorage) GetCoins(ctx context.Context, accountIdentifier *types.AccountIdentifier) ([]*Coin, error) {
+	transaction := c.db.NewDatabaseTransaction(ctx, false)
+	defer transaction.Discard(ctx)
+
+	accountExists, coins, err := getAndDecodeCoins(ctx, transaction, accountIdentifier)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to query account identifier", err)
+	}
+
+	if !accountExists {
+		return []*Coin{}, nil
+	}
+
+	coinArr := []*Coin{}
+	for coinIdentifier := range coins {
+		exists, coin, err := getAndDecodeCoin(ctx, transaction, coinIdentifier)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to query coin", err)
+		}
+
+		if !exists {
+			return nil, fmt.Errorf("%w: unable to get coin %s", err, coinIdentifier)
+		}
+
+		coinArr = append(coinArr, coin)
+	}
+
+	return coinArr, nil
+}
