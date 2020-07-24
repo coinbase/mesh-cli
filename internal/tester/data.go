@@ -91,7 +91,9 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 }
 
 func (t *DataTester) CloseDatabase(ctx context.Context) {
-	t.database.Close(ctx)
+	if err := t.database.Close(ctx); err != nil {
+		log.Fatalf("%s: error closing database", err.Error())
+	}
 }
 
 func InitializeData(
