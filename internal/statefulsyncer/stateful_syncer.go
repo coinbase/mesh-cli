@@ -2,27 +2,15 @@ package statefulsyncer
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
 	"math/big"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
 	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 )
 
 var _ syncer.Handler = (*StatefulSyncer)(nil)
@@ -33,23 +21,17 @@ type StatefulSyncer struct {
 	logger         *logger.Logger
 	syncer         *syncer.Syncer
 	workers        []storage.BlockWorker
-	handlers       []Handler
 }
 
 func New(
 	ctx context.Context,
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
-	db storage.Database,
+	blockStorage *storage.BlockStorage,
 	logger *logger.Logger,
 	cancel context.CancelFunc,
 	workers []storage.BlockWorker,
-	handlers []Handler,
 ) *StatefulSyncer {
-	// Load storage backends
-	counterStorage := storage.NewCounterStorage(db)
-	blockStorage := storage.NewBlockStorage(db)
-
 	// Load in previous blocks into syncer cache to handle reorgs.
 	// If previously processed blocks exist in storage, they are fetched.
 	// Otherwise, none are provided to the cache (the syncer will not attempt
@@ -59,7 +41,6 @@ func New(
 	s := &StatefulSyncer{
 		blockStorage: blockStorage,
 		workers:      workers,
-		handlers:     handlers,
 	}
 
 	s.syncer = syncer.New(
@@ -74,6 +55,18 @@ func New(
 }
 
 func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex int64) error {
+	// Ensure storage is in correct state for starting at index
+	if startIndex != -1 { // attempt to remove blocks from storage (without handling)
+		if err := s.blockStorage.SetNewStartIndex(ctx, startIndex, s.workers); err != nil {
+			return fmt.Errorf("%w: unable to set new start index", err)
+		}
+	} else { // attempt to load last processed index
+		head, err := s.blockStorage.GetHeadBlockIdentifier(ctx)
+		if err == nil {
+			startIndex = head.Index + 1
+		}
+	}
+
 	return s.syncer.Sync(ctx, startIndex, endIndex)
 }
 
@@ -101,9 +94,6 @@ func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) err
 	_, _ = s.counterStorage.Update(ctx, storage.OperationCounter, big.NewInt(opCount))
 
 	return nil
-
-	// how to get info out of workers to log? (i.e. balance changes if we don't know when commit happens?)
-	// i guess this would have to be stored or computed on the fly?
 }
 
 func (s *StatefulSyncer) BlockRemoved(ctx context.Context, blockIdentifier *types.BlockIdentifier) error {

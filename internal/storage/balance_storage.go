@@ -9,7 +9,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
-	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -43,68 +43,51 @@ func GetBalanceKey(account *types.AccountIdentifier, currency *types.Currency) [
 	)
 }
 
-type BalanceHandler interface {
+type BalanceStorageHandler interface {
 	BlockAdded(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
 	BlockRemoved(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error
+}
+
+// BalanceStorageHelper functions are used by BalanceStorage to process balances. Defining an
+// interface allows the client to determine if they wish to query the node for
+// certain information or use another datastore.
+type BalanceStorageHelper interface {
+	AccountBalance(
+		ctx context.Context,
+		account *types.AccountIdentifier,
+		currency *types.Currency,
+		block *types.BlockIdentifier,
+	) (*types.Amount, error)
+
+	ExemptFunc() parser.ExemptOperation
+	Asserter() *asserter.Asserter
 }
 
 // BalanceStorage implements block specific storage methods
 // on top of a Database and DatabaseTransaction interface.
 type BalanceStorage struct {
-	db Database
+	db      Database
+	helper  BalanceStorageHelper
+	handler BalanceStorageHandler
 
-	network *types.NetworkIdentifier
-	fetcher *fetcher.Fetcher
-	parser  *parser.Parser
-	handler BalanceHandler
-
-	// Configuration settings
-	lookupBalanceByBlock bool
-	exemptAccounts       map[string]struct{}
+	parser *parser.Parser
 }
 
 // NewBalanceStorage returns a new BalanceStorage.
 func NewBalanceStorage(
 	db Database,
-	network *types.NetworkIdentifier,
-	fetcher *fetcher.Fetcher,
-	lookupBalanceByBlock bool,
-	exemptAccounts []*reconciler.AccountCurrency,
-	handler BalanceHandler,
 ) *BalanceStorage {
-	exemptMap := map[string]struct{}{}
-
-	// Pre-process exemptAccounts on initialization
-	// to provide fast lookup while syncing.
-	for _, account := range exemptAccounts {
-		exemptMap[types.Hash(account)] = struct{}{}
+	return &BalanceStorage{
+		db: db,
 	}
-
-	b := &BalanceStorage{
-		db:                   db,
-		network:              network,
-		fetcher:              fetcher,
-		lookupBalanceByBlock: lookupBalanceByBlock,
-		exemptAccounts:       exemptMap,
-		handler:              handler,
-	}
-
-	b.parser = parser.New(fetcher.Asserter, b.ExemptFunc())
-
-	return b
 }
 
-// ExemptFunc returns a parser.ExemptOperation.
-func (b *BalanceStorage) ExemptFunc() parser.ExemptOperation {
-	return func(op *types.Operation) bool {
-		thisAcct := types.Hash(&reconciler.AccountCurrency{
-			Account:  op.Account,
-			Currency: op.Amount.Currency,
-		})
-
-		_, exists := b.exemptAccounts[thisAcct]
-		return exists
-	}
+// Needed to initialize in write order ... must be called before beginning syncing but allows
+// for certain queries to be performed that just access/modify balance state
+func (b *BalanceStorage) Initialize(helper BalanceStorageHelper, handler BalanceStorageHandler) {
+	b.helper = helper
+	b.handler = handler
+	b.parser = parser.New(helper.Asserter(), helper.ExemptFunc())
 }
 
 func (b *BalanceStorage) AddingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) (CommitWorker, error) {
@@ -174,40 +157,6 @@ func (b *BalanceStorage) SetBalance(
 	return nil
 }
 
-func (b *BalanceStorage) AccountBalance(
-	ctx context.Context,
-	account *types.AccountIdentifier,
-	currency *types.Currency,
-	block *types.BlockIdentifier,
-) (*types.Amount, error) {
-	if !b.lookupBalanceByBlock {
-		return &types.Amount{
-			Value:    "0",
-			Currency: currency,
-		}, nil
-	}
-
-	// In the case that we are syncing from arbitrary height,
-	// we may need to recover the balance of an account to
-	// perform validations.
-	_, value, err := reconciler.GetCurrencyBalance(
-		ctx,
-		b.fetcher,
-		b.network,
-		account,
-		currency,
-		types.ConstructPartialBlockIdentifier(block),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get currency balance in storage helper", err)
-	}
-
-	return &types.Amount{
-		Value:    value,
-		Currency: currency,
-	}, nil
-}
-
 // UpdateBalance updates a types.AccountIdentifer
 // by a types.Amount and sets the account's most
 // recent accessed block.
@@ -246,7 +195,7 @@ func (b *BalanceStorage) UpdateBalance(
 		existingValue = "0"
 	default:
 		// Use helper to fetch existing balance.
-		amount, err := b.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
+		amount, err := b.helper.AccountBalance(ctx, change.Account, change.Currency, parentBlock)
 		if err != nil {
 			return fmt.Errorf("%w: unable to get previous account balance", err)
 		}
@@ -312,7 +261,7 @@ func (b *BalanceStorage) GetBalance(
 	// we fetch the balance from the node for the given height and persist
 	// it. This is particularly useful when monitoring interesting accounts.
 	if !exists {
-		amount, err := b.AccountBalance(ctx, account, currency, headBlock)
+		amount, err := b.helper.AccountBalance(ctx, account, currency, headBlock)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to get account balance from helper", err)
 		}
@@ -371,13 +320,6 @@ func (b *BalanceStorage) BootstrapBalances(
 	if err := utils.LoadAndParse(bootstrapBalancesFile, &balances); err != nil {
 		return err
 	}
-
-	// TODO: check outside of this function
-	// _, err := blockStorage.GetHeadBlockIdentifier(ctx)
-	// if err != ErrHeadBlockNotFound {
-	// 	log.Println("Skipping balance bootstrapping because already started syncing")
-	// 	return nil
-	// }
 
 	// Update balances in database
 	dbTransaction := b.db.NewDatabaseTransaction(ctx, true)
