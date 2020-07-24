@@ -72,10 +72,6 @@ of what one of these files looks like.`,
 
 	// EndIndex is the block index to stop syncing.
 	EndIndex int64
-
-	// signalReceived is set to true when a signal causes us to exit. This makes
-	// determining the error message to show on exit much more easy.
-	signalReceived = false
 )
 
 func init() {

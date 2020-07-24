@@ -93,7 +93,7 @@ type BlockWorker interface {
 }
 
 // CommitWorker is returned by a BlockWorker to be called after
-// changes have been commited. It is common to put logging activities
+// changes have been committed. It is common to put logging activities
 // in here (that shouldn't be printed until the block is committed).
 type CommitWorker func(context.Context) error
 
@@ -288,7 +288,12 @@ func (b *BlockStorage) RemoveBlock(
 	return b.callWorkersAndCommit(ctx, block, transaction, false)
 }
 
-func (b *BlockStorage) callWorkersAndCommit(ctx context.Context, block *types.Block, txn DatabaseTransaction, adding bool) error {
+func (b *BlockStorage) callWorkersAndCommit(
+	ctx context.Context,
+	block *types.Block,
+	txn DatabaseTransaction,
+	adding bool,
+) error {
 	commitWorkers := make([]CommitWorker, len(b.workers))
 	for i, w := range b.workers {
 		var cw CommitWorker

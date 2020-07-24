@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package statefulsyncer
 
 import (
@@ -22,7 +36,6 @@ type StatefulSyncer struct {
 	blockStorage   *storage.BlockStorage
 	counterStorage *storage.CounterStorage
 	logger         *logger.Logger
-	syncer         *syncer.Syncer
 	workers        []storage.BlockWorker
 }
 
@@ -82,7 +95,12 @@ func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex in
 func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) error {
 	err := s.blockStorage.AddBlock(ctx, block)
 	if err != nil {
-		return fmt.Errorf("%w: unable to add block to storage %s:%d", err, block.BlockIdentifier.Hash, block.BlockIdentifier.Index)
+		return fmt.Errorf(
+			"%w: unable to add block to storage %s:%d",
+			err,
+			block.BlockIdentifier.Hash,
+			block.BlockIdentifier.Index,
+		)
 	}
 
 	if err := s.logger.AddBlockStream(ctx, block); err != nil {
@@ -105,10 +123,18 @@ func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) err
 	return nil
 }
 
-func (s *StatefulSyncer) BlockRemoved(ctx context.Context, blockIdentifier *types.BlockIdentifier) error {
+func (s *StatefulSyncer) BlockRemoved(
+	ctx context.Context,
+	blockIdentifier *types.BlockIdentifier,
+) error {
 	err := s.blockStorage.RemoveBlock(ctx, blockIdentifier)
 	if err != nil {
-		return fmt.Errorf("%w: unable to remove block from storage %s:%d", err, blockIdentifier.Hash, blockIdentifier.Index)
+		return fmt.Errorf(
+			"%w: unable to remove block from storage %s:%d",
+			err,
+			blockIdentifier.Hash,
+			blockIdentifier.Index,
+		)
 	}
 
 	if err := s.logger.RemoveBlockStream(ctx, blockIdentifier); err != nil {

@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package processor
 
 import (
@@ -36,7 +50,11 @@ func NewBalanceStorageHandler(
 }
 
 // May make sense to define a separate handler that is created during initializiation
-func (h *BalanceStorageHandler) BlockAdded(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error {
+func (h *BalanceStorageHandler) BlockAdded(
+	ctx context.Context,
+	block *types.Block,
+	changes []*parser.BalanceChange,
+) error {
 	_ = h.logger.BalanceStream(ctx, changes)
 
 	// When testing, it can be useful to not run any reconciliations to just check
@@ -71,7 +89,12 @@ func (h *BalanceStorageHandler) BlockAdded(ctx context.Context, block *types.Blo
 	// blocking
 	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, changes)
 }
-func (h *BalanceStorageHandler) BlockRemoved(ctx context.Context, block *types.Block, changes []*parser.BalanceChange) error {
+
+func (h *BalanceStorageHandler) BlockRemoved(
+	ctx context.Context,
+	block *types.Block,
+	changes []*parser.BalanceChange,
+) error {
 	_ = h.logger.BalanceStream(ctx, changes)
 
 	// We only attempt to reconciler changes when blocks are added,
