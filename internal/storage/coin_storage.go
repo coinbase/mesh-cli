@@ -60,8 +60,8 @@ func getCoinKey(identifier string) []byte {
 	return []byte(fmt.Sprintf("%s/%s", coinNamespace, identifier))
 }
 
-func getCoinAccountKey(address string) []byte {
-	return []byte(fmt.Sprintf("%s/%s", coinAccountNamespace, address))
+func getCoinAccountKey(accountIdentifier *types.AccountIdentifier) []byte {
+	return []byte(fmt.Sprintf("%s/%s", coinAccountNamespace, types.Hash(accountIdentifier)))
 }
 
 func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTransaction, blockTransaction *types.Transaction, operation *types.Operation, identiferKey string) error {
@@ -87,7 +87,33 @@ func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTra
 			return fmt.Errorf("%w: unable to store coin", err)
 		}
 
-		// TODO: need to link UTXOs with Accounts
+		accountExists, val, err := transaction.Get(ctx, getCoinAccountKey(operation.Account))
+		if err != nil {
+			return fmt.Errorf("%w: unable to query coin account", err)
+		}
+
+		var coins map[string]struct{}
+		if !accountExists {
+			coins = map[string]struct{}{}
+			coins[coinIdentifier] = struct{}{}
+		} else {
+			if err := decode(val, &coins); err != nil {
+				return fmt.Errorf("%w: unable to decode coin account", err)
+			}
+
+			if _, exists := coins[coinIdentifier]; exists {
+				return fmt.Errorf("coin %s already exists in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
+			}
+		}
+
+		encodedResult, err = encode(coins)
+		if err != nil {
+			return fmt.Errorf("%w: unable to encode coins", err)
+		}
+
+		if err := transaction.Set(ctx, getCoinAccountKey(operation.Account), encodedResult); err != nil {
+			return fmt.Errorf("%w: unable to set coin account", err)
+		}
 	}
 
 	return nil
@@ -114,7 +140,34 @@ func (c *CoinStorage) tryRemovingCoin(ctx context.Context, transaction DatabaseT
 			return fmt.Errorf("%w: unable to delete coin", err)
 		}
 
-		// TODO: need to link UTXOs with Accounts
+		accountExists, val, err := transaction.Get(ctx, getCoinAccountKey(operation.Account))
+		if err != nil {
+			return fmt.Errorf("%w: unable to query coin account", err)
+		}
+
+		if !accountExists {
+			return fmt.Errorf("%w: unable to find owner of coin", err)
+		}
+
+		var coins map[string]struct{}
+		if err := decode(val, &coins); err != nil {
+			return fmt.Errorf("%w: unable to decode coin account", err)
+		}
+
+		if _, exists := coins[coinIdentifier]; !exists {
+			return fmt.Errorf("unable to find coin %s in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
+		}
+
+		delete(coins, coinIdentifier)
+
+		encodedResult, err := encode(coins)
+		if err != nil {
+			return fmt.Errorf("%w: unable to encode coins", err)
+		}
+
+		if err := transaction.Set(ctx, getCoinAccountKey(operation.Account), encodedResult); err != nil {
+			return fmt.Errorf("%w: unable to set coin account", err)
+		}
 	}
 
 	return nil
@@ -127,6 +180,10 @@ func (c *CoinStorage) AddingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			if operation.Amount == nil {
+				continue
+			}
+
 			if err := c.tryAddingCoin(ctx, transaction, txn, operation, coinCreated); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
@@ -147,6 +204,10 @@ func (c *CoinStorage) RemovingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			if operation.Amount == nil {
+				continue
+			}
+
 			if err := c.tryAddingCoin(ctx, transaction, txn, operation, coinSpent); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
@@ -160,4 +221,4 @@ func (c *CoinStorage) RemovingBlock(
 	return nil, nil
 }
 
-// func (c *CoinStorage) Balance(address string) {}
+// func (c *CoinStorage) GetCoins(ctx context.Context, accountIdentifier *types.AccountIdentifier) (*Coin, error) {}
