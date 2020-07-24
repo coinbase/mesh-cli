@@ -32,6 +32,16 @@ const (
 
 	// blockNamespace is prepended to any stored block.
 	blockNamespace = "block"
+
+	// blockHashNamespace is prepended to any stored block hash.
+	// We cannot just use the stored block key to lookup whether
+	// a hash has been used before because it is concatenated
+	// with the index of the stored block.
+	blockHashNamespace = "block-hash"
+
+	// transactionHashNamespace is prepended to any stored
+	// transaction hash.
+	transactionHashNamespace = "transaction-hash"
 )
 
 var (
@@ -42,6 +52,18 @@ var (
 	// ErrBlockNotFound is returned when a block is not
 	// found in BlockStorage.
 	ErrBlockNotFound = errors.New("block not found")
+
+	// ErrDuplicateBlockHash is returned when a block hash
+	// cannot be stored because it is a duplicate.
+	ErrDuplicateBlockHash = errors.New("duplicate block hash")
+
+	// ErrDuplicateTransactionHash is returned when a transaction
+	// hash cannot be stored because it is a duplicate.
+	ErrDuplicateTransactionHash = errors.New("duplicate transaction hash")
+
+	// ErrDuplicateKey is returned when trying to store a key that
+	// already exists (this is used by storeHash).
+	ErrDuplicateKey = errors.New("duplicate key")
 )
 
 func getHeadBlockKey() []byte {
@@ -52,6 +74,14 @@ func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
 	return []byte(
 		fmt.Sprintf("%s/%s/%d", blockNamespace, blockIdentifier.Hash, blockIdentifier.Index),
 	)
+}
+
+func getBlockHashKey(hash string) []byte {
+	return []byte(fmt.Sprintf("%s/%s", blockHashNamespace, hash))
+}
+
+func getTransactionHashKey(blockHash string, transactionHash string) []byte {
+	return []byte(fmt.Sprintf("%s/%s/%s", transactionHashNamespace, blockHash, transactionHash))
 }
 
 type BlockWorker interface {
@@ -165,6 +195,38 @@ func (b *BlockStorage) AddBlock(
 		return err
 	}
 
+	// Store block hash
+	blockHashKey := getBlockHashKey(block.BlockIdentifier.Hash)
+	err = b.storeHash(ctx, transaction, blockHashKey)
+	if errors.Is(err, ErrDuplicateKey) {
+		return fmt.Errorf(
+			"%w %s",
+			ErrDuplicateBlockHash,
+			block.BlockIdentifier.Hash,
+		)
+	} else if err != nil {
+		return fmt.Errorf("%w: unable to store block hash", err)
+	}
+
+	// Store all transaction hashes
+	for _, txn := range block.Transactions {
+		transactionHashKey := getTransactionHashKey(
+			block.BlockIdentifier.Hash,
+			txn.TransactionIdentifier.Hash,
+		)
+		err = b.storeHash(ctx, transaction, transactionHashKey)
+		if errors.Is(err, ErrDuplicateKey) {
+			return fmt.Errorf(
+				"%w transaction %s appears multiple times in block %s",
+				ErrDuplicateTransactionHash,
+				txn.TransactionIdentifier.Hash,
+				block.BlockIdentifier.Hash,
+			)
+		} else if err != nil {
+			return fmt.Errorf("%w: unable to store transaction hash", err)
+		}
+	}
+
 	for _, w := range workers {
 		if err := w.AddingBlock(ctx, block, transaction); err != nil {
 			return err
@@ -194,6 +256,23 @@ func (b *BlockStorage) RemoveBlock(
 
 	transaction := b.db.NewDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
+
+	// Remove all transaction hashes
+	for _, txn := range block.Transactions {
+		err = transaction.Delete(
+			ctx,
+			getTransactionHashKey(block.BlockIdentifier.Hash, txn.TransactionIdentifier.Hash),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove block hash
+	err = transaction.Delete(ctx, getBlockHashKey(block.BlockIdentifier.Hash))
+	if err != nil {
+		return err
+	}
 
 	// Remove block
 	if err := transaction.Delete(ctx, getBlockKey(block.BlockIdentifier)); err != nil {
@@ -281,3 +360,24 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 
 	return cache
 }
+
+// storeHash stores either a block or transaction hash.
+// TODO: store block hash in transaction hash value
+func (b *BlockStorage) storeHash(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	hashKey []byte,
+) error {
+	exists, _, err := transaction.Get(ctx, hashKey)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return ErrDuplicateKey
+	}
+
+	return transaction.Set(ctx, hashKey, []byte(""))
+}
+
+// TODO: get depth of transaction hash
