@@ -78,7 +78,7 @@ func TestExemptFunc(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			helper := NewBlockStorageHelper(nil, nil, false, test.exemptAccounts)
+			helper := NewBalanceStorageHelper(nil, nil, false, test.exemptAccounts)
 
 			result := helper.ExemptFunc()(&types.Operation{
 				Account: opAmountCurrency.Account,

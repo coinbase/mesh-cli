@@ -16,50 +16,14 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
-	"math/big"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/internal/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/coinbase/rosetta-sdk-go/reconciler"
-	"github.com/coinbase/rosetta-sdk-go/syncer"
-	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
-)
-
-const (
-	// ExtendedRetryElapsedTime is used to override the default fetcher
-	// retry elapsed time. In practice, extending the retry elapsed time
-	// has prevented retry exhaustion errors when many goroutines are
-	// used to fetch data from the Rosetta server.
-	//
-	// TODO: make configurable
-	ExtendedRetryElapsedTime = 5 * time.Minute
-
-	// InactiveFailureLookbackWindow is the size of each window to check
-	// for missing ops. If a block with missing ops is not found in this
-	// window, another window is created with the preceding
-	// InactiveFailureLookbackWindow blocks (this process continues
-	// until the client halts the search or the block is found).
-	InactiveFailureLookbackWindow = 250
-
-	// PeriodicLoggingFrequency is the frequency that stats are printed
-	// to the terminal.
-	//
-	// TODO: make configurable
-	PeriodicLoggingFrequency = 10 * time.Second
 )
 
 var (
@@ -108,10 +72,6 @@ of what one of these files looks like.`,
 
 	// EndIndex is the block index to stop syncing.
 	EndIndex int64
-
-	// signalReceived is set to true when a signal causes us to exit. This makes
-	// determining the error message to show on exit much more easy.
-	signalReceived = false
 )
 
 func init() {
@@ -129,214 +89,9 @@ func init() {
 	)
 }
 
-// loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
-// in a file.
-func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
-	if len(filePath) == 0 {
-		return []*reconciler.AccountCurrency{}, nil
-	}
-
-	accounts := []*reconciler.AccountCurrency{}
-	if err := utils.LoadAndParse(filePath, &accounts); err != nil {
-		return nil, fmt.Errorf("%w: unable to open account file", err)
-	}
-
-	log.Printf(
-		"Found %d accounts at %s: %s\n",
-		len(accounts),
-		filePath,
-		types.PrettyPrintStruct(accounts),
-	)
-
-	return accounts, nil
-}
-
-// findMissingOps returns the types.BlockIdentifier of a block
-// that is missing balance-changing operations for a
-// *reconciler.AccountCurrency.
-func findMissingOps(
-	ctx context.Context,
-	sigListeners *[]context.CancelFunc,
-	accountCurrency *reconciler.AccountCurrency,
-	startIndex int64,
-	endIndex int64,
-) (*types.BlockIdentifier, error) {
-	fetcher := fetcher.New(
-		Config.Data.OnlineURL,
-		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
-		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
-		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
-	)
-
-	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to initialize asserter", err)
-	}
-
-	// To cancel all execution, need to call multiple cancel functions.
-	ctx, cancel := context.WithCancel(ctx)
-	*sigListeners = append(*sigListeners, cancel)
-
-	// Always use a temporary directory to find missing ops
-	tmpDir, err := utils.CreateTempDir()
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to create temporary directory", err)
-	}
-	defer utils.RemoveTempDir(tmpDir)
-
-	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to initialize database", err)
-	}
-
-	counterStorage := storage.NewCounterStorage(localStore)
-
-	logger := logger.NewLogger(
-		counterStorage,
-		tmpDir,
-		false,
-		false,
-		false,
-		false,
-	)
-
-	blockStorageHelper := processor.NewBlockStorageHelper(
-		primaryNetwork,
-		fetcher,
-		!Config.Data.HistoricalBalanceDisabled,
-		nil,
-	)
-
-	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
-
-	// Ensure storage is in correct state for starting at index
-	if err = blockStorage.SetNewStartIndex(ctx, startIndex); err != nil {
-		return nil, fmt.Errorf("%w: unable to set new start index", err)
-	}
-
-	reconcilerHelper := processor.NewReconcilerHelper(
-		blockStorage,
-	)
-
-	reconcilerHandler := processor.NewReconcilerHandler(
-		logger,
-		true, // halt on reconciliation error
-	)
-
-	r := reconciler.New(
-		primaryNetwork,
-		reconcilerHelper,
-		reconcilerHandler,
-		fetcher,
-
-		// When using concurrency > 1, we could start looking up balance changes
-		// on multiple blocks at once. This can cause us to return the wrong block
-		// that is missing operations.
-		reconciler.WithActiveConcurrency(1),
-
-		// Do not do any inactive lookups when looking for the block with missing
-		// operations.
-		reconciler.WithInactiveConcurrency(0),
-		reconciler.WithLookupBalanceByBlock(!Config.Data.HistoricalBalanceDisabled),
-		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
-	)
-
-	syncerHandler := processor.NewSyncerHandler(
-		blockStorage,
-		logger,
-		r,
-		fetcher,
-		accountCurrency,
-	)
-
-	g, ctx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return r.Reconcile(ctx)
-	})
-
-	syncer := syncer.New(
-		primaryNetwork,
-		fetcher,
-		syncerHandler,
-		cancel,
-		nil,
-	)
-
-	g.Go(func() error {
-		return syncer.Sync(
-			ctx,
-			startIndex,
-			endIndex,
-		)
-	})
-
-	err = g.Wait()
-
-	// Close database before starting another search, otherwise we will
-	// have n databases open when we find the offending block.
-	if storageErr := localStore.Close(ctx); storageErr != nil {
-		return nil, fmt.Errorf("%w: unable to close database", storageErr)
-	}
-
-	if signalReceived {
-		return nil, errors.New("Search for block with missing ops halted")
-	}
-
-	if err == nil || err == context.Canceled {
-		newStart := startIndex - InactiveFailureLookbackWindow
-		if newStart < networkStatus.GenesisBlockIdentifier.Index {
-			newStart = networkStatus.GenesisBlockIdentifier.Index
-		}
-
-		newEnd := endIndex - InactiveFailureLookbackWindow
-		if newEnd <= newStart {
-			return nil, fmt.Errorf(
-				"Next window to check has start index %d <= end index %d",
-				newStart,
-				newEnd,
-			)
-		}
-
-		color.Red(
-			"Unable to find missing ops in block range %d-%d, now searching %d-%d",
-			startIndex, endIndex,
-			newStart,
-			newEnd,
-		)
-
-		return findMissingOps(
-			// We need to use new context for each invocation because the syncer
-			// cancels the provided context when it reaches the end of a syncing
-			// window.
-			context.Background(),
-			sigListeners,
-			accountCurrency,
-			startIndex-InactiveFailureLookbackWindow,
-			endIndex-InactiveFailureLookbackWindow,
-		)
-	}
-
-	if reconcilerHandler.ActiveFailureBlock == nil {
-		return nil, errors.New("unable to find missing ops")
-	}
-
-	return reconcilerHandler.ActiveFailureBlock, nil
-}
-
 func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(context.Background())
-
-	exemptAccounts, err := loadAccounts(Config.Data.ExemptAccounts)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to load exempt accounts", err))
-	}
-
-	interestingAccounts, err := loadAccounts(Config.Data.InterestingAccounts)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to load interesting accounts", err))
-	}
 
 	fetcher := fetcher.New(
 		Config.Data.OnlineURL,
@@ -351,223 +106,47 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
 	}
 
-	localStore, err := storage.NewBadgerStorage(ctx, Config.Data.DataDirectory)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize database", err))
-	}
-	defer localStore.Close(ctx)
-
-	counterStorage := storage.NewCounterStorage(localStore)
-
-	logger := logger.NewLogger(
-		counterStorage,
-		Config.Data.DataDirectory,
-		Config.Data.LogBlocks,
-		Config.Data.LogTransactions,
-		Config.Data.LogBalanceChanges,
-		Config.Data.LogReconciliations,
-	)
-
-	blockStorageHelper := processor.NewBlockStorageHelper(
+	dataTester := tester.InitializeData(
+		ctx,
+		Config,
 		primaryNetwork,
 		fetcher,
-		!Config.Data.HistoricalBalanceDisabled,
-		exemptAccounts,
-	)
-
-	blockStorage := storage.NewBlockStorage(localStore, blockStorageHelper)
-
-	// Bootstrap balances if provided
-	if len(Config.Data.BootstrapBalances) > 0 {
-		err = blockStorage.BootstrapBalances(
-			ctx,
-			Config.Data.BootstrapBalances,
-			networkStatus.GenesisBlockIdentifier,
-		)
-		if err != nil {
-			log.Fatal(fmt.Errorf("%w: unable to bootstrap balances", err))
-		}
-	}
-
-	// Ensure storage is in correct state for starting at index
-	if StartIndex != -1 { // attempt to remove blocks from storage (without handling)
-		if err = blockStorage.SetNewStartIndex(ctx, StartIndex); err != nil {
-			log.Fatal(fmt.Errorf("%w: unable to set new start index", err))
-		}
-	} else { // attempt to load last processed index
-		head, err := blockStorage.GetHeadBlockIdentifier(ctx)
-		if err == nil {
-			StartIndex = head.Index + 1
-		}
-	}
-
-	// Get all previously seen accounts
-	seenAccounts, err := blockStorage.GetAllAccountCurrency(ctx)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to get previously seen accounts", err))
-	}
-
-	reconcilerHelper := processor.NewReconcilerHelper(
-		blockStorage,
-	)
-
-	reconcilerHandler := processor.NewReconcilerHandler(
-		logger,
-		!Config.Data.IgnoreReconciliationError,
-	)
-
-	r := reconciler.New(
-		primaryNetwork,
-		reconcilerHelper,
-		reconcilerHandler,
-		fetcher,
-		reconciler.WithActiveConcurrency(int(Config.Data.ActiveReconciliationConcurrency)),
-		reconciler.WithInactiveConcurrency(int(Config.Data.InactiveReconciliationConcurrency)),
-		reconciler.WithLookupBalanceByBlock(!Config.Data.HistoricalBalanceDisabled),
-		reconciler.WithInterestingAccounts(interestingAccounts),
-		reconciler.WithSeenAccounts(seenAccounts),
-		reconciler.WithDebugLogging(Config.Data.LogReconciliations),
-		reconciler.WithInactiveFrequency(int64(Config.Data.InactiveReconciliationFrequency)),
-	)
-
-	syncerHandler := processor.NewSyncerHandler(
-		blockStorage,
-		logger,
-		r,
-		fetcher,
+		cancel,
+		networkStatus.GenesisBlockIdentifier,
+		true, // TODO: add config for not reconciling
 		nil,
+		&SignalReceived,
 	)
+
+	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		for ctx.Err() == nil {
-			_ = logger.LogCounterStorage(ctx)
-			time.Sleep(PeriodicLoggingFrequency)
-		}
-
-		// Print stats one last time before exiting
-		_ = logger.LogCounterStorage(ctx)
-
-		return nil
+		return dataTester.StartPeriodicLogger(ctx)
 	})
 
 	g.Go(func() error {
-		return r.Reconcile(ctx)
+		return dataTester.StartReconciler(ctx)
 	})
-
-	// Load in previous blocks into syncer cache to handle reorgs.
-	// If previously processed blocks exist in storage, they are fetched.
-	// Otherwise, none are provided to the cache (the syncer will not attempt
-	// a reorg if the cache is empty).
-	pastBlocks := []*types.BlockIdentifier{}
-	if StartIndex != -1 {
-		// This is the case if blocks already in storage or if stateless start
-		pastBlocks = blockStorage.CreateBlockCache(ctx)
-	}
-
-	syncer := syncer.New(
-		primaryNetwork,
-		fetcher,
-		syncerHandler,
-		cancel, // needed to exit without error when --end flag provided
-		pastBlocks,
-	)
 
 	g.Go(func() error {
-		return syncer.Sync(
-			ctx,
-			StartIndex,
-			EndIndex,
-		)
+		return dataTester.StartSyncing(ctx, StartIndex, EndIndex)
 	})
 
-	// Handle OS signals so we can ensure we close database
-	// correctly. We call multiple sigListeners because we
-	// may need to cancel more than 1 context.
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	sigListeners := []context.CancelFunc{cancel}
-	go func() {
-		sig := <-sigs
-		color.Red("Received signal: %s", sig)
-		signalReceived = true
-		for _, listener := range sigListeners {
-			listener()
-		}
-	}()
+	go handleSignals(sigListeners)
 
-	handleCheckResult(g, counterStorage, reconcilerHandler, sigListeners)
-}
+	err = g.Wait()
 
-// handleCheckResult interprets the check exectution result
-// and terminates with the correct exit status.
-func handleCheckResult(
-	g *errgroup.Group,
-	counterStorage *storage.CounterStorage,
-	reconcilerHandler *processor.ReconcilerHandler,
-	sigListeners []context.CancelFunc,
-) {
 	// Initialize new context because calling context
 	// will no longer be usable when after termination.
-	ctx := context.Background()
+	ctx = context.Background()
 
-	err := g.Wait()
-	if signalReceived {
-		color.Red("Check halted")
-		os.Exit(1)
-		return
-	}
+	// HandleErr will exit if we should not attempt
+	// to find missing operations.
+	dataTester.HandleErr(ctx, err)
 
-	if err == nil || err == context.Canceled { // err == context.Canceled when --end
-		activeReconciliations, activeErr := counterStorage.Get(
-			ctx,
-			storage.ActiveReconciliationCounter,
-		)
-		inactiveReconciliations, inactiveErr := counterStorage.Get(
-			ctx,
-			storage.InactiveReconciliationCounter,
-		)
-
-		if activeErr != nil || inactiveErr != nil ||
-			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
-			color.Green("Check succeeded")
-		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
-			color.Yellow("Check succeeded, however, no reconciliations were performed!")
-		}
-		os.Exit(0)
-	}
-
-	color.Red("Check failed: %s", err.Error())
-	if reconcilerHandler.InactiveFailure == nil {
-		os.Exit(1)
-	}
-
-	if Config.Data.HistoricalBalanceDisabled {
-		color.Red(
-			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
-		)
-		os.Exit(1)
-	}
-
-	color.Red("Searching for block with missing operations...hold tight")
-	badBlock, err := findMissingOps(
-		ctx,
-		&sigListeners,
-		reconcilerHandler.InactiveFailure,
-		reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,
-		reconcilerHandler.InactiveFailureBlock.Index,
-	)
-	if err != nil {
-		color.Red("%s: could not find block with missing ops", err.Error())
-		os.Exit(1)
-	}
-
-	color.Red(
-		"Missing ops for %s in block %d:%s",
-		types.AccountString(reconcilerHandler.InactiveFailure.Account),
-		badBlock.Index,
-		badBlock.Hash,
-	)
-	os.Exit(1)
+	// TODO: make configurable to run
+	dataTester.FindMissingOps(ctx, sigListeners)
 }

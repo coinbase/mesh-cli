@@ -26,15 +26,18 @@ import (
 // ReconcilerHelper implements the Reconciler.Helper
 // interface.
 type ReconcilerHelper struct {
-	storage *storage.BlockStorage
+	blockStorage   *storage.BlockStorage
+	balanceStorage *storage.BalanceStorage
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
 func NewReconcilerHelper(
-	storage *storage.BlockStorage,
+	blockStorage *storage.BlockStorage,
+	balanceStorage *storage.BalanceStorage,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
-		storage: storage,
+		blockStorage:   blockStorage,
+		balanceStorage: balanceStorage,
 	}
 }
 
@@ -46,7 +49,7 @@ func (h *ReconcilerHelper) BlockExists(
 	ctx context.Context,
 	block *types.BlockIdentifier,
 ) (bool, error) {
-	_, err := h.storage.GetBlock(ctx, block)
+	_, err := h.blockStorage.GetBlock(ctx, block)
 	if err == nil {
 		return true, nil
 	}
@@ -64,7 +67,7 @@ func (h *ReconcilerHelper) BlockExists(
 func (h *ReconcilerHelper) CurrentBlock(
 	ctx context.Context,
 ) (*types.BlockIdentifier, error) {
-	return h.storage.GetHeadBlockIdentifier(ctx)
+	return h.blockStorage.GetHeadBlockIdentifier(ctx)
 }
 
 // AccountBalance returns the balance of an account in block storage.
@@ -76,5 +79,5 @@ func (h *ReconcilerHelper) AccountBalance(
 	currency *types.Currency,
 	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
-	return h.storage.GetBalance(ctx, account, currency, headBlock)
+	return h.balanceStorage.GetBalance(ctx, account, currency, headBlock)
 }

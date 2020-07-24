@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/coinbase/rosetta-cli/internal/storage"
+
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -25,9 +27,11 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-// BlockStorageHelper implements the storage.Helper
+var _ storage.BalanceStorageHelper = (*BalanceStorageHelper)(nil)
+
+// BalanceStorageHelper implements the storage.Helper
 // interface.
-type BlockStorageHelper struct {
+type BalanceStorageHelper struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
@@ -36,13 +40,13 @@ type BlockStorageHelper struct {
 	exemptAccounts       map[string]struct{}
 }
 
-// NewBlockStorageHelper returns a new BlockStorageHelper.
-func NewBlockStorageHelper(
+// NewBalanceStorageHelper returns a new BalanceStorageHelper.
+func NewBalanceStorageHelper(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
 	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
-) *BlockStorageHelper {
+) *BalanceStorageHelper {
 	exemptMap := map[string]struct{}{}
 
 	// Pre-process exemptAccounts on initialization
@@ -51,7 +55,7 @@ func NewBlockStorageHelper(
 		exemptMap[types.Hash(account)] = struct{}{}
 	}
 
-	return &BlockStorageHelper{
+	return &BalanceStorageHelper{
 		network:              network,
 		fetcher:              fetcher,
 		lookupBalanceByBlock: lookupBalanceByBlock,
@@ -63,7 +67,7 @@ func NewBlockStorageHelper(
 // for a missing account in storage. This is necessary
 // for running the "check" command at an arbitrary height
 // instead of syncing from genesis.
-func (h *BlockStorageHelper) AccountBalance(
+func (h *BalanceStorageHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
@@ -98,12 +102,12 @@ func (h *BlockStorageHelper) AccountBalance(
 }
 
 // Asserter returns a *asserter.Asserter.
-func (h *BlockStorageHelper) Asserter() *asserter.Asserter {
+func (h *BalanceStorageHelper) Asserter() *asserter.Asserter {
 	return h.fetcher.Asserter
 }
 
 // ExemptFunc returns a parser.ExemptOperation.
-func (h *BlockStorageHelper) ExemptFunc() parser.ExemptOperation {
+func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
 		thisAcct := types.Hash(&reconciler.AccountCurrency{
 			Account:  op.Account,

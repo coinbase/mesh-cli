@@ -18,13 +18,13 @@ deps:
 
 lint:
 	golangci-lint run -v \
-		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd
+		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd;
 
 format:
-	gofmt -s -w -l .
+	gofmt -s -w -l .;
 
 check-format:
-	! gofmt -s -l . | read
+	! gofmt -s -l . | read;
 
 test:
 	${TEST_SCRIPT}

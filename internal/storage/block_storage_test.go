@@ -16,19 +16,11 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
-	"github.com/coinbase/rosetta-sdk-go/asserter"
-	"github.com/coinbase/rosetta-sdk-go/parser"
-	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -55,7 +47,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database)
 
 	t.Run("No head block set", func(t *testing.T) {
 		blockIdentifier, err := storage.GetHeadBlockIdentifier(ctx)
@@ -64,7 +56,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	})
 
 	t.Run("Set and get head block", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		assert.NoError(t, storage.StoreHeadBlockIdentifier(ctx, txn, newBlockIdentifier))
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -74,7 +66,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	})
 
 	t.Run("Discard head block update", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		assert.NoError(t, storage.StoreHeadBlockIdentifier(ctx, txn,
 			&types.BlockIdentifier{
 				Hash:  "no blah",
@@ -89,7 +81,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	})
 
 	t.Run("Multiple updates to head block", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		assert.NoError(t, storage.StoreHeadBlockIdentifier(ctx, txn, newBlockIdentifier2))
 		assert.NoError(t, txn.Commit(ctx))
 
@@ -268,10 +260,10 @@ func TestBlock(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database)
 
 	t.Run("Set and get block", func(t *testing.T) {
-		_, err := storage.StoreBlock(ctx, newBlock)
+		err := storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 
 		block, err := storage.GetBlock(ctx, newBlock.BlockIdentifier)
@@ -294,7 +286,7 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Set duplicate block hash", func(t *testing.T) {
-		_, err = storage.StoreBlock(ctx, newBlock)
+		err = storage.AddBlock(ctx, newBlock)
 		assert.EqualError(t, err, fmt.Errorf(
 			"%w %s",
 			ErrDuplicateBlockHash,
@@ -303,7 +295,7 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Set duplicate transaction hash (from prior block)", func(t *testing.T) {
-		_, err = storage.StoreBlock(ctx, newBlock2)
+		err = storage.AddBlock(ctx, newBlock2)
 		assert.NoError(t, err)
 
 		block, err := storage.GetBlock(ctx, newBlock2.BlockIdentifier)
@@ -316,14 +308,14 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
-		_, err := storage.RemoveBlock(ctx, newBlock2.BlockIdentifier)
+		err := storage.RemoveBlock(ctx, newBlock2.BlockIdentifier)
 		assert.NoError(t, err)
 
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.ParentBlockIdentifier, head)
 
-		_, err = storage.StoreBlock(ctx, newBlock2)
+		err = storage.AddBlock(ctx, newBlock2)
 		assert.NoError(t, err)
 
 		head, err = storage.GetHeadBlockIdentifier(ctx)
@@ -332,7 +324,7 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Add block with complex metadata", func(t *testing.T) {
-		_, err := storage.StoreBlock(ctx, complexBlock)
+		err := storage.AddBlock(ctx, complexBlock)
 		assert.NoError(t, err)
 
 		block, err := storage.GetBlock(ctx, complexBlock.BlockIdentifier)
@@ -345,7 +337,7 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Set duplicate transaction hash (same block)", func(t *testing.T) {
-		_, err = storage.StoreBlock(ctx, duplicateTxBlock)
+		err = storage.AddBlock(ctx, duplicateTxBlock)
 		assert.EqualError(t, err, fmt.Errorf(
 			"%w transaction %s appears multiple times in block %s",
 			ErrDuplicateTransactionHash,
@@ -356,580 +348,6 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock.BlockIdentifier, head)
-	})
-}
-
-func TestBalance(t *testing.T) {
-	var (
-		genesisAccount = &types.AccountIdentifier{
-			Address: "genesis",
-		}
-		account = &types.AccountIdentifier{
-			Address: "blah",
-		}
-		account2 = &types.AccountIdentifier{
-			Address: "blah2",
-		}
-		account3 = &types.AccountIdentifier{
-			Address: "blah3",
-		}
-		subAccount = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-			},
-		}
-		subAccountNewPointer = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-			},
-		}
-		subAccountMetadata = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-				Metadata: map[string]interface{}{
-					"cool": "hello",
-				},
-			},
-		}
-		subAccountMetadataNewPointer = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-				Metadata: map[string]interface{}{
-					"cool": "hello",
-				},
-			},
-		}
-		subAccountMetadata2 = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-				Metadata: map[string]interface{}{
-					"cool": float64(10),
-				},
-			},
-		}
-		subAccountMetadata2NewPointer = &types.AccountIdentifier{
-			Address: "blah",
-			SubAccount: &types.SubAccountIdentifier{
-				Address: "stake",
-				Metadata: map[string]interface{}{
-					"cool": float64(10),
-				},
-			},
-		}
-		currency = &types.Currency{
-			Symbol:   "BLAH",
-			Decimals: 2,
-		}
-		amount = &types.Amount{
-			Value:    "100",
-			Currency: currency,
-		}
-		amountWithPrevious = &types.Amount{
-			Value:    "110",
-			Currency: currency,
-		}
-		amountNilCurrency = &types.Amount{
-			Value: "100",
-		}
-		genesisBlock = &types.BlockIdentifier{
-			Hash:  "0",
-			Index: 0,
-		}
-		newBlock = &types.BlockIdentifier{
-			Hash:  "kdasdj",
-			Index: 123890,
-		}
-		newBlock2 = &types.BlockIdentifier{
-			Hash:  "pkdasdj",
-			Index: 123890,
-		}
-		result = &types.Amount{
-			Value:    "200",
-			Currency: currency,
-		}
-		newBlock3 = &types.BlockIdentifier{
-			Hash:  "pkdgdj",
-			Index: 123891,
-		}
-		largeDeduction = &types.Amount{
-			Value:    "-1000",
-			Currency: currency,
-		}
-		mockHelper = &MockBlockStorageHelper{
-			AccountBalances: map[string]string{
-				"genesis": "100",
-			},
-		}
-	)
-
-	ctx := context.Background()
-
-	newDir, err := utils.CreateTempDir()
-	assert.NoError(t, err)
-	defer utils.RemoveTempDir(newDir)
-
-	database, err := NewBadgerStorage(ctx, newDir)
-	assert.NoError(t, err)
-	defer database.Close(ctx)
-
-	storage := NewBlockStorage(database, mockHelper)
-
-	t.Run("Get unset balance", func(t *testing.T) {
-		amount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
-		assert.NoError(t, err)
-		assert.Equal(t, &types.Amount{
-			Value:    "0",
-			Currency: currency,
-		}, amount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("Set and get genesis balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    genesisAccount,
-				Currency:   currency,
-				Block:      genesisBlock,
-				Difference: amount.Value,
-			},
-			genesisBlock,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		amount, block, err := storage.GetBalance(ctx, genesisAccount, currency, genesisBlock)
-		assert.NoError(t, err)
-		assert.Equal(t, &types.Amount{
-			Value:    "100",
-			Currency: currency,
-		}, amount)
-		assert.Equal(t, genesisBlock, block)
-	})
-
-	t.Run("Set and get balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account,
-				Currency:   currency,
-				Block:      newBlock,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
-		assert.NoError(t, err)
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("Set and get balance with storage helper", func(t *testing.T) {
-		mockHelper.AccountBalanceAmount = "10"
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account3,
-				Currency:   currency,
-				Block:      newBlock,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(ctx, account3, currency, newBlock)
-		assert.NoError(t, err)
-		assert.Equal(t, amountWithPrevious, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-
-		mockHelper.AccountBalanceAmount = ""
-	})
-
-	t.Run("Set balance with nil currency", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account,
-				Currency:   nil,
-				Block:      newBlock,
-				Difference: amountNilCurrency.Value,
-			},
-			nil,
-		)
-		assert.EqualError(t, err, "invalid currency")
-		txn.Discard(ctx)
-
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock)
-		assert.NoError(t, err)
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("Modify existing balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account,
-				Currency:   currency,
-				Block:      newBlock2,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock2)
-		assert.NoError(t, err)
-		assert.Equal(t, result, retrievedAmount)
-		assert.Equal(t, newBlock2, block)
-	})
-
-	t.Run("Discard transaction", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account,
-				Currency:   currency,
-				Block:      newBlock3,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-
-		// Get balance during transaction
-		retrievedAmount, block, err := storage.GetBalance(ctx, account, currency, newBlock2)
-		assert.NoError(t, err)
-		assert.Equal(t, result, retrievedAmount)
-		assert.Equal(t, newBlock2, block)
-
-		txn.Discard(ctx)
-	})
-
-	t.Run("Attempt modification to push balance negative on existing account", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account,
-				Currency:   largeDeduction.Currency,
-				Block:      newBlock3,
-				Difference: largeDeduction.Value,
-			},
-			nil,
-		)
-		assert.True(t, errors.Is(err, ErrNegativeBalance))
-		txn.Discard(ctx)
-	})
-
-	t.Run("Attempt modification to push balance negative on new acct", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    account2,
-				Currency:   largeDeduction.Currency,
-				Block:      newBlock2,
-				Difference: largeDeduction.Value,
-			},
-			nil,
-		)
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNegativeBalance))
-		txn.Discard(ctx)
-	})
-
-	t.Run("sub account set and get balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    subAccount,
-				Currency:   amount.Currency,
-				Block:      newBlock,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(
-			ctx,
-			subAccountNewPointer,
-			amount.Currency,
-			newBlock,
-		)
-		assert.NoError(t, err)
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("sub account metadata set and get balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    subAccountMetadata,
-				Currency:   amount.Currency,
-				Block:      newBlock,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(
-			ctx,
-			subAccountMetadataNewPointer,
-			amount.Currency,
-			newBlock,
-		)
-		assert.NoError(t, err)
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("sub account unique metadata set and get balance", func(t *testing.T) {
-		txn := storage.newDatabaseTransaction(ctx, true)
-		err := storage.UpdateBalance(
-			ctx,
-			txn,
-			&parser.BalanceChange{
-				Account:    subAccountMetadata2,
-				Currency:   amount.Currency,
-				Block:      newBlock,
-				Difference: amount.Value,
-			},
-			nil,
-		)
-		assert.NoError(t, err)
-		assert.NoError(t, txn.Commit(ctx))
-
-		retrievedAmount, block, err := storage.GetBalance(
-			ctx,
-			subAccountMetadata2NewPointer,
-			amount.Currency,
-			newBlock,
-		)
-		assert.NoError(t, err)
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, newBlock, block)
-	})
-
-	t.Run("get all set AccountCurrency", func(t *testing.T) {
-		accounts, err := storage.GetAllAccountCurrency(ctx)
-		assert.NoError(t, err)
-		assert.ElementsMatch(t, []*reconciler.AccountCurrency{
-			{
-				Account:  genesisAccount,
-				Currency: currency,
-			},
-			{
-				Account:  account,
-				Currency: currency,
-			},
-			{
-				Account:  account3,
-				Currency: currency,
-			},
-			{
-				Account:  subAccount,
-				Currency: currency,
-			},
-			{
-				Account:  subAccountMetadata,
-				Currency: currency,
-			},
-			{
-				Account:  subAccountMetadata2,
-				Currency: currency,
-			},
-		}, accounts)
-	})
-}
-
-func TestBootstrapBalances(t *testing.T) {
-	var (
-		fileMode               = os.FileMode(0600)
-		genesisBlockIdentifier = &types.BlockIdentifier{
-			Index: 0,
-			Hash:  "0",
-		}
-
-		account = &types.AccountIdentifier{
-			Address: "hello",
-		}
-	)
-
-	ctx := context.Background()
-
-	newDir, err := utils.CreateTempDir()
-	assert.NoError(t, err)
-	defer utils.RemoveTempDir(newDir)
-
-	database, err := NewBadgerStorage(ctx, newDir)
-	assert.NoError(t, err)
-	defer database.Close(ctx)
-
-	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
-	bootstrapBalancesFile := path.Join(newDir, "balances.csv")
-
-	t.Run("File doesn't exist", func(t *testing.T) {
-		err = storage.BootstrapBalances(
-			ctx,
-			bootstrapBalancesFile,
-			genesisBlockIdentifier,
-		)
-		assert.EqualError(t, err, fmt.Sprintf(
-			"open %s: no such file or directory",
-			bootstrapBalancesFile,
-		))
-	})
-
-	t.Run("Set balance successfully", func(t *testing.T) {
-		amount := &types.Amount{
-			Value: "10",
-			Currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-			},
-		}
-
-		file, err := json.MarshalIndent([]*BootstrapBalance{
-			{
-				Account:  account,
-				Value:    amount.Value,
-				Currency: amount.Currency,
-			},
-		}, "", " ")
-		assert.NoError(t, err)
-
-		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
-
-		err = storage.BootstrapBalances(
-			ctx,
-			bootstrapBalancesFile,
-			genesisBlockIdentifier,
-		)
-		assert.NoError(t, err)
-
-		retrievedAmount, blockIdentifier, err := storage.GetBalance(
-			ctx,
-			account,
-			amount.Currency,
-			genesisBlockIdentifier,
-		)
-
-		assert.Equal(t, amount, retrievedAmount)
-		assert.Equal(t, genesisBlockIdentifier, blockIdentifier)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Invalid file contents", func(t *testing.T) {
-		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, []byte("bad file"), fileMode))
-
-		err := storage.BootstrapBalances(
-			ctx,
-			bootstrapBalancesFile,
-			genesisBlockIdentifier,
-		)
-		assert.Error(t, err)
-	})
-
-	t.Run("Invalid account balance", func(t *testing.T) {
-		amount := &types.Amount{
-			Value: "-10",
-			Currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-			},
-		}
-
-		file, err := json.MarshalIndent([]*BootstrapBalance{
-			{
-				Account:  account,
-				Value:    amount.Value,
-				Currency: amount.Currency,
-			},
-		}, "", " ")
-		assert.NoError(t, err)
-
-		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
-
-		err = storage.BootstrapBalances(
-			ctx,
-			bootstrapBalancesFile,
-			genesisBlockIdentifier,
-		)
-		assert.EqualError(t, err, "cannot bootstrap zero or negative balance -10")
-	})
-
-	t.Run("Invalid account value", func(t *testing.T) {
-		amount := &types.Amount{
-			Value: "goodbye",
-			Currency: &types.Currency{
-				Symbol:   "BTC",
-				Decimals: 8,
-			},
-		}
-
-		file, err := json.MarshalIndent([]*BootstrapBalance{
-			{
-				Account:  account,
-				Value:    amount.Value,
-				Currency: amount.Currency,
-			},
-		}, "", " ")
-		assert.NoError(t, err)
-
-		assert.NoError(t, ioutil.WriteFile(bootstrapBalancesFile, file, fileMode))
-
-		err = storage.BootstrapBalances(
-			ctx,
-			bootstrapBalancesFile,
-			genesisBlockIdentifier,
-		)
-		assert.EqualError(t, err, "goodbye is not an integer")
-	})
-
-	t.Run("Head block identifier already set", func(t *testing.T) {
-		tx := storage.newDatabaseTransaction(ctx, true)
-		err := storage.StoreHeadBlockIdentifier(ctx, tx, genesisBlockIdentifier)
-		assert.NoError(t, err)
-		assert.NoError(t, tx.Commit(ctx))
-
-		// Use the created CSV file from the last test
-		err = storage.BootstrapBalances(ctx, bootstrapBalancesFile, genesisBlockIdentifier)
-		assert.NoError(t, err)
 	})
 }
 
@@ -944,14 +362,14 @@ func TestCreateBlockCache(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBlockStorage(database, &MockBlockStorageHelper{})
+	storage := NewBlockStorage(database)
 
 	t.Run("no blocks processed", func(t *testing.T) {
 		assert.Equal(t, []*types.BlockIdentifier{}, storage.CreateBlockCache(ctx))
 	})
 
 	t.Run("1 block processed", func(t *testing.T) {
-		_, err = storage.StoreBlock(ctx, newBlock)
+		err = storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
@@ -961,7 +379,7 @@ func TestCreateBlockCache(t *testing.T) {
 	})
 
 	t.Run("2 blocks processed", func(t *testing.T) {
-		_, err = storage.StoreBlock(ctx, newBlock3)
+		err = storage.AddBlock(ctx, newBlock3)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
@@ -969,73 +387,4 @@ func TestCreateBlockCache(t *testing.T) {
 			storage.CreateBlockCache(ctx),
 		)
 	})
-}
-
-type MockBlockStorageHelper struct {
-	AccountBalanceAmount string
-	AccountBalances      map[string]string
-	ExemptAccounts       []*reconciler.AccountCurrency
-}
-
-func (h *MockBlockStorageHelper) AccountBalance(
-	ctx context.Context,
-	account *types.AccountIdentifier,
-	currency *types.Currency,
-	block *types.BlockIdentifier,
-) (*types.Amount, error) {
-	if balance, ok := h.AccountBalances[account.Address]; ok {
-		return &types.Amount{
-			Value:    balance,
-			Currency: currency,
-		}, nil
-	}
-
-	value := "0"
-	if len(h.AccountBalanceAmount) > 0 {
-		value = h.AccountBalanceAmount
-	}
-
-	return &types.Amount{
-		Value:    value,
-		Currency: currency,
-	}, nil
-}
-
-func (h *MockBlockStorageHelper) Asserter() *asserter.Asserter {
-	a, _ := asserter.NewClientWithOptions(
-		&types.NetworkIdentifier{
-			Blockchain: "bitcoin",
-			Network:    "mainnet",
-		},
-		&types.BlockIdentifier{
-			Hash:  "block 0",
-			Index: 0,
-		},
-		[]string{"Transfer"},
-		[]*types.OperationStatus{
-			{
-				Status:     "Success",
-				Successful: true,
-			},
-		},
-		[]*types.Error{},
-	)
-	return a
-}
-
-func (h *MockBlockStorageHelper) ExemptFunc() parser.ExemptOperation {
-	return func(op *types.Operation) bool {
-		thisAcct := &reconciler.AccountCurrency{
-			Account:  op.Account,
-			Currency: op.Amount.Currency,
-		}
-
-		for _, acct := range h.ExemptAccounts {
-			if types.Hash(acct) == types.Hash(thisAcct) {
-				return true
-			}
-		}
-
-		return false
-	}
 }

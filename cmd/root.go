@@ -15,13 +15,29 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+)
+
+const (
+	// ExtendedRetryElapsedTime is used to override the default fetcher
+	// retry elapsed time. In practice, extending the retry elapsed time
+	// has prevented retry exhaustion errors when many goroutines are
+	// used to fetch data from the Rosetta server.
+	//
+	// TODO: make configurable
+	ExtendedRetryElapsedTime = 5 * time.Minute
 )
 
 var (
@@ -36,6 +52,10 @@ var (
 	// the configurationFile. If none is provided, this is set
 	// to the default settings.
 	Config *configuration.Configuration
+
+	// SignalReceived is set to true when a signal causes us to exit. This makes
+	// determining the error message to show on exit much more easy.
+	SignalReceived = false
 )
 
 // Execute handles all invocations of the
@@ -100,6 +120,22 @@ func ensureDataDirectoryExists() {
 
 		Config.Data.DataDirectory = tmpDir
 	}
+}
+
+// handleSignals handles OS signals so we can ensure we close database
+// correctly. We call multiple sigListeners because we
+// may need to cancel more than 1 context.
+func handleSignals(listeners []context.CancelFunc) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		color.Red("Received signal: %s", sig)
+		SignalReceived = true
+		for _, listener := range listeners {
+			listener()
+		}
+	}()
 }
 
 var versionCmd = &cobra.Command{
