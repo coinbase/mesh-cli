@@ -262,6 +262,16 @@ func TestBlock(t *testing.T) {
 
 	storage := NewBlockStorage(database)
 
+	t.Run("Get non-existent tx", func(t *testing.T) {
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
+		assert.NoError(t, err)
+		assert.Nil(t, txBlocks)
+		assert.Equal(t, int64(-1), headDistance)
+	})
+
 	t.Run("Set and get block", func(t *testing.T) {
 		err := storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
@@ -273,6 +283,15 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 1)
+		assert.Equal(t, newBlock.BlockIdentifier, txBlocks[0])
+		assert.Equal(t, int64(0), headDistance)
 	})
 
 	t.Run("Get non-existent block", func(t *testing.T) {
@@ -287,11 +306,7 @@ func TestBlock(t *testing.T) {
 
 	t.Run("Set duplicate block hash", func(t *testing.T) {
 		err = storage.AddBlock(ctx, newBlock)
-		assert.EqualError(t, err, fmt.Errorf(
-			"%w %s",
-			ErrDuplicateBlockHash,
-			newBlock.BlockIdentifier.Hash,
-		).Error())
+		assert.Contains(t, err.Error(), ErrDuplicateBlockHash.Error())
 	})
 
 	t.Run("Set duplicate transaction hash (from prior block)", func(t *testing.T) {
@@ -305,6 +320,19 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 2)
+		assert.ElementsMatch(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
+			txBlocks,
+		)
+		assert.Equal(t, int64(1), headDistance)
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
@@ -321,6 +349,19 @@ func TestBlock(t *testing.T) {
 		head, err = storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 2)
+		assert.ElementsMatch(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
+			txBlocks,
+		)
+		assert.Equal(t, int64(1), headDistance)
 	})
 
 	t.Run("Add block with complex metadata", func(t *testing.T) {
@@ -338,12 +379,7 @@ func TestBlock(t *testing.T) {
 
 	t.Run("Set duplicate transaction hash (same block)", func(t *testing.T) {
 		err = storage.AddBlock(ctx, duplicateTxBlock)
-		assert.EqualError(t, err, fmt.Errorf(
-			"%w transaction %s appears multiple times in block %s",
-			ErrDuplicateTransactionHash,
-			"blahTx3",
-			"blah 4",
-		).Error())
+		assert.Contains(t, err.Error(), ErrDuplicateTransactionHash.Error())
 
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
