@@ -21,10 +21,12 @@ lint:
 		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd
 
 format:
-	gofmt -s -w -l .
+	golint ./cmd/... ./internal/... ./configuration/...;
+	gofmt -s -w -l .;
 
 check-format:
-	! gofmt -s -l . | read
+	! golint ./cmd/... ./internal/... ./configuration/... | read;
+	! gofmt -s -l . | read;
 
 test:
 	${TEST_SCRIPT}
