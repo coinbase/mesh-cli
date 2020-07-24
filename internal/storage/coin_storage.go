@@ -52,10 +52,6 @@ type Coin struct {
 	Operation   *types.Operation   `json:"operation"`
 }
 
-type CoinAccount struct {
-	Coins []string `json:"coins"` // a slice of coin identifiers
-}
-
 func getCoinKey(identifier string) []byte {
 	return []byte(fmt.Sprintf("%s/%s", coinNamespace, identifier))
 }

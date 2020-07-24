@@ -411,33 +411,28 @@ func (b *BlockStorage) storeTransactionHash(
 		return err
 	}
 
+	var blocks map[string]int64
 	if !exists {
-		m := make(map[string]int64)
-		m[blockIdentifier.Hash] = blockIdentifier.Index
-		encodedResult, err := encode(m)
-		if err != nil {
-			return fmt.Errorf("%w: unable to encode transaction data", err)
+		blocks = make(map[string]int64)
+		blocks[blockIdentifier.Hash] = blockIdentifier.Index
+	} else {
+		if err := decode(val, &blocks); err != nil {
+			return fmt.Errorf("%w: could not decode transaction hash contents", err)
 		}
 
-		return transaction.Set(ctx, hashKey, encodedResult)
+		if _, exists := blocks[blockIdentifier.Hash]; exists {
+			return fmt.Errorf(
+				"%w: duplicate transaction %s found in block %s:%d",
+				ErrDuplicateTransactionHash,
+				transactionIdentifier.Hash,
+				blockIdentifier.Hash,
+				blockIdentifier.Index,
+			)
+		}
+
+		blocks[blockIdentifier.Hash] = blockIdentifier.Index
 	}
 
-	var blocks map[string]int64
-	if err := decode(val, &blocks); err != nil {
-		return fmt.Errorf("%w: could not decode transaction hash contents", err)
-	}
-
-	if _, exists := blocks[blockIdentifier.Hash]; exists {
-		return fmt.Errorf(
-			"%w: duplicate transaction %s found in block %s:%d",
-			ErrDuplicateTransactionHash,
-			transactionIdentifier.Hash,
-			blockIdentifier.Hash,
-			blockIdentifier.Index,
-		)
-	}
-
-	blocks[blockIdentifier.Hash] = blockIdentifier.Index
 	encodedResult, err := encode(blocks)
 	if err != nil {
 		return fmt.Errorf("%w: unable to encode transaction data", err)
