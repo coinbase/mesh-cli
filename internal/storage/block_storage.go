@@ -84,10 +84,14 @@ func getTransactionHashKey(blockHash string, transactionHash string) []byte {
 	return []byte(fmt.Sprintf("%s/%s/%s", transactionHashNamespace, blockHash, transactionHash))
 }
 
+// BlockWorker is an interface that allows for work
+// to be done while a block is added to storage.
 type BlockWorker interface {
-	AddingBlock(context.Context, *types.Block, DatabaseTransaction) error
-	RemovingBlock(context.Context, *types.Block, DatabaseTransaction) error
+	AddingBlock(context.Context, *types.Block, DatabaseTransaction) (CommitWorker, error)
+	RemovingBlock(context.Context, *types.Block, DatabaseTransaction) (CommitWorker, error)
 }
+
+type CommitWorker func(context.Context) error
 
 // BlockStorage implements block specific storage methods
 // on top of a Database and DatabaseTransaction interface.
@@ -227,14 +231,24 @@ func (b *BlockStorage) AddBlock(
 		}
 	}
 
-	for _, w := range workers {
-		if err := w.AddingBlock(ctx, block, transaction); err != nil {
+	commitWorkers := make([]CommitWorker, len(workers))
+	for i, w := range workers {
+		cw, err := w.AddingBlock(ctx, block, transaction)
+		if err != nil {
 			return err
 		}
+
+		commitWorkers[i] = cw
 	}
 
 	if err := transaction.Commit(ctx); err != nil {
 		return err
+	}
+
+	for _, cw := range commitWorkers {
+		if err := cw(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -285,15 +299,15 @@ func (b *BlockStorage) RemoveBlock(
 
 	for _, w := range workers {
 		if err := w.RemovingBlock(ctx, block, transaction); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if err := transaction.Commit(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return block, nil
 }
 
 // SetNewStartIndex attempts to remove all blocks
@@ -327,7 +341,7 @@ func (b *BlockStorage) SetNewStartIndex(
 			return err
 		}
 
-		if err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
+		if _, err := b.RemoveBlock(ctx, block.BlockIdentifier, workers); err != nil {
 			return err
 		}
 
@@ -380,4 +394,4 @@ func (b *BlockStorage) storeHash(
 	return transaction.Set(ctx, hashKey, []byte(""))
 }
 
-// TODO: get depth of transaction hash
+// TODO: Wait until a transaction has a depth of X

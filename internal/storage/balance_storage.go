@@ -99,22 +99,26 @@ func (b *BalanceStorage) ExemptFunc() parser.ExemptOperation {
 	}
 }
 
-func (b *BalanceStorage) AddingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) error {
+func (b *BalanceStorage) AddingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) (CommitWorker, error) {
 	changes, err := b.parser.BalanceChanges(ctx, block, false)
 	if err != nil {
-		return fmt.Errorf("%w: unable to calculate balance changes", err)
+		return nil, fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
 	for _, change := range changes {
 		if err := b.UpdateBalance(ctx, transaction, change, block.ParentBlockIdentifier); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return func(ctx context.Context) error {
+		fmt.Println(changes)
+
+		return nil
+	}, nil
 }
 
-func (b *BalanceStorage) RemovingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) error {
+func (b *BalanceStorage) RemovingBlock(ctx context.Context, block *types.Block, transaction DatabaseTransaction) (CommitWorker, error) {
 	changes, err := b.parser.BalanceChanges(ctx, block, true)
 	if err != nil {
 		return fmt.Errorf("%w: unable to calculate balance changes", err)
@@ -351,7 +355,6 @@ type BootstrapBalance struct {
 // accounts that received an allocation in the genesis block.
 func (b *BalanceStorage) BootstrapBalances(
 	ctx context.Context,
-	blockStorage *BlockStorage,
 	bootstrapBalancesFile string,
 	genesisBlockIdentifier *types.BlockIdentifier,
 ) error {
@@ -361,11 +364,12 @@ func (b *BalanceStorage) BootstrapBalances(
 		return err
 	}
 
-	_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-	if err != ErrHeadBlockNotFound {
-		log.Println("Skipping balance bootstrapping because already started syncing")
-		return nil
-	}
+	// TODO: check outside of this function
+	// _, err := blockStorage.GetHeadBlockIdentifier(ctx)
+	// if err != ErrHeadBlockNotFound {
+	// 	log.Println("Skipping balance bootstrapping because already started syncing")
+	// 	return nil
+	// }
 
 	// Update balances in database
 	dbTransaction := b.db.NewDatabaseTransaction(ctx, true)
@@ -389,7 +393,7 @@ func (b *BalanceStorage) BootstrapBalances(
 			balance.Currency,
 		)
 
-		err = b.SetBalance(
+		err := b.SetBalance(
 			ctx,
 			dbTransaction,
 			balance.Account,
@@ -404,7 +408,7 @@ func (b *BalanceStorage) BootstrapBalances(
 		}
 	}
 
-	err = dbTransaction.Commit(ctx)
+	err := dbTransaction.Commit(ctx)
 	if err != nil {
 		return err
 	}
