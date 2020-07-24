@@ -41,6 +41,7 @@ const (
 
 type DataTester struct {
 	network           *types.NetworkIdentifier
+	database          storage.Database
 	config            *configuration.Configuration
 	syncer            *statefulsyncer.StatefulSyncer
 	reconciler        *reconciler.Reconciler
@@ -75,6 +76,10 @@ func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
 	return accounts, nil
 }
 
+func (t *DataTester) CloseDatabase(ctx context.Context) {
+	t.database.Close(ctx)
+}
+
 func InitializeData(
 	ctx context.Context,
 	config *configuration.Configuration,
@@ -97,7 +102,6 @@ func InitializeData(
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
-	defer localStore.Close(ctx)
 
 	exemptAccounts, err := loadAccounts(config.Data.ExemptAccounts)
 	if err != nil {
@@ -191,6 +195,7 @@ func InitializeData(
 		network,
 		fetcher,
 		blockStorage,
+		counterStorage,
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage},
@@ -198,6 +203,7 @@ func InitializeData(
 
 	return &DataTester{
 		network:           network,
+		database:          localStore,
 		config:            config,
 		syncer:            syncer,
 		reconciler:        r,
@@ -393,6 +399,7 @@ func (t *DataTester) recursiveOpSearch(
 		t.network,
 		t.fetcher,
 		blockStorage,
+		counterStorage,
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage},

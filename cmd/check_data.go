@@ -122,6 +122,8 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		&SignalReceived,
 	)
 
+	defer dataTester.CloseDatabase(ctx)
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {

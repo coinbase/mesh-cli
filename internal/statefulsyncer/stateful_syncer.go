@@ -28,6 +28,7 @@ func New(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
 	blockStorage *storage.BlockStorage,
+	counterStorage *storage.CounterStorage,
 	logger *logger.Logger,
 	cancel context.CancelFunc,
 	workers []storage.BlockWorker,
@@ -39,8 +40,10 @@ func New(
 	pastBlocks := blockStorage.CreateBlockCache(ctx)
 
 	s := &StatefulSyncer{
-		blockStorage: blockStorage,
-		workers:      workers,
+		blockStorage:   blockStorage,
+		counterStorage: counterStorage,
+		workers:        workers,
+		logger:         logger,
 	}
 
 	s.syncer = syncer.New(
