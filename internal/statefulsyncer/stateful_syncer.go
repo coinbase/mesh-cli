@@ -16,6 +16,9 @@ import (
 var _ syncer.Handler = (*StatefulSyncer)(nil)
 
 type StatefulSyncer struct {
+	network        *types.NetworkIdentifier
+	fetcher        *fetcher.Fetcher
+	cancel         context.CancelFunc
 	blockStorage   *storage.BlockStorage
 	counterStorage *storage.CounterStorage
 	logger         *logger.Logger
@@ -33,28 +36,15 @@ func New(
 	cancel context.CancelFunc,
 	workers []storage.BlockWorker,
 ) *StatefulSyncer {
-	// Load in previous blocks into syncer cache to handle reorgs.
-	// If previously processed blocks exist in storage, they are fetched.
-	// Otherwise, none are provided to the cache (the syncer will not attempt
-	// a reorg if the cache is empty).
-	pastBlocks := blockStorage.CreateBlockCache(ctx)
-
-	s := &StatefulSyncer{
+	return &StatefulSyncer{
+		network:        network,
+		fetcher:        fetcher,
+		cancel:         cancel,
 		blockStorage:   blockStorage,
 		counterStorage: counterStorage,
 		workers:        workers,
 		logger:         logger,
 	}
-
-	s.syncer = syncer.New(
-		network,
-		fetcher,
-		s,
-		cancel,
-		pastBlocks,
-	)
-
-	return s
 }
 
 func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex int64) error {
@@ -70,7 +60,21 @@ func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex in
 		}
 	}
 
-	return s.syncer.Sync(ctx, startIndex, endIndex)
+	// Load in previous blocks into syncer cache to handle reorgs.
+	// If previously processed blocks exist in storage, they are fetched.
+	// Otherwise, none are provided to the cache (the syncer will not attempt
+	// a reorg if the cache is empty).
+	pastBlocks := s.blockStorage.CreateBlockCache(ctx)
+
+	syncer := syncer.New(
+		s.network,
+		s.fetcher,
+		s,
+		s.cancel,
+		pastBlocks,
+	)
+
+	return syncer.Sync(ctx, startIndex, endIndex)
 }
 
 func (s *StatefulSyncer) BlockAdded(ctx context.Context, block *types.Block) error {
