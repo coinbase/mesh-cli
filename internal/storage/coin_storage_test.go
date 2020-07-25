@@ -28,6 +28,71 @@ var (
 	account = &types.AccountIdentifier{
 		Address: "blah",
 	}
+
+	account2 = &types.AccountIdentifier{
+		Address: "blah2",
+	}
+
+	accountCoins = []*Coin{
+		{
+			Identifier:  "coin1",
+			Transaction: coinBlock.Transactions[0],
+			Operation:   coinBlock.Transactions[0].Operations[0],
+		},
+	}
+
+	account2Coins = []*Coin{
+		{
+			Identifier:  "coin2",
+			Transaction: coinBlock.Transactions[0],
+			Operation:   coinBlock.Transactions[0].Operations[1],
+		},
+	}
+
+	coinBlock = &types.Block{
+		Transactions: []*types.Transaction{
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account,
+						Amount: &types.Amount{
+							Value: "10",
+						},
+						Metadata: map[string]interface{}{
+							coinCreated: "coin1",
+						},
+					},
+					{
+						Account: account2,
+						Amount: &types.Amount{
+							Value: "15",
+						},
+						Metadata: map[string]interface{}{
+							coinSpent: "coin2",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	coinBlock2 = &types.Block{
+		Transactions: []*types.Transaction{
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account,
+						Amount: &types.Amount{
+							Value: "-10",
+						},
+						Metadata: map[string]interface{}{
+							coinSpent: "coin1",
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func TestCoinStorage(t *testing.T) {
@@ -48,4 +113,72 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
 	})
+
+	t.Run("add block", func(t *testing.T) {
+		tx := c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err := c.AddingBlock(ctx, coinBlock, tx)
+		assert.Nil(t, commitFunc)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		coins, err := c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, accountCoins, coins)
+	})
+
+	t.Run("add duplicate coin", func(t *testing.T) {
+		tx := c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err := c.AddingBlock(ctx, coinBlock, tx)
+		assert.Nil(t, commitFunc)
+		assert.Error(t, err)
+		tx.Discard(ctx)
+
+		coins, err := c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, accountCoins, coins)
+	})
+
+	t.Run("remove block", func(t *testing.T) {
+		tx := c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err := c.RemovingBlock(ctx, coinBlock, tx)
+		assert.Nil(t, commitFunc)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		coins, err := c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, []*Coin{}, coins)
+
+		coins, err = c.GetCoins(ctx, account2)
+		assert.NoError(t, err)
+		assert.Equal(t, account2Coins, coins)
+	})
+
+	t.Run("spend coin", func(t *testing.T) {
+		tx := c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err := c.AddingBlock(ctx, coinBlock, tx)
+		assert.Nil(t, commitFunc)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		coins, err := c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, accountCoins, coins)
+
+		tx = c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err = c.AddingBlock(ctx, coinBlock2, tx)
+		assert.Nil(t, commitFunc)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		coins, err = c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, []*Coin{}, coins)
+
+		coins, err = c.GetCoins(ctx, account2)
+		assert.NoError(t, err)
+		assert.Equal(t, []*Coin{}, coins)
+	})
+
+	// Check multiple coins
 }

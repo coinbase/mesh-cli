@@ -110,12 +110,13 @@ func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTra
 
 		if !accountExists {
 			coins = map[string]struct{}{}
-			coins[coinIdentifier] = struct{}{}
 		} else {
 			if _, exists := coins[coinIdentifier]; exists {
 				return fmt.Errorf("coin %s already exists in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
 			}
 		}
+
+		coins[coinIdentifier] = struct{}{}
 
 		if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
 			return fmt.Errorf("%w: unable to set coin account", err)
