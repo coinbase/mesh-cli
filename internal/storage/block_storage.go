@@ -414,7 +414,6 @@ func (b *BlockStorage) storeTransactionHash(
 	var blocks map[string]int64
 	if !exists {
 		blocks = make(map[string]int64)
-		blocks[blockIdentifier.Hash] = blockIdentifier.Index
 	} else {
 		if err := decode(val, &blocks); err != nil {
 			return fmt.Errorf("%w: could not decode transaction hash contents", err)
@@ -429,9 +428,8 @@ func (b *BlockStorage) storeTransactionHash(
 				blockIdentifier.Index,
 			)
 		}
-
-		blocks[blockIdentifier.Hash] = blockIdentifier.Index
 	}
+	blocks[blockIdentifier.Hash] = blockIdentifier.Index
 
 	encodedResult, err := encode(blocks)
 	if err != nil {
