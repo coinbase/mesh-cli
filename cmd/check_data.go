@@ -153,6 +153,5 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	// to find missing operations.
 	dataTester.HandleErr(ctx, err)
 
-	// TODO: make configurable to run
 	dataTester.FindMissingOps(ctx, sigListeners)
 }

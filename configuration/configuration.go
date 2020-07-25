@@ -184,7 +184,6 @@ func DefaultConfiguration() *Configuration {
 }
 
 // DataConfiguration contains all configurations to run check:data.
-// TODO: Add configurable timeout (https://github.com/coinbase/rosetta-cli/issues/64)
 type DataConfiguration struct {
 	// BlockConcurrency is the concurrency to use while fetching blocks.
 	// default: 8
@@ -259,6 +258,12 @@ type DataConfiguration struct {
 	// be attempted. When first testing an implementation, it can be useful to disable
 	// some of the more advanced checks to confirm syncing is working as expected.
 	ReconciliationDisabled bool `json:"reconciliation_disabled"`
+
+	// InactiveDiscrepencySearchDisabled is a boolean indicating if a search
+	// should be performed to find any inactive reconciliation discrepencies.
+	// Note, a search will never be performed if historical balance lookup
+	// is disabled.
+	InactiveDiscrepencySearchDisabled bool `json:"inactive_discrepency_search_disabled"`
 }
 
 // Configuration contains all configuration settings for running

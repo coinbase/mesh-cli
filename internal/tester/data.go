@@ -265,12 +265,12 @@ func (t *DataTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
 	for ctx.Err() == nil {
-		_ = t.logger.LogCounterStorage(ctx)
+		_ = t.logger.LogDataStats(ctx)
 		time.Sleep(PeriodicLoggingFrequency)
 	}
 
 	// Print stats one last time before exiting
-	_ = t.logger.LogCounterStorage(ctx)
+	_ = t.logger.LogDataStats(ctx)
 
 	return ctx.Err()
 }
@@ -321,6 +321,11 @@ func (t *DataTester) HandleErr(ctx context.Context, err error) {
 // that is missing balance-changing operations for a
 // *reconciler.AccountCurrency.
 func (t *DataTester) FindMissingOps(ctx context.Context, sigListeners []context.CancelFunc) {
+	if t.config.Data.InactiveDiscrepencySearchDisabled {
+		color.Red("Search for inactive reconciliation discrepency is disabled")
+		os.Exit(1)
+	}
+
 	color.Red("Searching for block with missing operations...hold tight")
 	badBlock, err := t.recursiveOpSearch(
 		ctx,
