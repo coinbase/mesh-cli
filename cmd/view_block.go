@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/coinbase/rosetta-cli/internal/utils"
+
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -64,14 +66,15 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// Behind the scenes this makes a call to get the
 	// network status and uses the response to inform
 	// the asserter what are valid responses.
-	primaryNetwork, _, err := newFetcher.InitializeAsserter(ctx)
+	_, _, err = newFetcher.InitializeAsserter(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Print the primary network and network status
-	// TODO: support specifying which network to get block from
-	log.Printf("Primary Network: %s\n", types.PrettyPrintStruct(primaryNetwork))
+	_, err = utils.CheckNetworkSupported(ctx, Config.Network, newFetcher)
+	if err != nil {
+		log.Fatalf("%s: unable to confirm network is supported", err.Error())
+	}
 
 	// Fetch the specified block with retries (automatically
 	// asserted for correctness)
@@ -84,7 +87,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// transactions.
 	block, err := newFetcher.BlockRetry(
 		ctx,
-		primaryNetwork,
+		Config.Network,
 		&types.PartialBlockIdentifier{
 			Index: &index,
 		},

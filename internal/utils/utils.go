@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
 )
@@ -113,4 +115,36 @@ func CreateCommandPath(dataDirectory string, cmd string, network *types.NetworkI
 	}
 
 	return dataPath, nil
+}
+
+// CheckNetworkSupported checks if a Rosetta implementation supports a given
+// *types.NetworkIdentifier. If it does, the current network status is returned.
+func CheckNetworkSupported(ctx context.Context, networkIdentifier *types.NetworkIdentifier, fetcher *fetcher.Fetcher) (*types.NetworkStatusResponse, error) {
+	networks, err := fetcher.NetworkList(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to fetch network list", err)
+	}
+
+	networkMatched := false
+	for _, availableNetwork := range networks.NetworkIdentifiers {
+		if types.Hash(availableNetwork) == types.Hash(networkIdentifier) {
+			networkMatched = true
+			break
+		}
+	}
+
+	if !networkMatched {
+		return nil, fmt.Errorf("%s is not available", types.PrettyPrintStruct(networkIdentifier))
+	}
+
+	status, err := fetcher.NetworkStatusRetry(
+		ctx,
+		networkIdentifier,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get network status", err)
+	}
+
+	return status, nil
 }
