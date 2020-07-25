@@ -108,7 +108,11 @@ func LoadAndParse(filePath string, output interface{}) error {
 // is used to avoid collision when using multiple commands on multiple networks
 // when the same storage resources are used. If the derived path does not exist,
 // we run os.MkdirAll on the path.
-func CreateCommandPath(dataDirectory string, cmd string, network *types.NetworkIdentifier) (string, error) {
+func CreateCommandPath(
+	dataDirectory string,
+	cmd string,
+	network *types.NetworkIdentifier,
+) (string, error) {
 	dataPath := path.Join(dataDirectory, cmd, types.Hash(network))
 	if err := EnsurePathExists(dataPath); err != nil {
 		return "", fmt.Errorf("%w: cannot populate path", err)
@@ -119,7 +123,11 @@ func CreateCommandPath(dataDirectory string, cmd string, network *types.NetworkI
 
 // CheckNetworkSupported checks if a Rosetta implementation supports a given
 // *types.NetworkIdentifier. If it does, the current network status is returned.
-func CheckNetworkSupported(ctx context.Context, networkIdentifier *types.NetworkIdentifier, fetcher *fetcher.Fetcher) (*types.NetworkStatusResponse, error) {
+func CheckNetworkSupported(
+	ctx context.Context,
+	networkIdentifier *types.NetworkIdentifier,
+	fetcher *fetcher.Fetcher,
+) (*types.NetworkStatusResponse, error) {
 	networks, err := fetcher.NetworkList(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to fetch network list", err)
