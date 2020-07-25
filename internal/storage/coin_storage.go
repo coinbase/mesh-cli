@@ -62,7 +62,11 @@ func getCoinAccountKey(accountIdentifier *types.AccountIdentifier) []byte {
 	return []byte(fmt.Sprintf("%s/%s", coinAccountNamespace, types.Hash(accountIdentifier)))
 }
 
-func getAndDecodeCoin(ctx context.Context, transaction DatabaseTransaction, coinIdentifier string) (bool, *Coin, error) {
+func getAndDecodeCoin(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	coinIdentifier string,
+) (bool, *Coin, error) {
 	exists, val, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
 	if err != nil {
 		return false, nil, fmt.Errorf("%w: unable to query for coin", err)
@@ -80,7 +84,13 @@ func getAndDecodeCoin(ctx context.Context, transaction DatabaseTransaction, coin
 	return true, &coin, nil
 }
 
-func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTransaction, blockTransaction *types.Transaction, operation *types.Operation, identiferKey string) error {
+func (c *CoinStorage) tryAddingCoin(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	blockTransaction *types.Transaction,
+	operation *types.Operation,
+	identiferKey string,
+) error {
 	rawIdentifier, ok := operation.Metadata[identiferKey]
 	if ok {
 		coinIdentifier, ok := rawIdentifier.(string)
@@ -110,11 +120,16 @@ func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTra
 
 		if !accountExists {
 			coins = map[string]struct{}{}
-		} else {
-			if _, exists := coins[coinIdentifier]; exists {
-				return fmt.Errorf("coin %s already exists in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
-			}
 		}
+
+		if _, exists := coins[coinIdentifier]; exists {
+			return fmt.Errorf(
+				"coin %s already exists in account %s",
+				coinIdentifier,
+				types.PrettyPrintStruct(operation.Account),
+			)
+		}
+
 		coins[coinIdentifier] = struct{}{}
 
 		if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
@@ -125,7 +140,12 @@ func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTra
 	return nil
 }
 
-func encodeAndSetCoins(ctx context.Context, transaction DatabaseTransaction, accountIdentifier *types.AccountIdentifier, coins map[string]struct{}) error {
+func encodeAndSetCoins(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	accountIdentifier *types.AccountIdentifier,
+	coins map[string]struct{},
+) error {
 	encodedResult, err := encode(coins)
 	if err != nil {
 		return fmt.Errorf("%w: unable to encode coins", err)
@@ -138,7 +158,11 @@ func encodeAndSetCoins(ctx context.Context, transaction DatabaseTransaction, acc
 	return nil
 }
 
-func getAndDecodeCoins(ctx context.Context, transaction DatabaseTransaction, accountIdentifier *types.AccountIdentifier) (bool, map[string]struct{}, error) {
+func getAndDecodeCoins(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	accountIdentifier *types.AccountIdentifier,
+) (bool, map[string]struct{}, error) {
 	accountExists, val, err := transaction.Get(ctx, getCoinAccountKey(accountIdentifier))
 	if err != nil {
 		return false, nil, fmt.Errorf("%w: unable to query coin account", err)
@@ -156,7 +180,12 @@ func getAndDecodeCoins(ctx context.Context, transaction DatabaseTransaction, acc
 	return true, coins, nil
 }
 
-func (c *CoinStorage) tryRemovingCoin(ctx context.Context, transaction DatabaseTransaction, blockTransaction *types.Transaction, operation *types.Operation, identiferKey string) error {
+func (c *CoinStorage) tryRemovingCoin(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	operation *types.Operation,
+	identiferKey string,
+) error {
 	rawIdentifier, ok := operation.Metadata[identiferKey]
 	if ok {
 		coinIdentifier, ok := rawIdentifier.(string)
@@ -187,7 +216,11 @@ func (c *CoinStorage) tryRemovingCoin(ctx context.Context, transaction DatabaseT
 		}
 
 		if _, exists := coins[coinIdentifier]; !exists {
-			return fmt.Errorf("unable to find coin %s in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
+			return fmt.Errorf(
+				"unable to find coin %s in account %s",
+				coinIdentifier,
+				types.PrettyPrintStruct(operation.Account),
+			)
 		}
 
 		delete(coins, coinIdentifier)
@@ -216,7 +249,7 @@ func (c *CoinStorage) AddingBlock(
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
-			if err := c.tryRemovingCoin(ctx, transaction, txn, operation, coinSpent); err != nil {
+			if err := c.tryRemovingCoin(ctx, transaction, operation, coinSpent); err != nil {
 				return nil, fmt.Errorf("%w: unable to remove coin", err)
 			}
 		}
@@ -243,7 +276,7 @@ func (c *CoinStorage) RemovingBlock(
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
-			if err := c.tryRemovingCoin(ctx, transaction, txn, operation, coinCreated); err != nil {
+			if err := c.tryRemovingCoin(ctx, transaction, operation, coinCreated); err != nil {
 				return nil, fmt.Errorf("%w: unable to remove coin", err)
 			}
 		}
@@ -253,7 +286,10 @@ func (c *CoinStorage) RemovingBlock(
 }
 
 // GetCoins returns all unspent coins for a provided *types.AccountIdentifier.
-func (c *CoinStorage) GetCoins(ctx context.Context, accountIdentifier *types.AccountIdentifier) ([]*Coin, error) {
+func (c *CoinStorage) GetCoins(
+	ctx context.Context,
+	accountIdentifier *types.AccountIdentifier,
+) ([]*Coin, error) {
 	transaction := c.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
