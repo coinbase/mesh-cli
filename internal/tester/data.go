@@ -21,7 +21,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"path"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -39,6 +38,10 @@ import (
 )
 
 const (
+	// dataCmdName is used as the prefix on the data directory
+	// for all data saved using this command.
+	dataCmdName = "check-data"
+
 	// InactiveFailureLookbackWindow is the size of each window to check
 	// for missing ops. If a block with missing ops is not found in this
 	// window, another window is created with the preceding
@@ -63,10 +66,13 @@ type DataTester struct {
 	logger            *logger.Logger
 	counterStorage    *storage.CounterStorage
 	reconcilerHandler *processor.ReconcilerHandler
-	reconcile         bool
 	fetcher           *fetcher.Fetcher
 	signalReceived    *bool
 	genesisBlock      *types.BlockIdentifier
+}
+
+func shouldReconcile(config *configuration.Configuration) bool {
+	return !config.Data.ReconciliationDisabled && !config.Data.BalanceTrackingDisabled
 }
 
 // loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
@@ -106,15 +112,12 @@ func InitializeData(
 	fetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
 	genesisBlock *types.BlockIdentifier,
-	reconcile bool,
 	interestingAccount *reconciler.AccountCurrency,
 	signalReceived *bool,
 ) *DataTester {
-	// Create a unique path for invocation to avoid collision when parsing
-	// multiple networks.
-	dataPath := path.Join(config.Data.DataDirectory, "data", types.Hash(network))
-	if err := utils.EnsurePathExists(dataPath); err != nil {
-		log.Fatalf("%s: cannot populate path", err.Error())
+	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
+	if err != nil {
+		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
 	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
@@ -175,38 +178,43 @@ func InitializeData(
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
 	)
 
-	balanceStorageHelper := processor.NewBalanceStorageHelper(
-		network,
-		fetcher,
-		!config.Data.HistoricalBalanceDisabled,
-		exemptAccounts,
-	)
+	blockWorkers := []storage.BlockWorker{}
+	if !config.Data.BalanceTrackingDisabled {
+		balanceStorageHelper := processor.NewBalanceStorageHelper(
+			network,
+			fetcher,
+			!config.Data.HistoricalBalanceDisabled,
+			exemptAccounts,
+		)
 
-	balanceStorageHandler := processor.NewBalanceStorageHandler(
-		logger,
-		r,
-		reconcile,
-		interestingAccount,
-	)
+		balanceStorageHandler := processor.NewBalanceStorageHandler(
+			logger,
+			r,
+			shouldReconcile(config),
+			interestingAccount,
+		)
 
-	balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
+		balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
 
-	// Bootstrap balances if provided
-	if len(config.Data.BootstrapBalances) > 0 {
-		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-		if err == storage.ErrHeadBlockNotFound {
-			err = balanceStorage.BootstrapBalances(
-				ctx,
-				config.Data.BootstrapBalances,
-				genesisBlock,
-			)
-			if err != nil {
-				log.Fatalf("%s: unable to bootstrap balances", err.Error())
+		// Bootstrap balances if provided
+		if len(config.Data.BootstrapBalances) > 0 {
+			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
+			if err == storage.ErrHeadBlockNotFound {
+				err = balanceStorage.BootstrapBalances(
+					ctx,
+					config.Data.BootstrapBalances,
+					genesisBlock,
+				)
+				if err != nil {
+					log.Fatalf("%s: unable to bootstrap balances", err.Error())
+				}
+			} else {
+				log.Println("Skipping balance bootstrapping because already started syncing")
+				return nil
 			}
-		} else {
-			log.Println("Skipping balance bootstrapping because already started syncing")
-			return nil
 		}
+
+		blockWorkers = append(blockWorkers, balanceStorage)
 	}
 
 	syncer := statefulsyncer.New(
@@ -217,7 +225,7 @@ func InitializeData(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{balanceStorage},
+		blockWorkers,
 	)
 
 	return &DataTester{
@@ -229,7 +237,6 @@ func InitializeData(
 		logger:            logger,
 		counterStorage:    counterStorage,
 		reconcilerHandler: reconcilerHandler,
-		reconcile:         reconcile,
 		fetcher:           fetcher,
 		signalReceived:    signalReceived,
 		genesisBlock:      genesisBlock,
@@ -253,7 +260,7 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartReconciler(
 	ctx context.Context,
 ) error {
-	if !t.reconcile {
+	if shouldReconcile(t.config) {
 		return nil
 	}
 
@@ -266,12 +273,12 @@ func (t *DataTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
 	for ctx.Err() == nil {
-		_ = t.logger.LogCounterStorage(ctx)
+		_ = t.logger.LogDataStats(ctx)
 		time.Sleep(PeriodicLoggingFrequency)
 	}
 
 	// Print stats one last time before exiting
-	_ = t.logger.LogCounterStorage(ctx)
+	_ = t.logger.LogDataStats(ctx)
 
 	return ctx.Err()
 }
@@ -279,7 +286,7 @@ func (t *DataTester) StartPeriodicLogger(
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
-func (t *DataTester) HandleErr(ctx context.Context, err error) {
+func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []context.CancelFunc) {
 	if *t.signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
@@ -316,12 +323,19 @@ func (t *DataTester) HandleErr(ctx context.Context, err error) {
 		)
 		os.Exit(1)
 	}
+
+	t.FindMissingOps(ctx, sigListeners)
 }
 
 // FindMissingOps logs the types.BlockIdentifier of a block
 // that is missing balance-changing operations for a
 // *reconciler.AccountCurrency.
 func (t *DataTester) FindMissingOps(ctx context.Context, sigListeners []context.CancelFunc) {
+	if t.config.Data.InactiveDiscrepencySearchDisabled {
+		color.Red("Search for inactive reconciliation discrepency is disabled")
+		os.Exit(1)
+	}
+
 	color.Red("Searching for block with missing operations...hold tight")
 	badBlock, err := t.recursiveOpSearch(
 		ctx,

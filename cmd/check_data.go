@@ -16,10 +16,11 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/tester"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/spf13/cobra"
@@ -94,27 +95,31 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
-	// TODO: sync and reconcile on subnetworks, if they exist.
-	primaryNetwork, networkStatus, err := fetcher.InitializeAsserter(ctx)
+	_, _, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to initialize asserter", err))
+		log.Fatalf("%s: unable to initialize asserter", err.Error())
+	}
+
+	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
+	if err != nil {
+		log.Fatalf("%s: unable to confirm network is supported", err.Error())
 	}
 
 	dataTester := tester.InitializeData(
 		ctx,
 		Config,
-		primaryNetwork,
+		Config.Network,
 		fetcher,
 		cancel,
 		networkStatus.GenesisBlockIdentifier,
-		true, // TODO: add config for not reconciling
-		nil,
+		nil, // only populated when doing recursive search
 		&SignalReceived,
 	)
 
@@ -145,8 +150,5 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	// HandleErr will exit if we should not attempt
 	// to find missing operations.
-	dataTester.HandleErr(ctx, err)
-
-	// TODO: make configurable to run
-	dataTester.FindMissingOps(ctx, sigListeners)
+	dataTester.HandleErr(ctx, err, sigListeners)
 }

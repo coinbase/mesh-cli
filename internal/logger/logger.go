@@ -67,6 +67,8 @@ type Logger struct {
 	logBalanceChanges bool
 	logReconciliation bool
 
+	lastStatsMessage string
+
 	// CounterStorage is some initialized CounterStorage.
 	CounterStorage *storage.CounterStorage
 }
@@ -90,8 +92,8 @@ func NewLogger(
 	}
 }
 
-// LogCounterStorage logs all values in CounterStorage.
-func (l *Logger) LogCounterStorage(ctx context.Context) error {
+// LogDataStats logs all data values in CounterStorage.
+func (l *Logger) LogDataStats(ctx context.Context) error {
 	blocks, err := l.CounterStorage.Get(ctx, storage.BlockCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get block counter", err)
@@ -126,7 +128,7 @@ func (l *Logger) LogCounterStorage(ctx context.Context) error {
 		return fmt.Errorf("%w cannot get inactive reconciliations counter", err)
 	}
 
-	color.Cyan(
+	statsMessage := fmt.Sprintf(
 		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s Reconciliations: %s (Inactive: %s)",
 		blocks.String(),
 		orphans.String(),
@@ -135,6 +137,14 @@ func (l *Logger) LogCounterStorage(ctx context.Context) error {
 		new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
 		inactiveReconciliations.String(),
 	)
+
+	// Don't print out the same stats message twice.
+	if statsMessage == l.lastStatsMessage {
+		return nil
+	}
+
+	l.lastStatsMessage = statsMessage
+	color.Cyan(statsMessage)
 
 	return nil
 }

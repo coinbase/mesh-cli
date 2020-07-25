@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -41,7 +42,11 @@ not formatted correctly.`,
 func runViewNetworkCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
-	f := fetcher.New(Config.Data.OnlineURL)
+	f := fetcher.New(
+		Config.OnlineURL,
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
+	)
 
 	// Attempt to fetch network list
 	networkList, err := f.NetworkListRetry(ctx, nil)

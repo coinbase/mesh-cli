@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
@@ -46,7 +47,9 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) {
 
 	// Create a new fetcher
 	newFetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	// Initialize the fetcher's asserter

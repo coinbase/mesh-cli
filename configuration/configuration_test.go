@@ -27,12 +27,13 @@ import (
 
 var (
 	whackyConfig = &Configuration{
+		Network: &types.NetworkIdentifier{
+			Blockchain: "sweet",
+			Network:    "sweeter",
+		},
+		OnlineURL:   "http://hasudhasjkdk",
+		HTTPTimeout: 21,
 		Construction: &ConstructionConfiguration{
-			Network: &types.NetworkIdentifier{
-				Blockchain: "sweet",
-				Network:    "sweeter",
-			},
-			OnlineURL:  "http://hasudhasjkdk",
 			OfflineURL: "https://ashdjaksdkjshdk",
 			Currency: &types.Currency{
 				Symbol:   "FIRE",
@@ -42,22 +43,21 @@ var (
 			MaximumFee:       "1",
 			CurveType:        types.Edwards25519,
 			AccountingModel:  UtxoModel,
-			TransferScenario: DefaultTransferScenario,
+			TransferScenario: EthereumTransfer,
 		},
 		Data: &DataConfiguration{
-			OnlineURL:                         "https://asjdlkasjdklajsdlkj",
 			BlockConcurrency:                  12,
 			TransactionConcurrency:            2,
 			ActiveReconciliationConcurrency:   100,
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
+			ReconciliationDisabled:            true,
+			HistoricalBalanceDisabled:         true,
 		},
 	}
 	invalidNetwork = &Configuration{
-		Construction: &ConstructionConfiguration{
-			Network: &types.NetworkIdentifier{
-				Blockchain: "?",
-			},
+		Network: &types.NetworkIdentifier{
+			Blockchain: "?",
 		},
 	}
 	invalidCurrency = &Configuration{
