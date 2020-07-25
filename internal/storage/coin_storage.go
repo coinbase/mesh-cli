@@ -25,6 +25,10 @@ const (
 	coinNamespace        = "coinNamespace"
 	coinAccountNamespace = "coinAccountNamespace"
 
+	// For UTXOs to be recognized by CoinStorage, they must contain
+	// coinCreated or coinSpent in the Operation.Metadata with a value
+	// of the unique identifier of the coin. In Bitcoin, this unique
+	// identifier would be the outpoint (tx_hash:index).
 	coinCreated = "utxo_created"
 	coinSpent   = "utxo_spent"
 )
