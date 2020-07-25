@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -54,6 +55,8 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// Create a new fetcher
 	newFetcher := fetcher.New(
 		Config.OnlineURL,
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	// Initialize the fetcher's asserter

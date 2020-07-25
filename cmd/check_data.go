@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/tester"
 
@@ -98,6 +99,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	// TODO: sync and reconcile on subnetworks, if they exist.
