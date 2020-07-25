@@ -46,6 +46,8 @@ func NewCoinStorage(
 	}
 }
 
+// Coin represents some spendable output (typically
+// referred to as a UTXO).
 type Coin struct {
 	Identifier  string             `json:"identifier"` // uses "utxo_created" or "utxo_spent"
 	Transaction *types.Transaction `json:"transaction"`
@@ -198,6 +200,7 @@ func (c *CoinStorage) tryRemovingCoin(ctx context.Context, transaction DatabaseT
 	return nil
 }
 
+// AddingBlock is called by BlockStorage when adding a block.
 func (c *CoinStorage) AddingBlock(
 	ctx context.Context,
 	block *types.Block,
@@ -222,6 +225,7 @@ func (c *CoinStorage) AddingBlock(
 	return nil, nil
 }
 
+// RemovingBlock is called by BlockStorage when removing a block.
 func (c *CoinStorage) RemovingBlock(
 	ctx context.Context,
 	block *types.Block,
@@ -233,6 +237,8 @@ func (c *CoinStorage) RemovingBlock(
 				continue
 			}
 
+			// We add spent coins and remove created coins during a re-org (opposite of
+			// AddingBlock).
 			if err := c.tryAddingCoin(ctx, transaction, txn, operation, coinSpent); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
@@ -246,6 +252,7 @@ func (c *CoinStorage) RemovingBlock(
 	return nil, nil
 }
 
+// GetCoins returns all unspent coins for a provided *types.AccountIdentifier.
 func (c *CoinStorage) GetCoins(ctx context.Context, accountIdentifier *types.AccountIdentifier) ([]*Coin, error) {
 	transaction := c.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
