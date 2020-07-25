@@ -20,6 +20,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,12 +70,16 @@ var (
 		},
 	}
 
+	successStatus = "success"
+	failureStatus = "failure"
+
 	coinBlock = &types.Block{
 		Transactions: []*types.Transaction{
 			{
 				Operations: []*types.Operation{
 					{
 						Account: account,
+						Status:  successStatus,
 						Amount: &types.Amount{
 							Value: "10",
 						},
@@ -84,8 +89,19 @@ var (
 					},
 					{
 						Account: account2,
+						Status:  successStatus,
 						Amount: &types.Amount{
 							Value: "15",
+						},
+						Metadata: map[string]interface{}{
+							coinSpent: "coin2",
+						},
+					},
+					{
+						Account: account2,
+						Status:  failureStatus,
+						Amount: &types.Amount{
+							Value: "20",
 						},
 						Metadata: map[string]interface{}{
 							coinSpent: "coin2",
@@ -102,6 +118,7 @@ var (
 				Operations: []*types.Operation{
 					{
 						Account: account,
+						Status:  successStatus,
 						Amount: &types.Amount{
 							Value: "-10",
 						},
@@ -120,6 +137,7 @@ var (
 				Operations: []*types.Operation{
 					{
 						Account: account3,
+						Status:  successStatus,
 						Amount: &types.Amount{
 							Value: "4",
 						},
@@ -133,11 +151,26 @@ var (
 				Operations: []*types.Operation{
 					{
 						Account: account3,
+						Status:  successStatus,
 						Amount: &types.Amount{
 							Value: "6",
 						},
 						Metadata: map[string]interface{}{
 							coinCreated: "coin4",
+						},
+					},
+				},
+			},
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account3,
+						Status:  failureStatus,
+						Amount: &types.Amount{
+							Value: "12",
+						},
+						Metadata: map[string]interface{}{
+							coinCreated: "coin5",
 						},
 					},
 				},
@@ -157,7 +190,32 @@ func TestCoinStorage(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	c := NewCoinStorage(database)
+	a, err := asserter.NewClientWithOptions(
+		&types.NetworkIdentifier{
+			Blockchain: "bitcoin",
+			Network:    "mainnet",
+		},
+		&types.BlockIdentifier{
+			Hash:  "block 0",
+			Index: 0,
+		},
+		[]string{"Transfer"},
+		[]*types.OperationStatus{
+			{
+				Status:     successStatus,
+				Successful: true,
+			},
+			{
+				Status:     failureStatus,
+				Successful: false,
+			},
+		},
+		[]*types.Error{},
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+
+	c := NewCoinStorage(database, a)
 
 	t.Run("get coins of unset account", func(t *testing.T) {
 		coins, err := c.GetCoins(ctx, account)

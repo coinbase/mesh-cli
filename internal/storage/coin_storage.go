@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -39,14 +40,18 @@ var _ BlockWorker = (*CoinStorage)(nil)
 // UTXOs.
 type CoinStorage struct {
 	db Database
+
+	asserter *asserter.Asserter
 }
 
 // NewCoinStorage returns a new CoinStorage.
 func NewCoinStorage(
 	db Database,
+	asserter *asserter.Asserter,
 ) *CoinStorage {
 	return &CoinStorage{
-		db: db,
+		db:       db,
+		asserter: asserter,
 	}
 }
 
@@ -245,6 +250,15 @@ func (c *CoinStorage) AddingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			success, err := c.asserter.OperationSuccessful(operation)
+			if err != nil {
+				return nil, fmt.Errorf("%w: unable to parse operation success", err)
+			}
+
+			if !success {
+				continue
+			}
+
 			if operation.Amount == nil {
 				continue
 			}
@@ -270,6 +284,15 @@ func (c *CoinStorage) RemovingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			success, err := c.asserter.OperationSuccessful(operation)
+			if err != nil {
+				return nil, fmt.Errorf("%w: unable to parse operation success", err)
+			}
+
+			if !success {
+				continue
+			}
+
 			if operation.Amount == nil {
 				continue
 			}
