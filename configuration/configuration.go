@@ -264,6 +264,12 @@ type DataConfiguration struct {
 	// Note, a search will never be performed if historical balance lookup
 	// is disabled.
 	InactiveDiscrepencySearchDisabled bool `json:"inactive_discrepency_search_disabled"`
+
+	// BalanceTrackingDisabled is a boolean that indicates balances calculation
+	// should not be attempted. When first testing an implemenation, it can be
+	// useful to just try to fetch all blocks before checking for balance
+	// consistency.
+	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 }
 
 // Configuration contains all configuration settings for running

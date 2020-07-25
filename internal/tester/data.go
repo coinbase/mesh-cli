@@ -71,6 +71,10 @@ type DataTester struct {
 	genesisBlock      *types.BlockIdentifier
 }
 
+func shouldReconcile(config *configuration.Configuration) bool {
+	return !config.Data.ReconciliationDisabled && !config.Data.BalanceTrackingDisabled
+}
+
 // loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
 // in a file.
 func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
@@ -108,7 +112,6 @@ func InitializeData(
 	fetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
 	genesisBlock *types.BlockIdentifier,
-	reconcile bool,
 	interestingAccount *reconciler.AccountCurrency,
 	signalReceived *bool,
 ) *DataTester {
@@ -175,38 +178,43 @@ func InitializeData(
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
 	)
 
-	balanceStorageHelper := processor.NewBalanceStorageHelper(
-		network,
-		fetcher,
-		!config.Data.HistoricalBalanceDisabled,
-		exemptAccounts,
-	)
+	blockWorkers := []storage.BlockWorker{}
+	if !config.Data.BalanceTrackingDisabled {
+		balanceStorageHelper := processor.NewBalanceStorageHelper(
+			network,
+			fetcher,
+			!config.Data.HistoricalBalanceDisabled,
+			exemptAccounts,
+		)
 
-	balanceStorageHandler := processor.NewBalanceStorageHandler(
-		logger,
-		r,
-		!config.Data.ReconciliationDisabled,
-		interestingAccount,
-	)
+		balanceStorageHandler := processor.NewBalanceStorageHandler(
+			logger,
+			r,
+			shouldReconcile(config),
+			interestingAccount,
+		)
 
-	balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
+		balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
 
-	// Bootstrap balances if provided
-	if len(config.Data.BootstrapBalances) > 0 {
-		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-		if err == storage.ErrHeadBlockNotFound {
-			err = balanceStorage.BootstrapBalances(
-				ctx,
-				config.Data.BootstrapBalances,
-				genesisBlock,
-			)
-			if err != nil {
-				log.Fatalf("%s: unable to bootstrap balances", err.Error())
+		// Bootstrap balances if provided
+		if len(config.Data.BootstrapBalances) > 0 {
+			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
+			if err == storage.ErrHeadBlockNotFound {
+				err = balanceStorage.BootstrapBalances(
+					ctx,
+					config.Data.BootstrapBalances,
+					genesisBlock,
+				)
+				if err != nil {
+					log.Fatalf("%s: unable to bootstrap balances", err.Error())
+				}
+			} else {
+				log.Println("Skipping balance bootstrapping because already started syncing")
+				return nil
 			}
-		} else {
-			log.Println("Skipping balance bootstrapping because already started syncing")
-			return nil
 		}
+
+		blockWorkers = append(blockWorkers, balanceStorage)
 	}
 
 	syncer := statefulsyncer.New(
@@ -217,7 +225,7 @@ func InitializeData(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{balanceStorage},
+		blockWorkers,
 	)
 
 	return &DataTester{
@@ -252,7 +260,7 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartReconciler(
 	ctx context.Context,
 ) error {
-	if t.config.Data.ReconciliationDisabled {
+	if shouldReconcile(t.config) {
 		return nil
 	}
 
@@ -278,7 +286,7 @@ func (t *DataTester) StartPeriodicLogger(
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
-func (t *DataTester) HandleErr(ctx context.Context, err error) {
+func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []context.CancelFunc) {
 	if *t.signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
@@ -315,6 +323,8 @@ func (t *DataTester) HandleErr(ctx context.Context, err error) {
 		)
 		os.Exit(1)
 	}
+
+	t.FindMissingOps(ctx, sigListeners)
 }
 
 // FindMissingOps logs the types.BlockIdentifier of a block

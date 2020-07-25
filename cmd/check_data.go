@@ -119,8 +119,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		fetcher,
 		cancel,
 		networkStatus.GenesisBlockIdentifier,
-		!Config.Data.ReconciliationDisabled,
-		nil,
+		nil, // only populated when doing recursive search
 		&SignalReceived,
 	)
 
@@ -151,7 +150,5 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	// HandleErr will exit if we should not attempt
 	// to find missing operations.
-	dataTester.HandleErr(ctx, err)
-
-	dataTester.FindMissingOps(ctx, sigListeners)
+	dataTester.HandleErr(ctx, err, sigListeners)
 }
