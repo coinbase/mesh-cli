@@ -172,6 +172,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 }
 
 // DefaultConfiguration returns a *Configuration with the
+// EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
