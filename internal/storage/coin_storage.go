@@ -115,7 +115,6 @@ func (c *CoinStorage) tryAddingCoin(ctx context.Context, transaction DatabaseTra
 				return fmt.Errorf("coin %s already exists in account %s", coinIdentifier, types.PrettyPrintStruct(operation.Account))
 			}
 		}
-
 		coins[coinIdentifier] = struct{}{}
 
 		if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {

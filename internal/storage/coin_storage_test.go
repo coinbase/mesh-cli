@@ -33,6 +33,13 @@ var (
 		Address: "blah2",
 	}
 
+	account3 = &types.AccountIdentifier{
+		Address: "blah",
+		SubAccount: &types.SubAccountIdentifier{
+			Address: "extra account",
+		},
+	}
+
 	accountCoins = []*Coin{
 		{
 			Identifier:  "coin1",
@@ -46,6 +53,19 @@ var (
 			Identifier:  "coin2",
 			Transaction: coinBlock.Transactions[0],
 			Operation:   coinBlock.Transactions[0].Operations[1],
+		},
+	}
+
+	account3Coins = []*Coin{
+		{
+			Identifier:  "coin3",
+			Transaction: coinBlock3.Transactions[0],
+			Operation:   coinBlock3.Transactions[0].Operations[0],
+		},
+		{
+			Identifier:  "coin4",
+			Transaction: coinBlock3.Transactions[1],
+			Operation:   coinBlock3.Transactions[1].Operations[0],
 		},
 	}
 
@@ -87,6 +107,37 @@ var (
 						},
 						Metadata: map[string]interface{}{
 							coinSpent: "coin1",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	coinBlock3 = &types.Block{
+		Transactions: []*types.Transaction{
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account3,
+						Amount: &types.Amount{
+							Value: "4",
+						},
+						Metadata: map[string]interface{}{
+							coinCreated: "coin3",
+						},
+					},
+				},
+			},
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account3,
+						Amount: &types.Amount{
+							Value: "6",
+						},
+						Metadata: map[string]interface{}{
+							coinCreated: "coin4",
 						},
 					},
 				},
@@ -180,5 +231,19 @@ func TestCoinStorage(t *testing.T) {
 		assert.Equal(t, []*Coin{}, coins)
 	})
 
-	// Check multiple coins
+	t.Run("add block with multiple outputs for 1 account", func(t *testing.T) {
+		tx := c.db.NewDatabaseTransaction(ctx, true)
+		commitFunc, err := c.AddingBlock(ctx, coinBlock3, tx)
+		assert.Nil(t, commitFunc)
+		assert.NoError(t, err)
+		assert.NoError(t, tx.Commit(ctx))
+
+		coins, err := c.GetCoins(ctx, account)
+		assert.NoError(t, err)
+		assert.Equal(t, []*Coin{}, coins)
+
+		coins, err = c.GetCoins(ctx, account3)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, account3Coins, coins)
+	})
 }
