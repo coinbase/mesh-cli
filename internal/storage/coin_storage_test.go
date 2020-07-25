@@ -97,6 +97,16 @@ var (
 							coinSpent: "coin2",
 						},
 					},
+					{
+						Account: account2,
+						Status:  failureStatus,
+						Amount: &types.Amount{
+							Value: "20",
+						},
+						Metadata: map[string]interface{}{
+							coinSpent: "coin2",
+						},
+					},
 				},
 			},
 		},
@@ -147,6 +157,20 @@ var (
 						},
 						Metadata: map[string]interface{}{
 							coinCreated: "coin4",
+						},
+					},
+				},
+			},
+			{
+				Operations: []*types.Operation{
+					{
+						Account: account3,
+						Status:  failureStatus,
+						Amount: &types.Amount{
+							Value: "12",
+						},
+						Metadata: map[string]interface{}{
+							coinCreated: "coin5",
 						},
 					},
 				},
