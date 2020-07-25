@@ -101,3 +101,16 @@ func LoadAndParse(filePath string, output interface{}) error {
 
 	return nil
 }
+
+// CreateCommandPath creates a unique path for a command and network within a data directory. This
+// is used to avoid collision when using multiple commands on multiple networks
+// when the same storage resources are used. If the derived path does not exist,
+// we run os.MkdirAll on the path.
+func CreateCommandPath(dataDirectory string, cmd string, network *types.NetworkIdentifier) (string, error) {
+	dataPath := path.Join(dataDirectory, cmd, types.Hash(network))
+	if err := EnsurePathExists(dataPath); err != nil {
+		return "", fmt.Errorf("%w: cannot populate path", err)
+	}
+
+	return dataPath, nil
+}

@@ -21,7 +21,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"path"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -39,6 +38,10 @@ import (
 )
 
 const (
+	// dataCmdName is used as the prefix on the data directory
+	// for all data saved using this command.
+	dataCmdName = "check-data"
+
 	// InactiveFailureLookbackWindow is the size of each window to check
 	// for missing ops. If a block with missing ops is not found in this
 	// window, another window is created with the preceding
@@ -63,7 +66,6 @@ type DataTester struct {
 	logger            *logger.Logger
 	counterStorage    *storage.CounterStorage
 	reconcilerHandler *processor.ReconcilerHandler
-	reconcile         bool
 	fetcher           *fetcher.Fetcher
 	signalReceived    *bool
 	genesisBlock      *types.BlockIdentifier
@@ -110,11 +112,9 @@ func InitializeData(
 	interestingAccount *reconciler.AccountCurrency,
 	signalReceived *bool,
 ) *DataTester {
-	// Create a unique path for invocation to avoid collision when parsing
-	// multiple networks.
-	dataPath := path.Join(config.Data.DataDirectory, "data", types.Hash(network))
-	if err := utils.EnsurePathExists(dataPath); err != nil {
-		log.Fatalf("%s: cannot populate path", err.Error())
+	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
+	if err != nil {
+		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
 	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
@@ -185,7 +185,7 @@ func InitializeData(
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
 		logger,
 		r,
-		reconcile,
+		!config.Data.ReconciliationDisabled,
 		interestingAccount,
 	)
 
@@ -229,7 +229,6 @@ func InitializeData(
 		logger:            logger,
 		counterStorage:    counterStorage,
 		reconcilerHandler: reconcilerHandler,
-		reconcile:         reconcile,
 		fetcher:           fetcher,
 		signalReceived:    signalReceived,
 		genesisBlock:      genesisBlock,
@@ -253,7 +252,7 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartReconciler(
 	ctx context.Context,
 ) error {
-	if !t.reconcile {
+	if t.config.Data.ReconciliationDisabled {
 		return nil
 	}
 

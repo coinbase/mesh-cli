@@ -94,7 +94,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := fetcher.New(
-		Config.Data.OnlineURL,
+		Config.OnlineURL,
 		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),

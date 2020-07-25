@@ -41,35 +41,36 @@ const (
 // Default Configuration Values
 const (
 	DefaultURL                               = "http://localhost:8080"
-	DefaultMinimumBalance                    = "0"
-	DefaultMaximumFee                        = "50000"
-	DefaultCurveType                         = types.Secp256k1
-	DefaultAccountingModel                   = AccountModel
 	DefaultBlockConcurrency                  = 8
 	DefaultTransactionConcurrency            = 16
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
+	DefaultTimeout                           = 10
 
 	// ETH Defaults
-	EthereumBlockchain = "Ethereum"
-	EthereumNetwork    = "Ropsten"
-	EthereumTransfer   = "transfer"
-	EthereumSymbol     = "ETH"
-	EthereumDecimals   = 18
+	EthereumIDBlockchain    = "Ethereum"
+	EthereumIDNetwork       = "Ropsten"
+	EthereumTransferType    = "transfer"
+	EthereumSymbol          = "ETH"
+	EthereumDecimals        = 18
+	EthereumMinimumBalance  = "0"
+	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
+	EthereumCurveType       = types.Secp256k1
+	EthereumAccountingModel = AccountModel
 )
 
 // Default Configuration Values
 var (
-	DefaultNetwork = &types.NetworkIdentifier{
-		Blockchain: EthereumBlockchain,
-		Network:    EthereumNetwork,
+	EthereumNetwork = &types.NetworkIdentifier{
+		Blockchain: EthereumIDBlockchain,
+		Network:    EthereumIDNetwork,
 	}
-	DefaultCurrency = &types.Currency{
+	EthereumCurrency = &types.Currency{
 		Symbol:   EthereumSymbol,
 		Decimals: EthereumDecimals,
 	}
-	DefaultTransferScenario = []*types.Operation{
+	EthereumTransfer = []*types.Operation{
 		{
 			OperationIdentifier: &types.OperationIdentifier{
 				Index: 0,
@@ -77,7 +78,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Sender,
 			},
-			Type: EthereumTransfer,
+			Type: EthereumTransferType,
 			Amount: &types.Amount{
 				Value: scenario.SenderValue,
 			},
@@ -94,7 +95,7 @@ var (
 			Account: &types.AccountIdentifier{
 				Address: scenario.Recipient,
 			},
-			Type: EthereumTransfer,
+			Type: EthereumTransferType,
 			Amount: &types.Amount{
 				Value: scenario.RecipientValue,
 			},
@@ -108,15 +109,6 @@ var (
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
-	// Network is the *types.NetworkIdentifier where transactions should
-	// be constructed and where blocks should be synced to monitor
-	// for broadcast success.
-	Network *types.NetworkIdentifier `json:"network"`
-
-	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
-	OnlineURL string `json:"online_url"`
-
 	// OfflineURL is the URL of a Rosetta API implementation in "online mode".
 	// default: http://localhost:8080
 	OfflineURL string `json:"offline_url"`
@@ -157,15 +149,13 @@ type ConstructionConfiguration struct {
 // used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
-		Network:          DefaultNetwork,
-		OnlineURL:        DefaultURL,
 		OfflineURL:       DefaultURL,
-		Currency:         DefaultCurrency,
-		MinimumBalance:   DefaultMinimumBalance,
-		MaximumFee:       DefaultMaximumFee,
-		CurveType:        DefaultCurveType,
-		AccountingModel:  DefaultAccountingModel,
-		TransferScenario: DefaultTransferScenario,
+		Currency:         EthereumCurrency,
+		MinimumBalance:   EthereumMinimumBalance,
+		MaximumFee:       EthereumMaximumFee,
+		CurveType:        EthereumCurveType,
+		AccountingModel:  EthereumAccountingModel,
+		TransferScenario: EthereumTransfer,
 	}
 }
 
@@ -173,7 +163,6 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 // for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
 	return &DataConfiguration{
-		OnlineURL:                         DefaultURL,
 		BlockConcurrency:                  DefaultBlockConcurrency,
 		TransactionConcurrency:            DefaultTransactionConcurrency,
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
@@ -186,6 +175,9 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
+		Network:      EthereumNetwork,
+		OnlineURL:    DefaultURL,
+		HTTPTimeout:  DefaultTimeout,
 		Construction: DefaultConstructionConfiguration(),
 		Data:         DefaultDataConfiguration(),
 	}
@@ -194,14 +186,6 @@ func DefaultConfiguration() *Configuration {
 // DataConfiguration contains all configurations to run check:data.
 // TODO: Add configurable timeout (https://github.com/coinbase/rosetta-cli/issues/64)
 type DataConfiguration struct {
-	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
-	OnlineURL string `json:"online_url"`
-
-	// DataDirectory is a folder used to store logs and any data used to perform validation.
-	// default: ""
-	DataDirectory string `json:"data_directory"`
-
 	// BlockConcurrency is the concurrency to use while fetching blocks.
 	// default: 8
 	BlockConcurrency uint64 `json:"block_concurrency"`
@@ -270,11 +254,32 @@ type DataConfiguration struct {
 	// at the examples directory for an example of how to structure this file.
 	// default: ""
 	InterestingAccounts string `json:"interesting_accounts"`
+
+	// ReconciliationDisabled is a boolean that indicates reconciliation should not
+	// be attempted. When first testing an implementation, it can be useful to disable
+	// some of the more advanced checks to confirm syncing is working as expected.
+	ReconciliationDisabled bool `json:"reconciliation_disabled"`
 }
 
 // Configuration contains all configuration settings for running
 // check:data or check:construction.
 type Configuration struct {
+	// Network is the *types.NetworkIdentifier where transactions should
+	// be constructed and where blocks should be synced to monitor
+	// for broadcast success.
+	Network *types.NetworkIdentifier `json:"network"`
+
+	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
+	// default: http://localhost:8080
+	OnlineURL string `json:"online_url"`
+
+	// DataDirectory is a folder used to store logs and any data used to perform validation.
+	// default: ""
+	DataDirectory string `json:"data_directory"`
+
+	// HTTPTimeout is the timeout for HTTP requests in seconds.
+	HTTPTimeout uint64 `json:"http_timeout"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -286,40 +291,32 @@ func populateConstructionMissingFields(
 		return DefaultConstructionConfiguration()
 	}
 
-	if constructionConfig.Network == nil {
-		constructionConfig.Network = DefaultNetwork
-	}
-
-	if len(constructionConfig.OnlineURL) == 0 {
-		constructionConfig.OnlineURL = DefaultURL
-	}
-
 	if len(constructionConfig.OfflineURL) == 0 {
 		constructionConfig.OfflineURL = DefaultURL
 	}
 
 	if constructionConfig.Currency == nil {
-		constructionConfig.Currency = DefaultCurrency
+		constructionConfig.Currency = EthereumCurrency
 	}
 
 	if len(constructionConfig.MinimumBalance) == 0 {
-		constructionConfig.MinimumBalance = DefaultMinimumBalance
+		constructionConfig.MinimumBalance = EthereumMinimumBalance
 	}
 
 	if len(constructionConfig.MaximumFee) == 0 {
-		constructionConfig.MaximumFee = DefaultMaximumFee
+		constructionConfig.MaximumFee = EthereumMaximumFee
 	}
 
 	if len(constructionConfig.CurveType) == 0 {
-		constructionConfig.CurveType = DefaultCurveType
+		constructionConfig.CurveType = EthereumCurveType
 	}
 
 	if len(constructionConfig.AccountingModel) == 0 {
-		constructionConfig.AccountingModel = DefaultAccountingModel
+		constructionConfig.AccountingModel = EthereumAccountingModel
 	}
 
 	if len(constructionConfig.TransferScenario) == 0 {
-		constructionConfig.TransferScenario = DefaultTransferScenario
+		constructionConfig.TransferScenario = EthereumTransfer
 	}
 
 	return constructionConfig
@@ -328,10 +325,6 @@ func populateConstructionMissingFields(
 func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration {
 	if dataConfig == nil {
 		return DefaultDataConfiguration()
-	}
-
-	if len(dataConfig.OnlineURL) == 0 {
-		dataConfig.OnlineURL = DefaultURL
 	}
 
 	if dataConfig.BlockConcurrency == 0 {
@@ -362,6 +355,18 @@ func populateMissingFields(config *Configuration) *Configuration {
 		return DefaultConfiguration()
 	}
 
+	if config.Network == nil {
+		config.Network = EthereumNetwork
+	}
+
+	if len(config.OnlineURL) == 0 {
+		config.OnlineURL = DefaultURL
+	}
+
+	if config.HTTPTimeout == 0 {
+		config.HTTPTimeout = DefaultTimeout
+	}
+
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
 
@@ -382,10 +387,6 @@ func checkStringUint(input string) error {
 }
 
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
-	if err := asserter.NetworkIdentifier(config.Network); err != nil {
-		return fmt.Errorf("%w: invalid network identifier", err)
-	}
-
 	// TODO: add asserter.Currency method
 	if err := asserter.Amount(&types.Amount{Value: "0", Currency: config.Currency}); err != nil {
 		return fmt.Errorf("%w: invalid currency", err)
@@ -412,6 +413,18 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	return nil
 }
 
+func assertConfiguration(config *Configuration) error {
+	if err := asserter.NetworkIdentifier(config.Network); err != nil {
+		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	if err := assertConstructionConfiguration(config.Construction); err != nil {
+		return fmt.Errorf("%w: invalid construction configuration", err)
+	}
+
+	return nil
+}
+
 // LoadConfiguration returns a parsed and asserted Configuration for running
 // tests.
 func LoadConfiguration(filePath string) (*Configuration, error) {
@@ -422,8 +435,8 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 
 	config := populateMissingFields(&configRaw)
 
-	if err := assertConstructionConfiguration(config.Construction); err != nil {
-		return nil, fmt.Errorf("%w: invalid construction configuration", err)
+	if err := assertConfiguration(config); err != nil {
+		return nil, fmt.Errorf("%w: invalid configuration", err)
 	}
 
 	log.Printf(
