@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -77,6 +76,7 @@ type BroadcastStorageHandler interface {
 // broadcast is persisted to the db to track transaction broadcast.
 type broadcast struct {
 	Identifier    *types.TransactionIdentifier `json:"identifier"`
+	Sender        string                       `json:"sender"`
 	Intent        []*types.Operation           `json:"intent"`
 	Payload       string                       `json:"payload"`
 	LastBroadcast *types.BlockIdentifier       `json:"broadcast_at"`
@@ -109,6 +109,7 @@ func (b *BroadcastStorage) AddingBlock(
 	transaction DatabaseTransaction,
 ) (CommitWorker, error) {
 	// TODO: call handler -> transactionRebroadcast should not block processing (could be in CommitWorker)
+	// TODO: on each added block commit worker, attempt to broadcast all txs with no last identifier
 	return nil, nil
 }
 
@@ -126,6 +127,7 @@ func (b *BroadcastStorage) RemovingBlock(
 // The caller SHOULD NOT broadcast the transaction before calling this function.
 func (b *BroadcastStorage) Broadcast(
 	ctx context.Context,
+	sender string,
 	intent []*types.Operation,
 	transactionIdentifier *types.TransactionIdentifier,
 	payload string,
@@ -146,6 +148,7 @@ func (b *BroadcastStorage) Broadcast(
 
 	bytes, err := encode(&broadcast{
 		Identifier: transactionIdentifier,
+		Sender:     sender,
 		Intent:     intent,
 		Payload:    payload,
 	})
@@ -164,9 +167,38 @@ func (b *BroadcastStorage) Broadcast(
 	return nil
 }
 
+func (b *BroadcastStorage) getAllBroadcasts(ctx context.Context) ([]*broadcast, error) {
+	rawBroadcasts, err := b.db.Scan(ctx, []byte(transactionBroadcastNamespace))
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to scan for all broadcasts", err)
+	}
+
+	broadcasts := make([]*broadcast, len(rawBroadcasts))
+	for i, rawBroadcast := range rawBroadcasts {
+		var b broadcast
+		if err := decode(rawBroadcast, &b); err != nil {
+			return nil, fmt.Errorf("%w: unable to decode broadcast", err)
+		}
+
+		broadcasts[i] = &b
+	}
+
+	return broadcasts, nil
+}
+
 // LockedAddresses returns all addresses currently broadcasting a transaction.
 // The caller SHOULD NOT broadcast a transaction from an account if it is
 // considered locked!
-func (b *BroadcastStorage) LockedAddresses() error {
-	return errors.New("not implemented")
+func (b *BroadcastStorage) LockedAddresses(ctx context.Context) ([]string, error) {
+	broadcasts, err := b.getAllBroadcasts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
+	}
+
+	addresses := make([]string, len(broadcasts))
+	for i, broadcast := range broadcasts {
+		addresses[i] = broadcast.Sender
+	}
+
+	return addresses, nil
 }
