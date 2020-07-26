@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -479,8 +478,8 @@ func (b *BlockStorage) removeTransactionHash(
 }
 
 // FindTransaction returns the []*types.BlockIdentifier containing the
-// transaction and the depth from the current head of the first transaction
-// sigting (almost always this will just be a single block). If not found,
+// transaction and the depth from the current head of the last transaction
+// sighting (almost always this will just be a single block). If not found,
 // it returns a ErrTransactionNotFound error.
 func (b *BlockStorage) FindTransaction(
 	ctx context.Context,
@@ -522,13 +521,13 @@ func (b *BlockStorage) FindTransaction(
 	}
 
 	ids := []*types.BlockIdentifier{}
-	oldestBlock := int64(math.MaxInt64)
+	newestBlock := int64(0)
 	for hash, index := range blocks {
 		ids = append(ids, &types.BlockIdentifier{Hash: hash, Index: index})
-		if index < oldestBlock {
-			oldestBlock = index
+		if index > newestBlock {
+			newestBlock = index
 		}
 	}
 
-	return ids, head.Index - oldestBlock, nil
+	return ids, head.Index - newestBlock, nil
 }

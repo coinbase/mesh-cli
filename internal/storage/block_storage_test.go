@@ -332,7 +332,7 @@ func TestBlock(t *testing.T) {
 			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
 			txBlocks,
 		)
-		assert.Equal(t, int64(1), headDistance)
+		assert.Equal(t, int64(0), headDistance)
 	})
 
 	t.Run("Remove block and re-set block of same hash", func(t *testing.T) {
@@ -361,7 +361,7 @@ func TestBlock(t *testing.T) {
 			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
 			txBlocks,
 		)
-		assert.Equal(t, int64(1), headDistance)
+		assert.Equal(t, int64(0), headDistance)
 	})
 
 	t.Run("Add block with complex metadata", func(t *testing.T) {
@@ -375,6 +375,19 @@ func TestBlock(t *testing.T) {
 		head, err := storage.GetHeadBlockIdentifier(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock.BlockIdentifier, head)
+
+		txBlocks, headDistance, err := storage.FindTransaction(
+			ctx,
+			newBlock.Transactions[0].TransactionIdentifier,
+		)
+		assert.NoError(t, err)
+		assert.Len(t, txBlocks, 2)
+		assert.ElementsMatch(
+			t,
+			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock2.BlockIdentifier},
+			txBlocks,
+		)
+		assert.Equal(t, int64(1), headDistance)
 	})
 
 	t.Run("Set duplicate transaction hash (same block)", func(t *testing.T) {
