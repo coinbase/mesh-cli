@@ -525,5 +525,10 @@ func (b *BlockStorage) FindTransaction(
 		}
 	}
 
-	return nil, nil, fmt.Errorf("unable to find transaction %s in expected block %s:%d", transactionIdentifier.Hash, newestBlock.Hash, newestBlock.Index)
+	return nil, nil, fmt.Errorf(
+		"unable to find transaction %s in expected block %s:%d",
+		transactionIdentifier.Hash,
+		newestBlock.Hash,
+		newestBlock.Index,
+	)
 }

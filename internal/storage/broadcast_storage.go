@@ -49,16 +49,24 @@ type BroadcastStorage struct {
 type BroadcastStorageHelper interface {
 	// CurrentBlockIdentifier is called before transaction broadcast and is used
 	// to determine if a transaction broadcast is stale.
-	CurrentBlockIdentifier(context.Context) (*types.BlockIdentifier, error) // used to determine if should rebroadcast
+	CurrentBlockIdentifier(
+		context.Context,
+	) (*types.BlockIdentifier, error) // used to determine if should rebroadcast
 
 	// FindTransaction looks for the provided TransactionIdentifier in processed
 	// blocks and returns the block identifier containing the most recent sighting
 	// and the transaction seen in that block.
-	FindTransaction(context.Context, *types.TransactionIdentifier) (*types.BlockIdentifier, *types.Transaction, error) // used to confirm
+	FindTransaction(
+		context.Context,
+		*types.TransactionIdentifier,
+	) (*types.BlockIdentifier, *types.Transaction, error) // used to confirm
 
 	// BroadcastTransaction broadcasts a transaction to a Rosetta implementation
 	// and returns the *types.TransactionIdentifier returned by the implementation.
-	BroadcastTransaction(context.Context, string) (*types.TransactionIdentifier, error) // handle initial broadcast + confirm matches provided + rebroadcast if stale
+	BroadcastTransaction(
+		context.Context,
+		string,
+	) (*types.TransactionIdentifier, error) // handle initial broadcast + confirm matches provided + rebroadcast if stale
 }
 
 // BroadcastStorageHandler is invoked when a transaction is confirmed on-chain
@@ -66,12 +74,20 @@ type BroadcastStorageHelper interface {
 type BroadcastStorageHandler interface {
 	// TransactionConfirmed is called when a transaction is observed on-chain for the
 	// last time at a block height < current block height - confirmationDepth.
-	TransactionConfirmed(context.Context, *types.BlockIdentifier, *types.Transaction, []*types.Operation) error // can use locked account again + confirm matches intent + update logger
+	TransactionConfirmed(
+		context.Context,
+		*types.BlockIdentifier,
+		*types.Transaction,
+		[]*types.Operation,
+	) error // can use locked account again + confirm matches intent + update logger
 
 	// TransactionStale is called when a transaction has not yet been
 	// seen on-chain and is considered stale. This occurs when
 	// current block height - last broadcast > staleDepth.
-	TransactionStale(context.Context, *types.TransactionIdentifier) error // log in counter (rebroadcast should occur here)
+	TransactionStale(
+		context.Context,
+		*types.TransactionIdentifier,
+	) error // log in counter (rebroadcast should occur here)
 }
 
 // broadcast is persisted to the db to track transaction broadcast.
@@ -98,9 +114,48 @@ func NewBroadcastStorage(
 
 // Initialize adds a BroadcastStorageHelper and BroadcastStorageHandler to BroadcastStorage.
 // This must be called prior to syncing!
-func (b *BroadcastStorage) Initialize(helper BroadcastStorageHelper, handler BroadcastStorageHandler) {
+func (b *BroadcastStorage) Initialize(
+	helper BroadcastStorageHelper,
+	handler BroadcastStorageHandler,
+) {
 	b.helper = helper
 	b.handler = handler
+}
+
+func (b *BroadcastStorage) addBlockCommitWorker(
+	ctx context.Context,
+	block *types.Block,
+	staleTransactions []*types.TransactionIdentifier,
+	confirmedTransactions []*broadcast,
+	foundTransactions []*types.Transaction,
+) error {
+	for _, stale := range staleTransactions {
+		if err := b.handler.TransactionStale(ctx, stale); err != nil {
+			return fmt.Errorf("%w: unable to handle stale transaction %s", err, stale.Hash)
+		}
+	}
+
+	for i, broadcast := range confirmedTransactions {
+		err := b.handler.TransactionConfirmed(
+			ctx,
+			block.BlockIdentifier,
+			foundTransactions[i],
+			broadcast.Intent,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: unable to handle confirmed transaction %s",
+				err,
+				broadcast.Identifier.Hash,
+			)
+		}
+	}
+
+	if err := b.broadcastPending(ctx); err != nil {
+		return fmt.Errorf("%w: unable to broadcast pending transactions", err)
+	}
+
+	return nil
 }
 
 // AddingBlock is called by BlockStorage when adding a block.
@@ -127,7 +182,8 @@ func (b *BroadcastStorage) AddingBlock(
 		}
 
 		// Check if we should mark the broadcast as stale
-		if foundBlock == nil && block.BlockIdentifier.Index-broadcast.LastBroadcast.Index > b.staleDepth {
+		if foundBlock == nil &&
+			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index > b.staleDepth {
 			staleTransactions = append(staleTransactions, broadcast.Identifier)
 			broadcast.LastBroadcast = nil
 			bytes, err := encode(broadcast)
@@ -159,23 +215,13 @@ func (b *BroadcastStorage) AddingBlock(
 	}
 
 	return func(ctx context.Context) error {
-		for _, stale := range staleTransactions {
-			if err := b.handler.TransactionStale(ctx, stale); err != nil {
-				return fmt.Errorf("%w: unable to handle stale transaction %s", err, stale.Hash)
-			}
-		}
-
-		for i, broadcast := range confirmedTransactions {
-			if err := b.handler.TransactionConfirmed(ctx, block.BlockIdentifier, foundTransactions[i], broadcast.Intent); err != nil {
-				return fmt.Errorf("%w: unable to handle confirmed transaction %s", err, broadcast.Identifier.Hash)
-			}
-		}
-
-		if err := b.broadcastPending(ctx); err != nil {
-			return fmt.Errorf("%w: unable to broadcast pending transactions", err)
-		}
-
-		return nil
+		return b.addBlockCommitWorker(
+			ctx,
+			block,
+			staleTransactions,
+			confirmedTransactions,
+			foundTransactions,
+		)
 	}, nil
 }
 
@@ -259,7 +305,9 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	}
 
 	for _, broadcast := range broadcasts {
-		if broadcast.LastBroadcast != nil { // when a transaction should be broadcast, its last broadcast field should be set to nil
+		// When a transaction should be broadcast, its last broadcast field must
+		// be set to nil.
+		if broadcast.LastBroadcast != nil {
 			continue
 		}
 
@@ -291,11 +339,19 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 
 		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
 		if err != nil {
-			return fmt.Errorf("%w: unable to broadcast transaction %s", err, broadcast.Identifier.Hash)
+			return fmt.Errorf(
+				"%w: unable to broadcast transaction %s",
+				err,
+				broadcast.Identifier.Hash,
+			)
 		}
 
 		if types.Hash(broadcastIdentifier) != types.Hash(broadcast.Identifier) {
-			return fmt.Errorf("transaction hash returned by broadcast %s does not match expected %s", broadcastIdentifier.Hash, broadcast.Identifier.Hash)
+			return fmt.Errorf(
+				"transaction hash returned by broadcast %s does not match expected %s",
+				broadcastIdentifier.Hash,
+				broadcast.Identifier.Hash,
+			)
 		}
 	}
 
