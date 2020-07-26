@@ -186,6 +186,30 @@ func (b *BroadcastStorage) getAllBroadcasts(ctx context.Context) ([]*broadcast, 
 	return broadcasts, nil
 }
 
+func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
+	broadcasts, err := b.getAllBroadcasts(ctx)
+	if err != nil {
+		return fmt.Errorf("%w: unable to get all broadcasts", err)
+	}
+
+	for _, broadcast := range broadcasts {
+		if broadcast.LastBroadcast != nil { // when a transaction should be broadcast, its last broadcast field should be set to nil
+			continue
+		}
+
+		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
+		if err != nil {
+			return fmt.Errorf("%w: unable to broadcast transaction %s", err, broadcast.Identifier.Hash)
+		}
+
+		if types.Hash(broadcastIdentifier) != types.Hash(broadcast.Identifier) {
+			return fmt.Errorf("transaction hash returned by broadcast %s does not match expected %s", broadcastIdentifier.Hash, broadcast.Identifier.Hash)
+		}
+	}
+
+	return nil
+}
+
 // LockedAddresses returns all addresses currently broadcasting a transaction.
 // The caller SHOULD NOT broadcast a transaction from an account if it is
 // considered locked!
