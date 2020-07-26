@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -197,6 +198,10 @@ func (b *BroadcastStorage) AddingBlock(
 	foundTransactions := []*types.Transaction{}
 
 	for _, broadcast := range broadcasts {
+		if broadcast.LastBroadcast == nil {
+			continue
+		}
+
 		key := getBroadcastKey(broadcast.Identifier)
 
 		foundBlock, foundTransaction, err := b.helper.FindTransaction(ctx, broadcast.Identifier)
@@ -395,11 +400,14 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 
 		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
 		if err != nil {
-			return fmt.Errorf(
-				"%w: unable to broadcast transaction %s",
-				err,
+			// Don't error on broadcast failure, retries will automatically be handled.
+			log.Printf(
+				"%s: unable to broadcast transaction %s",
+				err.Error(),
 				broadcast.Identifier.Hash,
 			)
+
+			continue
 		}
 
 		if types.Hash(broadcastIdentifier) != types.Hash(broadcast.Identifier) {

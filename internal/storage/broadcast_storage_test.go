@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -31,7 +32,7 @@ const (
 	broadcastLimit    = 3
 )
 
-func makeFillerBlocks(start int64, end int64) []*types.Block {
+func blockFiller(start int64, end int64) []*types.Block {
 	blocks := []*types.Block{}
 	for i := start; i < end; i++ {
 		parentIndex := i - 1
@@ -72,7 +73,7 @@ func opFiller(sender string, opNumber int) []*types.Operation {
 	return ops
 }
 
-func TestBroadcastStorage(t *testing.T) {
+func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 	ctx := context.Background()
 
 	newDir, err := utils.CreateTempDir()
@@ -92,15 +93,15 @@ func TestBroadcastStorage(t *testing.T) {
 		addresses, err := storage.LockedAddresses(ctx)
 		assert.NoError(t, err)
 		assert.Len(t, addresses, 0)
-		assert.NotNil(t, addresses)
+		assert.ElementsMatch(t, []string{}, addresses)
 	})
 
+	send1 := opFiller("addr 1", 11)
+	send2 := opFiller("addr 2", 13)
 	t.Run("broadcast", func(t *testing.T) {
-		send1 := opFiller("addr 1", 11)
 		err := storage.Broadcast(ctx, "addr 1", send1, &types.TransactionIdentifier{Hash: "tx 1"}, "payload 1")
 		assert.NoError(t, err)
 
-		send2 := opFiller("addr 2", 13)
 		err = storage.Broadcast(ctx, "addr 2", send2, &types.TransactionIdentifier{Hash: "tx 2"}, "payload 2")
 		assert.NoError(t, err)
 
@@ -127,22 +128,76 @@ func TestBroadcastStorage(t *testing.T) {
 			},
 		}, broadcasts)
 	})
+
+	t.Run("add blocks and expire", func(t *testing.T) {
+		mockHelper.Transactions = map[string]*types.TransactionIdentifier{
+			"payload 1": &types.TransactionIdentifier{Hash: "tx 1"},
+			// payload 2 will fail
+		}
+		blocks := blockFiller(0, 10)
+		for _, block := range blocks {
+			mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
+
+			txn := storage.db.NewDatabaseTransaction(ctx, true)
+			commitWorker, err := storage.AddingBlock(ctx, block, txn)
+			assert.NoError(t, err)
+			err = txn.Commit(ctx)
+			assert.NoError(t, err)
+
+			mockHelper.SyncedBlockIdentifier = block.BlockIdentifier
+			err = commitWorker(ctx)
+			assert.NoError(t, err)
+		}
+
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 0)
+		assert.ElementsMatch(t, []string{}, addresses)
+
+		broadcasts, err := storage.GetAllBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{}, broadcasts)
+
+		assert.ElementsMatch(t, []*types.TransactionIdentifier{
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			&types.TransactionIdentifier{Hash: "tx 2"},
+		}, mockHandler.Stale)
+
+		assert.ElementsMatch(t, []*failedTx{
+			{
+				transaction: &types.TransactionIdentifier{Hash: "tx 1"},
+				intent:      send1,
+			},
+			{
+				transaction: &types.TransactionIdentifier{Hash: "tx 2"},
+				intent:      send2,
+			},
+		}, mockHandler.Failed)
+	})
 }
 
 var _ BroadcastStorageHelper = (*MockBroadcastStorageHelper)(nil)
 
-type MockBroadcastStorageHelper struct{}
+type MockBroadcastStorageHelper struct {
+	RemoteBlockIdentifier *types.BlockIdentifier
+	SyncedBlockIdentifier *types.BlockIdentifier
+	Transactions          map[string]*types.TransactionIdentifier
+}
 
 func (m *MockBroadcastStorageHelper) CurrentRemoteBlockIdentifier(
 	ctx context.Context,
 ) (*types.BlockIdentifier, error) {
-	return nil, nil
+	return m.RemoteBlockIdentifier, nil
 }
 
 func (m *MockBroadcastStorageHelper) CurrentBlockIdentifier(
 	ctx context.Context,
 ) (*types.BlockIdentifier, error) {
-	return nil, nil
+	return m.SyncedBlockIdentifier, nil
 }
 
 func (m *MockBroadcastStorageHelper) FindTransaction(
@@ -156,12 +211,32 @@ func (m *MockBroadcastStorageHelper) BroadcastTransaction(
 	ctx context.Context,
 	payload string,
 ) (*types.TransactionIdentifier, error) {
-	return nil, nil
+	val, exists := m.Transactions[payload]
+	if !exists {
+		return nil, errors.New("broadcast error")
+	}
+
+	return val, nil
 }
 
 var _ BroadcastStorageHandler = (*MockBroadcastStorageHandler)(nil)
 
-type MockBroadcastStorageHandler struct{}
+type confirmedTx struct {
+	blockIdentifier *types.BlockIdentifier
+	transaction     *types.Transaction
+	intent          []*types.Operation
+}
+
+type failedTx struct {
+	transaction *types.TransactionIdentifier
+	intent      []*types.Operation
+}
+
+type MockBroadcastStorageHandler struct {
+	Confirmed []*confirmedTx
+	Stale     []*types.TransactionIdentifier
+	Failed    []*failedTx
+}
 
 func (m *MockBroadcastStorageHandler) TransactionConfirmed(
 	ctx context.Context,
@@ -169,6 +244,16 @@ func (m *MockBroadcastStorageHandler) TransactionConfirmed(
 	transaction *types.Transaction,
 	intent []*types.Operation,
 ) error {
+	if m.Confirmed == nil {
+		m.Confirmed = []*confirmedTx{}
+	}
+
+	m.Confirmed = append(m.Confirmed, &confirmedTx{
+		blockIdentifier: blockIdentifier,
+		transaction:     transaction,
+		intent:          intent,
+	})
+
 	return nil
 }
 
@@ -176,6 +261,12 @@ func (m *MockBroadcastStorageHandler) TransactionStale(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
 ) error {
+	if m.Stale == nil {
+		m.Stale = []*types.TransactionIdentifier{}
+	}
+
+	m.Stale = append(m.Stale, transactionIdentifier)
+
 	return nil
 }
 
@@ -184,5 +275,14 @@ func (m *MockBroadcastStorageHandler) BroadcastFailed(
 	transactionIdentifier *types.TransactionIdentifier,
 	intent []*types.Operation,
 ) error {
+	if m.Failed == nil {
+		m.Failed = []*failedTx{}
+	}
+
+	m.Failed = append(m.Failed, &failedTx{
+		transaction: transactionIdentifier,
+		intent:      intent,
+	})
+
 	return nil
 }
