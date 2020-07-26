@@ -17,11 +17,22 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 var _ BlockWorker = (*BroadcastStorage)(nil)
+
+const (
+	transactionBroadcastNamespace = "transaction-broadcast"
+)
+
+func getBroadcastKey(transactionIdentifier *types.TransactionIdentifier) []byte {
+	return []byte(
+		fmt.Sprintf("%s/%s", transactionBroadcastNamespace, transactionIdentifier.Hash),
+	)
+}
 
 // BroadcastStorage implements storage methods for managing
 // transaction broadcast.
@@ -119,7 +130,38 @@ func (b *BroadcastStorage) Broadcast(
 	transactionIdentifier *types.TransactionIdentifier,
 	payload string,
 ) error {
-	return errors.New("not implemented")
+	txn := b.db.NewDatabaseTransaction(ctx, true)
+	defer txn.Discard(ctx)
+
+	broadcastKey := getBroadcastKey(transactionIdentifier)
+
+	exists, _, err := txn.Get(ctx, broadcastKey)
+	if err != nil {
+		return fmt.Errorf("%w: unable to determine if already broadcasting transaction", err)
+	}
+
+	if exists {
+		return fmt.Errorf("already broadcasting transaction %s", transactionIdentifier.Hash)
+	}
+
+	bytes, err := encode(&broadcast{
+		Identifier: transactionIdentifier,
+		Intent:     intent,
+		Payload:    payload,
+	})
+	if err != nil {
+		return fmt.Errorf("%w: unable to encode broadcast", err)
+	}
+
+	if err := txn.Set(ctx, broadcastKey, bytes); err != nil {
+		return fmt.Errorf("%w: unable to set broadcast", err)
+	}
+
+	if err := txn.Commit(ctx); err != nil {
+		return fmt.Errorf("%w: unable to commit broadcast", err)
+	}
+
+	return nil
 }
 
 // LockedAddresses returns all addresses currently broadcasting a transaction.
