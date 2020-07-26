@@ -52,8 +52,9 @@ type BroadcastStorageHelper interface {
 	CurrentBlockIdentifier(context.Context) (*types.BlockIdentifier, error) // used to determine if should rebroadcast
 
 	// FindTransaction looks for the provided TransactionIdentifier in processed
-	// blocks and returns the depth since the most recent sighting.
-	FindTransaction(context.Context, *types.TransactionIdentifier) (*types.BlockIdentifier, int64, error) // used to confirm
+	// blocks and returns the block identifier containing the most recent sighting
+	// and the transaction seen in that block.
+	FindTransaction(context.Context, *types.TransactionIdentifier) (*types.BlockIdentifier, *types.Transaction, error) // used to confirm
 
 	// BroadcastTransaction broadcasts a transaction to a Rosetta implementation
 	// and returns the *types.TransactionIdentifier returned by the implementation.
@@ -108,9 +109,74 @@ func (b *BroadcastStorage) AddingBlock(
 	block *types.Block,
 	transaction DatabaseTransaction,
 ) (CommitWorker, error) {
-	// TODO: call handler -> transactionRebroadcast should not block processing (could be in CommitWorker)
-	// TODO: on each added block commit worker, attempt to broadcast all txs with no last identifier
-	return nil, nil
+	broadcasts, err := b.getAllBroadcasts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
+	}
+
+	staleTransactions := []*types.TransactionIdentifier{}
+	confirmedTransactions := []*broadcast{}
+	foundTransactions := []*types.Transaction{}
+
+	for _, broadcast := range broadcasts {
+		key := getBroadcastKey(broadcast.Identifier)
+
+		foundBlock, foundTransaction, err := b.helper.FindTransaction(ctx, broadcast.Identifier)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to determine if transaction was seen", err)
+		}
+
+		// Check if we should mark the broadcast as stale
+		if foundBlock == nil && block.BlockIdentifier.Index-broadcast.LastBroadcast.Index > b.staleDepth {
+			staleTransactions = append(staleTransactions, broadcast.Identifier)
+			broadcast.LastBroadcast = nil
+			bytes, err := encode(broadcast)
+			if err != nil {
+				return nil, fmt.Errorf("%w: unable to encode updated broadcast", err)
+			}
+
+			if err := transaction.Set(ctx, key, bytes); err != nil {
+				return nil, fmt.Errorf("%w: unable to update broadcast", err)
+			}
+
+			continue
+		}
+
+		// Continue if we are still waiting for a broadcast to appear and it isn't stale
+		if foundBlock == nil {
+			continue
+		}
+
+		// Check if we should mark the transaction as confirmed
+		if block.BlockIdentifier.Index-foundBlock.Index > b.confirmationDepth {
+			confirmedTransactions = append(confirmedTransactions, broadcast)
+			foundTransactions = append(foundTransactions, foundTransaction)
+
+			if err := transaction.Delete(ctx, key); err != nil {
+				return nil, fmt.Errorf("%w: unable to delete confirmed broadcast", err)
+			}
+		}
+	}
+
+	return func(ctx context.Context) error {
+		for _, stale := range staleTransactions {
+			if err := b.handler.TransactionStale(ctx, stale); err != nil {
+				return fmt.Errorf("%w: unable to handle stale transaction %s", err, stale.Hash)
+			}
+		}
+
+		for i, broadcast := range confirmedTransactions {
+			if err := b.handler.TransactionConfirmed(ctx, block.BlockIdentifier, foundTransactions[i], broadcast.Intent); err != nil {
+				return fmt.Errorf("%w: unable to handle confirmed transaction %s", err, broadcast.Identifier.Hash)
+			}
+		}
+
+		if err := b.broadcastPending(ctx); err != nil {
+			return fmt.Errorf("%w: unable to broadcast pending transactions", err)
+		}
+
+		return nil
+	}, nil
 }
 
 // RemovingBlock is called by BlockStorage when removing a block.
@@ -195,6 +261,32 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	for _, broadcast := range broadcasts {
 		if broadcast.LastBroadcast != nil { // when a transaction should be broadcast, its last broadcast field should be set to nil
 			continue
+		}
+
+		// We set the last broadcast value before broadcast so we don't accidentally
+		// re-broadcast if exiting between broadcasting the transaction and updating
+		// the value in the database. If the transaction is never really broadcast,
+		// it will be rebroadcast when it is considered stale!
+		currBlock, err := b.helper.CurrentBlockIdentifier(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to get current block identifier", err)
+		}
+		broadcast.LastBroadcast = currBlock
+
+		bytes, err := encode(broadcast)
+		if err != nil {
+			return fmt.Errorf("%w: unable to encode broadcast", err)
+		}
+
+		txn := b.db.NewDatabaseTransaction(ctx, true)
+		defer txn.Discard(ctx)
+
+		if err := txn.Set(ctx, getBroadcastKey(broadcast.Identifier), bytes); err != nil {
+			return fmt.Errorf("%w: unable to update broadcast", err)
+		}
+
+		if err := txn.Commit(ctx); err != nil {
+			return fmt.Errorf("%w: unable to commit broadcast update", err)
 		}
 
 		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
