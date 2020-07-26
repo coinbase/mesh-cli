@@ -26,11 +26,6 @@ var _ BlockWorker = (*BroadcastStorage)(nil)
 
 const (
 	transactionBroadcastNamespace = "transaction-broadcast"
-
-	// trailLimit indicates the maximum depth behind tip
-	// where it is safe to broadcast.
-	// TODO: make configurable
-	trailLimit = int64(10)
 )
 
 func getBroadcastKey(transactionIdentifier *types.TransactionIdentifier) []byte {
@@ -46,9 +41,10 @@ type BroadcastStorage struct {
 	helper  BroadcastStorageHelper
 	handler BroadcastStorageHandler
 
-	confirmationDepth int64
-	staleDepth        int64
-	broadcastLimit    int
+	confirmationDepth   int64
+	staleDepth          int64
+	broadcastLimit      int
+	broadcastTrailLimit int64
 }
 
 // BroadcastStorageHelper is used by BroadcastStorage to submit transactions
@@ -127,12 +123,14 @@ func NewBroadcastStorage(
 	confirmationDepth int64,
 	staleDepth int64,
 	broadcastLimit int,
+	broadcastTrailLimit int64,
 ) *BroadcastStorage {
 	return &BroadcastStorage{
-		db:                db,
-		confirmationDepth: confirmationDepth,
-		staleDepth:        staleDepth,
-		broadcastLimit:    broadcastLimit,
+		db:                  db,
+		confirmationDepth:   confirmationDepth,
+		staleDepth:          staleDepth,
+		broadcastLimit:      broadcastLimit,
+		broadcastTrailLimit: broadcastTrailLimit,
 	}
 }
 
@@ -340,7 +338,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	}
 
 	// Wait to broadcast transaction until close to tip
-	if tip.Index-currBlock.Index > trailLimit {
+	if tip.Index-currBlock.Index > b.broadcastTrailLimit {
 		return nil
 	}
 

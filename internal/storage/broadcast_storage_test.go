@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	confirmationDepth = int64(2)
-	staleDepth        = int64(1)
-	broadcastLimit    = 3
+	confirmationDepth   = int64(2)
+	staleDepth          = int64(1)
+	broadcastLimit      = 3
+	broadcastTrailLimit = 10
 )
 
 func blockFiller(start int64, end int64) []*types.Block {
@@ -84,7 +85,7 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit)
+	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
@@ -443,7 +444,7 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit)
+	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
@@ -537,6 +538,145 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 			},
 		}, mockHandler.Failed)
 
+		assert.ElementsMatch(t, []*confirmedTx{}, mockHandler.Confirmed)
+	})
+}
+
+func TestBroadcastStorageBehindTip(t *testing.T) {
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
+	mockHelper := &MockBroadcastStorageHelper{}
+	mockHandler := &MockBroadcastStorageHandler{}
+	storage.Initialize(mockHelper, mockHandler)
+
+	send1 := opFiller("addr 1", 11)
+	send2 := opFiller("addr 2", 13)
+	t.Run("broadcast", func(t *testing.T) {
+		err := storage.Broadcast(ctx, "addr 1", send1, &types.TransactionIdentifier{Hash: "tx 1"}, "payload 1")
+		assert.NoError(t, err)
+
+		err = storage.Broadcast(ctx, "addr 2", send2, &types.TransactionIdentifier{Hash: "tx 2"}, "payload 2")
+		assert.NoError(t, err)
+
+		// Check to make sure duplicate instances of address aren't reported
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 2)
+		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+
+		broadcasts, err := storage.GetAllBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 1"},
+				Sender:     "addr 1",
+				Intent:     send1,
+				Payload:    "payload 1",
+			},
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 2"},
+				Sender:     "addr 2",
+				Intent:     send2,
+				Payload:    "payload 2",
+			},
+		}, broadcasts)
+	})
+
+	blocks := blockFiller(0, 81)
+	mockHelper.RemoteBlockIdentifier = blocks[80].BlockIdentifier
+	mockHelper.Transactions = map[string]*types.TransactionIdentifier{
+		"payload 1": &types.TransactionIdentifier{Hash: "tx 1"},
+		"payload 2": &types.TransactionIdentifier{Hash: "tx 2"},
+	}
+
+	t.Run("add blocks behind tip", func(t *testing.T) {
+		for _, block := range blocks[:60] {
+			txn := storage.db.NewDatabaseTransaction(ctx, true)
+			commitWorker, err := storage.AddingBlock(ctx, block, txn)
+			assert.NoError(t, err)
+			err = txn.Commit(ctx)
+			assert.NoError(t, err)
+
+			mockHelper.SyncedBlockIdentifier = block.BlockIdentifier
+			err = commitWorker(ctx)
+			assert.NoError(t, err)
+		}
+
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 2)
+		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+
+		broadcasts, err := storage.GetAllBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 1"},
+				Sender:     "addr 1",
+				Intent:     send1,
+				Payload:    "payload 1",
+			},
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 2"},
+				Sender:     "addr 2",
+				Intent:     send2,
+				Payload:    "payload 2",
+			},
+		}, broadcasts)
+		assert.ElementsMatch(t, []*types.TransactionIdentifier{}, mockHandler.Stale)
+		assert.ElementsMatch(t, []*failedTx{}, mockHandler.Failed)
+		assert.ElementsMatch(t, []*confirmedTx{}, mockHandler.Confirmed)
+	})
+
+	t.Run("add blocks close to tip", func(t *testing.T) {
+		for _, block := range blocks[60:71] {
+			txn := storage.db.NewDatabaseTransaction(ctx, true)
+			commitWorker, err := storage.AddingBlock(ctx, block, txn)
+			assert.NoError(t, err)
+			err = txn.Commit(ctx)
+			assert.NoError(t, err)
+
+			mockHelper.SyncedBlockIdentifier = block.BlockIdentifier
+			err = commitWorker(ctx)
+			assert.NoError(t, err)
+		}
+
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 2)
+		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+
+		broadcasts, err := storage.GetAllBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{
+			{
+				Identifier:    &types.TransactionIdentifier{Hash: "tx 1"},
+				Sender:        "addr 1",
+				Intent:        send1,
+				Payload:       "payload 1",
+				LastBroadcast: blocks[70].BlockIdentifier,
+				Broadcasts:    1,
+			},
+			{
+				Identifier:    &types.TransactionIdentifier{Hash: "tx 2"},
+				Sender:        "addr 2",
+				Intent:        send2,
+				Payload:       "payload 2",
+				LastBroadcast: blocks[70].BlockIdentifier,
+				Broadcasts:    1,
+			},
+		}, broadcasts)
+		assert.ElementsMatch(t, []*types.TransactionIdentifier{}, mockHandler.Stale)
+		assert.ElementsMatch(t, []*failedTx{}, mockHandler.Failed)
 		assert.ElementsMatch(t, []*confirmedTx{}, mockHandler.Confirmed)
 	})
 }
