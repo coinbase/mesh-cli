@@ -16,13 +16,46 @@ package storage
 
 import (
 	"context"
+	"testing"
+
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/stretchr/testify/assert"
 )
+
+const (
+	confirmationDepth = int64(2)
+	staleDepth        = int64(1)
+	broadcastLimit    = 3
+)
+
+func TestBroadcastStorage(t *testing.T) {
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit)
+	mockHelper := &MockBroadcastStorageHelper{}
+	mockHandler := &MockBroadcastStorageHandler{}
+	storage.Initialize(mockHelper, mockHandler)
+}
 
 var _ BroadcastStorageHelper = (*MockBroadcastStorageHelper)(nil)
 
 type MockBroadcastStorageHelper struct{}
+
+func (m *MockBroadcastStorageHelper) CurrentRemoteBlockIdentifier(
+	ctx context.Context,
+) (*types.BlockIdentifier, error) {
+	return nil, nil
+}
 
 func (m *MockBroadcastStorageHelper) CurrentBlockIdentifier(
 	ctx context.Context,
@@ -42,4 +75,32 @@ func (m *MockBroadcastStorageHelper) BroadcastTransaction(
 	payload string,
 ) (*types.TransactionIdentifier, error) {
 	return nil, nil
+}
+
+var _ BroadcastStorageHandler = (*MockBroadcastStorageHandler)(nil)
+
+type MockBroadcastStorageHandler struct{}
+
+func (m *MockBroadcastStorageHandler) TransactionConfirmed(
+	ctx context.Context,
+	blockIdentifier *types.BlockIdentifier,
+	transaction *types.Transaction,
+	intent []*types.Operation,
+) error {
+	return nil
+}
+
+func (m *MockBroadcastStorageHandler) TransactionStale(
+	ctx context.Context,
+	transactionIdentifier *types.TransactionIdentifier,
+) error {
+	return nil
+}
+
+func (m *MockBroadcastStorageHandler) BroadcastFailed(
+	ctx context.Context,
+	transactionIdentifier *types.TransactionIdentifier,
+	intent []*types.Operation,
+) error {
+	return nil
 }
