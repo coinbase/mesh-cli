@@ -45,6 +45,13 @@ func TestBroadcastStorage(t *testing.T) {
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
+
+	t.Run("locked addresses with no broadcasts", func(t *testing.T) {
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 0)
+		assert.NotNil(t, addresses)
+	})
 }
 
 var _ BroadcastStorageHelper = (*MockBroadcastStorageHelper)(nil)
