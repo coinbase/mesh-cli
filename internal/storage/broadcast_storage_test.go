@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -29,6 +30,20 @@ const (
 	staleDepth        = int64(1)
 	broadcastLimit    = 3
 )
+
+func makeFillerBlocks(start int64, end int64) []*types.Block {
+	blocks := []*types.Block{}
+	for i := start; i < end; i++ {
+		blocks = append(blocks, &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
+				Index: i,
+				Hash:  fmt.Sprintf("block %d", i),
+			},
+		})
+	}
+
+	return blocks
+}
 
 func TestBroadcastStorage(t *testing.T) {
 	ctx := context.Background()
