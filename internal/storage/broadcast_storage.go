@@ -110,8 +110,8 @@ type BroadcastStorageHandler interface {
 	) error
 }
 
-// broadcast is persisted to the db to track transaction broadcast.
-type broadcast struct {
+// Broadcast is persisted to the db to track transaction broadcast.
+type Broadcast struct {
 	Identifier    *types.TransactionIdentifier `json:"identifier"`
 	Sender        string                       `json:"sender"`
 	Intent        []*types.Operation           `json:"intent"`
@@ -149,7 +149,7 @@ func (b *BroadcastStorage) addBlockCommitWorker(
 	ctx context.Context,
 	block *types.Block,
 	staleTransactions []*types.TransactionIdentifier,
-	confirmedTransactions []*broadcast,
+	confirmedTransactions []*Broadcast,
 	foundTransactions []*types.Transaction,
 ) error {
 	for _, stale := range staleTransactions {
@@ -187,13 +187,13 @@ func (b *BroadcastStorage) AddingBlock(
 	block *types.Block,
 	transaction DatabaseTransaction,
 ) (CommitWorker, error) {
-	broadcasts, err := b.getAllBroadcasts(ctx)
+	broadcasts, err := b.GetAllBroadcasts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
 	}
 
 	staleTransactions := []*types.TransactionIdentifier{}
-	confirmedTransactions := []*broadcast{}
+	confirmedTransactions := []*Broadcast{}
 	foundTransactions := []*types.Transaction{}
 
 	for _, broadcast := range broadcasts {
@@ -281,7 +281,7 @@ func (b *BroadcastStorage) Broadcast(
 		return fmt.Errorf("already broadcasting transaction %s", transactionIdentifier.Hash)
 	}
 
-	bytes, err := encode(&broadcast{
+	bytes, err := encode(&Broadcast{
 		Identifier: transactionIdentifier,
 		Sender:     sender,
 		Intent:     intent,
@@ -303,15 +303,16 @@ func (b *BroadcastStorage) Broadcast(
 	return nil
 }
 
-func (b *BroadcastStorage) getAllBroadcasts(ctx context.Context) ([]*broadcast, error) {
+// GetAllBroadcasts returns all currently in-process broadcasts.
+func (b *BroadcastStorage) GetAllBroadcasts(ctx context.Context) ([]*Broadcast, error) {
 	rawBroadcasts, err := b.db.Scan(ctx, []byte(transactionBroadcastNamespace))
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to scan for all broadcasts", err)
 	}
 
-	broadcasts := make([]*broadcast, len(rawBroadcasts))
+	broadcasts := make([]*Broadcast, len(rawBroadcasts))
 	for i, rawBroadcast := range rawBroadcasts {
-		var b broadcast
+		var b Broadcast
 		if err := decode(rawBroadcast, &b); err != nil {
 			return nil, fmt.Errorf("%w: unable to decode broadcast", err)
 		}
@@ -338,7 +339,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 		return nil
 	}
 
-	broadcasts, err := b.getAllBroadcasts(ctx)
+	broadcasts, err := b.GetAllBroadcasts(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get all broadcasts", err)
 	}
@@ -417,7 +418,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 // The caller SHOULD NOT broadcast a transaction from an account if it is
 // considered locked!
 func (b *BroadcastStorage) LockedAddresses(ctx context.Context) ([]string, error) {
-	broadcasts, err := b.getAllBroadcasts(ctx)
+	broadcasts, err := b.GetAllBroadcasts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
 	}
