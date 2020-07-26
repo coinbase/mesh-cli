@@ -85,7 +85,13 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
+	storage := NewBroadcastStorage(
+		database,
+		confirmationDepth,
+		staleDepth,
+		broadcastLimit,
+		broadcastTrailLimit,
+	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
@@ -93,12 +99,18 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 	send1 := opFiller("addr 1", 11)
 	send2 := opFiller("addr 2", 13)
 	mockHelper.Transactions = map[string]*types.TransactionIdentifier{
-		"payload 1": &types.TransactionIdentifier{Hash: "tx 1"},
-		"payload 2": &types.TransactionIdentifier{Hash: "tx 2"},
+		"payload 1": {Hash: "tx 1"},
+		"payload 2": {Hash: "tx 2"},
 	}
 
 	t.Run("broadcast send 1", func(t *testing.T) {
-		err := storage.Broadcast(ctx, "addr 1", send1, &types.TransactionIdentifier{Hash: "tx 1"}, "payload 1")
+		err := storage.Broadcast(
+			ctx,
+			"addr 1",
+			send1,
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			"payload 1",
+		)
 		assert.NoError(t, err)
 
 		// Check to make sure duplicate instances of address aren't reported
@@ -157,7 +169,13 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 	})
 
 	t.Run("broadcast send 2", func(t *testing.T) {
-		err := storage.Broadcast(ctx, "addr 2", send2, &types.TransactionIdentifier{Hash: "tx 2"}, "payload 2")
+		err := storage.Broadcast(
+			ctx,
+			"addr 2",
+			send2,
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			"payload 2",
+		)
 		assert.NoError(t, err)
 
 		// Check to make sure duplicate instances of address aren't reported
@@ -290,8 +308,14 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		block := blocks[3]
 		block.Transactions = []*types.Transaction{tx1, tx2}
 		mockHelper.FindTransactions = map[string]*findTx{
-			tx1.TransactionIdentifier.Hash: &findTx{blockIdentifier: block.BlockIdentifier, transaction: tx1},
-			tx2.TransactionIdentifier.Hash: &findTx{blockIdentifier: block.BlockIdentifier, transaction: tx2},
+			tx1.TransactionIdentifier.Hash: {
+				blockIdentifier: block.BlockIdentifier,
+				transaction:     tx1,
+			},
+			tx2.TransactionIdentifier.Hash: {
+				blockIdentifier: block.BlockIdentifier,
+				transaction:     tx2,
+			},
 		}
 		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
@@ -444,7 +468,13 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
+	storage := NewBroadcastStorage(
+		database,
+		confirmationDepth,
+		staleDepth,
+		broadcastLimit,
+		broadcastTrailLimit,
+	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
@@ -459,10 +489,22 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 	send1 := opFiller("addr 1", 11)
 	send2 := opFiller("addr 2", 13)
 	t.Run("broadcast", func(t *testing.T) {
-		err := storage.Broadcast(ctx, "addr 1", send1, &types.TransactionIdentifier{Hash: "tx 1"}, "payload 1")
+		err := storage.Broadcast(
+			ctx,
+			"addr 1",
+			send1,
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			"payload 1",
+		)
 		assert.NoError(t, err)
 
-		err = storage.Broadcast(ctx, "addr 2", send2, &types.TransactionIdentifier{Hash: "tx 2"}, "payload 2")
+		err = storage.Broadcast(
+			ctx,
+			"addr 2",
+			send2,
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			"payload 2",
+		)
 		assert.NoError(t, err)
 
 		// Check to make sure duplicate instances of address aren't reported
@@ -491,7 +533,7 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 
 	t.Run("add blocks and expire", func(t *testing.T) {
 		mockHelper.Transactions = map[string]*types.TransactionIdentifier{
-			"payload 1": &types.TransactionIdentifier{Hash: "tx 1"},
+			"payload 1": {Hash: "tx 1"},
 			// payload 2 will fail
 		}
 		blocks := blockFiller(0, 10)
@@ -519,12 +561,12 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 		assert.ElementsMatch(t, []*Broadcast{}, broadcasts)
 
 		assert.ElementsMatch(t, []*types.TransactionIdentifier{
-			&types.TransactionIdentifier{Hash: "tx 1"},
-			&types.TransactionIdentifier{Hash: "tx 1"},
-			&types.TransactionIdentifier{Hash: "tx 1"},
-			&types.TransactionIdentifier{Hash: "tx 2"},
-			&types.TransactionIdentifier{Hash: "tx 2"},
-			&types.TransactionIdentifier{Hash: "tx 2"},
+			{Hash: "tx 1"},
+			{Hash: "tx 1"},
+			{Hash: "tx 1"},
+			{Hash: "tx 2"},
+			{Hash: "tx 2"},
+			{Hash: "tx 2"},
 		}, mockHandler.Stale)
 
 		assert.ElementsMatch(t, []*failedTx{
@@ -553,7 +595,13 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
-	storage := NewBroadcastStorage(database, confirmationDepth, staleDepth, broadcastLimit, broadcastTrailLimit)
+	storage := NewBroadcastStorage(
+		database,
+		confirmationDepth,
+		staleDepth,
+		broadcastLimit,
+		broadcastTrailLimit,
+	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
@@ -561,10 +609,22 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	send1 := opFiller("addr 1", 11)
 	send2 := opFiller("addr 2", 13)
 	t.Run("broadcast", func(t *testing.T) {
-		err := storage.Broadcast(ctx, "addr 1", send1, &types.TransactionIdentifier{Hash: "tx 1"}, "payload 1")
+		err := storage.Broadcast(
+			ctx,
+			"addr 1",
+			send1,
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			"payload 1",
+		)
 		assert.NoError(t, err)
 
-		err = storage.Broadcast(ctx, "addr 2", send2, &types.TransactionIdentifier{Hash: "tx 2"}, "payload 2")
+		err = storage.Broadcast(
+			ctx,
+			"addr 2",
+			send2,
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			"payload 2",
+		)
 		assert.NoError(t, err)
 
 		// Check to make sure duplicate instances of address aren't reported
@@ -594,8 +654,8 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	blocks := blockFiller(0, 81)
 	mockHelper.RemoteBlockIdentifier = blocks[80].BlockIdentifier
 	mockHelper.Transactions = map[string]*types.TransactionIdentifier{
-		"payload 1": &types.TransactionIdentifier{Hash: "tx 1"},
-		"payload 2": &types.TransactionIdentifier{Hash: "tx 2"},
+		"payload 1": {Hash: "tx 1"},
+		"payload 2": {Hash: "tx 2"},
 	}
 
 	t.Run("add blocks behind tip", func(t *testing.T) {
