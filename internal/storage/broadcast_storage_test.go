@@ -487,6 +487,15 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 	})
 
 	send1 := opFiller("addr 1", 11)
+	send1 = append(send1, &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
+			Index: int64(len(send1)),
+		},
+		Account: &types.AccountIdentifier{
+			Address: "addr 3",
+		},
+	})
+
 	send2 := opFiller("addr 2", 13)
 	t.Run("broadcast", func(t *testing.T) {
 		err := storage.Broadcast(
@@ -510,8 +519,8 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 		// Check to make sure duplicate instances of address aren't reported
 		addresses, err := storage.LockedAddresses(ctx)
 		assert.NoError(t, err)
-		assert.Len(t, addresses, 2)
-		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+		assert.Len(t, addresses, 3)
+		assert.ElementsMatch(t, []string{"addr 1", "addr 2", "addr 3"}, addresses)
 
 		broadcasts, err := storage.GetAllBroadcasts(ctx)
 		assert.NoError(t, err)

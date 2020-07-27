@@ -420,7 +420,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	return nil
 }
 
-// LockedAddresses returns all addresses currently broadcasting a transaction.
+// LockedAddresses returns all addresses currently active in transaction broadcasts.
 // The caller SHOULD NOT broadcast a transaction from an account if it is
 // considered locked!
 func (b *BroadcastStorage) LockedAddresses(ctx context.Context) ([]string, error) {
@@ -429,9 +429,20 @@ func (b *BroadcastStorage) LockedAddresses(ctx context.Context) ([]string, error
 		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
 	}
 
-	addresses := make([]string, len(broadcasts))
-	for i, broadcast := range broadcasts {
-		addresses[i] = broadcast.Sender
+	addressMap := map[string]struct{}{}
+	for _, broadcast := range broadcasts {
+		for _, op := range broadcast.Intent {
+			if op.Account == nil {
+				continue
+			}
+
+			addressMap[op.Account.Address] = struct{}{}
+		}
+	}
+
+	addresses := []string{}
+	for k := range addressMap {
+		addresses = append(addresses, k)
 	}
 
 	return addresses, nil
