@@ -393,6 +393,8 @@ func (t *ConstructionTester) SendableBalance(
 		}
 
 		bal = val
+		bal = new(big.Int).Sub(bal, t.minimumBalance)
+		bal = new(big.Int).Sub(bal, t.maximumFee)
 	} else {
 		// For UTXO-based chains, return the largest UTXO as the spendable balance.
 		coins, err := t.coinStorage.GetCoins(ctx, accountIdentifier)
@@ -420,14 +422,11 @@ func (t *ConstructionTester) SendableBalance(
 		bal = balance
 	}
 
-	sendableBalance := new(big.Int).Sub(bal, t.minimumBalance)
-	sendableBalance = new(big.Int).Sub(sendableBalance, t.maximumFee)
-
-	if sendableBalance.Sign() != 1 {
+	if bal.Sign() != 1 {
 		return nil, nil, nil
 	}
 
-	return sendableBalance, coinIdentifier, nil
+	return bal, coinIdentifier, nil
 }
 
 func (t *ConstructionTester) FindSender(
@@ -595,11 +594,15 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
-		senderValue := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendableBalance)
-		recipientValue := senderValue
+		var senderValue *big.Int
+		var recipientValue *big.Int
 		var changeAddress string
 		var changeValue *big.Int
-		if t.config.Construction.AccountingModel == configuration.UtxoModel {
+		if t.config.Construction.AccountingModel == configuration.AccountModel {
+			senderValue = new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendableBalance)
+			recipientValue = senderValue
+		} else if t.config.Construction.AccountingModel == configuration.UtxoModel {
+			senderValue = sendableBalance
 			recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
 
 			if t.config.Construction.PopulateChange {
@@ -615,6 +618,10 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 					}
 				}
 			}
+		} else {
+			// We should never hit this branch because the configuration file is
+			// checked for issues like this before starting this loop.
+			return fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
 		}
 
 		// Populate Scenario
