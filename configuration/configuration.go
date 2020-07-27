@@ -48,9 +48,9 @@ const (
 	DefaultInactiveReconciliationFrequency   = 250
 	DefaultTimeout                           = 10
 	DefaultConfirmationDepth                 = 10
-	DefaultStaleDepth                        = 5
+	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
-	DefaultBroadcastTrailLimit               = 100
+	DefaultBroadcastTrailLimit               = 3
 
 	// ETH Defaults
 	EthereumIDBlockchain    = "Ethereum"

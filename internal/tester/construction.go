@@ -228,7 +228,6 @@ func (t *ConstructionTester) CreateTransaction(ctx context.Context, intent []*ty
 	if err := t.parser.ExpectedOperations(intent, parsedOps, false, false); err != nil {
 		return nil, "", fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
-	color.Magenta("Transaction constructed")
 
 	requestedSigners := []string{}
 	for _, payload := range payloads {
@@ -267,7 +266,6 @@ func (t *ConstructionTester) CreateTransaction(ctx context.Context, intent []*ty
 	if err := parser.ExpectedSigners(payloads, signers); err != nil {
 		return nil, "", fmt.Errorf("%w: signed transactions signers do not match intent", err)
 	}
-	color.Magenta("Transaction signed")
 
 	transactionIdentifier, err := t.offlineFetcher.ConstructionHash(
 		ctx,
@@ -602,8 +600,19 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 		}
 
 		// Create transaction
-		color.Magenta("Sending %s from %s to %s", recipientValue.String(), sender, recipient)
 		transactionIdentifier, networkTransaction, err := t.CreateTransaction(ctx, intent)
+
+		nativeUnits := new(big.Float).SetInt(recipientValue)
+		divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
+		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+		color.Magenta(
+			"%s -- %s%s --> %s Hash:%s",
+			sender,
+			nativeUnits.String(),
+			t.config.Construction.Currency.Symbol,
+			recipient,
+			transactionIdentifier.Hash,
+		)
 		if err != nil {
 			return fmt.Errorf("%w: unable to create transaction with operations %s", err, types.PrettyPrintStruct(intent))
 		}

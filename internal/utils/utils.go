@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"path"
 
@@ -155,4 +156,22 @@ func CheckNetworkSupported(
 	}
 
 	return status, nil
+}
+
+// BigPow10 computes the value of 10^e.
+// Inspired by: https://steemit.com/tutorial/@gopher23/power-and-root-functions-using-big-float-in-golang
+func BigPow10(e int32) *big.Float {
+	a := big.NewFloat(10)
+	result := Zero().Copy(a)
+	for i := int32(0); i < e-1; i++ {
+		result = Zero().Mul(result, a)
+	}
+	return result
+}
+
+// Zero returns a float with 256 bit precision.
+func Zero() *big.Float {
+	r := big.NewFloat(0.0)
+	r.SetPrec(256)
+	return r
 }
