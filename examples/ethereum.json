@@ -1,0 +1,80 @@
+{
+ "network": {
+  "blockchain": "Ethereum",
+  "network": "Ropsten"
+ },
+ "online_url": "http://localhost:8080",
+ "data_directory": "eth-data",
+ "http_timeout": 30,
+ "construction": {
+  "offline_url": "http://localhost:8080",
+  "currency": {
+   "symbol": "ETH",
+   "decimals": 18
+  },
+  "minimum_balance": "0",
+  "maximum_fee": "5000000000000000",
+  "curve_type": "secp256k1",
+  "accounting_model": "account",
+  "scenario": [
+   {
+    "operation_identifier": {
+     "index": 0
+    },
+    "type": "transfer",
+    "status": "",
+    "account": {
+     "address": "{{ SENDER }}"
+    },
+    "amount": {
+     "value": "{{ SENDER_VALUE }}",
+     "currency": null
+    }
+   },
+   {
+    "operation_identifier": {
+     "index": 1
+    },
+    "related_operations": [
+     {
+      "index": 0
+     }
+    ],
+    "type": "transfer",
+    "status": "",
+    "account": {
+     "address": "{{ RECIPIENT }}"
+    },
+    "amount": {
+     "value": "{{ RECIPIENT_VALUE }}",
+     "currency": null
+    }
+   }
+  ],
+  "confirmation_depth": 10,
+  "stale_depth": 20,
+  "broadcast_limit": 3,
+  "broadcast_trail_limit": 2,
+  "ignore_broadcast_failures": false, 
+  "block_broadcast_limit": 5
+ },
+ "data": {
+  "block_concurrency": 8,
+  "transaction_concurrency": 16,
+  "active_reconciliation_concurrency": 16,
+  "inactive_reconciliation_concurrency": 4,
+  "inactive_reconciliation_frequency": 250,
+  "log_blocks": false,
+  "log_transactions": false,
+  "log_balance_changes": false,
+  "log_reconciliations": false,
+  "ignore_reconciliation_error": false,
+  "exempt_accounts": "",
+  "bootstrap_balances": "",
+  "historical_balance_disabled": false,
+  "interesting_accounts": "",
+  "reconciliation_disabled": false,
+  "inactive_discrepency_search_disabled": false,
+  "balance_tracking_disabled": false
+ }
+}
