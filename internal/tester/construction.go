@@ -83,6 +83,7 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	return ctx.Err()
 }
 
+// InitializeConstruction initiates the construction API tester.
 func InitializeConstruction(
 	ctx context.Context,
 	config *configuration.Configuration,
@@ -215,7 +216,11 @@ func InitializeConstruction(
 	}, nil
 }
 
-func (t *ConstructionTester) CreateTransaction(ctx context.Context, intent []*types.Operation) (*types.TransactionIdentifier, string, error) {
+// CreateTransaction constructs and signs a transaction with the provided intent.
+func (t *ConstructionTester) CreateTransaction(
+	ctx context.Context,
+	intent []*types.Operation,
+) (*types.TransactionIdentifier, string, error) {
 	metadataRequest, err := t.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		t.network,
@@ -309,6 +314,9 @@ func (t *ConstructionTester) CreateTransaction(ctx context.Context, intent []*ty
 	return transactionIdentifier, networkTransaction, nil
 }
 
+// StartSyncer uses the tester's stateful syncer
+// to compute balance changes and track transactions
+// for confirmation on-chain.
 func (t *ConstructionTester) StartSyncer(
 	ctx context.Context,
 	cancel context.CancelFunc,
@@ -331,6 +339,10 @@ func (t *ConstructionTester) StartSyncer(
 	return t.syncer.Sync(ctx, startIndex, -1)
 }
 
+// NewAddress generates a new keypair and
+// derives its address offline. This only works
+// for blockchains that don't require an on-chain
+// action to create an account.
 func (t *ConstructionTester) NewAddress(
 	ctx context.Context,
 ) (string, error) {
@@ -362,6 +374,9 @@ func (t *ConstructionTester) NewAddress(
 	return address, nil
 }
 
+// RequestFunds prompts the user to load
+// a particular address with funds from a faucet.
+// TODO: automate this using an API faucet.
 func (t *ConstructionTester) RequestFunds(
 	ctx context.Context,
 	address string,
@@ -388,7 +403,9 @@ func (t *ConstructionTester) RequestFunds(
 	return nil, nil, ctx.Err()
 }
 
-// returns spendable amount or error
+// SendableBalance returns the amount to use for
+// a transfer. In the case of a UTXO-based chain,
+// this is the largest remaining UTXO.
 func (t *ConstructionTester) SendableBalance(
 	ctx context.Context,
 	address string,
@@ -444,6 +461,11 @@ func (t *ConstructionTester) SendableBalance(
 	return bal, coinIdentifier, nil
 }
 
+// FindSender fetches all available addresses,
+// all locked addresses, and all address balances
+// to determine which addresses can faciliate
+// a transfer. If any are available, one is
+// randomly selected.
 func (t *ConstructionTester) FindSender(
 	ctx context.Context,
 ) (string, *big.Int, *types.CoinIdentifier, error) {
@@ -537,6 +559,8 @@ func (t *ConstructionTester) FindSender(
 	return addr, sendableBalance, coinIdentifier, nil
 }
 
+// FindRecipient either finds a random existing
+// recipient or generates a new address.
 func (t *ConstructionTester) FindRecipient(
 	ctx context.Context,
 	sender string,
@@ -573,6 +597,8 @@ func (t *ConstructionTester) FindRecipient(
 	return validRecipients[rand.Intn(len(validRecipients))], nil
 }
 
+// CreateTransactions loops on the create transaction loop
+// until the caller cancels the context.
 func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 	// Before starting loop, delete any pending broadcasts if configuration
 	// indicates to do so.
