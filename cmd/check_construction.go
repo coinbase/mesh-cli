@@ -72,6 +72,10 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	defer constructionTester.CloseDatabase(ctx)
 
+	if err := constructionTester.PerformBroadcasts(ctx); err != nil {
+		log.Fatalf("%s: unable to perform broadcasts", err.Error())
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		return constructionTester.StartPeriodicLogger(ctx)

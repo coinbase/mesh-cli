@@ -13,7 +13,7 @@
    "decimals": 8
   },
   "minimum_balance": "600",
-  "maximum_fee": "1000",
+  "maximum_fee": "500",
   "curve_type": "secp256k1",
   "accounting_model": "utxo",
   "scenario": [

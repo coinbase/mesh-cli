@@ -163,15 +163,23 @@ type ConstructionConfiguration struct {
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 
-	// TODO:
+	// PopulateChange determines if a change address should be
+	// created when performing a UTXO-based transfer. If not,
+	// the entire UTXO-fees will be sent to the recipient.
 	PopulateChange bool `json:"populate_change"`
 
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
 	ClearBroadcasts bool `json:"clear_broadcasts"`
 
-	// TODO: Number of transactions to attempt broadcast in a single block
+	// BlockBroadcastLimit is the number of transactions to attempt
+	// broadcast in a single block. When there are many pending
+	// broadcasts, it may make sense to limit the number of broadcasts.
 	BlockBroadcastLimit int `json:"block_broadcast_limit"`
+
+	// RebroadcastAll indicates if all pending broadcasts should be
+	// rebroadcast from BroadcastStorage on restart.
+	RebroadcastAll bool `json:"rebroadcast_all"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -347,6 +355,26 @@ func populateConstructionMissingFields(
 
 	if len(constructionConfig.Scenario) == 0 {
 		constructionConfig.Scenario = EthereumTransfer
+	}
+
+	if constructionConfig.ConfirmationDepth == 0 {
+		constructionConfig.ConfirmationDepth = DefaultConfirmationDepth
+	}
+
+	if constructionConfig.StaleDepth == 0 {
+		constructionConfig.StaleDepth = DefaultStaleDepth
+	}
+
+	if constructionConfig.BroadcastLimit == 0 {
+		constructionConfig.BroadcastLimit = DefaultBroadcastLimit
+	}
+
+	if constructionConfig.BroadcastTrailLimit == 0 {
+		constructionConfig.BroadcastTrailLimit = DefaultBroadcastTrailLimit
+	}
+
+	if constructionConfig.BlockBroadcastLimit == 0 {
+		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
 	}
 
 	return constructionConfig

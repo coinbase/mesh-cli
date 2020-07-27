@@ -176,7 +176,7 @@ func (b *BroadcastStorage) addBlockCommitWorker(
 		}
 	}
 
-	if err := b.broadcastPending(ctx); err != nil {
+	if err := b.BroadcastAll(ctx, true); err != nil {
 		return fmt.Errorf("%w: unable to broadcast pending transactions", err)
 	}
 
@@ -329,7 +329,10 @@ func (b *BroadcastStorage) GetAllBroadcasts(ctx context.Context) ([]*Broadcast, 
 	return broadcasts, nil
 }
 
-func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
+// BroadcastAll broadcasts all transactions in BroadcastStorage. If onlyEligible
+// is set to true, then only transactions that should be broadcast again
+// are actually broadcast.
+func (b *BroadcastStorage) BroadcastAll(ctx context.Context, onlyEligible bool) error {
 	tip, err := b.helper.CurrentRemoteBlockIdentifier(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get current remote block identifier", err)
@@ -341,7 +344,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	}
 
 	// Wait to broadcast transaction until close to tip
-	if tip.Index-currBlock.Index > b.broadcastTrailLimit {
+	if tip.Index-currBlock.Index > b.broadcastTrailLimit && onlyEligible {
 		return nil
 	}
 
@@ -354,7 +357,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 	for _, broadcast := range broadcasts {
 		// When a transaction should be broadcast, its last broadcast field must
 		// be set to nil.
-		if broadcast.LastBroadcast != nil {
+		if broadcast.LastBroadcast != nil && onlyEligible {
 			continue
 		}
 
@@ -405,6 +408,10 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 
 		if err := txn.Commit(ctx); err != nil {
 			return fmt.Errorf("%w: unable to commit broadcast update", err)
+		}
+
+		if !onlyEligible {
+			log.Printf("Broadcasting: %s\n", types.PrettyPrintStruct(broadcast))
 		}
 
 		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)

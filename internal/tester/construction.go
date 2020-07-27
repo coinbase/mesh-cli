@@ -731,3 +731,19 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 
 	return ctx.Err()
 }
+
+// PerformBroadcasts attempts to rebroadcast all pending transactions
+// if the RebroadcastAll configuration is set to true.
+func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
+	if !t.config.Construction.RebroadcastAll {
+		return nil
+	}
+
+	color.Magenta("Rebroadcasting all transactions...")
+
+	if err := t.broadcastStorage.BroadcastAll(ctx, false); err != nil {
+		return fmt.Errorf("%w: unabel to broadcast all transactions", err)
+	}
+
+	return nil
+}

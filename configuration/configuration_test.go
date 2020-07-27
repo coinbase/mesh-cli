@@ -109,6 +109,13 @@ func TestLoadConfiguration(t *testing.T) {
 			provided: whackyConfig,
 			expected: whackyConfig,
 		},
+		"overwrite missing": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{},
+				Data:         &DataConfiguration{},
+			},
+			expected: DefaultConfiguration(),
+		},
 		"invalid network": {
 			provided: invalidNetwork,
 			err:      true,
