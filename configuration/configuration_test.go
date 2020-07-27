@@ -48,6 +48,7 @@ var (
 			StaleDepth:          12,
 			BroadcastLimit:      200,
 			BroadcastTrailLimit: 1231,
+			BlockBroadcastLimit: 992,
 		},
 		Data: &DataConfiguration{
 			BlockConcurrency:                  12,

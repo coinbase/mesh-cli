@@ -51,6 +51,7 @@ const (
 	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
 	DefaultBroadcastTrailLimit               = 3
+	DefaultBlockBroadcastLimit               = 5
 
 	// ETH Defaults
 	EthereumIDBlockchain    = "Ethereum"
@@ -168,6 +169,9 @@ type ConstructionConfiguration struct {
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
 	ClearBroadcasts bool `json:"clear_broadcasts"`
+
+	// TODO: Number of transactions to attempt broadcast in a single block
+	BlockBroadcastLimit int `json:"block_broadcast_limit"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -185,6 +189,7 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 		StaleDepth:          DefaultStaleDepth,
 		BroadcastLimit:      DefaultBroadcastLimit,
 		BroadcastTrailLimit: DefaultBroadcastTrailLimit,
+		BlockBroadcastLimit: DefaultBlockBroadcastLimit,
 	}
 }
 

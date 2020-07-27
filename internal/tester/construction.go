@@ -37,17 +37,19 @@ const (
 
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
-	network          *types.NetworkIdentifier
-	database         storage.Database
-	config           *configuration.Configuration
-	syncer           *statefulsyncer.StatefulSyncer
-	logger           *logger.Logger
-	counterStorage   *storage.CounterStorage
-	keyStorage       *storage.KeyStorage
-	broadcastStorage *storage.BroadcastStorage
-	blockStorage     *storage.BlockStorage
-	coinStorage      *storage.CoinStorage
-	parser           *parser.Parser
+	network              *types.NetworkIdentifier
+	database             storage.Database
+	config               *configuration.Configuration
+	syncer               *statefulsyncer.StatefulSyncer
+	logger               *logger.Logger
+	counterStorage       *storage.CounterStorage
+	keyStorage           *storage.KeyStorage
+	broadcastStorage     *storage.BroadcastStorage
+	blockStorage         *storage.BlockStorage
+	coinStorage          *storage.CoinStorage
+	balanceStorage       *storage.BalanceStorage
+	balanceStorageHelper *processor.BalanceStorageHelper
+	parser               *parser.Parser
 
 	// parsed configuration
 	minimumBalance *big.Int
@@ -99,15 +101,43 @@ func InitializeConstruction(
 	}
 
 	counterStorage := storage.NewCounterStorage(localStore)
+	logger := logger.NewLogger(
+		counterStorage,
+		dataPath,
+		false,
+		false,
+		false,
+		false,
+	)
+
 	blockStorage := storage.NewBlockStorage(localStore)
 	keyStorage := storage.NewKeyStorage(localStore)
 	coinStorage := storage.NewCoinStorage(localStore, onlineFetcher.Asserter)
+	balanceStorage := storage.NewBalanceStorage(localStore)
+
+	balanceStorageHelper := processor.NewBalanceStorageHelper(
+		network,
+		onlineFetcher,
+		false,
+		nil,
+	)
+
+	balanceStorageHandler := processor.NewBalanceStorageHandler(
+		logger,
+		nil,
+		false,
+		nil,
+	)
+
+	balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
+
 	broadcastStorage := storage.NewBroadcastStorage(
 		localStore,
 		config.Construction.ConfirmationDepth,
 		config.Construction.StaleDepth,
 		config.Construction.BroadcastLimit,
 		config.Construction.BroadcastTrailLimit,
+		config.Construction.BlockBroadcastLimit,
 	)
 
 	broadcastHelper := processor.NewBroadcastStorageHelper(
@@ -123,15 +153,6 @@ func InitializeConstruction(
 	)
 
 	broadcastStorage.Initialize(broadcastHelper, broadcastHandler)
-
-	logger := logger.NewLogger(
-		counterStorage,
-		dataPath,
-		false,
-		false,
-		false,
-		false,
-	)
 
 	minimumBalance, ok := new(big.Int).SetString(config.Construction.MinimumBalance, 10)
 	if !ok {
@@ -157,6 +178,11 @@ func InitializeConstruction(
 
 	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
 
+	// Track balances on all addresses
+	for _, address := range addresses {
+		balanceStorageHelper.AddInterestingAddress(address)
+	}
+
 	syncer := statefulsyncer.New(
 		ctx,
 		network,
@@ -165,25 +191,27 @@ func InitializeConstruction(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{coinStorage, broadcastStorage},
+		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
 	)
 
 	return &ConstructionTester{
-		network:          network,
-		database:         localStore,
-		config:           config,
-		syncer:           syncer,
-		logger:           logger,
-		counterStorage:   counterStorage,
-		keyStorage:       keyStorage,
-		broadcastStorage: broadcastStorage,
-		blockStorage:     blockStorage,
-		coinStorage:      coinStorage,
-		parser:           parser,
-		minimumBalance:   minimumBalance,
-		maximumFee:       maximumFee,
-		onlineFetcher:    onlineFetcher,
-		offlineFetcher:   offlineFetcher,
+		network:              network,
+		database:             localStore,
+		config:               config,
+		syncer:               syncer,
+		logger:               logger,
+		counterStorage:       counterStorage,
+		keyStorage:           keyStorage,
+		broadcastStorage:     broadcastStorage,
+		blockStorage:         blockStorage,
+		coinStorage:          coinStorage,
+		balanceStorage:       balanceStorage,
+		balanceStorageHelper: balanceStorageHelper,
+		parser:               parser,
+		minimumBalance:       minimumBalance,
+		maximumFee:           maximumFee,
+		onlineFetcher:        onlineFetcher,
+		offlineFetcher:       offlineFetcher,
 	}, nil
 }
 
@@ -299,6 +327,7 @@ func (t *ConstructionTester) StartSyncer(
 	} else if err != nil {
 		return fmt.Errorf("%w: unable to get last block synced", err)
 	}
+
 	return t.syncer.Sync(ctx, startIndex, -1)
 }
 
@@ -325,6 +354,8 @@ func (t *ConstructionTester) NewAddress(
 	if err != nil {
 		return "", fmt.Errorf("%w: unable to store address", err)
 	}
+
+	t.balanceStorageHelper.AddInterestingAddress(address)
 
 	_, _ = t.counterStorage.Update(ctx, storage.AddressesCreatedCounter, big.NewInt(1))
 
@@ -366,25 +397,9 @@ func (t *ConstructionTester) SendableBalance(
 	var bal *big.Int
 	var coinIdentifier *types.CoinIdentifier
 	if t.config.Construction.AccountingModel == configuration.AccountModel {
-		_, balances, _, _, err := t.onlineFetcher.AccountBalanceRetry(
-			ctx,
-			t.network,
-			accountIdentifier,
-			nil,
-		)
+		amount, _, err := t.balanceStorage.GetBalance(ctx, accountIdentifier, t.config.Construction.Currency, nil)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to fetch balance for %s", err, address)
-		}
-
-		var amount *types.Amount
-		for _, bal := range balances {
-			if types.Hash(bal.Currency) == types.Hash(t.config.Construction.Currency) {
-				amount = bal
-				break
-			}
-		}
-		if amount == nil {
-			return nil, nil, errors.New("amount not found")
 		}
 
 		val, ok := new(big.Int).SetString(amount.Value, 10)

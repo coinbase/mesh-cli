@@ -45,6 +45,7 @@ type BroadcastStorage struct {
 	staleDepth          int64
 	broadcastLimit      int
 	broadcastTrailLimit int64
+	blockBroadcastLimit int
 }
 
 // BroadcastStorageHelper is used by BroadcastStorage to submit transactions
@@ -124,6 +125,7 @@ func NewBroadcastStorage(
 	staleDepth int64,
 	broadcastLimit int,
 	broadcastTrailLimit int64,
+	blockBroadcastLimit int,
 ) *BroadcastStorage {
 	return &BroadcastStorage{
 		db:                  db,
@@ -131,6 +133,7 @@ func NewBroadcastStorage(
 		staleDepth:          staleDepth,
 		broadcastLimit:      broadcastLimit,
 		broadcastTrailLimit: broadcastTrailLimit,
+		blockBroadcastLimit: blockBroadcastLimit,
 	}
 }
 
@@ -347,6 +350,7 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 		return fmt.Errorf("%w: unable to get all broadcasts", err)
 	}
 
+	attemptedBroadcasts := 0
 	for _, broadcast := range broadcasts {
 		// When a transaction should be broadcast, its last broadcast field must
 		// be set to nil.
@@ -372,6 +376,13 @@ func (b *BroadcastStorage) broadcastPending(ctx context.Context) error {
 
 			continue
 		}
+
+		// Limit the number of transactions we attempt to broadcast
+		// at a given block.
+		if attemptedBroadcasts >= b.blockBroadcastLimit {
+			continue
+		}
+		attemptedBroadcasts++
 
 		// We set the last broadcast value before broadcast so we don't accidentally
 		// re-broadcast if exiting between broadcasting the transaction and updating

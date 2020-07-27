@@ -31,6 +31,7 @@ const (
 	staleDepth          = int64(1)
 	broadcastLimit      = 3
 	broadcastTrailLimit = 10
+	blockBroadcastLimit = 10
 )
 
 func blockFiller(start int64, end int64) []*types.Block {
@@ -91,6 +92,7 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		staleDepth,
 		broadcastLimit,
 		broadcastTrailLimit,
+		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
@@ -474,6 +476,7 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 		staleDepth,
 		broadcastLimit,
 		broadcastTrailLimit,
+		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
@@ -610,6 +613,7 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 		staleDepth,
 		broadcastLimit,
 		broadcastTrailLimit,
+		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
@@ -767,6 +771,7 @@ func TestBroadcastStorageClearBroadcasts(t *testing.T) {
 		staleDepth,
 		broadcastLimit,
 		broadcastTrailLimit,
+		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}

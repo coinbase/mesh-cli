@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/coinbase/rosetta-cli/internal/storage"
 
@@ -38,6 +39,10 @@ type BalanceStorageHelper struct {
 	// Configuration settings
 	lookupBalanceByBlock bool
 	exemptAccounts       map[string]struct{}
+
+	// Interesting-only Parsing
+	interestingOnly      bool
+	interestingAddresses map[string]struct{}
 }
 
 // NewBalanceStorageHelper returns a new BalanceStorageHelper.
@@ -60,6 +65,7 @@ func NewBalanceStorageHelper(
 		fetcher:              fetcher,
 		lookupBalanceByBlock: lookupBalanceByBlock,
 		exemptAccounts:       exemptMap,
+		interestingAddresses: map[string]struct{}{},
 	}
 }
 
@@ -106,9 +112,22 @@ func (h *BalanceStorageHelper) Asserter() *asserter.Asserter {
 	return h.fetcher.Asserter
 }
 
+// TODO: interesting switches to interesting mode
+func (h *BalanceStorageHelper) AddInterestingAddress(address string) {
+	log.Printf("tracking interesting address: %s\n", address)
+	h.interestingAddresses[address] = struct{}{}
+	h.interestingOnly = true
+}
+
 // ExemptFunc returns a parser.ExemptOperation.
 func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
+		if h.interestingOnly {
+			if _, exists := h.interestingAddresses[op.Account.Address]; !exists {
+				return true
+			}
+		}
+
 		thisAcct := types.Hash(&reconciler.AccountCurrency{
 			Account:  op.Account,
 			Currency: op.Amount.Currency,
