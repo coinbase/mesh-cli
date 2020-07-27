@@ -15,9 +15,18 @@
 package cmd
 
 import (
+	"context"
 	"log"
+	"os"
+	"time"
 
+	"github.com/coinbase/rosetta-cli/internal/tester"
+	"github.com/coinbase/rosetta-cli/internal/utils"
+
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -29,6 +38,68 @@ var (
 )
 
 func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
-	// ensureDataDirectoryExists()
-	log.Fatal("not implemented!")
+	ensureDataDirectoryExists()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	fetcher := fetcher.New(
+		Config.OnlineURL,
+		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
+		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
+		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
+	)
+
+	_, _, err := fetcher.InitializeAsserter(ctx)
+	if err != nil {
+		log.Fatalf("%s: unable to initialize asserter", err.Error())
+	}
+
+	_, err = utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
+	if err != nil {
+		log.Fatalf("%s: unable to confirm network is supported", err.Error())
+	}
+
+	constructionTester, err := tester.InitializeConstruction(
+		ctx,
+		Config,
+		Config.Network,
+		fetcher,
+		cancel,
+	)
+	if err != nil {
+		log.Fatalf("%s: unable to initialize construction tester", err.Error())
+	}
+
+	defer constructionTester.CloseDatabase(ctx)
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return constructionTester.StartPeriodicLogger(ctx)
+	})
+
+	g.Go(func() error {
+		return constructionTester.StartSyncer(ctx, cancel)
+	})
+
+	g.Go(func() error {
+		return constructionTester.CreateTransactions(ctx)
+	})
+
+	sigListeners := []context.CancelFunc{cancel}
+	go handleSignals(sigListeners)
+
+	err = g.Wait()
+	if SignalReceived {
+		color.Red("Check halted")
+		os.Exit(1)
+		return
+	}
+
+	if err != nil {
+		color.Red("Check failed: %s", err.Error())
+		os.Exit(1)
+	}
+
+	// Will only hit this once exit conditions are added
+	color.Green("Check succeeded")
 }

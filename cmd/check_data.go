@@ -126,7 +126,6 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
-
 	g.Go(func() error {
 		return dataTester.StartPeriodicLogger(ctx)
 	})
