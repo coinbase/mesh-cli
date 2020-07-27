@@ -436,3 +436,26 @@ func (b *BroadcastStorage) LockedAddresses(ctx context.Context) ([]string, error
 
 	return addresses, nil
 }
+
+// ClearBroadcasts deletes all in-progress broadcasts from BroadcastStorage. This
+// is useful when there is some construction error and all pending broadcasts
+// will fail and should be cleared instead of re-attempting.
+func (b *BroadcastStorage) ClearBroadcasts(ctx context.Context) ([]*Broadcast, error) {
+	broadcasts, err := b.GetAllBroadcasts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get all broadcasts", err)
+	}
+
+	txn := b.db.NewDatabaseTransaction(ctx, true)
+	for _, broadcast := range broadcasts {
+		if err := txn.Delete(ctx, getBroadcastKey(broadcast.Identifier)); err != nil {
+			return nil, fmt.Errorf("%w: unable to delete broadcast %s", err, broadcast.Identifier.Hash)
+		}
+	}
+
+	if err := txn.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("%w: unable to delete broadcasts", err)
+	}
+
+	return broadcasts, nil
+}

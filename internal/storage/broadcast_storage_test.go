@@ -741,6 +741,105 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	})
 }
 
+func TestBroadcastStorageClearBroadcasts(t *testing.T) {
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBroadcastStorage(
+		database,
+		confirmationDepth,
+		staleDepth,
+		broadcastLimit,
+		broadcastTrailLimit,
+	)
+	mockHelper := &MockBroadcastStorageHelper{}
+	mockHandler := &MockBroadcastStorageHandler{}
+	storage.Initialize(mockHelper, mockHandler)
+
+	t.Run("locked addresses with no broadcasts", func(t *testing.T) {
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 0)
+		assert.ElementsMatch(t, []string{}, addresses)
+	})
+
+	send1 := opFiller("addr 1", 11)
+	send2 := opFiller("addr 2", 13)
+	t.Run("broadcast", func(t *testing.T) {
+		err := storage.Broadcast(
+			ctx,
+			"addr 1",
+			send1,
+			&types.TransactionIdentifier{Hash: "tx 1"},
+			"payload 1",
+		)
+		assert.NoError(t, err)
+
+		err = storage.Broadcast(
+			ctx,
+			"addr 2",
+			send2,
+			&types.TransactionIdentifier{Hash: "tx 2"},
+			"payload 2",
+		)
+		assert.NoError(t, err)
+
+		// Check to make sure duplicate instances of address aren't reported
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 2)
+		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+
+		broadcasts, err := storage.GetAllBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 1"},
+				Sender:     "addr 1",
+				Intent:     send1,
+				Payload:    "payload 1",
+			},
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 2"},
+				Sender:     "addr 2",
+				Intent:     send2,
+				Payload:    "payload 2",
+			},
+		}, broadcasts)
+	})
+
+	t.Run("clear broadcasts", func(t *testing.T) {
+		broadcasts, err := storage.ClearBroadcasts(ctx)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []*Broadcast{
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 1"},
+				Sender:     "addr 1",
+				Intent:     send1,
+				Payload:    "payload 1",
+			},
+			{
+				Identifier: &types.TransactionIdentifier{Hash: "tx 2"},
+				Sender:     "addr 2",
+				Intent:     send2,
+				Payload:    "payload 2",
+			},
+		}, broadcasts)
+
+		addresses, err := storage.LockedAddresses(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, addresses, 0)
+		assert.ElementsMatch(t, []string{}, addresses)
+	})
+}
+
 var _ BroadcastStorageHelper = (*MockBroadcastStorageHelper)(nil)
 
 type findTx struct {

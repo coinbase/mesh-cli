@@ -162,7 +162,12 @@ type ConstructionConfiguration struct {
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 
+	// TODO:
 	PopulateChange bool `json:"populate_change"`
+
+	// ClearBroadcasts indicates if all pending broadcasts should
+	// be removed from BroadcastStorage on restart.
+	ClearBroadcasts bool `json:"clear_broadcasts"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration

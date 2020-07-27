@@ -560,6 +560,21 @@ func (t *ConstructionTester) FindRecipient(
 }
 
 func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
+	// Before starting loop, delete any pending broadcasts if configuration
+	// indicates to do so.
+	if t.config.Construction.ClearBroadcasts {
+		broadcasts, err := t.broadcastStorage.ClearBroadcasts(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to clear broadcasts", err)
+		}
+
+		log.Printf(
+			"Cleared pending %d broadcasts: %s\n",
+			len(broadcasts),
+			types.PrettyPrintStruct(broadcasts),
+		)
+	}
+
 	for ctx.Err() == nil {
 		sender, sendableBalance, coinIdentifier, err := t.FindSender(ctx)
 		if err != nil {
