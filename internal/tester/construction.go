@@ -121,6 +121,7 @@ func InitializeConstruction(
 		onlineFetcher,
 		false,
 		nil,
+		true,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

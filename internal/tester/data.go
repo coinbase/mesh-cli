@@ -185,6 +185,7 @@ func InitializeData(
 			fetcher,
 			!config.Data.HistoricalBalanceDisabled,
 			exemptAccounts,
+			false,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -427,6 +428,7 @@ func (t *DataTester) recursiveOpSearch(
 		t.fetcher,
 		!t.config.Data.HistoricalBalanceDisabled,
 		nil,
+		false,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
