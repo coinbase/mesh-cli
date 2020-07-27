@@ -69,12 +69,14 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
 	for ctx.Err() == nil {
-		_ = t.logger.LogConstructionStats(ctx)
+		inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+		_ = t.logger.LogConstructionStats(ctx, len(inflight))
 		time.Sleep(PeriodicLoggingFrequency)
 	}
 
 	// Print stats one last time before exiting
-	_ = t.logger.LogConstructionStats(ctx)
+	inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+	_ = t.logger.LogConstructionStats(ctx, len(inflight))
 
 	return ctx.Err()
 }

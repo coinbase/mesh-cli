@@ -150,7 +150,7 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 }
 
 // LogConstructionStats logs all construction values in CounterStorage.
-func (l *Logger) LogConstructionStats(ctx context.Context) error {
+func (l *Logger) LogConstructionStats(ctx context.Context, inflightTransactions int) error {
 	transactionsCreated, err := l.CounterStorage.Get(ctx, storage.TransactionsCreatedCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get transactions created counter", err)
@@ -159,11 +159,6 @@ func (l *Logger) LogConstructionStats(ctx context.Context) error {
 	transactionsConfirmed, err := l.CounterStorage.Get(ctx, storage.TransactionsConfirmedCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get transactions confirmed counter", err)
-	}
-
-	staleBroadcasts, err := l.CounterStorage.Get(ctx, storage.StaleBroadcastsCounter)
-	if err != nil {
-		return fmt.Errorf("%w cannot get stale broadcasts counter", err)
 	}
 
 	failedBroadcasts, err := l.CounterStorage.Get(ctx, storage.FailedBroadcastsCounter)
@@ -177,10 +172,10 @@ func (l *Logger) LogConstructionStats(ctx context.Context) error {
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Transactions Confirmed: %d (Created: %d, Temporary Failures: %d, Failed: %d) Addresses Created: %d",
+		"[STATS] Transactions Confirmed: %d (Created: %d, In Progress: %d, Failed: %d) Addresses Created: %d",
 		transactionsConfirmed,
 		transactionsCreated,
-		staleBroadcasts,
+		inflightTransactions,
 		failedBroadcasts,
 		addressesCreated,
 	)
