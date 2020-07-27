@@ -39,6 +39,17 @@ const (
 	// TransactionsCreatedCounter is the number of created transactions.
 	TransactionsCreatedCounter = "transactions_created"
 
+	// TransactionsConfirmedCounter is the number of confirmed transactions.
+	TransactionsConfirmedCounter = "transactions_confirmed"
+
+	// StaleBroadcastsCounter is the number of transaction broadcasts that
+	// never appeared on-chain.
+	StaleBroadcastsCounter = "stale_broadcasts"
+
+	// FailedBroadcastsCounter is the number of transaction broadcasts that
+	// never made it on-chain after retries.
+	FailedBroadcastsCounter = "failed_broadcasts"
+
 	// ActiveReconciliationCounter is the number of active
 	// reconciliations performed.
 	ActiveReconciliationCounter = "active_reconciliations"

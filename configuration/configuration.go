@@ -157,6 +157,10 @@ type ConstructionConfiguration struct {
 	// before broadcasting a transaction. If we are > BroadcastTrailLimit
 	// from tip, no transactions will be broadcast.
 	BroadcastTrailLimit int64 `json:"broadcast_trail_limit"`
+
+	// IgnoreBroadcastFailures determines if we should exit when there
+	// are broadcast failures (that surpass the BroadcastLimit).
+	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
