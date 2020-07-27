@@ -149,6 +149,33 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	return nil
 }
 
+// LogConstructionStats logs all construction values in CounterStorage.
+func (l *Logger) LogConstructionStats(ctx context.Context) error {
+	txsCreated, err := l.CounterStorage.Get(ctx, storage.TransactionsCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get transactions created counter", err)
+	}
+
+	addressesCreated, err := l.CounterStorage.Get(ctx, storage.AddressesCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get addresses created counter", err)
+	}
+
+	statsMessage := fmt.Sprintf(
+		"[STATS] Transactions Confirmed: %d Addresses Created: %d",
+		txsCreated,
+		addressesCreated,
+	)
+	if statsMessage == l.lastStatsMessage {
+		return nil
+	}
+
+	l.lastStatsMessage = statsMessage
+	color.Cyan(statsMessage)
+
+	return nil
+}
+
 // AddBlockStream writes the next processed block to the end of the
 // blockStreamFile output file.
 func (l *Logger) AddBlockStream(

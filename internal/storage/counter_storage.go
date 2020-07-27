@@ -33,6 +33,12 @@ const (
 	// OperationCounter is the number of processed operations.
 	OperationCounter = "operations"
 
+	// AddressesCreatedCounter is the number of created addresses.
+	AddressesCreatedCounter = "addresses_created"
+
+	// TransactionsCreatedCounter is the number of created transactions.
+	TransactionsCreatedCounter = "transactions_created"
+
 	// ActiveReconciliationCounter is the number of active
 	// reconciliations performed.
 	ActiveReconciliationCounter = "active_reconciliations"
