@@ -43,7 +43,7 @@ var (
 
 	accountCoins = []*Coin{
 		{
-			Identifier:  "coin1",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin1"},
 			Transaction: coinBlock.Transactions[0],
 			Operation:   coinBlock.Transactions[0].Operations[0],
 		},
@@ -51,7 +51,7 @@ var (
 
 	account2Coins = []*Coin{
 		{
-			Identifier:  "coin2",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin2"},
 			Transaction: coinBlock.Transactions[0],
 			Operation:   coinBlock.Transactions[0].Operations[1],
 		},
@@ -59,12 +59,12 @@ var (
 
 	account3Coins = []*Coin{
 		{
-			Identifier:  "coin3",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin3"},
 			Transaction: coinBlock3.Transactions[0],
 			Operation:   coinBlock3.Transactions[0].Operations[0],
 		},
 		{
-			Identifier:  "coin4",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin4"},
 			Transaction: coinBlock3.Transactions[1],
 			Operation:   coinBlock3.Transactions[1].Operations[0],
 		},
@@ -83,8 +83,11 @@ var (
 						Amount: &types.Amount{
 							Value: "10",
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin1",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin1",
+							},
 						},
 					},
 					{
@@ -93,8 +96,11 @@ var (
 						Amount: &types.Amount{
 							Value: "15",
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin2",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin2",
+							},
 						},
 					},
 					{
@@ -103,8 +109,11 @@ var (
 						Amount: &types.Amount{
 							Value: "20",
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin2",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin2",
+							},
 						},
 					},
 				},
@@ -122,8 +131,11 @@ var (
 						Amount: &types.Amount{
 							Value: "-10",
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin1",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin1",
+							},
 						},
 					},
 				},
@@ -141,8 +153,11 @@ var (
 						Amount: &types.Amount{
 							Value: "4",
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin3",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin3",
+							},
 						},
 					},
 				},
@@ -155,8 +170,11 @@ var (
 						Amount: &types.Amount{
 							Value: "6",
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin4",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin4",
+							},
 						},
 					},
 				},
@@ -169,8 +187,11 @@ var (
 						Amount: &types.Amount{
 							Value: "12",
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin5",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin5",
+							},
 						},
 					},
 				},
