@@ -50,7 +50,7 @@ Available Commands:
   version                      Print rosetta-cli version
   view:account                 View an account balance
   view:block                   View a block
-  view:network                 View network status
+  view:networks                View all network statuses
 
 Flags:
       --configuration-file string   Configuration file that provides connection and test settings.
@@ -161,7 +161,7 @@ Global Flags:
                                     default values.
 ```
 
-### view:network
+### view:networks
 ```
 While debugging a Data API implementation, it can be very
 useful to view network(s) status. This command fetches the network
@@ -171,10 +171,10 @@ If this command errors, it is likely because the /network/* endpoints are
 not formatted correctly.
 
 Usage:
-  rosetta-cli view:network [flags]
+  rosetta-cli view:networks [flags]
 
 Flags:
-  -h, --help   help for view:network
+  -h, --help   help for view:networks
 
 Global Flags:
       --configuration-file string   Configuration file that provides connection and test settings.

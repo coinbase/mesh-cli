@@ -26,20 +26,20 @@ import (
 )
 
 var (
-	viewNetworkCmd = &cobra.Command{
-		Use:   "view:network",
-		Short: "View network status",
+	viewNetworksCmd = &cobra.Command{
+		Use:   "view:networks",
+		Short: "View all network statuses",
 		Long: `While debugging a Data API implementation, it can be very
 useful to view network(s) status. This command fetches the network
 status from all available networks and prints it to the terminal.
 
 If this command errors, it is likely because the /network/* endpoints are
 not formatted correctly.`,
-		Run: runViewNetworkCmd,
+		Run: runViewNetworksCmd,
 	}
 )
 
-func runViewNetworkCmd(cmd *cobra.Command, args []string) {
+func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
 	f := fetcher.New(

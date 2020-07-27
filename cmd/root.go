@@ -91,7 +91,7 @@ default values.`,
 	// View Commands
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
-	rootCmd.AddCommand(viewNetworkCmd)
+	rootCmd.AddCommand(viewNetworksCmd)
 
 	// Utils
 	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
@@ -142,6 +142,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.3.2")
+		fmt.Println("v0.4.0")
 	},
 }
