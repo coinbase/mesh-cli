@@ -49,6 +49,10 @@ const (
 	// a new UTXO is created and "utxo_spent" when a
 	// UTXO is spent).
 	CoinIdentifier = "{{ COIN_IDENTIFIER }}"
+
+	ChangeAddress = "{{ CHANGE_ADDRESS }}"
+
+	ChangeValue = "{{ CHANGE_VALUE }}"
 )
 
 // Context is all information passed to PopulateScenario.
@@ -61,6 +65,8 @@ type Context struct {
 	RecipientValue *big.Int
 	CoinIdentifier *types.CoinIdentifier
 	Currency       *types.Currency
+	ChangeAddress  string
+	ChangeValue    *big.Int
 }
 
 // PopulateScenario populates a provided scenario (slice of
@@ -96,6 +102,20 @@ func PopulateScenario(
 			stringBytes,
 			CoinIdentifier,
 			scenarioContext.CoinIdentifier.Identifier,
+		)
+	}
+
+	if len(scenarioContext.ChangeAddress) > 0 {
+		stringBytes = strings.ReplaceAll(
+			stringBytes,
+			ChangeAddress,
+			scenarioContext.ChangeAddress,
+		)
+
+		stringBytes = strings.ReplaceAll(
+			stringBytes,
+			ChangeValue,
+			new(big.Int).Abs(scenarioContext.ChangeValue).String(),
 		)
 	}
 

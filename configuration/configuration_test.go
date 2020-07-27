@@ -43,7 +43,7 @@ var (
 			MaximumFee:          "1",
 			CurveType:           types.Edwards25519,
 			AccountingModel:     UtxoModel,
-			TransferScenario:    EthereumTransfer,
+			Scenario:            EthereumTransfer,
 			ConfirmationDepth:   100,
 			StaleDepth:          12,
 			BroadcastLimit:      200,

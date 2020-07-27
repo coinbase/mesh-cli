@@ -526,6 +526,7 @@ func (t *ConstructionTester) FindSender(
 func (t *ConstructionTester) FindRecipient(
 	ctx context.Context,
 	sender string,
+	forceNew bool,
 ) (string, error) {
 	validRecipients := []string{}
 	addresses, err := t.keyStorage.GetAllAddresses(ctx)
@@ -546,7 +547,7 @@ func (t *ConstructionTester) FindRecipient(
 		coinFlip = true
 	}
 
-	if len(validRecipients) == 0 || coinFlip {
+	if len(validRecipients) == 0 || coinFlip || forceNew {
 		addr, err := t.NewAddress(ctx)
 		if err != nil {
 			return "", fmt.Errorf("%w: unable to generate new address", err)
@@ -574,16 +575,31 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			continue
 		}
 
-		recipient, err := t.FindRecipient(ctx, sender)
+		recipient, err := t.FindRecipient(ctx, sender, false)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
 		senderValue := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendableBalance)
 		recipientValue := senderValue
+		var changeAddress string
+		var changeValue *big.Int
 		if t.config.Construction.AccountingModel == configuration.UtxoModel {
-			// TODO: send less than max fee and provide change address
 			recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
+
+			if t.config.Construction.PopulateChange {
+				// Attempt to create a change output if the change operation is defined
+				changableSurplus := new(big.Int).Sub(recipientValue, new(big.Int).Mul(t.minimumBalance, big.NewInt(2)))
+				if new(big.Int).Sub(changableSurplus, t.minimumBalance).Sign() == 1 { // ensure enough to send to change
+					split := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), changableSurplus)
+					recipientValue = new(big.Int).Add(split, t.minimumBalance)
+					changeValue = new(big.Int).Add(new(big.Int).Sub(changableSurplus, split), t.minimumBalance)
+					changeAddress, err = t.FindRecipient(ctx, sender, true)
+					if err != nil {
+						return fmt.Errorf("%w: unable to find recipient", err)
+					}
+				}
+			}
 		}
 
 		// Populate Scenario
@@ -594,29 +610,51 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			RecipientValue: recipientValue,
 			Currency:       t.config.Construction.Currency,
 			CoinIdentifier: coinIdentifier,
+			ChangeAddress:  changeAddress,
+			ChangeValue:    changeValue,
 		}
 
-		intent, err := scenario.PopulateScenario(ctx, scenarioContext, t.config.Construction.TransferScenario)
+		intent, err := scenario.PopulateScenario(ctx, scenarioContext, t.config.Construction.Scenario)
 		if err != nil {
 			return fmt.Errorf("%w: unable to populate scenario", err)
 		}
 
 		// Create transaction
 		transactionIdentifier, networkTransaction, err := t.CreateTransaction(ctx, intent)
-
-		nativeUnits := new(big.Float).SetInt(recipientValue)
-		divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
-		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
-		color.Magenta(
-			"%s -- %s%s --> %s Hash:%s",
-			sender,
-			nativeUnits.String(),
-			t.config.Construction.Currency.Symbol,
-			recipient,
-			transactionIdentifier.Hash,
-		)
 		if err != nil {
 			return fmt.Errorf("%w: unable to create transaction with operations %s", err, types.PrettyPrintStruct(intent))
+		}
+
+		divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
+		if len(changeAddress) == 0 {
+			nativeUnits := new(big.Float).SetInt(recipientValue)
+			nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+
+			color.Magenta(
+				"%s -- %s%s --> %s Hash:%s",
+				sender,
+				nativeUnits.String(),
+				t.config.Construction.Currency.Symbol,
+				recipient,
+				transactionIdentifier.Hash,
+			)
+		} else {
+			recipientUnits := new(big.Float).SetInt(recipientValue)
+			recipientUnits = new(big.Float).Quo(recipientUnits, divisor)
+
+			changeUnits := new(big.Float).SetInt(changeValue)
+			changeUnits = new(big.Float).Quo(changeUnits, divisor)
+			color.Magenta(
+				"%s\n -- %s%s --> %s\n -- %s%s --> %s\nHash:%s",
+				sender,
+				recipientUnits.String(),
+				t.config.Construction.Currency.Symbol,
+				recipient,
+				changeUnits.String(),
+				t.config.Construction.Currency.Symbol,
+				changeAddress,
+				transactionIdentifier.Hash,
+			)
 		}
 
 		// Broadcast Transaction

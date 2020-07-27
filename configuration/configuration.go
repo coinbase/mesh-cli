@@ -135,11 +135,11 @@ type ConstructionConfiguration struct {
 	// testing (account vs UTXO).
 	AccountingModel AccountingModel `json:"accounting_model"`
 
-	// TransferScenario contains a slice of operations that
-	// indicate how to perform a transfer on a blockchain. In the future
+	// Scenario contains a slice of operations that
+	// indicate how to construct a transaction on a blockchain. In the future
 	// this will be expanded to support all kinds of construction scenarios (like
 	// staking or governance).
-	TransferScenario []*types.Operation `json:"transfer_scenario"`
+	Scenario []*types.Operation `json:"scenario"`
 
 	// ConfirmationDepth is the number of blocks that must be synced
 	// after a transaction before the transaction is confirmed.
@@ -161,6 +161,8 @@ type ConstructionConfiguration struct {
 	// IgnoreBroadcastFailures determines if we should exit when there
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
+
+	PopulateChange bool `json:"populate_change"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -173,7 +175,7 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 		MaximumFee:          EthereumMaximumFee,
 		CurveType:           EthereumCurveType,
 		AccountingModel:     EthereumAccountingModel,
-		TransferScenario:    EthereumTransfer,
+		Scenario:            EthereumTransfer,
 		ConfirmationDepth:   DefaultConfirmationDepth,
 		StaleDepth:          DefaultStaleDepth,
 		BroadcastLimit:      DefaultBroadcastLimit,
@@ -333,8 +335,8 @@ func populateConstructionMissingFields(
 		constructionConfig.AccountingModel = EthereumAccountingModel
 	}
 
-	if len(constructionConfig.TransferScenario) == 0 {
-		constructionConfig.TransferScenario = EthereumTransfer
+	if len(constructionConfig.Scenario) == 0 {
+		constructionConfig.Scenario = EthereumTransfer
 	}
 
 	return constructionConfig
