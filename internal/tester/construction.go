@@ -696,14 +696,15 @@ func (t *ConstructionTester) LogTransaction(
 	transactionIdentifier *types.TransactionIdentifier,
 ) {
 	divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
+	precision := int(t.config.Construction.Currency.Decimals)
 	if len(scenarioCtx.ChangeAddress) == 0 {
 		nativeUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
 		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
 
 		color.Magenta(
-			"%s -- %s%s --> %s Hash:%s",
+			"%s -- %s %s --> %s Hash:%s",
 			scenarioCtx.Sender,
-			nativeUnits.String(),
+			nativeUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
 			scenarioCtx.Recipient,
 			transactionIdentifier.Hash,
@@ -715,12 +716,12 @@ func (t *ConstructionTester) LogTransaction(
 		changeUnits := new(big.Float).SetInt(scenarioCtx.ChangeValue)
 		changeUnits = new(big.Float).Quo(changeUnits, divisor)
 		color.Magenta(
-			"%s\n -- %s%s --> %s\n -- %s%s --> %s\nHash:%s",
+			"%s\n -- %s %s --> %s\n -- %s %s --> %s\nHash:%s",
 			scenarioCtx.Sender,
-			recipientUnits.String(),
+			recipientUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
-			scenarioCtx.RecipientValue,
-			changeUnits.String(),
+			scenarioCtx.Recipient,
+			changeUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
 			scenarioCtx.ChangeAddress,
 			transactionIdentifier.Hash,
