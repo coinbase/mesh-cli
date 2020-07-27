@@ -329,6 +329,54 @@ func (b *BroadcastStorage) GetAllBroadcasts(ctx context.Context) ([]*Broadcast, 
 	return broadcasts, nil
 }
 
+func (b *BroadcastStorage) performBroadcast(
+	ctx context.Context,
+	broadcast *Broadcast,
+	onlyEligible bool,
+) error {
+	bytes, err := encode(broadcast)
+	if err != nil {
+		return fmt.Errorf("%w: unable to encode broadcast", err)
+	}
+
+	txn := b.db.NewDatabaseTransaction(ctx, true)
+	defer txn.Discard(ctx)
+
+	if err := txn.Set(ctx, getBroadcastKey(broadcast.Identifier), bytes); err != nil {
+		return fmt.Errorf("%w: unable to update broadcast", err)
+	}
+
+	if err := txn.Commit(ctx); err != nil {
+		return fmt.Errorf("%w: unable to commit broadcast update", err)
+	}
+
+	if !onlyEligible {
+		log.Printf("Broadcasting: %s\n", types.PrettyPrintStruct(broadcast))
+	}
+
+	broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
+	if err != nil {
+		// Don't error on broadcast failure, retries will automatically be handled.
+		log.Printf(
+			"%s: unable to broadcast transaction %s",
+			err.Error(),
+			broadcast.Identifier.Hash,
+		)
+
+		return nil
+	}
+
+	if types.Hash(broadcastIdentifier) != types.Hash(broadcast.Identifier) {
+		return fmt.Errorf(
+			"transaction hash returned by broadcast %s does not match expected %s",
+			broadcastIdentifier.Hash,
+			broadcast.Identifier.Hash,
+		)
+	}
+
+	return nil
+}
+
 // BroadcastAll broadcasts all transactions in BroadcastStorage. If onlyEligible
 // is set to true, then only transactions that should be broadcast again
 // are actually broadcast.
@@ -394,44 +442,8 @@ func (b *BroadcastStorage) BroadcastAll(ctx context.Context, onlyEligible bool) 
 		broadcast.LastBroadcast = currBlock
 		broadcast.Broadcasts++
 
-		bytes, err := encode(broadcast)
-		if err != nil {
-			return fmt.Errorf("%w: unable to encode broadcast", err)
-		}
-
-		txn := b.db.NewDatabaseTransaction(ctx, true)
-		defer txn.Discard(ctx)
-
-		if err := txn.Set(ctx, getBroadcastKey(broadcast.Identifier), bytes); err != nil {
-			return fmt.Errorf("%w: unable to update broadcast", err)
-		}
-
-		if err := txn.Commit(ctx); err != nil {
-			return fmt.Errorf("%w: unable to commit broadcast update", err)
-		}
-
-		if !onlyEligible {
-			log.Printf("Broadcasting: %s\n", types.PrettyPrintStruct(broadcast))
-		}
-
-		broadcastIdentifier, err := b.helper.BroadcastTransaction(ctx, broadcast.Payload)
-		if err != nil {
-			// Don't error on broadcast failure, retries will automatically be handled.
-			log.Printf(
-				"%s: unable to broadcast transaction %s",
-				err.Error(),
-				broadcast.Identifier.Hash,
-			)
-
-			continue
-		}
-
-		if types.Hash(broadcastIdentifier) != types.Hash(broadcast.Identifier) {
-			return fmt.Errorf(
-				"transaction hash returned by broadcast %s does not match expected %s",
-				broadcastIdentifier.Hash,
-				broadcast.Identifier.Hash,
-			)
+		if err := b.performBroadcast(ctx, broadcast, onlyEligible); err != nil {
+			return fmt.Errorf("%w: unable to perform broadcast", err)
 		}
 	}
 
@@ -478,7 +490,11 @@ func (b *BroadcastStorage) ClearBroadcasts(ctx context.Context) ([]*Broadcast, e
 	txn := b.db.NewDatabaseTransaction(ctx, true)
 	for _, broadcast := range broadcasts {
 		if err := txn.Delete(ctx, getBroadcastKey(broadcast.Identifier)); err != nil {
-			return nil, fmt.Errorf("%w: unable to delete broadcast %s", err, broadcast.Identifier.Hash)
+			return nil, fmt.Errorf(
+				"%w: unable to delete broadcast %s",
+				err,
+				broadcast.Identifier.Hash,
+			)
 		}
 	}
 

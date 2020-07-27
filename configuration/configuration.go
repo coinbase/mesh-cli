@@ -52,6 +52,7 @@ const (
 	DefaultBroadcastLimit                    = 3
 	DefaultBroadcastTrailLimit               = 3
 	DefaultBlockBroadcastLimit               = 5
+	DefaultNewAccountProbability             = 0.5
 
 	// ETH Defaults
 	EthereumIDBlockchain    = "Ethereum"
@@ -163,10 +164,10 @@ type ConstructionConfiguration struct {
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 
-	// PopulateChange determines if a change address should be
+	// ProduceChange determines if a change address should be
 	// created when performing a UTXO-based transfer. If not,
 	// the entire UTXO-fees will be sent to the recipient.
-	PopulateChange bool `json:"populate_change"`
+	ProduceChange bool `json:"produce_change"`
 
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
@@ -180,24 +181,29 @@ type ConstructionConfiguration struct {
 	// RebroadcastAll indicates if all pending broadcasts should be
 	// rebroadcast from BroadcastStorage on restart.
 	RebroadcastAll bool `json:"rebroadcast_all"`
+
+	// NewAccountProbability is the probability we create a new
+	// recipient address on any transaction creation loop.
+	NewAccountProbability float64 `json:"create_new_account_probability"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
 // used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
-		OfflineURL:          DefaultURL,
-		Currency:            EthereumCurrency,
-		MinimumBalance:      EthereumMinimumBalance,
-		MaximumFee:          EthereumMaximumFee,
-		CurveType:           EthereumCurveType,
-		AccountingModel:     EthereumAccountingModel,
-		Scenario:            EthereumTransfer,
-		ConfirmationDepth:   DefaultConfirmationDepth,
-		StaleDepth:          DefaultStaleDepth,
-		BroadcastLimit:      DefaultBroadcastLimit,
-		BroadcastTrailLimit: DefaultBroadcastTrailLimit,
-		BlockBroadcastLimit: DefaultBlockBroadcastLimit,
+		OfflineURL:            DefaultURL,
+		Currency:              EthereumCurrency,
+		MinimumBalance:        EthereumMinimumBalance,
+		MaximumFee:            EthereumMaximumFee,
+		CurveType:             EthereumCurveType,
+		AccountingModel:       EthereumAccountingModel,
+		Scenario:              EthereumTransfer,
+		ConfirmationDepth:     DefaultConfirmationDepth,
+		StaleDepth:            DefaultStaleDepth,
+		BroadcastLimit:        DefaultBroadcastLimit,
+		BroadcastTrailLimit:   DefaultBroadcastTrailLimit,
+		BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+		NewAccountProbability: DefaultNewAccountProbability,
 	}
 }
 
@@ -375,6 +381,10 @@ func populateConstructionMissingFields(
 
 	if constructionConfig.BlockBroadcastLimit == 0 {
 		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
+	}
+
+	if constructionConfig.NewAccountProbability == 0 {
+		constructionConfig.NewAccountProbability = DefaultNewAccountProbability
 	}
 
 	return constructionConfig

@@ -337,7 +337,11 @@ func (c *CoinStorage) GetCoins(
 
 	coinArr := []*Coin{}
 	for coinIdentifier := range coins {
-		exists, coin, err := getAndDecodeCoin(ctx, transaction, &types.CoinIdentifier{Identifier: coinIdentifier})
+		exists, coin, err := getAndDecodeCoin(
+			ctx,
+			transaction,
+			&types.CoinIdentifier{Identifier: coinIdentifier},
+		)
 		if err != nil {
 			return nil, fmt.Errorf("%w: unable to query coin", err)
 		}

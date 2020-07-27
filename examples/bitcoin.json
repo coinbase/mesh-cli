@@ -71,7 +71,7 @@
   "broadcast_limit": 3,
   "broadcast_trail_limit": 3,
   "ignore_broadcast_failures": false,
-  "populate_change": true
+  "produce_change": true
  },
  "data": {
   "block_concurrency": 8,

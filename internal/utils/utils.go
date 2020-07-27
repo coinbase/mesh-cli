@@ -37,6 +37,9 @@ const (
 	// AllFilePermissions specifies anyone can do anything
 	// to the file.
 	AllFilePermissions = 0777
+
+	base10            = 10
+	bigFloatPrecision = 512
 )
 
 // CreateTempDir creates a directory in
@@ -159,9 +162,10 @@ func CheckNetworkSupported(
 }
 
 // BigPow10 computes the value of 10^e.
-// Inspired by: https://steemit.com/tutorial/@gopher23/power-and-root-functions-using-big-float-in-golang
+// Inspired by:
+// https://steemit.com/tutorial/@gopher23/power-and-root-functions-using-big-float-in-golang
 func BigPow10(e int32) *big.Float {
-	a := big.NewFloat(10)
+	a := big.NewFloat(base10)
 	result := Zero().Copy(a)
 	for i := int32(0); i < e-1; i++ {
 		result = Zero().Mul(result, a)
@@ -171,7 +175,7 @@ func BigPow10(e int32) *big.Float {
 
 // Zero returns a float with 256 bit precision.
 func Zero() *big.Float {
-	r := big.NewFloat(0.0)
-	r.SetPrec(256)
+	r := big.NewFloat(0)
+	r.SetPrec(bigFloatPrecision)
 	return r
 }

@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tester
 
 import (
@@ -33,6 +47,10 @@ const (
 	// constructionCmdName is used as the prefix on the data directory
 	// for all data saved using this command.
 	constructionCmdName = "check-construction"
+
+	// defaultSleepTime is the default time we sleep
+	// while waiting to perform the next task.
+	defaultSleepTime = 10
 )
 
 // ConstructionTester coordinates the `check:construction` test.
@@ -265,11 +283,6 @@ func (t *ConstructionTester) CreateTransaction(
 		return nil, "", fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
 
-	requestedSigners := []string{}
-	for _, payload := range payloads {
-		requestedSigners = append(requestedSigners, payload.Address)
-	}
-
 	signatures, err := t.keyStorage.Sign(ctx, payloads)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: unable to sign payloads", err)
@@ -398,7 +411,7 @@ func (t *ConstructionTester) RequestFunds(
 			color.Yellow("waiting for funds on %s", address)
 			printedMessage = true
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(defaultSleepTime * time.Second)
 	}
 
 	return nil, nil, ctx.Err()
@@ -415,7 +428,12 @@ func (t *ConstructionTester) SendableBalance(
 	var bal *big.Int
 	var coinIdentifier *types.CoinIdentifier
 	if t.config.Construction.AccountingModel == configuration.AccountModel {
-		amount, _, err := t.balanceStorage.GetBalance(ctx, accountIdentifier, t.config.Construction.Currency, nil)
+		amount, _, err := t.balanceStorage.GetBalance(
+			ctx,
+			accountIdentifier,
+			t.config.Construction.Currency,
+			nil,
+		)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to fetch balance for %s", err, address)
 		}
@@ -464,7 +482,7 @@ func (t *ConstructionTester) SendableBalance(
 
 // FindSender fetches all available addresses,
 // all locked addresses, and all address balances
-// to determine which addresses can faciliate
+// to determine which addresses can facilitate
 // a transfer. If any are available, one is
 // randomly selected.
 func (t *ConstructionTester) FindSender(
@@ -582,7 +600,7 @@ func (t *ConstructionTester) FindRecipient(
 
 	// Randomly generate new recipients
 	coinFlip := false
-	if rand.Float64() > 0.5 {
+	if rand.Float64() > t.config.Construction.NewAccountProbability {
 		coinFlip = true
 	}
 
@@ -596,6 +614,118 @@ func (t *ConstructionTester) FindRecipient(
 	}
 
 	return validRecipients[rand.Intn(len(validRecipients))], nil
+}
+
+// CreateScenarioContext creates the context to use
+// for scenario population.
+func (t *ConstructionTester) CreateScenarioContext(
+	ctx context.Context,
+	sender string,
+	recipient string,
+	sendableBalance *big.Int,
+	coinIdentifier *types.CoinIdentifier,
+) (*scenario.Context, error) {
+	var senderValue, recipientValue, changeValue *big.Int
+	var changeAddress string
+	var err error
+
+	switch t.config.Construction.AccountingModel {
+	case configuration.AccountModel:
+		senderValue = new(
+			big.Int,
+		).Rand(
+			rand.New(rand.NewSource(time.Now().Unix())),
+			sendableBalance,
+		)
+		recipientValue = senderValue
+	case configuration.UtxoModel:
+		senderValue = sendableBalance
+		recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
+
+		// Attempt to create a change output if we should produce change.
+		if t.config.Construction.ProduceChange {
+			// We consider the changableSurplus to be anything above the minimum
+			// balance of the recipient and the change address.
+			minimumBalances := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
+			changableSurplus := new(big.Int).Sub(recipientValue, minimumBalances)
+
+			// If the changableSurplus is positive, we attempt to send a change
+			// output.
+			if changableSurplus.Sign() == 1 {
+				// The recipient value is recipientSplit + minimumBalance and the
+				// change value is (changableSurplus - recipientSplit) + minimumBalance.
+				// Note that the changableSurplus already takes into account the fee.
+				recipientSplit := new(
+					big.Int,
+				).Rand(
+					rand.New(rand.NewSource(time.Now().Unix())),
+					changableSurplus,
+				)
+				recipientValue = new(big.Int).Add(recipientSplit, t.minimumBalance)
+				changeSplit := new(big.Int).Sub(changableSurplus, recipientSplit)
+				changeValue = new(big.Int).Add(changeSplit, t.minimumBalance)
+
+				changeAddress, err = t.FindRecipient(ctx, sender, true)
+				if err != nil {
+					return nil, fmt.Errorf("%w: unable to find change recipient", err)
+				}
+			}
+		}
+	default:
+		// We should never hit this branch because the configuration file is
+		// checked for issues like this before starting this loop.
+		return nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
+	}
+
+	return &scenario.Context{
+		Sender:         sender,
+		SenderValue:    senderValue,
+		Recipient:      recipient,
+		RecipientValue: recipientValue,
+		Currency:       t.config.Construction.Currency,
+		CoinIdentifier: coinIdentifier,
+		ChangeAddress:  changeAddress,
+		ChangeValue:    changeValue,
+	}, nil
+}
+
+// LogTransaction logs what a scenario is perfoming
+// to the console.
+func (t *ConstructionTester) LogTransaction(
+	scenarioCtx *scenario.Context,
+	transactionIdentifier *types.TransactionIdentifier,
+) {
+	divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
+	if len(scenarioCtx.ChangeAddress) == 0 {
+		nativeUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
+		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+
+		color.Magenta(
+			"%s -- %s%s --> %s Hash:%s",
+			scenarioCtx.Sender,
+			nativeUnits.String(),
+			t.config.Construction.Currency.Symbol,
+			scenarioCtx.Recipient,
+			transactionIdentifier.Hash,
+		)
+	} else {
+		recipientUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
+		recipientUnits = new(big.Float).Quo(recipientUnits, divisor)
+
+		changeUnits := new(big.Float).SetInt(scenarioCtx.ChangeValue)
+		changeUnits = new(big.Float).Quo(changeUnits, divisor)
+		color.Magenta(
+			"%s\n -- %s%s --> %s\n -- %s%s --> %s\nHash:%s",
+			scenarioCtx.Sender,
+			recipientUnits.String(),
+			t.config.Construction.Currency.Symbol,
+			scenarioCtx.RecipientValue,
+			changeUnits.String(),
+			t.config.Construction.Currency.Symbol,
+			scenarioCtx.ChangeAddress,
+			transactionIdentifier.Hash,
+		)
+	}
 }
 
 // CreateTransactions loops on the create transaction loop
@@ -627,7 +757,7 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			// pending broadcast to complete before creating more
 			// transactions.
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(defaultSleepTime * time.Second)
 			continue
 		}
 
@@ -636,49 +766,18 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
-		var senderValue *big.Int
-		var recipientValue *big.Int
-		var changeAddress string
-		var changeValue *big.Int
-		if t.config.Construction.AccountingModel == configuration.AccountModel {
-			senderValue = new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendableBalance)
-			recipientValue = senderValue
-		} else if t.config.Construction.AccountingModel == configuration.UtxoModel {
-			senderValue = sendableBalance
-			recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
-
-			if t.config.Construction.PopulateChange {
-				// Attempt to create a change output if the change operation is defined
-				changableSurplus := new(big.Int).Sub(recipientValue, new(big.Int).Mul(t.minimumBalance, big.NewInt(2)))
-				if new(big.Int).Sub(changableSurplus, t.minimumBalance).Sign() == 1 { // ensure enough to send to change
-					split := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), changableSurplus)
-					recipientValue = new(big.Int).Add(split, t.minimumBalance)
-					changeValue = new(big.Int).Add(new(big.Int).Sub(changableSurplus, split), t.minimumBalance)
-					changeAddress, err = t.FindRecipient(ctx, sender, true)
-					if err != nil {
-						return fmt.Errorf("%w: unable to find recipient", err)
-					}
-				}
-			}
-		} else {
-			// We should never hit this branch because the configuration file is
-			// checked for issues like this before starting this loop.
-			return fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
+		scenarioCtx, err := t.CreateScenarioContext(
+			ctx,
+			sender,
+			recipient,
+			sendableBalance,
+			coinIdentifier,
+		)
+		if err != nil {
+			return fmt.Errorf("%w: unable to create scenario context", err)
 		}
 
-		// Populate Scenario
-		scenarioContext := &scenario.Context{
-			Sender:         sender,
-			SenderValue:    senderValue,
-			Recipient:      recipient,
-			RecipientValue: recipientValue,
-			Currency:       t.config.Construction.Currency,
-			CoinIdentifier: coinIdentifier,
-			ChangeAddress:  changeAddress,
-			ChangeValue:    changeValue,
-		}
-
-		intent, err := scenario.PopulateScenario(ctx, scenarioContext, t.config.Construction.Scenario)
+		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, t.config.Construction.Scenario)
 		if err != nil {
 			return fmt.Errorf("%w: unable to populate scenario", err)
 		}
@@ -686,48 +785,32 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 		// Create transaction
 		transactionIdentifier, networkTransaction, err := t.CreateTransaction(ctx, intent)
 		if err != nil {
-			return fmt.Errorf("%w: unable to create transaction with operations %s", err, types.PrettyPrintStruct(intent))
-		}
-
-		divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
-		if len(changeAddress) == 0 {
-			nativeUnits := new(big.Float).SetInt(recipientValue)
-			nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
-
-			color.Magenta(
-				"%s -- %s%s --> %s Hash:%s",
-				sender,
-				nativeUnits.String(),
-				t.config.Construction.Currency.Symbol,
-				recipient,
-				transactionIdentifier.Hash,
-			)
-		} else {
-			recipientUnits := new(big.Float).SetInt(recipientValue)
-			recipientUnits = new(big.Float).Quo(recipientUnits, divisor)
-
-			changeUnits := new(big.Float).SetInt(changeValue)
-			changeUnits = new(big.Float).Quo(changeUnits, divisor)
-			color.Magenta(
-				"%s\n -- %s%s --> %s\n -- %s%s --> %s\nHash:%s",
-				sender,
-				recipientUnits.String(),
-				t.config.Construction.Currency.Symbol,
-				recipient,
-				changeUnits.String(),
-				t.config.Construction.Currency.Symbol,
-				changeAddress,
-				transactionIdentifier.Hash,
+			return fmt.Errorf(
+				"%w: unable to create transaction with operations %s",
+				err,
+				types.PrettyPrintStruct(intent),
 			)
 		}
+
+		t.LogTransaction(scenarioCtx, transactionIdentifier)
 
 		// Broadcast Transaction
-		err = t.broadcastStorage.Broadcast(ctx, sender, intent, transactionIdentifier, networkTransaction)
+		err = t.broadcastStorage.Broadcast(
+			ctx,
+			sender,
+			intent,
+			transactionIdentifier,
+			networkTransaction,
+		)
 		if err != nil {
 			return fmt.Errorf("%w: unable to enqueue transaction for broadcast", err)
 		}
 
-		_, _ = t.logger.CounterStorage.Update(ctx, storage.TransactionsCreatedCounter, big.NewInt(1))
+		_, _ = t.logger.CounterStorage.Update(
+			ctx,
+			storage.TransactionsCreatedCounter,
+			big.NewInt(1),
+		)
 	}
 
 	return ctx.Err()
@@ -743,7 +826,7 @@ func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
 	color.Magenta("Rebroadcasting all transactions...")
 
 	if err := t.broadcastStorage.BroadcastAll(ctx, false); err != nil {
-		return fmt.Errorf("%w: unabel to broadcast all transactions", err)
+		return fmt.Errorf("%w: unable to broadcast all transactions", err)
 	}
 
 	return nil
