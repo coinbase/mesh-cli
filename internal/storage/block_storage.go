@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -53,10 +52,6 @@ var (
 	// ErrBlockNotFound is returned when a block is not
 	// found in BlockStorage.
 	ErrBlockNotFound = errors.New("block not found")
-
-	// ErrTransactionNotFound is returned when a transaction
-	// is not found in BlockStorage.
-	ErrTransactionNotFound = errors.New("transaction not found")
 
 	// ErrDuplicateBlockHash is returned when a block hash
 	// cannot be stored because it is a duplicate.
@@ -478,57 +473,62 @@ func (b *BlockStorage) removeTransactionHash(
 	return transaction.Set(ctx, hashKey, encodedResult)
 }
 
-// FindTransaction returns the []*types.BlockIdentifier containing the
-// transaction and the depth from the current head of the first transaction
-// sigting (almost always this will just be a single block). If not found,
-// it returns a ErrTransactionNotFound error.
+// FindTransaction returns the most recent *types.BlockIdentifier containing the
+// transaction and the transaction.
 func (b *BlockStorage) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
-) ([]*types.BlockIdentifier, int64, error) {
+) (*types.BlockIdentifier, *types.Transaction, error) {
 	txn := b.db.NewDatabaseTransaction(ctx, false)
 	defer txn.Discard(ctx)
 
 	txExists, tx, err := txn.Get(ctx, getTransactionHashKey(transactionIdentifier))
 	if err != nil {
-		return nil, -1, fmt.Errorf("%w: unable to query database for transaction", err)
+		return nil, nil, fmt.Errorf("%w: unable to query database for transaction", err)
 	}
 
 	if !txExists {
-		return nil, -1, nil
+		return nil, nil, nil
 	}
 
 	var blocks map[string]int64
 	if err := decode(tx, &blocks); err != nil {
-		return nil, -1, fmt.Errorf("%w: unable to decode block data for transaction", err)
+		return nil, nil, fmt.Errorf("%w: unable to decode block data for transaction", err)
 	}
 
-	blockExists, block, err := txn.Get(ctx, getHeadBlockKey())
-	if err != nil {
-		return nil, -1, fmt.Errorf("%w: unable to query database for head block", err)
-	}
-
-	if !blockExists {
-		// It should not be possible to enter this conditional
-		// as the existence of a tx hash implies at least
-		// one block is synced.
-		return nil, -1, ErrHeadBlockNotFound
-	}
-
-	var head types.BlockIdentifier
-	err = decode(block, &head)
-	if err != nil {
-		return nil, -1, fmt.Errorf("%w: could not decode head block", err)
-	}
-
-	ids := []*types.BlockIdentifier{}
-	oldestBlock := int64(math.MaxInt64)
+	var newestBlock *types.BlockIdentifier
 	for hash, index := range blocks {
-		ids = append(ids, &types.BlockIdentifier{Hash: hash, Index: index})
-		if index < oldestBlock {
-			oldestBlock = index
+		b := &types.BlockIdentifier{Hash: hash, Index: index}
+		if newestBlock == nil || b.Index > newestBlock.Index {
+			newestBlock = b
 		}
 	}
 
-	return ids, head.Index - oldestBlock, nil
+	blockExists, block, err := txn.Get(ctx, getBlockKey(newestBlock))
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: unable to query database for block", err)
+	}
+
+	if !blockExists {
+		return nil, nil, ErrBlockNotFound
+	}
+
+	var parsedBlock *types.Block
+	err = decode(block, &parsedBlock)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: could not decode block", err)
+	}
+
+	for _, tx := range parsedBlock.Transactions {
+		if types.Hash(tx.TransactionIdentifier) == types.Hash(transactionIdentifier) {
+			return newestBlock, tx, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf(
+		"unable to find transaction %s in expected block %s:%d",
+		transactionIdentifier.Hash,
+		newestBlock.Hash,
+		newestBlock.Index,
+	)
 }

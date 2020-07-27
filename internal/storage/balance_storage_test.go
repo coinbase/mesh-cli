@@ -607,6 +607,8 @@ func TestBootstrapBalances(t *testing.T) {
 	})
 }
 
+var _ BalanceStorageHelper = (*MockBalanceStorageHelper)(nil)
+
 type MockBalanceStorageHelper struct {
 	AccountBalanceAmount string
 	AccountBalances      map[string]string
