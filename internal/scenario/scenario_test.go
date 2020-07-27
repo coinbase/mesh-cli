@@ -28,7 +28,7 @@ var (
 	senderValue    = big.NewInt(100)
 	recipient      = "addr2"
 	recipientValue = big.NewInt(90)
-	utxoIdentifier = "utxo1"
+	coinIdentifier = &types.CoinIdentifier{Identifier: "utxo1"}
 
 	bitcoinCurrency = &types.Currency{
 		Symbol:   "BTC",
@@ -53,7 +53,7 @@ func TestPopulateScenario(t *testing.T) {
 				SenderValue:    senderValue,
 				Recipient:      recipient,
 				RecipientValue: recipientValue,
-				UTXOIdentifier: utxoIdentifier,
+				CoinIdentifier: coinIdentifier,
 				Currency:       bitcoinCurrency,
 			},
 			scenario: []*types.Operation{
@@ -68,8 +68,11 @@ func TestPopulateScenario(t *testing.T) {
 					Amount: &types.Amount{
 						Value: "{{ SENDER_VALUE }}",
 					},
-					Metadata: map[string]interface{}{
-						"utxo_spent": "{{ UTXO_IDENTIFIER }}",
+					CoinChange: &types.CoinChange{
+						CoinAction: types.CoinSpent,
+						CoinIdentifier: &types.CoinIdentifier{
+							Identifier: "{{ COIN_IDENTIFIER }}",
+						},
 					},
 				},
 				{
@@ -98,8 +101,9 @@ func TestPopulateScenario(t *testing.T) {
 						Value:    new(big.Int).Neg(senderValue).String(),
 						Currency: bitcoinCurrency,
 					},
-					Metadata: map[string]interface{}{
-						"utxo_spent": utxoIdentifier,
+					CoinChange: &types.CoinChange{
+						CoinAction:     types.CoinSpent,
+						CoinIdentifier: coinIdentifier,
 					},
 				},
 				{
