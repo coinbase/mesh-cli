@@ -403,12 +403,12 @@ func (t *ConstructionTester) RequestFunds(
 		}
 
 		if sendableBalance != nil {
-			log.Printf("found sendable balance %s on %s\n", sendableBalance.String(), address)
+			color.Green("Found sendable balance %s on %s", t.prettyAmount(sendableBalance), address)
 			return sendableBalance, coinIdentifier, nil
 		}
 
 		if !printedMessage {
-			color.Yellow("waiting for funds on %s", address)
+			color.Yellow("Waiting for funds on %s ...", address)
 			printedMessage = true
 		}
 		time.Sleep(defaultSleepTime * time.Second)
@@ -733,41 +733,37 @@ func (t *ConstructionTester) CreateScenarioContext(
 	}, scenarioOps, nil
 }
 
+func (t *ConstructionTester) prettyAmount(amount *big.Int) string {
+	nativeUnits := new(big.Float).SetInt(amount)
+	divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
+	nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+	precision := int(t.config.Construction.Currency.Decimals)
+
+	return fmt.Sprintf("%s %s", nativeUnits.Text('f', precision), t.config.Construction.Currency.Symbol)
+}
+
 // LogTransaction logs what a scenario is perfoming
 // to the console.
 func (t *ConstructionTester) LogTransaction(
 	scenarioCtx *scenario.Context,
 	transactionIdentifier *types.TransactionIdentifier,
 ) {
-	divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
-	precision := int(t.config.Construction.Currency.Decimals)
 	if len(scenarioCtx.ChangeAddress) == 0 {
-		nativeUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
-		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
-
 		color.Magenta(
-			"Transaction Created: %s\n  %s -- %s %s --> %s",
+			"Transaction Created: %s\n  %s -- %s --> %s",
 			transactionIdentifier.Hash,
 			scenarioCtx.Sender,
-			nativeUnits.Text('f', precision),
-			t.config.Construction.Currency.Symbol,
+			t.prettyAmount(scenarioCtx.RecipientValue),
 			scenarioCtx.Recipient,
 		)
 	} else {
-		recipientUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
-		recipientUnits = new(big.Float).Quo(recipientUnits, divisor)
-
-		changeUnits := new(big.Float).SetInt(scenarioCtx.ChangeValue)
-		changeUnits = new(big.Float).Quo(changeUnits, divisor)
 		color.Magenta(
-			"Transaction Created: %s\n  %s\n    -- %s %s --> %s\n    -- %s %s --> %s",
+			"Transaction Created: %s\n  %s\n    -- %s --> %s\n    -- %s --> %s",
 			transactionIdentifier.Hash,
 			scenarioCtx.Sender,
-			recipientUnits.Text('f', precision),
-			t.config.Construction.Currency.Symbol,
+			t.prettyAmount(scenarioCtx.RecipientValue),
 			scenarioCtx.Recipient,
-			changeUnits.Text('f', precision),
-			t.config.Construction.Currency.Symbol,
+			t.prettyAmount(scenarioCtx.ChangeValue),
 			scenarioCtx.ChangeAddress,
 		)
 	}
