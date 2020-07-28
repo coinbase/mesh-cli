@@ -165,12 +165,12 @@ type ConstructionConfiguration struct {
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 
-	// ChangeIntent is added to the scenario if it is possible to generate
+	// ChangeScenario is added to the scenario if it is possible to generate
 	// a change transaction where the recipient address is over
 	// the minimum balance. If this is left nil, no change
 	// will ever be created. This is ONLY used for UTXO-based
 	// testing.
-	ChangeIntent *types.Operation `json:"change_intent"`
+	ChangeScenario *types.Operation `json:"change_scenario"`
 
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.

@@ -57,7 +57,7 @@
   "broadcast_limit": 3,
   "broadcast_trail_limit": 3,
   "ignore_broadcast_failures": false,
-  "change_intent": {
+  "change_scenario": {
     "operation_identifier": {
      "index": 2
     },

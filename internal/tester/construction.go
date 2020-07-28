@@ -36,6 +36,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
+	"github.com/jinzhu/copier"
 )
 
 func init() {
@@ -722,7 +723,6 @@ func (t *ConstructionTester) findRecipients(
 // createScenarioContext creates the context to use
 // for scenario population.
 func (t *ConstructionTester) createScenarioContext(
-	ctx context.Context,
 	sender string,
 	senderValue *big.Int,
 	recipient string,
@@ -730,10 +730,19 @@ func (t *ConstructionTester) createScenarioContext(
 	changeAddress string,
 	changeValue *big.Int,
 	coinIdentifier *types.CoinIdentifier,
-	scenarioOps []*types.Operation,
 ) (*scenario.Context, []*types.Operation, error) {
+	scenarioOps := []*types.Operation{}
+	if err := copier.Copy(&t.config.Construction.Scenario, &scenarioOps); err != nil {
+		return nil, nil, fmt.Errorf("%w: unable to copy scenario", err)
+	}
+
 	if len(changeAddress) > 0 {
-		scenarioOps = append(scenarioOps, t.config.Construction.ChangeIntent)
+		changeCopy := types.Operation{}
+		if err := copier.Copy(&t.config.Construction.ChangeScenario, &changeCopy); err != nil {
+			return nil, nil, fmt.Errorf("%w: unable to copy change intent", err)
+		}
+
+		scenarioOps = append(scenarioOps, &changeCopy)
 	}
 
 	return &scenario.Context{
@@ -828,17 +837,15 @@ func containsString(arr []string, s string) bool {
 	return false
 }
 
-func (t *ConstructionTester) generateAccountIntent(
+func (t *ConstructionTester) generateAccountScenario(
 	ctx context.Context,
+	sender string,
 	balance *big.Int,
 	minimumRecipients []string,
 	belowMinimumRecipients []string,
 ) (
-	*big.Int, // Sender value
-	string, // Recipient
-	*big.Int, // Recipient Value
-	string, // Change Address
-	*big.Int, // Change Value
+	*scenario.Context,
+	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
 	adjustedBalance := new(big.Int).Sub(balance, t.minimumBalance)
@@ -847,50 +854,51 @@ func (t *ConstructionTester) generateAccountIntent(
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
 		recipient, created, err := t.canGetNewAddress(ctx, append(minimumRecipients, belowMinimumRecipients...))
 		if err != nil {
-			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+			return nil, nil, fmt.Errorf("%w: unable to get recipient", err)
 		}
 
 		if created || containsString(belowMinimumRecipients, recipient) {
 			recipientValue := getRandomAmount(t.minimumBalance, adjustedBalance)
-			return recipientValue, recipient, recipientValue, "", nil, nil
+			return t.createScenarioContext(sender, recipientValue, recipient, recipientValue, "", nil, nil)
 		}
 
+		// We do not need to send the minimum amount here because the recipient
+		// already has a minimum balance.
 		recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
-		return recipientValue, recipient, recipientValue, "", nil, nil
+		return t.createScenarioContext(sender, recipientValue, recipient, recipientValue, "", nil, nil)
 	}
 
 	recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ExistingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
-			return nil, "", nil, "", nil, ErrInsufficientFunds
+			return nil, nil, ErrInsufficientFunds
 		}
 
-		return recipientValue, minimumRecipients[0], recipientValue, "", nil, nil
+		return t.createScenarioContext(sender, recipientValue, minimumRecipients[0], recipientValue, "", nil, nil)
 	}
 
 	// Cannot perform any transfer.
-	return nil, "", nil, "", nil, ErrInsufficientFunds
+	return nil, nil, ErrInsufficientFunds
 }
 
-func (t *ConstructionTester) generateUTXOIntent(
+func (t *ConstructionTester) generateUtxoScenario(
 	ctx context.Context,
+	sender string,
 	balance *big.Int,
 	recipients []string,
+	coinIdentifier *types.CoinIdentifier,
 ) (
-	*big.Int, // Sender value
-	string, // Recipient
-	*big.Int, // Recipient Value
-	string, // Change Address
-	*big.Int, // Change Value
+	*scenario.Context,
+	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
 	feeLessBalance := new(big.Int).Sub(balance, t.maximumFee)
 	recipient, created, err := t.canGetNewAddress(ctx, recipients)
 	if err != nil {
-		return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+		return nil, nil, fmt.Errorf("%w: unable to get recipient", err)
 	}
 
-	// Need to remove from recipients if created a change address
+	// Need to remove from recipients if did not create a recipient address
 	if !created {
 		newRecipients := []string{}
 		for _, r := range recipients {
@@ -904,10 +912,10 @@ func (t *ConstructionTester) generateUTXOIntent(
 
 	// should send to change, no change, or no send?
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ChangeSend)).Sign() != -1 &&
-		t.config.Construction.ChangeIntent != nil {
+		t.config.Construction.ChangeScenario != nil {
 		changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
 		if err != nil {
-			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get change address", err)
+			return nil, nil, fmt.Errorf("%w: unable to get change address", err)
 		}
 
 		doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
@@ -919,44 +927,42 @@ func (t *ConstructionTester) generateUTXOIntent(
 		recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
 		changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
 
-		return balance, recipient, recipientValue, changeAddress, changeValue, nil
+		return t.createScenarioContext(sender, balance, recipient, recipientValue, changeAddress, changeValue, coinIdentifier)
 	}
 
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
-		return balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil
+		return t.createScenarioContext(sender, balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil)
 	}
 
 	// Cannot perform any transfer.
-	return nil, "", nil, "", nil, ErrInsufficientFunds
+	return nil, nil, ErrInsufficientFunds
 }
 
-// generateIntent determines what should be done in a given
+// generateScenario determines what should be done in a given
 // transfer based on the sender's balance.
-func (t *ConstructionTester) generateIntent(
+func (t *ConstructionTester) generateScenario(
 	ctx context.Context,
 	sender string,
 	balance *big.Int,
+	coinIdentifier *types.CoinIdentifier,
 ) (
-	*big.Int, // Sender value
-	string, // Recipient
-	*big.Int, // Recipient Value
-	string, // Change Address
-	*big.Int, // Change Value
+	*scenario.Context,
+	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
 	minimumRecipients, belowMinimumRecipients, err := t.findRecipients(ctx, sender)
 	if err != nil {
-		return nil, "", nil, "", nil, fmt.Errorf("%w: unable to find recipients", err)
+		return nil, nil, fmt.Errorf("%w: unable to find recipients", err)
 	}
 
 	switch t.config.Construction.AccountingModel {
 	case configuration.AccountModel:
-		return t.generateAccountIntent(ctx, balance, minimumRecipients, belowMinimumRecipients)
+		return t.generateAccountScenario(ctx, sender, balance, minimumRecipients, belowMinimumRecipients)
 	case configuration.UtxoModel:
-		return t.generateUTXOIntent(ctx, balance, belowMinimumRecipients)
+		return t.generateUtxoScenario(ctx, sender, balance, belowMinimumRecipients, coinIdentifier)
 	}
 
-	return nil, "", nil, "", nil, ErrInsufficientFunds
+	return nil, nil, ErrInsufficientFunds
 }
 
 func (t *ConstructionTester) generateNewAndRequest(ctx context.Context) error {
@@ -998,10 +1004,11 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 		}
 
 		// Determine Action
-		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.generateIntent(
+		scenarioCtx, scenarioOps, err := t.generateScenario(
 			ctx,
 			sender,
 			balance,
+			coinIdentifier,
 		)
 		if errors.Is(err, ErrInsufficientFunds) {
 			broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
@@ -1022,21 +1029,6 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			continue
 		} else if err != nil {
 			return fmt.Errorf("%w: unable to generate intent", err)
-		}
-
-		scenarioCtx, scenarioOps, err := t.createScenarioContext(
-			ctx,
-			sender,
-			senderValue,
-			recipient,
-			recipientValue,
-			changeAddress,
-			changeValue,
-			coinIdentifier,
-			t.config.Construction.Scenario,
-		)
-		if err != nil {
-			return fmt.Errorf("%w: unable to create scenario context", err)
 		}
 
 		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, scenarioOps)
