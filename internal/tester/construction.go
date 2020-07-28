@@ -52,6 +52,10 @@ const (
 	defaultSleepTime = 10
 )
 
+var (
+	ErrInsufficientFunds = errors.New("insufficient funds")
+)
+
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
 	network              *types.NetworkIdentifier
@@ -526,113 +530,108 @@ func (t *ConstructionTester) Balance(
 func (t *ConstructionTester) FindSender(
 	ctx context.Context,
 ) (
-	bool, // should request funds
 	string, // sender
 	*big.Int, // balance
 	*types.CoinIdentifier, // coin
-	int, // all addresses
 	error,
 ) {
-	addresses, err := t.keyStorage.GetAllAddresses(ctx)
-	if err != nil {
-		return false, "", nil, nil, -1, fmt.Errorf("%w: unable to get addresses", err)
-	}
-
-	if len(addresses) == 0 { // create new and load
-		return true, "", nil, nil, 0, nil
-	}
-
-	unlockedAddresses := []string{}
-	lockedAddresses, err := t.broadcastStorage.LockedAddresses(ctx)
-	if err != nil {
-		return false, "", nil, nil, -1, fmt.Errorf("%w: unable to get locked addresses", err)
-	}
-
-	// Convert to a map so can do fast lookups
-	lockedSet := map[string]struct{}{}
-	for _, address := range lockedAddresses {
-		lockedSet[address] = struct{}{}
-	}
-
-	for _, address := range addresses {
-		if _, exists := lockedSet[address]; !exists {
-			unlockedAddresses = append(unlockedAddresses, address)
-		}
-	}
-
-	// Only check addresses not currently locked
-	var bestAddress string
-	var bestBalance *big.Int
-	var bestCoin *types.CoinIdentifier
-	for _, address := range unlockedAddresses {
-		balance, coinIdentifier, err := t.Balance(ctx, address)
+	for ctx.Err() == nil {
+		addresses, err := t.keyStorage.GetAllAddresses(ctx)
 		if err != nil {
-			return false, "", nil, nil, -1, fmt.Errorf("%w: unable to get balance for %s", err, address)
+			return "", nil, nil, fmt.Errorf("%w: unable to get addresses", err)
 		}
 
-		if bestBalance == nil || new(big.Int).Sub(bestBalance, balance).Sign() == -1 {
-			bestAddress = address
-			bestBalance = balance
-			bestCoin = coinIdentifier
+		if len(addresses) == 0 { // create new and load
+			err := t.generateNewAndRequest(ctx)
+			if err != nil {
+				return "", nil, nil, fmt.Errorf("%w: unable to generate new and request", err)
+			}
+
+			continue // we will exit on next loop
+		}
+
+		unlockedAddresses := []string{}
+		lockedAddresses, err := t.broadcastStorage.LockedAddresses(ctx)
+		if err != nil {
+			return "", nil, nil, fmt.Errorf("%w: unable to get locked addresses", err)
+		}
+
+		// Convert to a map so can do fast lookups
+		lockedSet := map[string]struct{}{}
+		for _, address := range lockedAddresses {
+			lockedSet[address] = struct{}{}
+		}
+
+		for _, address := range addresses {
+			if _, exists := lockedSet[address]; !exists {
+				unlockedAddresses = append(unlockedAddresses, address)
+			}
+		}
+
+		// Only check addresses not currently locked
+		var bestAddress string
+		var bestBalance *big.Int
+		var bestCoin *types.CoinIdentifier
+		for _, address := range unlockedAddresses {
+			balance, coinIdentifier, err := t.Balance(ctx, address)
+			if err != nil {
+				return "", nil, nil, fmt.Errorf("%w: unable to get balance for %s", err, address)
+			}
+
+			if bestBalance == nil || new(big.Int).Sub(bestBalance, balance).Sign() == -1 {
+				bestAddress = address
+				bestBalance = balance
+				bestCoin = coinIdentifier
+			}
+		}
+
+		if len(bestAddress) > 0 {
+			return bestAddress, bestBalance, bestCoin, nil
+		}
+
+		broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
+		if err != nil {
+			return "", nil, nil, fmt.Errorf("%w: unable to get broadcasts", err)
+		}
+
+		if len(broadcasts) > 0 {
+			// This condition occurs when we are waiting for some
+			// pending broadcast to complete before creating more
+			// transactions.
+
+			time.Sleep(defaultSleepTime * time.Second)
+			continue
+		}
+
+		if err := t.generateNewAndRequest(ctx); err != nil {
+			return "", nil, nil, fmt.Errorf("%w: generate new address and request", err)
 		}
 	}
 
-	if len(bestAddress) > 0 {
-		return false, bestAddress, bestBalance, bestCoin, len(addresses), nil
-	}
-
-	broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
-	if err != nil {
-		return false, "", nil, nil, -1, fmt.Errorf("%w: unable to get broadcasts", err)
-	}
-
-	if len(broadcasts) == 0 {
-		return true, "", nil, nil, len(addresses), nil
-	}
-
-	return false, "", nil, nil, len(addresses), nil
+	return "", nil, nil, ctx.Err()
 }
 
-// FindRecipient either finds a random existing
+// FindRecipients either finds a random existing
 // recipient or generates a new address.
-func (t *ConstructionTester) FindRecipient(
+func (t *ConstructionTester) FindRecipients(
 	ctx context.Context,
-	used []string,
-	createNew bool,
-) (string, error) {
-	if createNew {
-		addr, err := t.NewAddress(ctx)
-		if err != nil {
-			return "", fmt.Errorf("%w: unable to generate new address", err)
-		}
-
-		return addr, nil
-	}
-
+	sender string,
+) ([]string, error) {
 	validRecipients := []string{}
 	addresses, err := t.keyStorage.GetAllAddresses(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%w: unable to get address", err)
+		return nil, fmt.Errorf("%w: unable to get address", err)
 	}
 
 	for _, a := range addresses {
-		seen := false
-		for _, b := range used {
-			if a == b {
-				seen = true
-				break
-			}
+		if a == sender {
+			continue
 		}
-		if !seen {
-			validRecipients = append(validRecipients, a)
-		}
+
+		validRecipients = append(validRecipients, a)
 	}
 
-	if len(validRecipients) == 0 {
-		return "", fmt.Errorf("no valid recipient found")
-	}
-
-	return validRecipients[rand.Intn(len(validRecipients))], nil
+	return validRecipients, nil
 }
 
 // CreateScenarioContext creates the context to use
@@ -700,13 +699,23 @@ func (t *ConstructionTester) LogTransaction(
 	}
 }
 
-func (t *ConstructionTester) shouldCreateAddress(availableAddresses int) bool {
-	if rand.Float64() > t.config.Construction.NewAccountProbability &&
-		availableAddresses < t.config.Construction.MaxAddresses {
-		return true
+func (t *ConstructionTester) canGetNewAddress(ctx context.Context, recipients []string) (string, bool, error) {
+	availableAddresses, err := t.keyStorage.GetAllAddresses(ctx)
+	if err != nil {
+		return "", false, fmt.Errorf("%w: unable to get available addresses")
 	}
 
-	return false
+	if (rand.Float64() > t.config.Construction.NewAccountProbability &&
+		len(availableAddresses) < t.config.Construction.MaxAddresses) || len(recipients) == 0 {
+		addr, err := t.NewAddress(ctx)
+		if err != nil {
+			return "", false, fmt.Errorf("%w: cannot create new address")
+		}
+
+		return addr, true, nil
+	}
+
+	return recipients[0], false, nil
 }
 
 func getRandomAmount(minimum *big.Int, lessThan *big.Int) *big.Int {
@@ -717,16 +726,32 @@ func getRandomAmount(minimum *big.Int, lessThan *big.Int) *big.Int {
 	return new(big.Int).Add(minimum, addition)
 }
 
-func (t *ConstructionTester) GenerateBestAction(
+func (t *ConstructionTester) getRecipientWithMinimum(ctx context.Context, recipients []string) (string, error) {
+	for _, r := range recipients {
+		bal, _, err := t.Balance(ctx, r)
+		if err != nil {
+			return "", fmt.Errorf("%w: unable to retrieve balance for %s", err, r)
+		}
+
+		if new(big.Int).Sub(bal, t.minimumBalance).Sign() >= 0 {
+			return r, nil
+		}
+	}
+
+	return "", nil
+}
+
+func (t *ConstructionTester) GenerateBestIntent(
+	ctx context.Context,
 	balance *big.Int,
-	availableAddresses int,
+	recipients []string,
 ) (
-	Action,
 	*big.Int, // Sender value
-	bool, // Generate New Recipient
+	string, // Recipient
 	*big.Int, // Recipient Value
-	bool, // Create New Change Address
+	string, // Change Address
 	*big.Int, // Change Value
+	error, // ErrInsufficientFunds
 ) {
 	switch t.config.Construction.AccountingModel {
 	case configuration.AccountModel:
@@ -734,31 +759,64 @@ func (t *ConstructionTester) GenerateBestAction(
 
 		// should send to new account, existing account, or no acccount?
 		if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
-			if t.shouldCreateAddress(availableAddresses) {
+			recipient, created, err := t.canGetNewAddress(ctx, recipients)
+			if err != nil {
+				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+			}
+
+			if created {
 				recipientValue := getRandomAmount(t.minimumBalance, adjustedBalance)
-				return NewAccountSend, recipientValue, true, recipientValue, false, nil
+				return recipientValue, recipient, recipientValue, "", nil, nil
 			}
 
 			// If sending to an already existing account, can assume that balance
 			// is greater than minimum_balance already.
 			recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
-			return NewAccountSend, recipientValue, false, recipientValue, false, nil
+			return recipientValue, recipient, recipientValue, "", nil, nil
 		}
 
 		recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
 		if new(big.Int).Sub(balance, t.minimumRequiredBalance(ExistingAccountSend)).Sign() != -1 {
-			return ExistingAccountSend, recipientValue, false, recipientValue, false, nil
+			recipient, err := t.getRecipientWithMinimum(ctx, recipients)
+			if err != nil {
+				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient with minimum", err)
+			}
+
+			if len(recipient) == 0 {
+				return nil, "", nil, "", nil, ErrInsufficientFunds
+			}
+
+			return recipientValue, recipient, recipientValue, "", nil, nil
 		}
 
 		// Cannot perform any transfer.
-		return NoAction, nil, false, nil, false, nil
+		return nil, "", nil, "", nil, ErrInsufficientFunds
 	case configuration.UtxoModel:
 		feeLessBalance := new(big.Int).Sub(balance, t.maximumFee)
-		createNewRecipient := t.shouldCreateAddress(availableAddresses)
-		createNewChange := t.shouldCreateAddress(availableAddresses)
+		recipient, created, err := t.canGetNewAddress(ctx, recipients)
+		if err != nil {
+			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+		}
+
+		// Need to remove from recipients if created a change address
+		if !created {
+			newRecipients := []string{}
+			for _, r := range recipients {
+				if recipient != r {
+					newRecipients = append(newRecipients, r)
+				}
+			}
+
+			recipients = newRecipients
+		}
 
 		// should send to change, no change, or no send?
 		if new(big.Int).Sub(balance, t.minimumRequiredBalance(ChangeSend)).Sign() != -1 && t.config.Construction.ChangeIntent != nil {
+			changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
+			if err != nil {
+				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get change address", err)
+			}
+
 			doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
 			changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
 
@@ -768,47 +826,18 @@ func (t *ConstructionTester) GenerateBestAction(
 			recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
 			changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
 
-			return ChangeSend, balance, createNewRecipient, recipientValue, createNewChange, changeValue
+			return balance, recipient, recipientValue, changeAddress, changeValue, nil
 		}
 
 		if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
-			return FullSend, balance, createNewRecipient, getRandomAmount(t.minimumBalance, feeLessBalance), false, nil
+			return balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil
 		}
 
 		// Cannot perform any transfer.
-		return NoAction, nil, false, nil, false, nil
+		return nil, "", nil, "", nil, ErrInsufficientFunds
 	}
 
-	return NoAction, nil, false, nil, false, nil
-}
-
-func (t *ConstructionTester) shouldRequestFunds(ctx context.Context, action Action, addresses int) (bool, error) {
-	if action == NewAccountSend || action == ChangeSend || action == FullSend {
-		return false, nil
-	}
-
-	broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
-	if err != nil {
-		return false, fmt.Errorf("%w: unable to get all broadcasts", err)
-	}
-
-	if len(broadcasts) > 0 {
-		// If there are pending broadcasts, don't attempt to load more funds!
-		// We should instead wait for existing funds to be sent around.
-		return false, nil
-	}
-
-	if action == ExistingAccountSend && addresses < 2 {
-		// We should request more funds if we can only do
-		// an existing account send but have less than 2 addresses.
-		return true, nil
-	}
-
-	if action == NoAction {
-		return true, nil
-	}
-
-	return false, errors.New("could not determine if funds should be requested")
+	return nil, "", nil, "", nil, ErrInsufficientFunds
 }
 
 func (t *ConstructionTester) generateNewAndRequest(ctx context.Context) error {
@@ -844,65 +873,37 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
-		// Get largest balance
-		// If none exist, sleep and continue
-		// If largest balance >=
-		// account or UTXO-change: 2 * minimum_balance + maximum_fee [can create an account or access recipient]
-		// UTXO-no change: minimum_balance + maximum_fee
-		// existing account: maximum_fee
-		// get random recipient amount >= required minimum based on choice
-		// create scenario context with fully populated values
-
-		shouldRequest, sender, balance, coinIdentifier, addressCount, err := t.FindSender(ctx)
+		sender, balance, coinIdentifier, err := t.FindSender(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find sender", err)
 		}
 
-		if shouldRequest {
-			err = t.generateNewAndRequest(ctx)
-			if err != nil {
-				return fmt.Errorf("%w: unable to request funds", err)
-			}
-
-			continue
-		}
-
-		if len(sender) == 0 {
-			// This condition occurs when we are waiting for some
-			// pending broadcast to complete before creating more
-			// transactions.
-
-			time.Sleep(defaultSleepTime * time.Second)
-			continue
-		}
-
 		// Determine Action
-		action, senderValue, createNewRecipient, recipientValue, createNewChangeAddress, changeValue := t.GenerateBestAction(balance, addressCount)
-		shouldRequest, err = t.shouldRequestFunds(ctx, action, addressCount)
-		if err != nil {
-			return fmt.Errorf("%w: unable to determine if funds should be requested", err)
-		}
-
-		if shouldRequest {
-			err = t.generateNewAndRequest(ctx)
-			if err != nil {
-				return fmt.Errorf("%w: unable to request funds", err)
-			}
-
-			continue
-		}
-
-		recipient, err := t.FindRecipient(ctx, []string{sender}, createNewRecipient)
+		recipients, err := t.FindRecipients(ctx, sender)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
-		var changeAddress string
-		if changeValue != nil {
-			changeAddress, err = t.FindRecipient(ctx, []string{sender, recipient}, createNewChangeAddress)
+		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.GenerateBestIntent(ctx, balance, recipients)
+		if errors.Is(err, ErrInsufficientFunds) {
+			broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
 			if err != nil {
-				return fmt.Errorf("%w: unable to find recipient", err)
+				return fmt.Errorf("%w: unable to get broadcasts", err)
 			}
+
+			if len(broadcasts) > 0 {
+				// we will wait for in-flight to process
+				time.Sleep(defaultSleepTime * time.Second)
+				continue
+			}
+
+			if err := t.generateNewAndRequest(ctx); err != nil {
+				return fmt.Errorf("%w: unable to generate new address", err)
+			}
+
+			continue
+		} else if err != nil {
+			return fmt.Errorf("%w: unable to generate intent", err)
 		}
 
 		scenarioCtx, scenarioOps, err := t.CreateScenarioContext(
