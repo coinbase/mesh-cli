@@ -5,7 +5,7 @@
  },
  "online_url": "http://localhost:8080",
  "data_directory": "bitcoin-data",
- "http_timeout": 10,
+ "http_timeout": 300,
  "construction": {
   "offline_url": "http://localhost:8080",
   "currency": {

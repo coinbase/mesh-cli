@@ -417,6 +417,23 @@ func (t *ConstructionTester) RequestFunds(
 	return nil, nil, ctx.Err()
 }
 
+func (t *ConstructionTester) standardDeduction() *big.Int {
+	// We should only consider sending an amount after
+	// taking out the minimum balance for the sender,
+	// the minimum balance for the receiver,
+	// and the maximum fee.
+	//
+	// TODO: send amount to recipient below minimumBalance
+	// if account has > minimumBalance
+	standardDeduction := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
+	if t.config.Construction.AccountingModel == configuration.UtxoModel {
+		// UTXOs destroy the sending coin so it doesn't need to maintain
+		// a minimum balance.
+		standardDeduction = t.minimumBalance
+	}
+	return new(big.Int).Add(standardDeduction, t.maximumFee)
+}
+
 // SendableBalance returns the amount to use for
 // a transfer. In the case of a UTXO-based chain,
 // this is the largest remaining UTXO.
@@ -425,6 +442,7 @@ func (t *ConstructionTester) SendableBalance(
 	address string,
 ) (*big.Int, *types.CoinIdentifier, error) {
 	accountIdentifier := &types.AccountIdentifier{Address: address}
+
 	var bal *big.Int
 	var coinIdentifier *types.CoinIdentifier
 	switch t.config.Construction.AccountingModel {
@@ -445,8 +463,6 @@ func (t *ConstructionTester) SendableBalance(
 		}
 
 		bal = val
-		bal = new(big.Int).Sub(bal, t.minimumBalance)
-		bal = new(big.Int).Sub(bal, t.maximumFee)
 	case configuration.UtxoModel:
 		// For UTXO-based chains, return the largest UTXO as the spendable balance.
 		coins, err := t.coinStorage.GetCoins(ctx, accountIdentifier)
@@ -478,7 +494,7 @@ func (t *ConstructionTester) SendableBalance(
 		return nil, nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
 	}
 
-	if bal.Sign() != 1 {
+	if new(big.Int).Sub(bal, t.standardDeduction()).Sign() != 1 {
 		return nil, nil, nil
 	}
 
@@ -632,22 +648,24 @@ func (t *ConstructionTester) CreateScenarioContext(
 	coinIdentifier *types.CoinIdentifier,
 	scenarioOps []*types.Operation,
 ) (*scenario.Context, []*types.Operation, error) {
-	var senderValue, recipientValue, changeValue *big.Int
+	sendable := new(big.Int).Sub(sendableBalance, t.standardDeduction())
+
+	// [0, sendableBalance - t.standardDeduction())
+	// Account-based blockchains: [0, sendableBalance - 2*minimum_balance - maximum_fee)
+	// UTXO-based blockchains: [0, sendableBalance - minimum_balance - maximum_fee)
+	unallocatedTransferValue := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().Unix())), sendable)
+
+	// Add back minimum balance
+	recipientValue := new(big.Int).Add(unallocatedTransferValue, t.minimumBalance)
+
+	var senderValue, changeValue *big.Int
 	var changeAddress string
 	var err error
-
 	switch t.config.Construction.AccountingModel {
 	case configuration.AccountModel:
-		senderValue = new(
-			big.Int,
-		).Rand(
-			rand.New(rand.NewSource(time.Now().Unix())),
-			sendableBalance,
-		)
-		recipientValue = senderValue
+		senderValue = recipientValue
 	case configuration.UtxoModel:
 		senderValue = sendableBalance
-		recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
 
 		// Attempt to create a change output if we should produce change.
 		if t.config.Construction.ChangeIntent != nil {
@@ -725,7 +743,7 @@ func (t *ConstructionTester) LogTransaction(
 		changeUnits := new(big.Float).SetInt(scenarioCtx.ChangeValue)
 		changeUnits = new(big.Float).Quo(changeUnits, divisor)
 		color.Magenta(
-			"Transaction Created: %s\n  %s\n   -- %s %s --> %s\n   -- %s %s --> %s",
+			"Transaction Created: %s\n  %s\n    -- %s %s --> %s\n    -- %s %s --> %s",
 			transactionIdentifier.Hash,
 			scenarioCtx.Sender,
 			recipientUnits.Text('f', precision),
