@@ -788,6 +788,15 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
+		// Get largest balance
+		// If none exist, sleep and continue
+		// If largest balance >=
+		// account or UTXO-change: 2 * minimum_balance + maximum_fee [can create an account or access recipient]
+		// UTXO-no change: minimum_balance + maximum_fee
+		// existing account: maximum_fee
+		// get random recipient amount >= required minimum based on choice
+		// create scenario context with fully populated values
+
 		sender, sendableBalance, coinIdentifier, err := t.FindSender(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find sender", err)
