@@ -86,7 +86,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
-		return constructionTester.CreateTransactions(ctx)
+		return constructionTester.StartConstructor(ctx)
 	})
 
 	sigListeners := []context.CancelFunc{cancel}

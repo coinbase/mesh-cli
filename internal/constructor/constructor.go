@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package constructor
 
 import (
@@ -57,7 +71,7 @@ var (
 	ErrInsufficientFunds = errors.New("insufficient funds")
 )
 
-type ConstructorHelper interface {
+type Helper interface {
 	Derive(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -157,7 +171,7 @@ type ConstructorHelper interface {
 	AllAddresses(ctx context.Context) ([]string, error)
 }
 
-type ConstructorHandler interface {
+type Handler interface {
 	AddressCreated(context.Context, string) error
 	TransactionCreated(context.Context, string, *types.TransactionIdentifier) error
 }
@@ -175,14 +189,14 @@ type Constructor struct {
 	scenario       []*types.Operation
 	changeScenario *types.Operation
 
-	helper  ConstructorHelper
-	handler ConstructorHandler
+	helper  Helper
+	handler Handler
 }
 
-func NewConstructor(
+func New(
 	config *configuration.Configuration,
-	helper ConstructorHelper,
-	handler ConstructorHandler,
+	helper Helper,
+	handler Handler,
 ) (*Constructor, error) {
 	minimumBalance, ok := new(big.Int).SetString(config.Construction.MinimumBalance, 10)
 	if !ok {
@@ -255,7 +269,10 @@ func (c *Constructor) createTransaction(
 	}
 
 	if len(signers) != 0 {
-		return nil, "", fmt.Errorf("signers should be empty in unsigned transaction but found %d", len(signers))
+		return nil, "", fmt.Errorf(
+			"signers should be empty in unsigned transaction but found %d",
+			len(signers),
+		)
 	}
 
 	if err := c.helper.ExpectedOperations(intent, parsedOps, false, false); err != nil {
@@ -333,7 +350,7 @@ func (c *Constructor) newAddress(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%w: unable to store address", err)
 	}
 
-	if c.handler.AddressCreated(ctx, address); err != nil {
+	if err := c.handler.AddressCreated(ctx, address); err != nil {
 		return "", fmt.Errorf("%w: could not handle address creation", err)
 	}
 

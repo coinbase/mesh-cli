@@ -174,7 +174,8 @@ func TestRandomNumber(t *testing.T) {
 	minAmount := big.NewInt(10)
 	maxAmount := big.NewInt(13)
 
-	// somewhat crude but its fast (should be infinitely small chance we don't get all possible values in small range)
+	// somewhat crude but its fast (should be infinitely small chance we don't get all possible
+	// values in small range)
 	for i := 0; i < 10000; i++ {
 		result := RandomNumber(minAmount, maxAmount)
 		assert.NotEqual(t, -1, new(big.Int).Sub(result, minAmount).Sign())
