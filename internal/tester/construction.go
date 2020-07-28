@@ -240,8 +240,8 @@ func InitializeConstruction(
 	}, nil
 }
 
-// CreateTransaction constructs and signs a transaction with the provided intent.
-func (t *ConstructionTester) CreateTransaction(
+// createTransaction constructs and signs a transaction with the provided intent.
+func (t *ConstructionTester) createTransaction(
 	ctx context.Context,
 	intent []*types.Operation,
 ) (*types.TransactionIdentifier, string, error) {
@@ -358,11 +358,11 @@ func (t *ConstructionTester) StartSyncer(
 	return t.syncer.Sync(ctx, startIndex, -1)
 }
 
-// NewAddress generates a new keypair and
+// newAddress generates a new keypair and
 // derives its address offline. This only works
 // for blockchains that don't require an on-chain
 // action to create an account.
-func (t *ConstructionTester) NewAddress(
+func (t *ConstructionTester) newAddress(
 	ctx context.Context,
 ) (string, error) {
 	kp, err := keys.GenerateKeypair(t.config.Construction.CurveType)
@@ -393,16 +393,16 @@ func (t *ConstructionTester) NewAddress(
 	return address, nil
 }
 
-// RequestFunds prompts the user to load
+// requestFunds prompts the user to load
 // a particular address with funds from a faucet.
 // TODO: automate this using an API faucet.
-func (t *ConstructionTester) RequestFunds(
+func (t *ConstructionTester) requestFunds(
 	ctx context.Context,
 	address string,
 ) (*big.Int, *types.CoinIdentifier, error) {
 	printedMessage := false
 	for ctx.Err() == nil {
-		balance, coinIdentifier, err := t.Balance(ctx, address)
+		balance, coinIdentifier, err := t.balance(ctx, address)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -548,10 +548,10 @@ func (t *ConstructionTester) utxoBalance(
 	return bal, coinIdentifier, nil
 }
 
-// Balance returns the total balance to use for
+// balance returns the total balance to use for
 // a transfer. In the case of a UTXO-based chain,
 // this is the largest remaining UTXO.
-func (t *ConstructionTester) Balance(
+func (t *ConstructionTester) balance(
 	ctx context.Context,
 	address string,
 ) (*big.Int, *types.CoinIdentifier, error) {
@@ -599,7 +599,7 @@ func (t *ConstructionTester) getBestUnlockedSender(
 	var bestBalance *big.Int
 	var bestCoin *types.CoinIdentifier
 	for _, address := range unlockedAddresses {
-		balance, coinIdentifier, err := t.Balance(ctx, address)
+		balance, coinIdentifier, err := t.balance(ctx, address)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("%w: unable to get balance for %s", err, address)
 		}
@@ -614,12 +614,12 @@ func (t *ConstructionTester) getBestUnlockedSender(
 	return bestAddress, bestBalance, bestCoin, nil
 }
 
-// FindSender fetches all available addresses,
+// findSender fetches all available addresses,
 // all locked addresses, and all address balances
 // to determine which addresses can facilitate
 // a transfer. The sender with the highest
 // balance is returned (or the largest UTXO).
-func (t *ConstructionTester) FindSender(
+func (t *ConstructionTester) findSender(
 	ctx context.Context,
 ) (
 	string, // sender
@@ -673,9 +673,9 @@ func (t *ConstructionTester) FindSender(
 	return "", nil, nil, ctx.Err()
 }
 
-// FindRecipients returns all possible
+// findRecipients returns all possible
 // recipients (address != sender).
-func (t *ConstructionTester) FindRecipients(
+func (t *ConstructionTester) findRecipients(
 	ctx context.Context,
 	sender string,
 ) (
@@ -702,7 +702,7 @@ func (t *ConstructionTester) FindRecipients(
 			continue
 		}
 
-		bal, _, err := t.Balance(ctx, a)
+		bal, _, err := t.balance(ctx, a)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to retrieve balance for %s", err, a)
 		}
@@ -719,9 +719,9 @@ func (t *ConstructionTester) FindRecipients(
 	return minimumRecipients, belowMinimumRecipients, nil
 }
 
-// CreateScenarioContext creates the context to use
+// createScenarioContext creates the context to use
 // for scenario population.
-func (t *ConstructionTester) CreateScenarioContext(
+func (t *ConstructionTester) createScenarioContext(
 	ctx context.Context,
 	sender string,
 	senderValue *big.Int,
@@ -761,9 +761,9 @@ func (t *ConstructionTester) prettyAmount(amount *big.Int) string {
 	)
 }
 
-// LogTransaction logs what a scenario is perfoming
+// logTransaction logs what a scenario is perfoming
 // to the console.
-func (t *ConstructionTester) LogTransaction(
+func (t *ConstructionTester) logTransaction(
 	scenarioCtx *scenario.Context,
 	transactionIdentifier *types.TransactionIdentifier,
 ) {
@@ -799,7 +799,7 @@ func (t *ConstructionTester) canGetNewAddress(
 
 	if (rand.Float64() > t.config.Construction.NewAccountProbability &&
 		len(availableAddresses) < t.config.Construction.MaxAddresses) || len(recipients) == 0 {
-		addr, err := t.NewAddress(ctx)
+		addr, err := t.newAddress(ctx)
 		if err != nil {
 			return "", false, fmt.Errorf("%w: cannot create new address", err)
 		}
@@ -930,9 +930,9 @@ func (t *ConstructionTester) generateUTXOIntent(
 	return nil, "", nil, "", nil, ErrInsufficientFunds
 }
 
-// GenerateIntent determines what should be done in a given
+// generateIntent determines what should be done in a given
 // transfer based on the sender's balance.
-func (t *ConstructionTester) GenerateIntent(
+func (t *ConstructionTester) generateIntent(
 	ctx context.Context,
 	sender string,
 	balance *big.Int,
@@ -944,7 +944,7 @@ func (t *ConstructionTester) GenerateIntent(
 	*big.Int, // Change Value
 	error, // ErrInsufficientFunds
 ) {
-	minimumRecipients, belowMinimumRecipients, err := t.FindRecipients(ctx, sender)
+	minimumRecipients, belowMinimumRecipients, err := t.findRecipients(ctx, sender)
 	if err != nil {
 		return nil, "", nil, "", nil, fmt.Errorf("%w: unable to find recipients", err)
 	}
@@ -960,12 +960,12 @@ func (t *ConstructionTester) GenerateIntent(
 }
 
 func (t *ConstructionTester) generateNewAndRequest(ctx context.Context) error {
-	addr, err := t.NewAddress(ctx)
+	addr, err := t.newAddress(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to create address", err)
 	}
 
-	_, _, err = t.RequestFunds(ctx, addr)
+	_, _, err = t.requestFunds(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get funds on %s", err, addr)
 	}
@@ -992,13 +992,13 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
-		sender, balance, coinIdentifier, err := t.FindSender(ctx)
+		sender, balance, coinIdentifier, err := t.findSender(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find sender", err)
 		}
 
 		// Determine Action
-		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.GenerateIntent(
+		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.generateIntent(
 			ctx,
 			sender,
 			balance,
@@ -1024,7 +1024,7 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to generate intent", err)
 		}
 
-		scenarioCtx, scenarioOps, err := t.CreateScenarioContext(
+		scenarioCtx, scenarioOps, err := t.createScenarioContext(
 			ctx,
 			sender,
 			senderValue,
@@ -1045,7 +1045,7 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 		}
 
 		// Create transaction
-		transactionIdentifier, networkTransaction, err := t.CreateTransaction(ctx, intent)
+		transactionIdentifier, networkTransaction, err := t.createTransaction(ctx, intent)
 		if err != nil {
 			return fmt.Errorf(
 				"%w: unable to create transaction with operations %s",
@@ -1054,7 +1054,7 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			)
 		}
 
-		t.LogTransaction(scenarioCtx, transactionIdentifier)
+		t.logTransaction(scenarioCtx, transactionIdentifier)
 
 		// Broadcast Transaction
 		err = t.broadcastStorage.Broadcast(
