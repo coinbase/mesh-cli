@@ -21,8 +21,10 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"math/rand"
 	"os"
 	"path"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -178,4 +180,26 @@ func Zero() *big.Float {
 	r := big.NewFloat(0)
 	r.SetPrec(bigFloatPrecision)
 	return r
+}
+
+// GetRandomNumber returns some number in the range [minimum, maximum).
+// Source: https://golang.org/pkg/math/big/#Int.Rand
+func GetRandomNumber(minimum *big.Int, maximum *big.Int) *big.Int {
+	source := rand.New(rand.NewSource(time.Now().Unix()))
+	transformed := new(big.Int).Sub(maximum, minimum)
+	addition := new(big.Int).Rand(source, transformed)
+
+	return new(big.Int).Add(minimum, addition)
+}
+
+// ContainsString returns a boolean indicating
+// whether the string s is in arr.
+func ContainsString(arr []string, s string) bool {
+	for _, v := range arr {
+		if v == s {
+			return true
+		}
+	}
+
+	return false
 }
