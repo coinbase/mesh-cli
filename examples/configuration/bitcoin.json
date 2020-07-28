@@ -3,11 +3,9 @@
   "blockchain": "Bitcoin",
   "network": "Testnet3"
  },
- "online_url": "http://localhost:8080",
  "data_directory": "bitcoin-data",
  "http_timeout": 300,
  "construction": {
-  "offline_url": "http://localhost:8080",
   "currency": {
    "symbol": "BTC",
    "decimals": 8
@@ -54,9 +52,6 @@
   ],
   "confirmation_depth": 1,
   "stale_depth": 0,
-  "broadcast_limit": 3,
-  "broadcast_trail_limit": 3,
-  "ignore_broadcast_failures": false,
   "change_scenario": {
     "operation_identifier": {
      "index": 2
@@ -71,24 +66,5 @@
      "currency": null
     }
   }
- },
- "data": {
-  "block_concurrency": 8,
-  "transaction_concurrency": 16,
-  "active_reconciliation_concurrency": 16,
-  "inactive_reconciliation_concurrency": 4,
-  "inactive_reconciliation_frequency": 250,
-  "log_blocks": false,
-  "log_transactions": false,
-  "log_balance_changes": false,
-  "log_reconciliations": false,
-  "ignore_reconciliation_error": false,
-  "exempt_accounts": "",
-  "bootstrap_balances": "",
-  "historical_balance_disabled": false,
-  "interesting_accounts": "",
-  "reconciliation_disabled": false,
-  "inactive_discrepency_search_disabled": false,
-  "balance_tracking_disabled": false
  }
 }
