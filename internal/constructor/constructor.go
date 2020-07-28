@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"math/rand"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -97,6 +99,14 @@ type ConstructorHelper interface {
 		[]*types.Signature,
 	) (string, error)
 
+	Broadcast(
+		context.Context,
+		string, // sender
+		[]*types.Operation, // intent
+		*types.TransactionIdentifier,
+		string, // payload
+	) error
+
 	Hash(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -142,11 +152,14 @@ type ConstructorHelper interface {
 
 	AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
 
+	ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
+
 	AllAddresses(ctx context.Context) ([]string, error)
 }
 
 type ConstructorHandler interface {
 	AddressCreated(context.Context, string) error
+	TransactionCreated(context.Context, string, *types.TransactionIdentifier) error
 }
 
 type Constructor struct {
@@ -197,8 +210,8 @@ func NewConstructor(
 	}, nil
 }
 
-// CreateTransaction constructs and signs a transaction with the provided intent.
-func (c *Constructor) CreateTransaction(
+// createTransaction constructs and signs a transaction with the provided intent.
+func (c *Constructor) createTransaction(
 	ctx context.Context,
 	intent []*types.Operation,
 ) (*types.TransactionIdentifier, string, error) {
@@ -809,4 +822,96 @@ func (c *Constructor) generateNewAndRequest(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// CreateTransactions loops on the create transaction loop
+// until the caller cancels the context.
+func (c *Constructor) CreateTransactions(
+	ctx context.Context,
+	clearBroadcasts bool,
+) error {
+	// Before starting loop, delete any pending broadcasts if configuration
+	// indicates to do so.
+	if clearBroadcasts {
+		broadcasts, err := c.helper.ClearBroadcasts(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to clear broadcasts", err)
+		}
+
+		log.Printf(
+			"Cleared pending %d broadcasts: %s\n",
+			len(broadcasts),
+			types.PrettyPrintStruct(broadcasts),
+		)
+	}
+
+	for ctx.Err() == nil {
+		sender, balance, coinIdentifier, err := c.findSender(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to find sender", err)
+		}
+
+		// Determine Action
+		scenarioCtx, scenarioOps, err := c.generateScenario(
+			ctx,
+			sender,
+			balance,
+			coinIdentifier,
+		)
+		if errors.Is(err, ErrInsufficientFunds) {
+			broadcasts, err := c.helper.AllBroadcasts(ctx)
+			if err != nil {
+				return fmt.Errorf("%w: unable to get broadcasts", err)
+			}
+
+			if len(broadcasts) > 0 {
+				// we will wait for in-flight to process
+				time.Sleep(defaultSleepTime * time.Second)
+				continue
+			}
+
+			if err := c.generateNewAndRequest(ctx); err != nil {
+				return fmt.Errorf("%w: unable to generate new address", err)
+			}
+
+			continue
+		} else if err != nil {
+			return fmt.Errorf("%w: unable to generate intent", err)
+		}
+
+		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, scenarioOps)
+		if err != nil {
+			return fmt.Errorf("%w: unable to populate scenario", err)
+		}
+
+		// Create transaction
+		transactionIdentifier, networkTransaction, err := c.createTransaction(ctx, intent)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: unable to create transaction with operations %s",
+				err,
+				types.PrettyPrintStruct(intent),
+			)
+		}
+
+		logger.LogScenario(scenarioCtx, transactionIdentifier, c.currency)
+
+		// Broadcast Transaction
+		err = c.helper.Broadcast(
+			ctx,
+			sender,
+			intent,
+			transactionIdentifier,
+			networkTransaction,
+		)
+		if err != nil {
+			return fmt.Errorf("%w: unable to enqueue transaction for broadcast", err)
+		}
+
+		if err := c.handler.TransactionCreated(ctx, sender, transactionIdentifier); err != nil {
+			return fmt.Errorf("%w: unable to handle transaction creation", err)
+		}
+	}
+
+	return ctx.Err()
 }

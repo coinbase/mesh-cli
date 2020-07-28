@@ -241,6 +241,26 @@ func (c *ConstructorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broad
 	return c.broadcastStorage.GetAllBroadcasts(ctx)
 }
 
+func (c *ConstructorHelper) ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+	return c.broadcastStorage.ClearBroadcasts(ctx)
+}
+
+func (c *ConstructorHelper) Broadcast(
+	ctx context.Context,
+	sender string,
+	intent []*types.Operation,
+	transactionIdentifier *types.TransactionIdentifier,
+	payload string,
+) error {
+	return c.broadcastStorage.Broadcast(
+		ctx,
+		sender,
+		intent,
+		transactionIdentifier,
+		payload,
+	)
+}
+
 func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) {
 	return c.keyStorage.GetAllAddresses(ctx)
 }
