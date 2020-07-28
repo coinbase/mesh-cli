@@ -430,9 +430,6 @@ const (
 	// UTXO-based actions
 	ChangeSend Action = "change-send"
 	FullSend   Action = "full-send"
-
-	// Not enough funds to perform any action
-	NoAction Action = "no-action"
 )
 
 func (t *ConstructionTester) minimumRequiredBalance(action Action) *big.Int {
@@ -451,7 +448,7 @@ func (t *ConstructionTester) minimumRequiredBalance(action Action) *big.Int {
 		// In the account case, we must keep a balance above
 		// the minimum_balance in the sender's account.
 		//
-		// In the UTXO case, we must send at least the minumum
+		// In the UTXO case, we must send at least the minimum
 		// balance to the new UTXO.
 		return new(big.Int).Add(t.minimumBalance, t.maximumFee)
 	}
@@ -497,13 +494,20 @@ func (t *ConstructionTester) Balance(
 
 		balance := big.NewInt(0)
 		for _, coin := range coins {
-			if types.Hash(coin.Operation.Amount.Currency) != types.Hash(t.config.Construction.Currency) {
+			if types.Hash(
+				coin.Operation.Amount.Currency,
+			) != types.Hash(
+				t.config.Construction.Currency,
+			) {
 				continue
 			}
 
 			val, ok := new(big.Int).SetString(coin.Operation.Amount.Value, 10)
 			if !ok {
-				return nil, nil, fmt.Errorf("could not parse amount for coin %s", coin.Identifier.Identifier)
+				return nil, nil, fmt.Errorf(
+					"could not parse amount for coin %s",
+					coin.Identifier.Identifier,
+				)
 			}
 
 			if balance.Cmp(val) == -1 {
@@ -516,10 +520,60 @@ func (t *ConstructionTester) Balance(
 	default:
 		// We should never hit this branch because the configuration file is
 		// checked for issues like this before starting this loop.
-		return nil, nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
+		return nil, nil, fmt.Errorf(
+			"invalid accounting model %s",
+			t.config.Construction.AccountingModel,
+		)
 	}
 
 	return bal, coinIdentifier, nil
+}
+
+func (t *ConstructionTester) getBestUnlockedSender(
+	ctx context.Context,
+	addresses []string,
+) (
+	string, // best address
+	*big.Int, // best balance
+	*types.CoinIdentifier, // best coin
+	error,
+) {
+	unlockedAddresses := []string{}
+	lockedAddresses, err := t.broadcastStorage.LockedAddresses(ctx)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("%w: unable to get locked addresses", err)
+	}
+
+	// Convert to a map so can do fast lookups
+	lockedSet := map[string]struct{}{}
+	for _, address := range lockedAddresses {
+		lockedSet[address] = struct{}{}
+	}
+
+	for _, address := range addresses {
+		if _, exists := lockedSet[address]; !exists {
+			unlockedAddresses = append(unlockedAddresses, address)
+		}
+	}
+
+	// Only check addresses not currently locked
+	var bestAddress string
+	var bestBalance *big.Int
+	var bestCoin *types.CoinIdentifier
+	for _, address := range unlockedAddresses {
+		balance, coinIdentifier, err := t.Balance(ctx, address)
+		if err != nil {
+			return "", nil, nil, fmt.Errorf("%w: unable to get balance for %s", err, address)
+		}
+
+		if bestBalance == nil || new(big.Int).Sub(bestBalance, balance).Sign() == -1 {
+			bestAddress = address
+			bestBalance = balance
+			bestCoin = coinIdentifier
+		}
+	}
+
+	return bestAddress, bestBalance, bestCoin, nil
 }
 
 // FindSender fetches all available addresses,
@@ -550,39 +604,9 @@ func (t *ConstructionTester) FindSender(
 			continue // we will exit on next loop
 		}
 
-		unlockedAddresses := []string{}
-		lockedAddresses, err := t.broadcastStorage.LockedAddresses(ctx)
+		bestAddress, bestBalance, bestCoin, err := t.getBestUnlockedSender(ctx, addresses)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("%w: unable to get locked addresses", err)
-		}
-
-		// Convert to a map so can do fast lookups
-		lockedSet := map[string]struct{}{}
-		for _, address := range lockedAddresses {
-			lockedSet[address] = struct{}{}
-		}
-
-		for _, address := range addresses {
-			if _, exists := lockedSet[address]; !exists {
-				unlockedAddresses = append(unlockedAddresses, address)
-			}
-		}
-
-		// Only check addresses not currently locked
-		var bestAddress string
-		var bestBalance *big.Int
-		var bestCoin *types.CoinIdentifier
-		for _, address := range unlockedAddresses {
-			balance, coinIdentifier, err := t.Balance(ctx, address)
-			if err != nil {
-				return "", nil, nil, fmt.Errorf("%w: unable to get balance for %s", err, address)
-			}
-
-			if bestBalance == nil || new(big.Int).Sub(bestBalance, balance).Sign() == -1 {
-				bestAddress = address
-				bestBalance = balance
-				bestCoin = coinIdentifier
-			}
+			return "", nil, nil, fmt.Errorf("%w: unable to get best unlocked sender", err)
 		}
 
 		if len(bestAddress) > 0 {
@@ -669,7 +693,11 @@ func (t *ConstructionTester) prettyAmount(amount *big.Int) string {
 	nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
 	precision := int(t.config.Construction.Currency.Decimals)
 
-	return fmt.Sprintf("%s %s", nativeUnits.Text('f', precision), t.config.Construction.Currency.Symbol)
+	return fmt.Sprintf(
+		"%s %s",
+		nativeUnits.Text('f', precision),
+		t.config.Construction.Currency.Symbol,
+	)
 }
 
 // LogTransaction logs what a scenario is perfoming
@@ -699,17 +727,20 @@ func (t *ConstructionTester) LogTransaction(
 	}
 }
 
-func (t *ConstructionTester) canGetNewAddress(ctx context.Context, recipients []string) (string, bool, error) {
+func (t *ConstructionTester) canGetNewAddress(
+	ctx context.Context,
+	recipients []string,
+) (string, bool, error) {
 	availableAddresses, err := t.keyStorage.GetAllAddresses(ctx)
 	if err != nil {
-		return "", false, fmt.Errorf("%w: unable to get available addresses")
+		return "", false, fmt.Errorf("%w: unable to get available addresses", err)
 	}
 
 	if (rand.Float64() > t.config.Construction.NewAccountProbability &&
 		len(availableAddresses) < t.config.Construction.MaxAddresses) || len(recipients) == 0 {
 		addr, err := t.NewAddress(ctx)
 		if err != nil {
-			return "", false, fmt.Errorf("%w: cannot create new address")
+			return "", false, fmt.Errorf("%w: cannot create new address", err)
 		}
 
 		return addr, true, nil
@@ -726,7 +757,10 @@ func getRandomAmount(minimum *big.Int, lessThan *big.Int) *big.Int {
 	return new(big.Int).Add(minimum, addition)
 }
 
-func (t *ConstructionTester) getRecipientWithMinimum(ctx context.Context, recipients []string) (string, error) {
+func (t *ConstructionTester) getRecipientWithMinimum(
+	ctx context.Context,
+	recipients []string,
+) (string, error) {
 	for _, r := range recipients {
 		bal, _, err := t.Balance(ctx, r)
 		if err != nil {
@@ -739,6 +773,117 @@ func (t *ConstructionTester) getRecipientWithMinimum(ctx context.Context, recipi
 	}
 
 	return "", nil
+}
+
+func (t *ConstructionTester) generateAccountIntent(
+	ctx context.Context,
+	balance *big.Int,
+	recipients []string,
+) (
+	*big.Int, // Sender value
+	string, // Recipient
+	*big.Int, // Recipient Value
+	string, // Change Address
+	*big.Int, // Change Value
+	error, // ErrInsufficientFunds
+) {
+	adjustedBalance := new(big.Int).Sub(balance, t.minimumBalance)
+
+	// should send to new account, existing account, or no acccount?
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
+		recipient, created, err := t.canGetNewAddress(ctx, recipients)
+		if err != nil {
+			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+		}
+
+		if created {
+			recipientValue := getRandomAmount(t.minimumBalance, adjustedBalance)
+			return recipientValue, recipient, recipientValue, "", nil, nil
+		}
+
+		// If sending to an already existing account, can assume that balance
+		// is greater than minimum_balance already.
+		recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
+		return recipientValue, recipient, recipientValue, "", nil, nil
+	}
+
+	recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ExistingAccountSend)).Sign() != -1 {
+		recipient, err := t.getRecipientWithMinimum(ctx, recipients)
+		if err != nil {
+			return nil, "", nil, "", nil, fmt.Errorf(
+				"%w: unable to get recipient with minimum",
+				err,
+			)
+		}
+
+		if len(recipient) == 0 {
+			return nil, "", nil, "", nil, ErrInsufficientFunds
+		}
+
+		return recipientValue, recipient, recipientValue, "", nil, nil
+	}
+
+	// Cannot perform any transfer.
+	return nil, "", nil, "", nil, ErrInsufficientFunds
+}
+
+func (t *ConstructionTester) generateUTXOIntent(
+	ctx context.Context,
+	balance *big.Int,
+	recipients []string,
+) (
+	*big.Int, // Sender value
+	string, // Recipient
+	*big.Int, // Recipient Value
+	string, // Change Address
+	*big.Int, // Change Value
+	error, // ErrInsufficientFunds
+) {
+	feeLessBalance := new(big.Int).Sub(balance, t.maximumFee)
+	recipient, created, err := t.canGetNewAddress(ctx, recipients)
+	if err != nil {
+		return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
+	}
+
+	// Need to remove from recipients if created a change address
+	if !created {
+		newRecipients := []string{}
+		for _, r := range recipients {
+			if recipient != r {
+				newRecipients = append(newRecipients, r)
+			}
+		}
+
+		recipients = newRecipients
+	}
+
+	// should send to change, no change, or no send?
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ChangeSend)).Sign() != -1 &&
+		t.config.Construction.ChangeIntent != nil {
+		changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
+		if err != nil {
+			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get change address", err)
+		}
+
+		doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
+		changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
+
+		recipientShare := getRandomAmount(big.NewInt(0), changeDifferential)
+		changeShare := new(big.Int).Sub(changeDifferential, recipientShare)
+
+		recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
+		changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
+
+		return balance, recipient, recipientValue, changeAddress, changeValue, nil
+	}
+
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
+		return balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil
+	}
+
+	// Cannot perform any transfer.
+	return nil, "", nil, "", nil, ErrInsufficientFunds
 }
 
 func (t *ConstructionTester) GenerateBestIntent(
@@ -755,86 +900,9 @@ func (t *ConstructionTester) GenerateBestIntent(
 ) {
 	switch t.config.Construction.AccountingModel {
 	case configuration.AccountModel:
-		adjustedBalance := new(big.Int).Sub(balance, t.minimumBalance)
-
-		// should send to new account, existing account, or no acccount?
-		if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
-			recipient, created, err := t.canGetNewAddress(ctx, recipients)
-			if err != nil {
-				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
-			}
-
-			if created {
-				recipientValue := getRandomAmount(t.minimumBalance, adjustedBalance)
-				return recipientValue, recipient, recipientValue, "", nil, nil
-			}
-
-			// If sending to an already existing account, can assume that balance
-			// is greater than minimum_balance already.
-			recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
-			return recipientValue, recipient, recipientValue, "", nil, nil
-		}
-
-		recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
-		if new(big.Int).Sub(balance, t.minimumRequiredBalance(ExistingAccountSend)).Sign() != -1 {
-			recipient, err := t.getRecipientWithMinimum(ctx, recipients)
-			if err != nil {
-				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient with minimum", err)
-			}
-
-			if len(recipient) == 0 {
-				return nil, "", nil, "", nil, ErrInsufficientFunds
-			}
-
-			return recipientValue, recipient, recipientValue, "", nil, nil
-		}
-
-		// Cannot perform any transfer.
-		return nil, "", nil, "", nil, ErrInsufficientFunds
+		return t.generateAccountIntent(ctx, balance, recipients)
 	case configuration.UtxoModel:
-		feeLessBalance := new(big.Int).Sub(balance, t.maximumFee)
-		recipient, created, err := t.canGetNewAddress(ctx, recipients)
-		if err != nil {
-			return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get recipient", err)
-		}
-
-		// Need to remove from recipients if created a change address
-		if !created {
-			newRecipients := []string{}
-			for _, r := range recipients {
-				if recipient != r {
-					newRecipients = append(newRecipients, r)
-				}
-			}
-
-			recipients = newRecipients
-		}
-
-		// should send to change, no change, or no send?
-		if new(big.Int).Sub(balance, t.minimumRequiredBalance(ChangeSend)).Sign() != -1 && t.config.Construction.ChangeIntent != nil {
-			changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
-			if err != nil {
-				return nil, "", nil, "", nil, fmt.Errorf("%w: unable to get change address", err)
-			}
-
-			doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
-			changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
-
-			recipientShare := getRandomAmount(big.NewInt(0), changeDifferential)
-			changeShare := new(big.Int).Sub(changeDifferential, recipientShare)
-
-			recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
-			changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
-
-			return balance, recipient, recipientValue, changeAddress, changeValue, nil
-		}
-
-		if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
-			return balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil
-		}
-
-		// Cannot perform any transfer.
-		return nil, "", nil, "", nil, ErrInsufficientFunds
+		return t.generateUTXOIntent(ctx, balance, recipients)
 	}
 
 	return nil, "", nil, "", nil, ErrInsufficientFunds
@@ -884,7 +952,11 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
-		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.GenerateBestIntent(ctx, balance, recipients)
+		senderValue, recipient, recipientValue, changeAddress, changeValue, err := t.GenerateBestIntent(
+			ctx,
+			balance,
+			recipients,
+		)
 		if errors.Is(err, ErrInsufficientFunds) {
 			broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
 			if err != nil {
