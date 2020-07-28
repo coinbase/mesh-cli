@@ -5,7 +5,7 @@
  },
  "online_url": "http://localhost:8080",
  "data_directory": "eth-data",
- "http_timeout": 30,
+ "http_timeout": 300,
  "construction": {
   "offline_url": "http://localhost:8080",
   "currency": {

@@ -731,14 +731,17 @@ func (t *ConstructionTester) createScenarioContext(
 	changeValue *big.Int,
 	coinIdentifier *types.CoinIdentifier,
 ) (*scenario.Context, []*types.Operation, error) {
+	// We create a deep copy of the scenaerio (and the change scenario)
+	// to ensure we don't accidentally overwrite the loaded configuration
+	// while hydrating values.
 	scenarioOps := []*types.Operation{}
-	if err := copier.Copy(&t.config.Construction.Scenario, &scenarioOps); err != nil {
+	if err := copier.Copy(&scenarioOps, t.config.Construction.Scenario); err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to copy scenario", err)
 	}
 
 	if len(changeAddress) > 0 {
 		changeCopy := types.Operation{}
-		if err := copier.Copy(&t.config.Construction.ChangeScenario, &changeCopy); err != nil {
+		if err := copier.Copy(&changeCopy, t.config.Construction.ChangeScenario); err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to copy change intent", err)
 		}
 
