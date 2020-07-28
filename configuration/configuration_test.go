@@ -50,6 +50,7 @@ var (
 			BroadcastTrailLimit:   1231,
 			BlockBroadcastLimit:   992,
 			NewAccountProbability: 0.1,
+			MaxAddresses:          12,
 		},
 		Data: &DataConfiguration{
 			BlockConcurrency:                  12,

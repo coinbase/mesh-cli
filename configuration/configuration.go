@@ -53,6 +53,7 @@ const (
 	DefaultBroadcastTrailLimit               = 3
 	DefaultBlockBroadcastLimit               = 5
 	DefaultNewAccountProbability             = 0.5
+	DefaultMaxAddresses                      = 200
 
 	// ETH Defaults
 	EthereumIDBlockchain    = "Ethereum"
@@ -185,6 +186,10 @@ type ConstructionConfiguration struct {
 	// NewAccountProbability is the probability we create a new
 	// recipient address on any transaction creation loop.
 	NewAccountProbability float64 `json:"create_new_account_probability"`
+
+	// MaxAddresses is the maximum number of addresses
+	// to generate while testing.
+	MaxAddresses int `json:"max_addresses"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -204,6 +209,7 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 		BroadcastTrailLimit:   DefaultBroadcastTrailLimit,
 		BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
 		NewAccountProbability: DefaultNewAccountProbability,
+		MaxAddresses:          DefaultMaxAddresses,
 	}
 }
 
@@ -385,6 +391,10 @@ func populateConstructionMissingFields(
 
 	if constructionConfig.NewAccountProbability == 0 {
 		constructionConfig.NewAccountProbability = DefaultNewAccountProbability
+	}
+
+	if constructionConfig.MaxAddresses == 0 {
+		constructionConfig.MaxAddresses = DefaultMaxAddresses
 	}
 
 	return constructionConfig

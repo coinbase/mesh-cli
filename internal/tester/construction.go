@@ -600,7 +600,8 @@ func (t *ConstructionTester) FindRecipient(
 
 	// Randomly generate new recipients
 	coinFlip := false
-	if rand.Float64() > t.config.Construction.NewAccountProbability {
+	if rand.Float64() > t.config.Construction.NewAccountProbability &&
+		len(addresses) < t.config.Construction.MaxAddresses {
 		coinFlip = true
 	}
 
@@ -702,12 +703,12 @@ func (t *ConstructionTester) LogTransaction(
 		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
 
 		color.Magenta(
-			"%s -- %s %s --> %s Hash:%s",
+			"Transaction Created: %s\n  %s -- %s %s --> %s",
+			transactionIdentifier.Hash,
 			scenarioCtx.Sender,
 			nativeUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
 			scenarioCtx.Recipient,
-			transactionIdentifier.Hash,
 		)
 	} else {
 		recipientUnits := new(big.Float).SetInt(scenarioCtx.RecipientValue)
@@ -716,7 +717,8 @@ func (t *ConstructionTester) LogTransaction(
 		changeUnits := new(big.Float).SetInt(scenarioCtx.ChangeValue)
 		changeUnits = new(big.Float).Quo(changeUnits, divisor)
 		color.Magenta(
-			"%s\n -- %s %s --> %s\n -- %s %s --> %s\nHash:%s",
+			"Transaction Created: %s\n  %s\n   -- %s %s --> %s\n   -- %s %s --> %s",
+			transactionIdentifier.Hash,
 			scenarioCtx.Sender,
 			recipientUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
@@ -724,7 +726,6 @@ func (t *ConstructionTester) LogTransaction(
 			changeUnits.Text('f', precision),
 			t.config.Construction.Currency.Symbol,
 			scenarioCtx.ChangeAddress,
-			transactionIdentifier.Hash,
 		)
 	}
 }
