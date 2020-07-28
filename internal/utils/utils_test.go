@@ -39,7 +39,7 @@ func TestContainsString(t *testing.T) {
 			arr: []string{"hello"},
 			s:   "test",
 		},
-		"mulitple arr with elem": {
+		"multiple arr with elem": {
 			arr:      []string{"hello", "test"},
 			s:        "test",
 			contains: true,

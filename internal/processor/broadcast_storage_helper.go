@@ -47,17 +47,17 @@ func NewBroadcastStorageHelper(
 	}
 }
 
-// CurrentRemoteBlockIdentifier returns the tip reported by a Rosetta
-// implementation. This is used to determine if we should attempt broadcast.
-func (h *BroadcastStorageHelper) CurrentRemoteBlockIdentifier(
+// AtTip is called before transaction broadcast to determine if we are at tip.
+func (h *BroadcastStorageHelper) AtTip(
 	ctx context.Context,
-) (*types.BlockIdentifier, error) {
-	status, err := h.fetcher.NetworkStatusRetry(ctx, h.network, nil)
+	tipDelay int64,
+) (bool, error) {
+	atTip, err := h.blockStorage.AtTip(ctx, tipDelay)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get network status", err)
+		return false, fmt.Errorf("%w: unable to determine if at tip", err)
 	}
 
-	return status.CurrentBlockIdentifier, nil
+	return atTip, nil
 }
 
 // CurrentBlockIdentifier is called before transaction broadcast and is used

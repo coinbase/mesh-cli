@@ -157,7 +157,8 @@ func InitializeConstruction(
 		config.Construction.ConfirmationDepth,
 		config.Construction.StaleDepth,
 		config.Construction.BroadcastLimit,
-		config.Construction.BroadcastTrailLimit,
+		config.TipDelay,
+		config.Construction.BroadcastBehindTip,
 		config.Construction.BlockBroadcastLimit,
 	)
 

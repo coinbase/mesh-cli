@@ -35,6 +35,7 @@ var (
 		HTTPTimeout:            21,
 		BlockConcurrency:       12,
 		TransactionConcurrency: 2,
+		TipDelay:               1231,
 		Construction: &ConstructionConfiguration{
 			OfflineURL: "https://ashdjaksdkjshdk",
 			Currency: &types.Currency{
@@ -46,10 +47,10 @@ var (
 			CurveType:             types.Edwards25519,
 			AccountingModel:       UtxoModel,
 			Scenario:              EthereumTransfer,
+			ChangeScenario:        EthereumTransfer[0],
 			ConfirmationDepth:     100,
 			StaleDepth:            12,
 			BroadcastLimit:        200,
-			BroadcastTrailLimit:   1231,
 			BlockBroadcastLimit:   992,
 			NewAccountProbability: 0.1,
 			MaxAddresses:          12,

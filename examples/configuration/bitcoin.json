@@ -5,6 +5,7 @@
  },
  "data_directory": "bitcoin-data",
  "http_timeout": 300,
+ "tip_delay": 1800,
  "construction": {
   "currency": {
    "symbol": "BTC",

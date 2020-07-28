@@ -30,7 +30,8 @@ const (
 	confirmationDepth   = int64(2)
 	staleDepth          = int64(1)
 	broadcastLimit      = 3
-	broadcastTrailLimit = 10
+	broadcastTipDelay   = 10
+	broadcastBehindTip  = false
 	blockBroadcastLimit = 10
 )
 
@@ -91,7 +92,8 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		confirmationDepth,
 		staleDepth,
 		broadcastLimit,
-		broadcastTrailLimit,
+		broadcastTipDelay,
+		broadcastBehindTip,
 		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
@@ -104,6 +106,8 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		"payload 1": {Hash: "tx 1"},
 		"payload 2": {Hash: "tx 2"},
 	}
+
+	mockHelper.AtSyncTip = true
 
 	t.Run("broadcast send 1", func(t *testing.T) {
 		err := storage.Broadcast(
@@ -136,7 +140,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 	blocks := blockFiller(0, 7)
 	t.Run("add block 0", func(t *testing.T) {
 		block := blocks[0]
-		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -208,7 +211,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 	t.Run("add block 1", func(t *testing.T) {
 		block := blocks[1]
-		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -252,7 +254,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 	t.Run("add block 2", func(t *testing.T) {
 		block := blocks[2]
-		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -319,7 +320,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 				transaction:     tx2,
 			},
 		}
-		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -368,8 +368,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 	t.Run("add block 4-5", func(t *testing.T) {
 		for _, block := range blocks[4:6] {
-			mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
-
 			txn := storage.db.NewDatabaseTransaction(ctx, true)
 			commitWorker, err := storage.AddingBlock(ctx, block, txn)
 			assert.NoError(t, err)
@@ -417,7 +415,6 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 	t.Run("add block 6", func(t *testing.T) {
 		block := blocks[6]
-		mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -475,7 +472,8 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 		confirmationDepth,
 		staleDepth,
 		broadcastLimit,
-		broadcastTrailLimit,
+		broadcastTipDelay,
+		broadcastBehindTip,
 		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
@@ -549,9 +547,8 @@ func TestBroadcastStorageBroadcastFailure(t *testing.T) {
 			// payload 2 will fail
 		}
 		blocks := blockFiller(0, 10)
+		mockHelper.AtSyncTip = true
 		for _, block := range blocks {
-			mockHelper.RemoteBlockIdentifier = block.BlockIdentifier
-
 			txn := storage.db.NewDatabaseTransaction(ctx, true)
 			commitWorker, err := storage.AddingBlock(ctx, block, txn)
 			assert.NoError(t, err)
@@ -610,17 +607,18 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	storage := NewBroadcastStorage(
 		database,
 		confirmationDepth,
-		staleDepth,
+		100,
 		broadcastLimit,
-		broadcastTrailLimit,
+		broadcastTipDelay,
+		broadcastBehindTip,
 		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
 	mockHandler := &MockBroadcastStorageHandler{}
 	storage.Initialize(mockHelper, mockHandler)
 
-	send1 := opFiller("addr 1", 11)
-	send2 := opFiller("addr 2", 13)
+	send1 := opFiller("addr 1", 1)
+	send2 := opFiller("addr 2", 1)
 	t.Run("broadcast", func(t *testing.T) {
 		err := storage.Broadcast(
 			ctx,
@@ -665,7 +663,7 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 	})
 
 	blocks := blockFiller(0, 81)
-	mockHelper.RemoteBlockIdentifier = blocks[80].BlockIdentifier
+	mockHelper.AtSyncTip = false
 	mockHelper.Transactions = map[string]*types.TransactionIdentifier{
 		"payload 1": {Hash: "tx 1"},
 		"payload 2": {Hash: "tx 2"},
@@ -710,6 +708,7 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 		assert.ElementsMatch(t, []*confirmedTx{}, mockHandler.Confirmed)
 	})
 
+	mockHelper.AtSyncTip = true
 	t.Run("add blocks close to tip", func(t *testing.T) {
 		for _, block := range blocks[60:71] {
 			txn := storage.db.NewDatabaseTransaction(ctx, true)
@@ -736,7 +735,7 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 				Sender:        "addr 1",
 				Intent:        send1,
 				Payload:       "payload 1",
-				LastBroadcast: blocks[70].BlockIdentifier,
+				LastBroadcast: blocks[60].BlockIdentifier,
 				Broadcasts:    1,
 			},
 			{
@@ -744,7 +743,7 @@ func TestBroadcastStorageBehindTip(t *testing.T) {
 				Sender:        "addr 2",
 				Intent:        send2,
 				Payload:       "payload 2",
-				LastBroadcast: blocks[70].BlockIdentifier,
+				LastBroadcast: blocks[60].BlockIdentifier,
 				Broadcasts:    1,
 			},
 		}, broadcasts)
@@ -770,7 +769,8 @@ func TestBroadcastStorageClearBroadcasts(t *testing.T) {
 		confirmationDepth,
 		staleDepth,
 		broadcastLimit,
-		broadcastTrailLimit,
+		broadcastTipDelay,
+		broadcastBehindTip,
 		blockBroadcastLimit,
 	)
 	mockHelper := &MockBroadcastStorageHelper{}
@@ -862,16 +862,17 @@ type findTx struct {
 }
 
 type MockBroadcastStorageHelper struct {
-	RemoteBlockIdentifier *types.BlockIdentifier
+	AtSyncTip             bool
 	SyncedBlockIdentifier *types.BlockIdentifier
 	Transactions          map[string]*types.TransactionIdentifier
 	FindTransactions      map[string]*findTx
 }
 
-func (m *MockBroadcastStorageHelper) CurrentRemoteBlockIdentifier(
+func (m *MockBroadcastStorageHelper) AtTip(
 	ctx context.Context,
-) (*types.BlockIdentifier, error) {
-	return m.RemoteBlockIdentifier, nil
+	tipDelay int64,
+) (bool, error) {
+	return m.AtSyncTip, nil
 }
 
 func (m *MockBroadcastStorageHelper) CurrentBlockIdentifier(

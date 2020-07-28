@@ -5,6 +5,7 @@
  },
  "data_directory": "eth-data",
  "http_timeout": 300,
+ "tip_delay": 60,
  "construction": {
   "currency": {
    "symbol": "ETH",

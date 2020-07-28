@@ -44,24 +44,25 @@ type BroadcastStorage struct {
 	confirmationDepth   int64
 	staleDepth          int64
 	broadcastLimit      int
-	broadcastTrailLimit int64
+	tipDelay            int64
+	broadcastBehindTip  bool
 	blockBroadcastLimit int
 }
 
 // BroadcastStorageHelper is used by BroadcastStorage to submit transactions
 // and find said transaction in blocks on-chain.
 type BroadcastStorageHelper interface {
-	// CurrentRemoteBlockIdentifier returns the tip reported by a Rosetta
-	// implementation. This is used to determine if we should attempt broadcast.
-	CurrentRemoteBlockIdentifier(
-		context.Context,
-	) (*types.BlockIdentifier, error)
-
 	// CurrentBlockIdentifier is called before transaction broadcast and is used
 	// to determine if a transaction broadcast is stale.
 	CurrentBlockIdentifier(
 		context.Context,
 	) (*types.BlockIdentifier, error) // used to determine if should rebroadcast
+
+	// AtTip is called before transaction broadcast to determine if we are at tip.
+	AtTip(
+		context.Context,
+		int64,
+	) (bool, error)
 
 	// FindTransaction looks for the provided TransactionIdentifier in processed
 	// blocks and returns the block identifier containing the most recent sighting
@@ -124,7 +125,8 @@ func NewBroadcastStorage(
 	confirmationDepth int64,
 	staleDepth int64,
 	broadcastLimit int,
-	broadcastTrailLimit int64,
+	tipDelay int64,
+	broadcastBehindTip bool,
 	blockBroadcastLimit int,
 ) *BroadcastStorage {
 	return &BroadcastStorage{
@@ -132,7 +134,8 @@ func NewBroadcastStorage(
 		confirmationDepth:   confirmationDepth,
 		staleDepth:          staleDepth,
 		broadcastLimit:      broadcastLimit,
-		broadcastTrailLimit: broadcastTrailLimit,
+		tipDelay:            tipDelay,
+		broadcastBehindTip:  broadcastBehindTip,
 		blockBroadcastLimit: blockBroadcastLimit,
 	}
 }
@@ -381,18 +384,18 @@ func (b *BroadcastStorage) performBroadcast(
 // is set to true, then only transactions that should be broadcast again
 // are actually broadcast.
 func (b *BroadcastStorage) BroadcastAll(ctx context.Context, onlyEligible bool) error {
-	tip, err := b.helper.CurrentRemoteBlockIdentifier(ctx)
-	if err != nil {
-		return fmt.Errorf("%w: unable to get current remote block identifier", err)
-	}
-
 	currBlock, err := b.helper.CurrentBlockIdentifier(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get current block identifier", err)
 	}
 
 	// Wait to broadcast transaction until close to tip
-	if tip.Index-currBlock.Index > b.broadcastTrailLimit && onlyEligible {
+	atTip, err := b.helper.AtTip(ctx, b.tipDelay)
+	if err != nil {
+		return fmt.Errorf("%w: unable to determine if at tip", err)
+	}
+
+	if (!atTip && !b.broadcastBehindTip) && onlyEligible {
 		return nil
 	}
 

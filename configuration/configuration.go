@@ -50,7 +50,7 @@ const (
 	DefaultConfirmationDepth                 = 10
 	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
-	DefaultBroadcastTrailLimit               = 3
+	DefaultTipDelay                          = 300
 	DefaultBlockBroadcastLimit               = 5
 	DefaultNewAccountProbability             = 0.5
 	DefaultMaxAddresses                      = 200
@@ -156,11 +156,6 @@ type ConstructionConfiguration struct {
 	// before giving up on a transaction broadcast.
 	BroadcastLimit int `json:"broadcast_limit"`
 
-	// BroadcastTrailLimit dictates how close to tip we must be
-	// before broadcasting a transaction. If we are > BroadcastTrailLimit
-	// from tip, no transactions will be broadcast.
-	BroadcastTrailLimit int64 `json:"broadcast_trail_limit"`
-
 	// IgnoreBroadcastFailures determines if we should exit when there
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
@@ -175,6 +170,10 @@ type ConstructionConfiguration struct {
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
 	ClearBroadcasts bool `json:"clear_broadcasts"`
+
+	// BroadcastBehindTip indicates if we should broadcast transactions
+	// when we are behind tip (as defined by TipDelay).
+	BroadcastBehindTip bool `json:"broadcast_behind_tip"`
 
 	// BlockBroadcastLimit is the number of transactions to attempt
 	// broadcast in a single block. When there are many pending
@@ -208,7 +207,6 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 		ConfirmationDepth:     DefaultConfirmationDepth,
 		StaleDepth:            DefaultStaleDepth,
 		BroadcastLimit:        DefaultBroadcastLimit,
-		BroadcastTrailLimit:   DefaultBroadcastTrailLimit,
 		BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
 		NewAccountProbability: DefaultNewAccountProbability,
 		MaxAddresses:          DefaultMaxAddresses,
@@ -235,6 +233,7 @@ func DefaultConfiguration() *Configuration {
 		HTTPTimeout:            DefaultTimeout,
 		BlockConcurrency:       DefaultBlockConcurrency,
 		TransactionConcurrency: DefaultTransactionConcurrency,
+		TipDelay:               DefaultTipDelay,
 		Construction:           DefaultConstructionConfiguration(),
 		Data:                   DefaultDataConfiguration(),
 	}
@@ -332,6 +331,11 @@ type Configuration struct {
 	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
 	TransactionConcurrency uint64 `json:"transaction_concurrency"`
 
+	// TipDelay dictates how many seconds behind the current time is considered
+	// tip. If we are > TipDelay seconds from the last processed block,
+	// we are considered to be behind tip.
+	TipDelay int64 `json:"tip_delay"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -381,10 +385,6 @@ func populateConstructionMissingFields(
 
 	if constructionConfig.BroadcastLimit == 0 {
 		constructionConfig.BroadcastLimit = DefaultBroadcastLimit
-	}
-
-	if constructionConfig.BroadcastTrailLimit == 0 {
-		constructionConfig.BroadcastTrailLimit = DefaultBroadcastTrailLimit
 	}
 
 	if constructionConfig.BlockBroadcastLimit == 0 {
@@ -445,6 +445,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.TransactionConcurrency == 0 {
 		config.TransactionConcurrency = DefaultTransactionConcurrency
+	}
+
+	if config.TipDelay == 0 {
+		config.TipDelay = DefaultTipDelay
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)

@@ -8,6 +8,7 @@
  "http_timeout": 10,
  "block_concurrency": 8,
  "transaction_concurrency": 16,
+ "tip_delay": 300,
  "construction": {
   "offline_url": "http://localhost:8080",
   "currency": {
@@ -56,10 +57,10 @@
   "confirmation_depth": 10,
   "stale_depth": 30,
   "broadcast_limit": 3,
-  "broadcast_trail_limit": 3,
   "ignore_broadcast_failures": false,
   "change_scenario": null,
   "clear_broadcasts": false,
+  "broadcast_behind_tip": false,
   "block_broadcast_limit": 5,
   "rebroadcast_all": false,
   "create_new_account_probability": 0.5,

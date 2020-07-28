@@ -42,6 +42,14 @@ const (
 
 	base10            = 10
 	bigFloatPrecision = 512
+
+	// NanosecondsInMillisecond is the number
+	// of nanoseconds in a millisecond.
+	NanosecondsInMillisecond = 1000000
+
+	// MillisecondsInSecond is the number
+	// of milliseconds in a second.
+	MillisecondsInSecond = 1000
 )
 
 // CreateTempDir creates a directory in
@@ -217,4 +225,10 @@ func PrettyAmount(amount *big.Int, currency *types.Currency) string {
 		nativeUnits.Text('f', int(precision)),
 		currency.Symbol,
 	)
+}
+
+// Milliseconds gets the current time in milliseconds.
+func Milliseconds() int64 {
+	nanos := time.Now().UnixNano()
+	return nanos / NanosecondsInMillisecond
 }
