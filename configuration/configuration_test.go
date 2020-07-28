@@ -31,8 +31,10 @@ var (
 			Blockchain: "sweet",
 			Network:    "sweeter",
 		},
-		OnlineURL:   "http://hasudhasjkdk",
-		HTTPTimeout: 21,
+		OnlineURL:              "http://hasudhasjkdk",
+		HTTPTimeout:            21,
+		BlockConcurrency:       12,
+		TransactionConcurrency: 2,
 		Construction: &ConstructionConfiguration{
 			OfflineURL: "https://ashdjaksdkjshdk",
 			Currency: &types.Currency{
@@ -53,8 +55,6 @@ var (
 			MaxAddresses:          12,
 		},
 		Data: &DataConfiguration{
-			BlockConcurrency:                  12,
-			TransactionConcurrency:            2,
 			ActiveReconciliationConcurrency:   100,
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,

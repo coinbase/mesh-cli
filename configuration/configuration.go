@@ -219,8 +219,6 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 // for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
 	return &DataConfiguration{
-		BlockConcurrency:                  DefaultBlockConcurrency,
-		TransactionConcurrency:            DefaultTransactionConcurrency,
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
@@ -232,22 +230,18 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:      EthereumNetwork,
-		OnlineURL:    DefaultURL,
-		HTTPTimeout:  DefaultTimeout,
-		Construction: DefaultConstructionConfiguration(),
-		Data:         DefaultDataConfiguration(),
+		Network:                EthereumNetwork,
+		OnlineURL:              DefaultURL,
+		HTTPTimeout:            DefaultTimeout,
+		BlockConcurrency:       DefaultBlockConcurrency,
+		TransactionConcurrency: DefaultTransactionConcurrency,
+		Construction:           DefaultConstructionConfiguration(),
+		Data:                   DefaultDataConfiguration(),
 	}
 }
 
 // DataConfiguration contains all configurations to run check:data.
 type DataConfiguration struct {
-	// BlockConcurrency is the concurrency to use while fetching blocks.
-	BlockConcurrency uint64 `json:"block_concurrency"`
-
-	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
-	TransactionConcurrency uint64 `json:"transaction_concurrency"`
-
 	// ActiveReconciliationConcurrency is the concurrency to use while fetching accounts
 	// during active reconciliation.
 	ActiveReconciliationConcurrency uint64 `json:"active_reconciliation_concurrency"`
@@ -332,6 +326,12 @@ type Configuration struct {
 	// HTTPTimeout is the timeout for HTTP requests in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
 
+	// BlockConcurrency is the concurrency to use while fetching blocks.
+	BlockConcurrency uint64 `json:"block_concurrency"`
+
+	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
+	TransactionConcurrency uint64 `json:"transaction_concurrency"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -407,14 +407,6 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 		return DefaultDataConfiguration()
 	}
 
-	if dataConfig.BlockConcurrency == 0 {
-		dataConfig.BlockConcurrency = DefaultBlockConcurrency
-	}
-
-	if dataConfig.TransactionConcurrency == 0 {
-		dataConfig.TransactionConcurrency = DefaultTransactionConcurrency
-	}
-
 	if dataConfig.ActiveReconciliationConcurrency == 0 {
 		dataConfig.ActiveReconciliationConcurrency = DefaultActiveReconciliationConcurrency
 	}
@@ -445,6 +437,14 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.HTTPTimeout == 0 {
 		config.HTTPTimeout = DefaultTimeout
+	}
+
+	if config.BlockConcurrency == 0 {
+		config.BlockConcurrency = DefaultBlockConcurrency
+	}
+
+	if config.TransactionConcurrency == 0 {
+		config.TransactionConcurrency = DefaultTransactionConcurrency
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
