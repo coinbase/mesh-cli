@@ -1,7 +1,7 @@
 .PHONY: deps lint format check-format test test-cover add-license \
 	check-license shorten-lines salus validate watch-blocks \
 	watch-transactions watch-balances watch-reconciliations \
-	view-block-benchmarks view-account-benchmarks
+	view-block-benchmarks view-account-benchmarks mocks
 
 # To run the the following packages as commands,
 # it is necessary to use `go run <pkg>`. Running `go get` does
@@ -51,3 +51,7 @@ build:
 
 install:
 	go install ./...
+
+mocks:
+	rm -rf mocks;
+	mockery --dir internal/constructor --all --case underscore --outpkg constructor --output mocks/constructor;
