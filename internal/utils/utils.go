@@ -190,9 +190,9 @@ func Zero() *big.Float {
 	return r
 }
 
-// GetRandomNumber returns some number in the range [minimum, maximum).
+// RandomNumber returns some number in the range [minimum, maximum).
 // Source: https://golang.org/pkg/math/big/#Int.Rand
-func GetRandomNumber(minimum *big.Int, maximum *big.Int) *big.Int {
+func RandomNumber(minimum *big.Int, maximum *big.Int) *big.Int {
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	transformed := new(big.Int).Sub(maximum, minimum)
 	addition := new(big.Int).Rand(source, transformed)
@@ -217,8 +217,10 @@ func ContainsString(arr []string, s string) bool {
 func PrettyAmount(amount *big.Int, currency *types.Currency) string {
 	nativeUnits := new(big.Float).SetInt(amount)
 	precision := currency.Decimals
-	divisor := BigPow10(precision)
-	nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+	if precision > 0 {
+		divisor := BigPow10(precision)
+		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+	}
 
 	return fmt.Sprintf(
 		"%s %s",

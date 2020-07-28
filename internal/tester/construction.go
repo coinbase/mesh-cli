@@ -912,7 +912,7 @@ func (t *ConstructionTester) generateAccountScenario(
 		}
 
 		if created || utils.ContainsString(belowMinimumRecipients, recipient) {
-			recipientValue := utils.GetRandomNumber(t.minimumBalance, adjustedBalance)
+			recipientValue := utils.RandomNumber(t.minimumBalance, adjustedBalance)
 			return t.createScenarioContext(
 				sender,
 				recipientValue,
@@ -926,7 +926,7 @@ func (t *ConstructionTester) generateAccountScenario(
 
 		// We do not need to send the minimum amount here because the recipient
 		// already has a minimum balance.
-		recipientValue := utils.GetRandomNumber(big.NewInt(0), adjustedBalance)
+		recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
 		return t.createScenarioContext(
 			sender,
 			recipientValue,
@@ -938,7 +938,7 @@ func (t *ConstructionTester) generateAccountScenario(
 		)
 	}
 
-	recipientValue := utils.GetRandomNumber(big.NewInt(0), adjustedBalance)
+	recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
 			return nil, nil, ErrInsufficientFunds
@@ -999,7 +999,7 @@ func (t *ConstructionTester) generateUtxoScenario(
 		doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
 		changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
 
-		recipientShare := utils.GetRandomNumber(big.NewInt(0), changeDifferential)
+		recipientShare := utils.RandomNumber(big.NewInt(0), changeDifferential)
 		changeShare := new(big.Int).Sub(changeDifferential, recipientShare)
 
 		recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
@@ -1021,7 +1021,7 @@ func (t *ConstructionTester) generateUtxoScenario(
 			sender,
 			balance,
 			recipient,
-			utils.GetRandomNumber(t.minimumBalance, feeLessBalance),
+			utils.RandomNumber(t.minimumBalance, feeLessBalance),
 			"",
 			nil,
 			nil,
