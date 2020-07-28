@@ -203,3 +203,18 @@ func ContainsString(arr []string, s string) bool {
 
 	return false
 }
+
+// PrettyAmount returns a currency amount in native format with
+// its symbol.
+func PrettyAmount(amount *big.Int, currency *types.Currency) string {
+	nativeUnits := new(big.Float).SetInt(amount)
+	precision := currency.Decimals
+	divisor := BigPow10(precision)
+	nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+
+	return fmt.Sprintf(
+		"%s %s",
+		nativeUnits.Text('f', int(precision)),
+		currency.Symbol,
+	)
+}

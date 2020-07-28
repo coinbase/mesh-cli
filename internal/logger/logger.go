@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
@@ -489,5 +490,33 @@ func closeFile(f *os.File) {
 	err := f.Close()
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to close file", err))
+	}
+}
+
+// LogScenario logs what a scenario is perfoming
+// to the console.
+func LogScenario(
+	scenarioCtx *scenario.Context,
+	transactionIdentifier *types.TransactionIdentifier,
+	currency *types.Currency,
+) {
+	if len(scenarioCtx.ChangeAddress) == 0 {
+		color.Magenta(
+			"Transaction Created: %s\n  %s -- %s --> %s",
+			transactionIdentifier.Hash,
+			scenarioCtx.Sender,
+			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
+			scenarioCtx.Recipient,
+		)
+	} else {
+		color.Magenta(
+			"Transaction Created: %s\n  %s\n    -- %s --> %s\n    -- %s --> %s",
+			transactionIdentifier.Hash,
+			scenarioCtx.Sender,
+			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
+			scenarioCtx.Recipient,
+			utils.PrettyAmount(scenarioCtx.ChangeValue, currency),
+			scenarioCtx.ChangeAddress,
+		)
 	}
 }

@@ -414,7 +414,7 @@ func (t *ConstructionTester) requestFunds(
 		}
 
 		if balance != nil && new(big.Int).Sub(balance, minBalance).Sign() != -1 {
-			color.Green("Found balance %s on %s", t.prettyAmount(balance), address)
+			color.Green("Found balance %s on %s", utils.PrettyAmount(balance, t.config.Construction.Currency), address)
 			return balance, coinIdentifier, nil
 		}
 
@@ -760,46 +760,6 @@ func (t *ConstructionTester) createScenarioContext(
 	}, scenarioOps, nil
 }
 
-func (t *ConstructionTester) prettyAmount(amount *big.Int) string {
-	nativeUnits := new(big.Float).SetInt(amount)
-	divisor := utils.BigPow10(t.config.Construction.Currency.Decimals)
-	nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
-	precision := int(t.config.Construction.Currency.Decimals)
-
-	return fmt.Sprintf(
-		"%s %s",
-		nativeUnits.Text('f', precision),
-		t.config.Construction.Currency.Symbol,
-	)
-}
-
-// logTransaction logs what a scenario is perfoming
-// to the console.
-func (t *ConstructionTester) logTransaction(
-	scenarioCtx *scenario.Context,
-	transactionIdentifier *types.TransactionIdentifier,
-) {
-	if len(scenarioCtx.ChangeAddress) == 0 {
-		color.Magenta(
-			"Transaction Created: %s\n  %s -- %s --> %s",
-			transactionIdentifier.Hash,
-			scenarioCtx.Sender,
-			t.prettyAmount(scenarioCtx.RecipientValue),
-			scenarioCtx.Recipient,
-		)
-	} else {
-		color.Magenta(
-			"Transaction Created: %s\n  %s\n    -- %s --> %s\n    -- %s --> %s",
-			transactionIdentifier.Hash,
-			scenarioCtx.Sender,
-			t.prettyAmount(scenarioCtx.RecipientValue),
-			scenarioCtx.Recipient,
-			t.prettyAmount(scenarioCtx.ChangeValue),
-			scenarioCtx.ChangeAddress,
-		)
-	}
-}
-
 func (t *ConstructionTester) canGetNewAddress(
 	ctx context.Context,
 	recipients []string,
@@ -1080,7 +1040,7 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			)
 		}
 
-		t.logTransaction(scenarioCtx, transactionIdentifier)
+		logger.LogScenario(scenarioCtx, transactionIdentifier, t.config.Construction.Currency)
 
 		// Broadcast Transaction
 		err = t.broadcastStorage.Broadcast(
