@@ -50,8 +50,14 @@
      "value": "{{ RECIPIENT_VALUE }}",
      "currency": null
     }
-   },
-   {
+   }
+  ],
+  "confirmation_depth": 1,
+  "stale_depth": 0,
+  "broadcast_limit": 3,
+  "broadcast_trail_limit": 3,
+  "ignore_broadcast_failures": false,
+  "change_intent": {
     "operation_identifier": {
      "index": 2
     },
@@ -64,14 +70,7 @@
      "value": "{{ CHANGE_VALUE }}",
      "currency": null
     }
-   }
-  ],
-  "confirmation_depth": 1,
-  "stale_depth": 0,
-  "broadcast_limit": 3,
-  "broadcast_trail_limit": 3,
-  "ignore_broadcast_failures": false,
-  "produce_change": true
+  }
  },
  "data": {
   "block_concurrency": 8,

@@ -427,7 +427,8 @@ func (t *ConstructionTester) SendableBalance(
 	accountIdentifier := &types.AccountIdentifier{Address: address}
 	var bal *big.Int
 	var coinIdentifier *types.CoinIdentifier
-	if t.config.Construction.AccountingModel == configuration.AccountModel {
+	switch t.config.Construction.AccountingModel {
+	case configuration.AccountModel:
 		amount, _, err := t.balanceStorage.GetBalance(
 			ctx,
 			accountIdentifier,
@@ -446,7 +447,7 @@ func (t *ConstructionTester) SendableBalance(
 		bal = val
 		bal = new(big.Int).Sub(bal, t.minimumBalance)
 		bal = new(big.Int).Sub(bal, t.maximumFee)
-	} else {
+	case configuration.UtxoModel:
 		// For UTXO-based chains, return the largest UTXO as the spendable balance.
 		coins, err := t.coinStorage.GetCoins(ctx, accountIdentifier)
 		if err != nil {
@@ -471,6 +472,10 @@ func (t *ConstructionTester) SendableBalance(
 		}
 
 		bal = balance
+	default:
+		// We should never hit this branch because the configuration file is
+		// checked for issues like this before starting this loop.
+		return nil, nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
 	}
 
 	if bal.Sign() != 1 {
@@ -625,7 +630,8 @@ func (t *ConstructionTester) CreateScenarioContext(
 	recipient string,
 	sendableBalance *big.Int,
 	coinIdentifier *types.CoinIdentifier,
-) (*scenario.Context, error) {
+	scenarioOps []*types.Operation,
+) (*scenario.Context, []*types.Operation, error) {
 	var senderValue, recipientValue, changeValue *big.Int
 	var changeAddress string
 	var err error
@@ -644,14 +650,14 @@ func (t *ConstructionTester) CreateScenarioContext(
 		recipientValue = new(big.Int).Sub(senderValue, t.maximumFee)
 
 		// Attempt to create a change output if we should produce change.
-		if t.config.Construction.ProduceChange {
+		if t.config.Construction.ChangeIntent != nil {
 			// We consider the changableSurplus to be anything above the minimum
 			// balance of the recipient and the change address.
 			minimumBalances := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
 			changableSurplus := new(big.Int).Sub(recipientValue, minimumBalances)
 
 			// If the changableSurplus is positive, we attempt to send a change
-			// output.
+			// output. If not, we don't add ChangeIntent to the scenario.
 			if changableSurplus.Sign() == 1 {
 				// The recipient value is recipientSplit + minimumBalance and the
 				// change value is (changableSurplus - recipientSplit) + minimumBalance.
@@ -668,14 +674,16 @@ func (t *ConstructionTester) CreateScenarioContext(
 
 				changeAddress, err = t.FindRecipient(ctx, sender, true)
 				if err != nil {
-					return nil, fmt.Errorf("%w: unable to find change recipient", err)
+					return nil, nil, fmt.Errorf("%w: unable to find change recipient", err)
 				}
+
+				scenarioOps = append(scenarioOps, t.config.Construction.ChangeIntent)
 			}
 		}
 	default:
 		// We should never hit this branch because the configuration file is
 		// checked for issues like this before starting this loop.
-		return nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
+		return nil, nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
 	}
 
 	return &scenario.Context{
@@ -687,7 +695,7 @@ func (t *ConstructionTester) CreateScenarioContext(
 		CoinIdentifier: coinIdentifier,
 		ChangeAddress:  changeAddress,
 		ChangeValue:    changeValue,
-	}, nil
+	}, scenarioOps, nil
 }
 
 // LogTransaction logs what a scenario is perfoming
@@ -768,18 +776,19 @@ func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
 			return fmt.Errorf("%w: unable to find recipient", err)
 		}
 
-		scenarioCtx, err := t.CreateScenarioContext(
+		scenarioCtx, scenarioOps, err := t.CreateScenarioContext(
 			ctx,
 			sender,
 			recipient,
 			sendableBalance,
 			coinIdentifier,
+			t.config.Construction.Scenario,
 		)
 		if err != nil {
 			return fmt.Errorf("%w: unable to create scenario context", err)
 		}
 
-		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, t.config.Construction.Scenario)
+		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, scenarioOps)
 		if err != nil {
 			return fmt.Errorf("%w: unable to populate scenario", err)
 		}

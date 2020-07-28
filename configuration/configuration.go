@@ -165,10 +165,12 @@ type ConstructionConfiguration struct {
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
 
-	// ProduceChange determines if a change address should be
-	// created when performing a UTXO-based transfer. If not,
-	// the entire UTXO-fees will be sent to the recipient.
-	ProduceChange bool `json:"produce_change"`
+	// ChangeIntent is added to the scenario if it is possible to generate
+	// a change transaction where the recipient address is over
+	// the minimum balance. If this is left nil, no change
+	// will ever be created. This is ONLY used for UTXO-based
+	// testing.
+	ChangeIntent *types.Operation `json:"change_intent"`
 
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
