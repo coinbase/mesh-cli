@@ -855,20 +855,39 @@ func (t *ConstructionTester) generateAccountScenario(
 
 	// should send to new account, existing account, or no acccount?
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
-		recipient, created, err := t.canGetNewAddress(ctx, append(minimumRecipients, belowMinimumRecipients...))
+		recipient, created, err := t.canGetNewAddress(
+			ctx,
+			append(minimumRecipients, belowMinimumRecipients...),
+		)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to get recipient", err)
 		}
 
 		if created || containsString(belowMinimumRecipients, recipient) {
 			recipientValue := getRandomAmount(t.minimumBalance, adjustedBalance)
-			return t.createScenarioContext(sender, recipientValue, recipient, recipientValue, "", nil, nil)
+			return t.createScenarioContext(
+				sender,
+				recipientValue,
+				recipient,
+				recipientValue,
+				"",
+				nil,
+				nil,
+			)
 		}
 
 		// We do not need to send the minimum amount here because the recipient
 		// already has a minimum balance.
 		recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
-		return t.createScenarioContext(sender, recipientValue, recipient, recipientValue, "", nil, nil)
+		return t.createScenarioContext(
+			sender,
+			recipientValue,
+			recipient,
+			recipientValue,
+			"",
+			nil,
+			nil,
+		)
 	}
 
 	recipientValue := getRandomAmount(big.NewInt(0), adjustedBalance)
@@ -877,7 +896,15 @@ func (t *ConstructionTester) generateAccountScenario(
 			return nil, nil, ErrInsufficientFunds
 		}
 
-		return t.createScenarioContext(sender, recipientValue, minimumRecipients[0], recipientValue, "", nil, nil)
+		return t.createScenarioContext(
+			sender,
+			recipientValue,
+			minimumRecipients[0],
+			recipientValue,
+			"",
+			nil,
+			nil,
+		)
 	}
 
 	// Cannot perform any transfer.
@@ -930,11 +957,27 @@ func (t *ConstructionTester) generateUtxoScenario(
 		recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
 		changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
 
-		return t.createScenarioContext(sender, balance, recipient, recipientValue, changeAddress, changeValue, coinIdentifier)
+		return t.createScenarioContext(
+			sender,
+			balance,
+			recipient,
+			recipientValue,
+			changeAddress,
+			changeValue,
+			coinIdentifier,
+		)
 	}
 
 	if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
-		return t.createScenarioContext(sender, balance, recipient, getRandomAmount(t.minimumBalance, feeLessBalance), "", nil, nil)
+		return t.createScenarioContext(
+			sender,
+			balance,
+			recipient,
+			getRandomAmount(t.minimumBalance, feeLessBalance),
+			"",
+			nil,
+			nil,
+		)
 	}
 
 	// Cannot perform any transfer.
@@ -960,7 +1003,13 @@ func (t *ConstructionTester) generateScenario(
 
 	switch t.config.Construction.AccountingModel {
 	case configuration.AccountModel:
-		return t.generateAccountScenario(ctx, sender, balance, minimumRecipients, belowMinimumRecipients)
+		return t.generateAccountScenario(
+			ctx,
+			sender,
+			balance,
+			minimumRecipients,
+			belowMinimumRecipients,
+		)
 	case configuration.UtxoModel:
 		return t.generateUtxoScenario(ctx, sender, balance, belowMinimumRecipients, coinIdentifier)
 	}
