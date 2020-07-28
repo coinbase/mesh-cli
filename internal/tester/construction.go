@@ -704,6 +704,23 @@ func (t *ConstructionTester) CreateScenarioContext(
 		return nil, nil, fmt.Errorf("invalid accounting model %s", t.config.Construction.AccountingModel)
 	}
 
+	// Validate that scenario arguments are valid
+	if new(big.Int).Sub(recipientValue, t.minimumBalance).Sign() == -1 {
+		return nil, nil, fmt.Errorf(
+			"recipient value %s is below minimum balance %s",
+			recipientValue.String(),
+			t.minimumBalance.String(),
+		)
+	}
+
+	if len(changeAddress) > 0 && new(big.Int).Sub(changeValue, t.minimumBalance).Sign() == -1 {
+		return nil, nil, fmt.Errorf(
+			"change value %s is below minimum balance %s",
+			changeValue.String(),
+			t.minimumBalance.String(),
+		)
+	}
+
 	return &scenario.Context{
 		Sender:         sender,
 		SenderValue:    senderValue,
