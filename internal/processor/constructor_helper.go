@@ -27,6 +27,26 @@ type ConstructorHelper struct {
 	broadcastStorage *storage.BroadcastStorage
 }
 
+func NewConstructorHelper(
+	offlineFetcher *fetcher.Fetcher,
+	onlineFetcher *fetcher.Fetcher,
+	parser *parser.Parser,
+	keyStorage *storage.KeyStorage,
+	balanceStorage *storage.BalanceStorage,
+	coinStorage *storage.CoinStorage,
+	broadcastStorage *storage.BroadcastStorage,
+) *ConstructorHelper {
+	return &ConstructorHelper{
+		offlineFetcher:   offlineFetcher,
+		onlineFetcher:    onlineFetcher,
+		parser:           parser,
+		keyStorage:       keyStorage,
+		balanceStorage:   balanceStorage,
+		coinStorage:      coinStorage,
+		broadcastStorage: broadcastStorage,
+	}
+}
+
 func (c *ConstructorHelper) Derive(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,

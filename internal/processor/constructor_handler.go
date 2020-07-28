@@ -16,6 +16,16 @@ type ConstructorHandler struct {
 	counterStorage *storage.CounterStorage
 }
 
+func NewConstructorHandler(
+	balanceStorageHelper *BalanceStorageHelper,
+	counterStorage *storage.CounterStorage,
+) *ConstructorHandler {
+	return &ConstructorHandler{
+		balanceStorageHelper: balanceStorageHelper,
+		counterStorage:       counterStorage,
+	}
+}
+
 func (h *ConstructorHandler) AddressCreated(ctx context.Context, address string) error {
 	h.balanceStorageHelper.AddInterestingAddress(address)
 

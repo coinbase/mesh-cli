@@ -166,6 +166,37 @@ type Constructor struct {
 	handler ConstructorHandler
 }
 
+func NewConstructor(
+	config *configuration.Configuration,
+	helper ConstructorHelper,
+	handler ConstructorHandler,
+) (*Constructor, error) {
+	minimumBalance, ok := new(big.Int).SetString(config.Construction.MinimumBalance, 10)
+	if !ok {
+		return nil, errors.New("cannot parse minimum balance")
+	}
+
+	maximumFee, ok := new(big.Int).SetString(config.Construction.MaximumFee, 10)
+	if !ok {
+		return nil, errors.New("cannot parse maximum fee")
+	}
+
+	return &Constructor{
+		network:               config.Network,
+		accountingModel:       config.Construction.AccountingModel,
+		currency:              config.Construction.Currency,
+		minimumBalance:        minimumBalance,
+		maximumFee:            maximumFee,
+		curveType:             config.Construction.CurveType,
+		newAccountProbability: config.Construction.NewAccountProbability,
+		maxAddresses:          config.Construction.MaxAddresses,
+		scenario:              config.Construction.Scenario,
+		changeScenario:        config.Construction.ChangeScenario,
+		helper:                helper,
+		handler:               handler,
+	}, nil
+}
+
 // CreateTransaction constructs and signs a transaction with the provided intent.
 func (c *Constructor) CreateTransaction(
 	ctx context.Context,
