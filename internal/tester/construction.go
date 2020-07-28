@@ -43,6 +43,11 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
+// action is some supported intent we can
+// perform. This is used to determine the minimum
+// required balance to complete the transaction.
+type action string
+
 const (
 	// constructionCmdName is used as the prefix on the data directory
 	// for all data saved using this command.
@@ -51,6 +56,21 @@ const (
 	// defaultSleepTime is the default time we sleep
 	// while waiting to perform the next task.
 	defaultSleepTime = 10
+
+	// newAccountSend is a send to a new account.
+	newAccountSend action = "new-account-send"
+
+	// ExistingAccountSend is a send to an existing account.
+	existingAccountSend action = "existing-account-send"
+
+	// changeSend is a send that creates a UTXO
+	// for the recipient and sends the remainder
+	// to a change UTXO.
+	changeSend action = "change-send"
+
+	// fullSend is a send that transfers
+	// all value in one UTXO into another.
+	fullSend action = "full-send"
 )
 
 var (
@@ -80,31 +100,6 @@ type ConstructionTester struct {
 	maximumFee     *big.Int
 	onlineFetcher  *fetcher.Fetcher
 	offlineFetcher *fetcher.Fetcher
-}
-
-// CloseDatabase closes the database used by ConstructionTester.
-func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
-	if err := t.database.Close(ctx); err != nil {
-		log.Fatalf("%s: error closing database", err.Error())
-	}
-}
-
-// StartPeriodicLogger prints out periodic
-// stats about a run of `check:construction`.
-func (t *ConstructionTester) StartPeriodicLogger(
-	ctx context.Context,
-) error {
-	for ctx.Err() == nil {
-		inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-		_ = t.logger.LogConstructionStats(ctx, len(inflight))
-		time.Sleep(PeriodicLoggingFrequency)
-	}
-
-	// Print stats one last time before exiting
-	inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-	_ = t.logger.LogConstructionStats(ctx, len(inflight))
-
-	return ctx.Err()
 }
 
 // InitializeConstruction initiates the construction API tester.
@@ -241,6 +236,167 @@ func InitializeConstruction(
 	}, nil
 }
 
+// CloseDatabase closes the database used by ConstructionTester.
+func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
+	if err := t.database.Close(ctx); err != nil {
+		log.Fatalf("%s: error closing database", err.Error())
+	}
+}
+
+// StartPeriodicLogger prints out periodic
+// stats about a run of `check:construction`.
+func (t *ConstructionTester) StartPeriodicLogger(
+	ctx context.Context,
+) error {
+	for ctx.Err() == nil {
+		inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+		_ = t.logger.LogConstructionStats(ctx, len(inflight))
+		time.Sleep(PeriodicLoggingFrequency)
+	}
+
+	// Print stats one last time before exiting
+	inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+	_ = t.logger.LogConstructionStats(ctx, len(inflight))
+
+	return ctx.Err()
+}
+
+// StartSyncer uses the tester's stateful syncer
+// to compute balance changes and track transactions
+// for confirmation on-chain.
+func (t *ConstructionTester) StartSyncer(
+	ctx context.Context,
+	cancel context.CancelFunc,
+) error {
+	startIndex := int64(-1)
+	_, err := t.blockStorage.GetHeadBlockIdentifier(ctx)
+	if errors.Is(err, storage.ErrHeadBlockNotFound) {
+		// If a block has yet to be synced, start syncing from tip.
+		// TODO: make configurable
+		status, err := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
+		if err != nil {
+			return fmt.Errorf("%w: unable to fetch network status", err)
+		}
+
+		startIndex = status.CurrentBlockIdentifier.Index
+	} else if err != nil {
+		return fmt.Errorf("%w: unable to get last block synced", err)
+	}
+
+	return t.syncer.Sync(ctx, startIndex, -1)
+}
+
+// CreateTransactions loops on the create transaction loop
+// until the caller cancels the context.
+func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
+	// Before starting loop, delete any pending broadcasts if configuration
+	// indicates to do so.
+	if t.config.Construction.ClearBroadcasts {
+		broadcasts, err := t.broadcastStorage.ClearBroadcasts(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to clear broadcasts", err)
+		}
+
+		log.Printf(
+			"Cleared pending %d broadcasts: %s\n",
+			len(broadcasts),
+			types.PrettyPrintStruct(broadcasts),
+		)
+	}
+
+	for ctx.Err() == nil {
+		sender, balance, coinIdentifier, err := t.findSender(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to find sender", err)
+		}
+
+		// Determine Action
+		scenarioCtx, scenarioOps, err := t.generateScenario(
+			ctx,
+			sender,
+			balance,
+			coinIdentifier,
+		)
+		if errors.Is(err, ErrInsufficientFunds) {
+			broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
+			if err != nil {
+				return fmt.Errorf("%w: unable to get broadcasts", err)
+			}
+
+			if len(broadcasts) > 0 {
+				// we will wait for in-flight to process
+				time.Sleep(defaultSleepTime * time.Second)
+				continue
+			}
+
+			if err := t.generateNewAndRequest(ctx); err != nil {
+				return fmt.Errorf("%w: unable to generate new address", err)
+			}
+
+			continue
+		} else if err != nil {
+			return fmt.Errorf("%w: unable to generate intent", err)
+		}
+
+		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, scenarioOps)
+		if err != nil {
+			return fmt.Errorf("%w: unable to populate scenario", err)
+		}
+
+		// Create transaction
+		transactionIdentifier, networkTransaction, err := t.createTransaction(ctx, intent)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: unable to create transaction with operations %s",
+				err,
+				types.PrettyPrintStruct(intent),
+			)
+		}
+
+		logger.LogScenario(scenarioCtx, transactionIdentifier, t.config.Construction.Currency)
+
+		// Broadcast Transaction
+		err = t.broadcastStorage.Broadcast(
+			ctx,
+			sender,
+			intent,
+			transactionIdentifier,
+			networkTransaction,
+		)
+		if err != nil {
+			return fmt.Errorf("%w: unable to enqueue transaction for broadcast", err)
+		}
+
+		_, _ = t.logger.CounterStorage.Update(
+			ctx,
+			storage.TransactionsCreatedCounter,
+			big.NewInt(1),
+		)
+	}
+
+	return ctx.Err()
+}
+
+// PerformBroadcasts attempts to rebroadcast all pending transactions
+// if the RebroadcastAll configuration is set to true.
+func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
+	if !t.config.Construction.RebroadcastAll {
+		return nil
+	}
+
+	color.Magenta("Rebroadcasting all transactions...")
+
+	if err := t.broadcastStorage.BroadcastAll(ctx, false); err != nil {
+		return fmt.Errorf("%w: unable to broadcast all transactions", err)
+	}
+
+	return nil
+}
+
+/*
+ * Private Methods
+ */
+
 // createTransaction constructs and signs a transaction with the provided intent.
 func (t *ConstructionTester) createTransaction(
 	ctx context.Context,
@@ -334,31 +490,6 @@ func (t *ConstructionTester) createTransaction(
 	return transactionIdentifier, networkTransaction, nil
 }
 
-// StartSyncer uses the tester's stateful syncer
-// to compute balance changes and track transactions
-// for confirmation on-chain.
-func (t *ConstructionTester) StartSyncer(
-	ctx context.Context,
-	cancel context.CancelFunc,
-) error {
-	startIndex := int64(-1)
-	_, err := t.blockStorage.GetHeadBlockIdentifier(ctx)
-	if errors.Is(err, storage.ErrHeadBlockNotFound) {
-		// If a block has yet to be synced, start syncing from tip.
-		// TODO: make configurable
-		status, err := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
-		if err != nil {
-			return fmt.Errorf("%w: unable to fetch network status", err)
-		}
-
-		startIndex = status.CurrentBlockIdentifier.Index
-	} else if err != nil {
-		return fmt.Errorf("%w: unable to get last block synced", err)
-	}
-
-	return t.syncer.Sync(ctx, startIndex, -1)
-}
-
 // newAddress generates a new keypair and
 // derives its address offline. This only works
 // for blockchains that don't require an on-chain
@@ -408,9 +539,9 @@ func (t *ConstructionTester) requestFunds(
 			return nil, nil, err
 		}
 
-		minBalance := t.minimumRequiredBalance(NewAccountSend)
+		minBalance := t.minimumRequiredBalance(newAccountSend)
 		if t.config.Construction.AccountingModel == configuration.UtxoModel {
-			minBalance = t.minimumRequiredBalance(ChangeSend)
+			minBalance = t.minimumRequiredBalance(changeSend)
 		}
 
 		if balance != nil && new(big.Int).Sub(balance, minBalance).Sign() != -1 {
@@ -428,36 +559,10 @@ func (t *ConstructionTester) requestFunds(
 	return nil, nil, ctx.Err()
 }
 
-// Action is some supported intent we can
-// perform. This is used to determine the minimum
-// required balance to complete the transaction.
-type Action string
-
-const (
-	// Account-based actions
-
-	// NewAccountSend is a send to a new account.
-	NewAccountSend Action = "new-account-send"
-
-	// ExistingAccountSend is a send to an existing account.
-	ExistingAccountSend Action = "existing-account-send"
-
-	// UTXO-based actions
-
-	// ChangeSend is a send that creates a UTXO
-	// for the recipient and sends the remainder
-	// to a change UTXO.
-	ChangeSend Action = "change-send"
-
-	// FullSend is a send that transfers
-	// all value in one UTXO into another.
-	FullSend Action = "full-send"
-)
-
-func (t *ConstructionTester) minimumRequiredBalance(action Action) *big.Int {
+func (t *ConstructionTester) minimumRequiredBalance(action action) *big.Int {
 	doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
 	switch action {
-	case NewAccountSend, ChangeSend:
+	case newAccountSend, changeSend:
 		// In this account case, we must have keep a balance above
 		// the minimum_balance in the sender's account and send
 		// an amount of at least the minimum_balance to the recipient.
@@ -466,7 +571,7 @@ func (t *ConstructionTester) minimumRequiredBalance(action Action) *big.Int {
 		// balance to the recipient and the change address (or
 		// we will create dust).
 		return new(big.Int).Add(doubleMinimumBalance, t.maximumFee)
-	case ExistingAccountSend, FullSend:
+	case existingAccountSend, fullSend:
 		// In the account case, we must keep a balance above
 		// the minimum_balance in the sender's account.
 		//
@@ -796,7 +901,7 @@ func (t *ConstructionTester) generateAccountScenario(
 	adjustedBalance := new(big.Int).Sub(balance, t.minimumBalance)
 
 	// should send to new account, existing account, or no acccount?
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(NewAccountSend)).Sign() != -1 {
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(newAccountSend)).Sign() != -1 {
 		recipient, created, err := t.canGetNewAddress(
 			ctx,
 			append(minimumRecipients, belowMinimumRecipients...),
@@ -833,7 +938,7 @@ func (t *ConstructionTester) generateAccountScenario(
 	}
 
 	recipientValue := utils.GetRandomNumber(big.NewInt(0), adjustedBalance)
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ExistingAccountSend)).Sign() != -1 {
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
 			return nil, nil, ErrInsufficientFunds
 		}
@@ -883,7 +988,7 @@ func (t *ConstructionTester) generateUtxoScenario(
 	}
 
 	// should send to change, no change, or no send?
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(ChangeSend)).Sign() != -1 &&
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(changeSend)).Sign() != -1 &&
 		t.config.Construction.ChangeScenario != nil {
 		changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
 		if err != nil {
@@ -910,7 +1015,7 @@ func (t *ConstructionTester) generateUtxoScenario(
 		)
 	}
 
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(FullSend)).Sign() != -1 {
+	if new(big.Int).Sub(balance, t.minimumRequiredBalance(fullSend)).Sign() != -1 {
 		return t.createScenarioContext(
 			sender,
 			balance,
@@ -968,113 +1073,6 @@ func (t *ConstructionTester) generateNewAndRequest(ctx context.Context) error {
 	_, _, err = t.requestFunds(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get funds on %s", err, addr)
-	}
-
-	return nil
-}
-
-// CreateTransactions loops on the create transaction loop
-// until the caller cancels the context.
-func (t *ConstructionTester) CreateTransactions(ctx context.Context) error {
-	// Before starting loop, delete any pending broadcasts if configuration
-	// indicates to do so.
-	if t.config.Construction.ClearBroadcasts {
-		broadcasts, err := t.broadcastStorage.ClearBroadcasts(ctx)
-		if err != nil {
-			return fmt.Errorf("%w: unable to clear broadcasts", err)
-		}
-
-		log.Printf(
-			"Cleared pending %d broadcasts: %s\n",
-			len(broadcasts),
-			types.PrettyPrintStruct(broadcasts),
-		)
-	}
-
-	for ctx.Err() == nil {
-		sender, balance, coinIdentifier, err := t.findSender(ctx)
-		if err != nil {
-			return fmt.Errorf("%w: unable to find sender", err)
-		}
-
-		// Determine Action
-		scenarioCtx, scenarioOps, err := t.generateScenario(
-			ctx,
-			sender,
-			balance,
-			coinIdentifier,
-		)
-		if errors.Is(err, ErrInsufficientFunds) {
-			broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
-			if err != nil {
-				return fmt.Errorf("%w: unable to get broadcasts", err)
-			}
-
-			if len(broadcasts) > 0 {
-				// we will wait for in-flight to process
-				time.Sleep(defaultSleepTime * time.Second)
-				continue
-			}
-
-			if err := t.generateNewAndRequest(ctx); err != nil {
-				return fmt.Errorf("%w: unable to generate new address", err)
-			}
-
-			continue
-		} else if err != nil {
-			return fmt.Errorf("%w: unable to generate intent", err)
-		}
-
-		intent, err := scenario.PopulateScenario(ctx, scenarioCtx, scenarioOps)
-		if err != nil {
-			return fmt.Errorf("%w: unable to populate scenario", err)
-		}
-
-		// Create transaction
-		transactionIdentifier, networkTransaction, err := t.createTransaction(ctx, intent)
-		if err != nil {
-			return fmt.Errorf(
-				"%w: unable to create transaction with operations %s",
-				err,
-				types.PrettyPrintStruct(intent),
-			)
-		}
-
-		logger.LogScenario(scenarioCtx, transactionIdentifier, t.config.Construction.Currency)
-
-		// Broadcast Transaction
-		err = t.broadcastStorage.Broadcast(
-			ctx,
-			sender,
-			intent,
-			transactionIdentifier,
-			networkTransaction,
-		)
-		if err != nil {
-			return fmt.Errorf("%w: unable to enqueue transaction for broadcast", err)
-		}
-
-		_, _ = t.logger.CounterStorage.Update(
-			ctx,
-			storage.TransactionsCreatedCounter,
-			big.NewInt(1),
-		)
-	}
-
-	return ctx.Err()
-}
-
-// PerformBroadcasts attempts to rebroadcast all pending transactions
-// if the RebroadcastAll configuration is set to true.
-func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
-	if !t.config.Construction.RebroadcastAll {
-		return nil
-	}
-
-	color.Magenta("Rebroadcasting all transactions...")
-
-	if err := t.broadcastStorage.BroadcastAll(ctx, false); err != nil {
-		return fmt.Errorf("%w: unable to broadcast all transactions", err)
 	}
 
 	return nil
