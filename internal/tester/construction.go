@@ -405,13 +405,18 @@ func (t *ConstructionTester) RequestFunds(
 			return nil, nil, err
 		}
 
-		if balance != nil {
+		minBalance := t.minimumRequiredBalance(NewAccountSend)
+		if t.config.Construction.AccountingModel == configuration.UtxoModel {
+			minBalance = t.minimumRequiredBalance(ChangeSend)
+		}
+
+		if balance != nil && new(big.Int).Sub(balance, minBalance).Sign() != -1 {
 			color.Green("Found balance %s on %s", t.prettyAmount(balance), address)
 			return balance, coinIdentifier, nil
 		}
 
 		if !printedMessage {
-			color.Yellow("Waiting for funds on %s ...", address)
+			color.Yellow("Waiting for funds on %s", address)
 			printedMessage = true
 		}
 		time.Sleep(defaultSleepTime * time.Second)
