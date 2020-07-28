@@ -217,6 +217,10 @@ func (c *ConstructorHelper) LockedAddresses(ctx context.Context) ([]string, erro
 	return c.broadcastStorage.LockedAddresses(ctx)
 }
 
+func (c *ConstructorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+	return c.broadcastStorage.GetAllBroadcasts(ctx)
+}
+
 func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) {
 	return c.keyStorage.GetAllAddresses(ctx)
 }

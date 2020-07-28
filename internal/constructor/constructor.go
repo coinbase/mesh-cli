@@ -10,6 +10,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/internal/scenario"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
@@ -139,6 +140,8 @@ type ConstructorHelper interface {
 
 	LockedAddresses(context.Context) ([]string, error)
 
+	AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
+
 	AllAddresses(ctx context.Context) ([]string, error)
 }
 
@@ -147,11 +150,17 @@ type ConstructorHandler interface {
 }
 
 type Constructor struct {
-	network         *types.NetworkIdentifier
-	accountingModel configuration.AccountingModel
-	currency        *types.Currency
-	minimumBalance  *big.Int
-	maximumFee      *big.Int
+	network               *types.NetworkIdentifier
+	accountingModel       configuration.AccountingModel
+	currency              *types.Currency
+	minimumBalance        *big.Int
+	maximumFee            *big.Int
+	curveType             types.CurveType
+	newAccountProbability float64
+	maxAddresses          int
+
+	scenario       []*types.Operation
+	changeScenario *types.Operation
 
 	helper  ConstructorHelper
 	handler ConstructorHandler
@@ -254,12 +263,12 @@ func (c *Constructor) CreateTransaction(
 	return transactionIdentifier, networkTransaction, nil
 }
 
-// NewAddress generates a new keypair and
+// newAddress generates a new keypair and
 // derives its address offline. This only works
 // for blockchains that don't require an on-chain
 // action to create an account.
-func (c *Constructor) NewAddress(ctx context.Context, curveType types.CurveType) (string, error) {
-	kp, err := keys.GenerateKeypair(curveType)
+func (c *Constructor) newAddress(ctx context.Context) (string, error) {
+	kp, err := keys.GenerateKeypair(c.curveType)
 	if err != nil {
 		return "", fmt.Errorf("%w unable to generate keypair", err)
 	}
@@ -433,7 +442,7 @@ func (c *Constructor) findSender(
 		}
 
 		if len(addresses) == 0 { // create new and load
-			err := t.generateNewAndRequest(ctx)
+			err := c.generateNewAndRequest(ctx)
 			if err != nil {
 				return "", nil, nil, fmt.Errorf("%w: unable to generate new and request", err)
 			}
@@ -441,7 +450,7 @@ func (c *Constructor) findSender(
 			continue // we will exit on next loop
 		}
 
-		bestAddress, bestBalance, bestCoin, err := t.getBestUnlockedSender(ctx, addresses)
+		bestAddress, bestBalance, bestCoin, err := c.getBestUnlockedSender(ctx, addresses)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("%w: unable to get best unlocked sender", err)
 		}
@@ -450,7 +459,7 @@ func (c *Constructor) findSender(
 			return bestAddress, bestBalance, bestCoin, nil
 		}
 
-		broadcasts, err := t.broadcastStorage.GetAllBroadcasts(ctx)
+		broadcasts, err := c.helper.AllBroadcasts(ctx)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("%w: unable to get broadcasts", err)
 		}
@@ -464,7 +473,7 @@ func (c *Constructor) findSender(
 			continue
 		}
 
-		if err := t.generateNewAndRequest(ctx); err != nil {
+		if err := c.generateNewAndRequest(ctx); err != nil {
 			return "", nil, nil, fmt.Errorf("%w: generate new address and request", err)
 		}
 	}
@@ -485,7 +494,7 @@ func (c *Constructor) findRecipients(
 	minimumRecipients := []string{}
 	belowMinimumRecipients := []string{}
 
-	addresses, err := t.keyStorage.GetAllAddresses(ctx)
+	addresses, err := c.helper.AllAddresses(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to get address", err)
 	}
@@ -495,18 +504,18 @@ func (c *Constructor) findRecipients(
 		}
 
 		// Sending UTXOs always requires sending to the minimum.
-		if t.config.Construction.AccountingModel == configuration.UtxoModel {
+		if c.accountingModel == configuration.UtxoModel {
 			belowMinimumRecipients = append(belowMinimumRecipients, a)
 
 			continue
 		}
 
-		bal, _, err := t.balance(ctx, a)
+		bal, _, err := c.balance(ctx, a)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to retrieve balance for %s", err, a)
 		}
 
-		if new(big.Int).Sub(bal, t.minimumBalance).Sign() >= 0 {
+		if new(big.Int).Sub(bal, c.minimumBalance).Sign() >= 0 {
 			minimumRecipients = append(minimumRecipients, a)
 
 			continue
@@ -533,13 +542,13 @@ func (c *Constructor) createScenarioContext(
 	// to ensure we don't accidentally overwrite the loaded configuration
 	// while hydrating values.
 	scenarioOps := []*types.Operation{}
-	if err := copier.Copy(&scenarioOps, t.config.Construction.Scenario); err != nil {
+	if err := copier.Copy(&scenarioOps, c.scenario); err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to copy scenario", err)
 	}
 
 	if len(changeAddress) > 0 {
 		changeCopy := types.Operation{}
-		if err := copier.Copy(&changeCopy, t.config.Construction.ChangeScenario); err != nil {
+		if err := copier.Copy(&changeCopy, c.changeScenario); err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to copy change intent", err)
 		}
 
@@ -551,7 +560,7 @@ func (c *Constructor) createScenarioContext(
 		SenderValue:    senderValue,
 		Recipient:      recipient,
 		RecipientValue: recipientValue,
-		Currency:       t.config.Construction.Currency,
+		Currency:       c.currency,
 		CoinIdentifier: coinIdentifier,
 		ChangeAddress:  changeAddress,
 		ChangeValue:    changeValue,
@@ -562,14 +571,14 @@ func (c *Constructor) canGetNewAddress(
 	ctx context.Context,
 	recipients []string,
 ) (string, bool, error) {
-	availableAddresses, err := t.keyStorage.GetAllAddresses(ctx)
+	availableAddresses, err := c.helper.AllAddresses(ctx)
 	if err != nil {
 		return "", false, fmt.Errorf("%w: unable to get available addresses", err)
 	}
 
-	if (rand.Float64() > t.config.Construction.NewAccountProbability &&
-		len(availableAddresses) < t.config.Construction.MaxAddresses) || len(recipients) == 0 {
-		addr, err := t.newAddress(ctx)
+	if (rand.Float64() > c.newAccountProbability &&
+		len(availableAddresses) < c.maxAddresses) || len(recipients) == 0 {
+		addr, err := c.newAddress(ctx)
 		if err != nil {
 			return "", false, fmt.Errorf("%w: cannot create new address", err)
 		}
@@ -591,11 +600,11 @@ func (c *Constructor) generateAccountScenario(
 	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
-	adjustedBalance := new(big.Int).Sub(balance, t.minimumBalance)
+	adjustedBalance := new(big.Int).Sub(balance, c.minimumBalance)
 
 	// should send to new account, existing account, or no acccount?
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(newAccountSend)).Sign() != -1 {
-		recipient, created, err := t.canGetNewAddress(
+	if new(big.Int).Sub(balance, c.minimumRequiredBalance(newAccountSend)).Sign() != -1 {
+		recipient, created, err := c.canGetNewAddress(
 			ctx,
 			append(minimumRecipients, belowMinimumRecipients...),
 		)
@@ -604,8 +613,8 @@ func (c *Constructor) generateAccountScenario(
 		}
 
 		if created || utils.ContainsString(belowMinimumRecipients, recipient) {
-			recipientValue := utils.RandomNumber(t.minimumBalance, adjustedBalance)
-			return t.createScenarioContext(
+			recipientValue := utils.RandomNumber(c.minimumBalance, adjustedBalance)
+			return c.createScenarioContext(
 				sender,
 				recipientValue,
 				recipient,
@@ -619,7 +628,7 @@ func (c *Constructor) generateAccountScenario(
 		// We do not need to send the minimum amount here because the recipient
 		// already has a minimum balance.
 		recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
-		return t.createScenarioContext(
+		return c.createScenarioContext(
 			sender,
 			recipientValue,
 			recipient,
@@ -631,12 +640,12 @@ func (c *Constructor) generateAccountScenario(
 	}
 
 	recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
+	if new(big.Int).Sub(balance, c.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
 			return nil, nil, ErrInsufficientFunds
 		}
 
-		return t.createScenarioContext(
+		return c.createScenarioContext(
 			sender,
 			recipientValue,
 			minimumRecipients[0],
@@ -662,8 +671,8 @@ func (c *Constructor) generateUtxoScenario(
 	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
-	feeLessBalance := new(big.Int).Sub(balance, t.maximumFee)
-	recipient, created, err := t.canGetNewAddress(ctx, recipients)
+	feeLessBalance := new(big.Int).Sub(balance, c.maximumFee)
+	recipient, created, err := c.canGetNewAddress(ctx, recipients)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to get recipient", err)
 	}
@@ -681,23 +690,23 @@ func (c *Constructor) generateUtxoScenario(
 	}
 
 	// should send to change, no change, or no send?
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(changeSend)).Sign() != -1 &&
-		t.config.Construction.ChangeScenario != nil {
-		changeAddress, _, err := t.canGetNewAddress(ctx, recipients)
+	if new(big.Int).Sub(balance, c.minimumRequiredBalance(changeSend)).Sign() != -1 &&
+		c.changeScenario != nil {
+		changeAddress, _, err := c.canGetNewAddress(ctx, recipients)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unable to get change address", err)
 		}
 
-		doubleMinimumBalance := new(big.Int).Add(t.minimumBalance, t.minimumBalance)
+		doubleMinimumBalance := new(big.Int).Add(c.minimumBalance, c.minimumBalance)
 		changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
 
 		recipientShare := utils.RandomNumber(big.NewInt(0), changeDifferential)
 		changeShare := new(big.Int).Sub(changeDifferential, recipientShare)
 
-		recipientValue := new(big.Int).Add(t.minimumBalance, recipientShare)
-		changeValue := new(big.Int).Add(t.minimumBalance, changeShare)
+		recipientValue := new(big.Int).Add(c.minimumBalance, recipientShare)
+		changeValue := new(big.Int).Add(c.minimumBalance, changeShare)
 
-		return t.createScenarioContext(
+		return c.createScenarioContext(
 			sender,
 			balance,
 			recipient,
@@ -708,12 +717,12 @@ func (c *Constructor) generateUtxoScenario(
 		)
 	}
 
-	if new(big.Int).Sub(balance, t.minimumRequiredBalance(fullSend)).Sign() != -1 {
-		return t.createScenarioContext(
+	if new(big.Int).Sub(balance, c.minimumRequiredBalance(fullSend)).Sign() != -1 {
+		return c.createScenarioContext(
 			sender,
 			balance,
 			recipient,
-			utils.RandomNumber(t.minimumBalance, feeLessBalance),
+			utils.RandomNumber(c.minimumBalance, feeLessBalance),
 			"",
 			nil,
 			nil,
@@ -736,14 +745,14 @@ func (c *Constructor) generateScenario(
 	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
-	minimumRecipients, belowMinimumRecipients, err := t.findRecipients(ctx, sender)
+	minimumRecipients, belowMinimumRecipients, err := c.findRecipients(ctx, sender)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to find recipients", err)
 	}
 
-	switch t.config.Construction.AccountingModel {
+	switch c.accountingModel {
 	case configuration.AccountModel:
-		return t.generateAccountScenario(
+		return c.generateAccountScenario(
 			ctx,
 			sender,
 			balance,
@@ -751,19 +760,19 @@ func (c *Constructor) generateScenario(
 			belowMinimumRecipients,
 		)
 	case configuration.UtxoModel:
-		return t.generateUtxoScenario(ctx, sender, balance, belowMinimumRecipients, coinIdentifier)
+		return c.generateUtxoScenario(ctx, sender, balance, belowMinimumRecipients, coinIdentifier)
 	}
 
 	return nil, nil, ErrInsufficientFunds
 }
 
 func (c *Constructor) generateNewAndRequest(ctx context.Context) error {
-	addr, err := t.newAddress(ctx)
+	addr, err := c.newAddress(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to create address", err)
 	}
 
-	_, _, err = t.requestFunds(ctx, addr)
+	_, _, err = c.requestFunds(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get funds on %s", err, addr)
 	}
