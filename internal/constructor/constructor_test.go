@@ -860,12 +860,12 @@ func TestGenerateScenario_Account(t *testing.T) {
 					mock.Anything,
 					mock.Anything,
 				).Return(
-					"new addr 1",
+					newAddress,
 					nil,
 					nil,
-				)
-				mockHelper.On("StoreKey", ctx, "new addr 1", mock.Anything).Return(nil)
-				mockHandler.On("AddressCreated", ctx, "new addr 1").Return(nil).Once()
+				).Once()
+				mockHelper.On("StoreKey", ctx, newAddress, mock.Anything).Return(nil)
+				mockHandler.On("AddressCreated", ctx, newAddress).Return(nil).Once()
 			}
 
 			constructor.minimumBalance = test.minimumBalance
@@ -912,14 +912,22 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 	sender := "sender"
 	senderCoin := &types.CoinIdentifier{Identifier: "sender coin"}
 	newAddress := "new addr 1"
+	changeAddress := "change addr 1"
 
 	tests := map[string]struct {
 		minimumBalance        *big.Int
 		maximumFee            *big.Int
 		maxAddresses          int
 		newAccountProbability float64
-		randomAccountNumber   *big.Int
-		expectNew             bool
+
+		recipientAccountNumber *big.Int
+		expectNewRecipient     bool
+
+		changeAccountNumber *big.Int
+		expectNewChange     bool
+
+		changeDifferential       *big.Int
+		changeDifferentialAmount *big.Int
 
 		addresses int
 
@@ -929,13 +937,43 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 		scenarioOps []*types.Operation
 		err         error
 	}{
+		"create new recipient, create new change - good flips": {
+			minimumBalance:         big.NewInt(400),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(1),
+			expectNewRecipient:     true,
+			changeAccountNumber:    big.NewInt(1),
+			expectNewChange:        true,
+
+			changeDifferential:       big.NewInt(300),
+			changeDifferentialAmount: big.NewInt(151),
+
+			addresses: 10,
+
+			senderBalance: big.NewInt(1500),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(1500),
+				Recipient:      newAddress,
+				RecipientValue: big.NewInt(551),
+				ChangeAddress:  changeAddress,
+				ChangeValue:    big.NewInt(549),
+				Currency:       constructor.currency,
+				CoinIdentifier: senderCoin,
+			},
+			scenarioOps: append(constructor.scenario, constructor.changeScenario),
+			err:         nil,
+		},
 		"create new address, no change - good flip": {
-			minimumBalance:        big.NewInt(500),
-			maximumFee:            big.NewInt(400),
-			maxAddresses:          100,
-			newAccountProbability: 0.5,
-			randomAccountNumber:   big.NewInt(1),
-			expectNew:             true,
+			minimumBalance:         big.NewInt(500),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(1),
+			expectNewRecipient:     true,
 
 			addresses: 10,
 
@@ -953,12 +991,12 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			err:         nil,
 		},
 		"don't create new address, no change - good flip": {
-			minimumBalance:        big.NewInt(500),
-			maximumFee:            big.NewInt(400),
-			maxAddresses:          100,
-			newAccountProbability: 0.5,
-			randomAccountNumber:   big.NewInt(1),
-			expectNew:             false,
+			minimumBalance:         big.NewInt(500),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(1),
+			expectNewRecipient:     false,
 
 			addresses: 200,
 
@@ -976,12 +1014,12 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			err:         nil,
 		},
 		"create new address, no change - bad flip": {
-			minimumBalance:        big.NewInt(500),
-			maximumFee:            big.NewInt(400),
-			maxAddresses:          100,
-			newAccountProbability: 0.5,
-			randomAccountNumber:   big.NewInt(90),
-			expectNew:             false,
+			minimumBalance:         big.NewInt(500),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(90),
+			expectNewRecipient:     false,
 
 			senderBalance: big.NewInt(1000),
 
@@ -999,12 +1037,12 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			err:         nil,
 		},
 		"insufficient funds": {
-			minimumBalance:        big.NewInt(500),
-			maximumFee:            big.NewInt(400),
-			maxAddresses:          100,
-			newAccountProbability: 0.5,
-			randomAccountNumber:   big.NewInt(90),
-			expectNew:             false,
+			minimumBalance:         big.NewInt(500),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(90),
+			expectNewRecipient:     false,
 
 			senderBalance: big.NewInt(500),
 
@@ -1015,11 +1053,11 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			err:         ErrInsufficientFunds,
 		},
 		"zero funds": {
-			minimumBalance:        big.NewInt(0),
-			maximumFee:            big.NewInt(0),
-			maxAddresses:          100,
-			newAccountProbability: 0.5,
-			randomAccountNumber:   big.NewInt(1),
+			minimumBalance:         big.NewInt(0),
+			maximumFee:             big.NewInt(0),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(1),
 
 			senderBalance: big.NewInt(0),
 
@@ -1040,8 +1078,8 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			mockHandler := new(mocks.Handler)
 			constructor.handler = mockHandler
 
-			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.randomAccountNumber).Once()
-			if test.expectNew {
+			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.recipientAccountNumber).Once()
+			if test.expectNewRecipient {
 				mockHelper.On(
 					"Derive",
 					ctx,
@@ -1049,12 +1087,33 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 					mock.Anything,
 					mock.Anything,
 				).Return(
-					"new addr 1",
+					newAddress,
 					nil,
 					nil,
-				)
-				mockHelper.On("StoreKey", ctx, "new addr 1", mock.Anything).Return(nil)
-				mockHandler.On("AddressCreated", ctx, "new addr 1").Return(nil).Once()
+				).Once()
+				mockHelper.On("StoreKey", ctx, newAddress, mock.Anything).Return(nil).Once()
+				mockHandler.On("AddressCreated", ctx, newAddress).Return(nil).Once()
+			}
+
+			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.changeAccountNumber).Once()
+			if test.expectNewChange {
+				mockHelper.On(
+					"Derive",
+					ctx,
+					constructor.network,
+					mock.Anything,
+					mock.Anything,
+				).Return(
+					changeAddress,
+					nil,
+					nil,
+				).Once()
+				mockHelper.On("StoreKey", ctx, changeAddress, mock.Anything).Return(nil).Once()
+				mockHandler.On("AddressCreated", ctx, changeAddress).Return(nil).Once()
+			}
+
+			if test.changeDifferential != nil {
+				mockHelper.On("RandomAmount", big.NewInt(0), test.changeDifferential).Return(test.changeDifferentialAmount).Once()
 			}
 
 			constructor.minimumBalance = test.minimumBalance
