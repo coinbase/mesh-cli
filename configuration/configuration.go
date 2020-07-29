@@ -24,6 +24,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 )
 
 // AccountingModel is a type representing possible accounting models
@@ -47,6 +48,13 @@ const (
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
 	DefaultTimeout                           = 10
+	DefaultConfirmationDepth                 = 10
+	DefaultStaleDepth                        = 30
+	DefaultBroadcastLimit                    = 3
+	DefaultTipDelay                          = 300
+	DefaultBlockBroadcastLimit               = 5
+	DefaultNewAccountProbability             = 0.5
+	DefaultMaxAddresses                      = 200
 
 	// ETH Defaults
 	EthereumIDBlockchain    = "Ethereum"
@@ -110,52 +118,103 @@ var (
 // to run check:construction.
 type ConstructionConfiguration struct {
 	// OfflineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
 	OfflineURL string `json:"offline_url"`
 
 	// Currency is the *types.Currency to track and use for transactions.
-	// default: {Symbol: "ETH", Decimals: 18}
 	Currency *types.Currency `json:"currency"`
 
 	// MinimumBalance is balance at a particular address
 	// that is not considered spendable.
-	// default: "0"
 	MinimumBalance string `json:"minimum_balance"`
 
 	// MaximumFee is the maximum fee that could be used
 	// to send a transaction. The sendable balance
 	// of any address is calculated as balance - minimum_balance - maximum_fee.
-	// default: "10000000"
 	MaximumFee string `json:"maximum_fee"`
 
 	// CurveType is the curve to use when generating a *keys.KeyPair.
-	// default: "secp256k1"
 	CurveType types.CurveType `json:"curve_type"`
 
 	// AccountingModel is the type of acccount model to use for
 	// testing (account vs UTXO).
-	// default: "account"
 	AccountingModel AccountingModel `json:"accounting_model"`
 
-	// TransferScenario contains a slice of operations that
-	// indicate how to perform a transfer on a blockchain. In the future
+	// Scenario contains a slice of operations that
+	// indicate how to construct a transaction on a blockchain. In the future
 	// this will be expanded to support all kinds of construction scenarios (like
 	// staking or governance).
-	// default: ETH transfer
-	TransferScenario []*types.Operation `json:"transfer_scenario"`
+	Scenario []*types.Operation `json:"scenario"`
+
+	// ConfirmationDepth is the number of blocks that must be synced
+	// after a transaction before a transaction is confirmed.
+	//
+	// Note: Rosetta uses Bitcoin's definition of depth, so
+	// a transaction has depth 1 if it is in the head block.
+	// Source: https://en.bitcoin.it/wiki/Confirmation
+	ConfirmationDepth int64 `json:"confirmation_depth"`
+
+	// StaleDepth is the number of blocks to wait before attempting
+	// to rebroadcast after not finding a transaction on-chain.
+	StaleDepth int64 `json:"stale_depth"`
+
+	// BroadcastLimit is the number of times to attempt re-broadcast
+	// before giving up on a transaction broadcast.
+	BroadcastLimit int `json:"broadcast_limit"`
+
+	// IgnoreBroadcastFailures determines if we should exit when there
+	// are broadcast failures (that surpass the BroadcastLimit).
+	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
+
+	// ChangeScenario is added to the scenario if it is possible to generate
+	// a change transaction where the recipient address is over
+	// the minimum balance. If this is left nil, no change
+	// will ever be created. This is ONLY used for UTXO-based
+	// testing.
+	ChangeScenario *types.Operation `json:"change_scenario"`
+
+	// ClearBroadcasts indicates if all pending broadcasts should
+	// be removed from BroadcastStorage on restart.
+	ClearBroadcasts bool `json:"clear_broadcasts"`
+
+	// BroadcastBehindTip indicates if we should broadcast transactions
+	// when we are behind tip (as defined by TipDelay).
+	BroadcastBehindTip bool `json:"broadcast_behind_tip"`
+
+	// BlockBroadcastLimit is the number of transactions to attempt
+	// broadcast in a single block. When there are many pending
+	// broadcasts, it may make sense to limit the number of broadcasts.
+	BlockBroadcastLimit int `json:"block_broadcast_limit"`
+
+	// RebroadcastAll indicates if all pending broadcasts should be
+	// rebroadcast from BroadcastStorage on restart.
+	RebroadcastAll bool `json:"rebroadcast_all"`
+
+	// NewAccountProbability is the probability we create a new
+	// recipient address on any transaction creation loop.
+	NewAccountProbability float64 `json:"new_account_probability"`
+
+	// MaxAddresses is the maximum number of addresses
+	// to generate while testing.
+	MaxAddresses int `json:"max_addresses"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
 // used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
-		OfflineURL:       DefaultURL,
-		Currency:         EthereumCurrency,
-		MinimumBalance:   EthereumMinimumBalance,
-		MaximumFee:       EthereumMaximumFee,
-		CurveType:        EthereumCurveType,
-		AccountingModel:  EthereumAccountingModel,
-		TransferScenario: EthereumTransfer,
+		OfflineURL:            DefaultURL,
+		Currency:              EthereumCurrency,
+		MinimumBalance:        EthereumMinimumBalance,
+		MaximumFee:            EthereumMaximumFee,
+		CurveType:             EthereumCurveType,
+		AccountingModel:       EthereumAccountingModel,
+		Scenario:              EthereumTransfer,
+		ConfirmationDepth:     DefaultConfirmationDepth,
+		StaleDepth:            DefaultStaleDepth,
+		BroadcastLimit:        DefaultBroadcastLimit,
+		BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+		NewAccountProbability: DefaultNewAccountProbability,
+		MaxAddresses:          DefaultMaxAddresses,
 	}
 }
 
@@ -163,8 +222,6 @@ func DefaultConstructionConfiguration() *ConstructionConfiguration {
 // for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
 	return &DataConfiguration{
-		BlockConcurrency:                  DefaultBlockConcurrency,
-		TransactionConcurrency:            DefaultTransactionConcurrency,
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
@@ -176,83 +233,66 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:      EthereumNetwork,
-		OnlineURL:    DefaultURL,
-		HTTPTimeout:  DefaultTimeout,
-		Construction: DefaultConstructionConfiguration(),
-		Data:         DefaultDataConfiguration(),
+		Network:                EthereumNetwork,
+		OnlineURL:              DefaultURL,
+		HTTPTimeout:            DefaultTimeout,
+		BlockConcurrency:       DefaultBlockConcurrency,
+		TransactionConcurrency: DefaultTransactionConcurrency,
+		TipDelay:               DefaultTipDelay,
+		Construction:           DefaultConstructionConfiguration(),
+		Data:                   DefaultDataConfiguration(),
 	}
 }
 
 // DataConfiguration contains all configurations to run check:data.
 type DataConfiguration struct {
-	// BlockConcurrency is the concurrency to use while fetching blocks.
-	// default: 8
-	BlockConcurrency uint64 `json:"block_concurrency"`
-
-	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
-	// default: 16
-	TransactionConcurrency uint64 `json:"transaction_concurrency"`
-
 	// ActiveReconciliationConcurrency is the concurrency to use while fetching accounts
 	// during active reconciliation.
-	// default: 8
 	ActiveReconciliationConcurrency uint64 `json:"active_reconciliation_concurrency"`
 
 	// InactiveReconciliationConcurrency is the concurrency to use while fetching accounts
 	// during inactive reconciliation.
-	// default: 4
 	InactiveReconciliationConcurrency uint64 `json:"inactive_reconciliation_concurrency"`
 
 	// InactiveReconciliationFrequency is the number of blocks to wait between
 	// inactive reconiliations on each account.
-	// default: 250
 	InactiveReconciliationFrequency uint64 `json:"inactive_reconciliation_frequency"`
 
 	// LogBlocks is a boolean indicating whether to log processed blocks.
-	// default: false
 	LogBlocks bool `json:"log_blocks"`
 
 	// LogTransactions is a boolean indicating whether to log processed transactions.
-	// default: false
 	LogTransactions bool `json:"log_transactions"`
 
 	// LogBalanceChanges is a boolean indicating whether to log all balance changes.
-	// default: false
 	LogBalanceChanges bool `json:"log_balance_changes"`
 
 	// LogReconciliations is a boolean indicating whether to log all reconciliations.
-	// default: false
 	LogReconciliations bool `json:"log_reconciliations"`
 
 	// IgnoreReconciliationError determines if block processing should halt on a reconciliation
 	// error. It can be beneficial to collect all reconciliation errors or silence
 	// reconciliation errors during development.
-	// default: false
 	IgnoreReconciliationError bool `json:"ignore_reconciliation_error"`
 
 	// ExemptAccounts is a path to a file listing all accounts to exempt from balance
 	// tracking and reconciliation. Look at the examples directory for an example of
 	// how to structure this file.
-	// default: ""
 	ExemptAccounts string `json:"exempt_accounts"`
 
 	// BootstrapBalances is a path to a file used to bootstrap balances
 	// before starting syncing. If this value is populated after beginning syncing,
 	// it will be ignored.
-	// default: ""
 	BootstrapBalances string `json:"bootstrap_balances"`
 
 	// HistoricalBalanceDisabled is a boolean that dictates how balance lookup is performed.
 	// When set to true, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
 	// historical balance lookup should set this to false.
-	// default: false
 	HistoricalBalanceDisabled bool `json:"historical_balance_disabled"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.
-	// default: ""
 	InterestingAccounts string `json:"interesting_accounts"`
 
 	// ReconciliationDisabled is a boolean that indicates reconciliation should not
@@ -282,15 +322,24 @@ type Configuration struct {
 	Network *types.NetworkIdentifier `json:"network"`
 
 	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
-	// default: http://localhost:8080
 	OnlineURL string `json:"online_url"`
 
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
-	// default: ""
 	DataDirectory string `json:"data_directory"`
 
 	// HTTPTimeout is the timeout for HTTP requests in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
+
+	// BlockConcurrency is the concurrency to use while fetching blocks.
+	BlockConcurrency uint64 `json:"block_concurrency"`
+
+	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
+	TransactionConcurrency uint64 `json:"transaction_concurrency"`
+
+	// TipDelay dictates how many seconds behind the current time is considered
+	// tip. If we are > TipDelay seconds from the last processed block,
+	// we are considered to be behind tip.
+	TipDelay int64 `json:"tip_delay"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
@@ -327,8 +376,32 @@ func populateConstructionMissingFields(
 		constructionConfig.AccountingModel = EthereumAccountingModel
 	}
 
-	if len(constructionConfig.TransferScenario) == 0 {
-		constructionConfig.TransferScenario = EthereumTransfer
+	if len(constructionConfig.Scenario) == 0 {
+		constructionConfig.Scenario = EthereumTransfer
+	}
+
+	if constructionConfig.ConfirmationDepth == 0 {
+		constructionConfig.ConfirmationDepth = DefaultConfirmationDepth
+	}
+
+	if constructionConfig.StaleDepth == 0 {
+		constructionConfig.StaleDepth = DefaultStaleDepth
+	}
+
+	if constructionConfig.BroadcastLimit == 0 {
+		constructionConfig.BroadcastLimit = DefaultBroadcastLimit
+	}
+
+	if constructionConfig.BlockBroadcastLimit == 0 {
+		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
+	}
+
+	if constructionConfig.NewAccountProbability == 0 {
+		constructionConfig.NewAccountProbability = DefaultNewAccountProbability
+	}
+
+	if constructionConfig.MaxAddresses == 0 {
+		constructionConfig.MaxAddresses = DefaultMaxAddresses
 	}
 
 	return constructionConfig
@@ -337,14 +410,6 @@ func populateConstructionMissingFields(
 func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration {
 	if dataConfig == nil {
 		return DefaultDataConfiguration()
-	}
-
-	if dataConfig.BlockConcurrency == 0 {
-		dataConfig.BlockConcurrency = DefaultBlockConcurrency
-	}
-
-	if dataConfig.TransactionConcurrency == 0 {
-		dataConfig.TransactionConcurrency = DefaultTransactionConcurrency
 	}
 
 	if dataConfig.ActiveReconciliationConcurrency == 0 {
@@ -377,6 +442,18 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.HTTPTimeout == 0 {
 		config.HTTPTimeout = DefaultTimeout
+	}
+
+	if config.BlockConcurrency == 0 {
+		config.BlockConcurrency = DefaultBlockConcurrency
+	}
+
+	if config.TransactionConcurrency == 0 {
+		config.TransactionConcurrency = DefaultTransactionConcurrency
+	}
+
+	if config.TipDelay == 0 {
+		config.TipDelay = DefaultTipDelay
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
@@ -451,10 +528,12 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 		return nil, fmt.Errorf("%w: invalid configuration", err)
 	}
 
-	log.Printf(
+	color.Cyan(
 		"loaded configuration file: %s\n",
 		filePath,
 	)
+
+	log.Println(types.PrettyPrintStruct(config))
 
 	return config, nil
 }

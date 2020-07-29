@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -43,7 +44,7 @@ var (
 
 	accountCoins = []*Coin{
 		{
-			Identifier:  "coin1",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin1"},
 			Transaction: coinBlock.Transactions[0],
 			Operation:   coinBlock.Transactions[0].Operations[0],
 		},
@@ -51,7 +52,7 @@ var (
 
 	account2Coins = []*Coin{
 		{
-			Identifier:  "coin2",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin2"},
 			Transaction: coinBlock.Transactions[0],
 			Operation:   coinBlock.Transactions[0].Operations[1],
 		},
@@ -59,12 +60,12 @@ var (
 
 	account3Coins = []*Coin{
 		{
-			Identifier:  "coin3",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin3"},
 			Transaction: coinBlock3.Transactions[0],
 			Operation:   coinBlock3.Transactions[0].Operations[0],
 		},
 		{
-			Identifier:  "coin4",
+			Identifier:  &types.CoinIdentifier{Identifier: "coin4"},
 			Transaction: coinBlock3.Transactions[1],
 			Operation:   coinBlock3.Transactions[1].Operations[0],
 		},
@@ -72,6 +73,16 @@ var (
 
 	successStatus = "success"
 	failureStatus = "failure"
+
+	currency = &types.Currency{
+		Symbol:   "sym",
+		Decimals: 12,
+	}
+
+	currency2 = &types.Currency{
+		Symbol:   "sym2",
+		Decimals: 12,
+	}
 
 	coinBlock = &types.Block{
 		Transactions: []*types.Transaction{
@@ -81,30 +92,42 @@ var (
 						Account: account,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "10",
+							Value:    "10",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin1",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin1",
+							},
 						},
 					},
 					{
 						Account: account2,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "15",
+							Value:    "15",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin2",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin2",
+							},
 						},
 					},
 					{
 						Account: account2,
 						Status:  failureStatus,
 						Amount: &types.Amount{
-							Value: "20",
+							Value:    "20",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin2",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin2",
+							},
 						},
 					},
 				},
@@ -120,10 +143,14 @@ var (
 						Account: account,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "-10",
+							Value:    "-10",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinSpent: "coin1",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinSpent,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin1",
+							},
 						},
 					},
 				},
@@ -139,10 +166,14 @@ var (
 						Account: account3,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "4",
+							Value:    "4",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin3",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin3",
+							},
 						},
 					},
 				},
@@ -153,10 +184,14 @@ var (
 						Account: account3,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "6",
+							Value:    "6",
+							Currency: currency2,
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin4",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin4",
+							},
 						},
 					},
 				},
@@ -167,10 +202,14 @@ var (
 						Account: account3,
 						Status:  failureStatus,
 						Amount: &types.Amount{
-							Value: "12",
+							Value:    "12",
+							Currency: currency,
 						},
-						Metadata: map[string]interface{}{
-							coinCreated: "coin5",
+						CoinChange: &types.CoinChange{
+							CoinAction: types.CoinCreated,
+							CoinIdentifier: &types.CoinIdentifier{
+								Identifier: "coin5",
+							},
 						},
 					},
 				},
@@ -221,6 +260,11 @@ func TestCoinStorage(t *testing.T) {
 		coins, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+
+		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account, currency)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(0), bal)
+		assert.Nil(t, coinIdentifier)
 	})
 
 	t.Run("add block", func(t *testing.T) {
@@ -303,5 +347,15 @@ func TestCoinStorage(t *testing.T) {
 		coins, err = c.GetCoins(ctx, account3)
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, account3Coins, coins)
+
+		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account3, currency)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(4), bal)
+		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin3"}, coinIdentifier)
+
+		bal, coinIdentifier, err = c.GetLargestCoin(ctx, account3, currency2)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(6), bal)
+		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin4"}, coinIdentifier)
 	})
 }

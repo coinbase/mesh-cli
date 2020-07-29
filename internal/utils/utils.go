@@ -15,18 +15,26 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
+	"math/rand"
 	"os"
 	"path"
+	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
 )
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 const (
 	// DefaultFilePermissions specifies that the user can
@@ -36,6 +44,28 @@ const (
 	// AllFilePermissions specifies anyone can do anything
 	// to the file.
 	AllFilePermissions = 0777
+
+	base10            = 10
+	bigFloatPrecision = 512
+
+	// NanosecondsInMillisecond is the number
+	// of nanoseconds in a millisecond.
+	NanosecondsInMillisecond = 1000000
+
+	// MillisecondsInSecond is the number
+	// of milliseconds in a second.
+	MillisecondsInSecond = 1000
+
+	// OneHundred is the number 100.
+	OneHundred = 100
+)
+
+var (
+	// OneHundredInt is a big.Int of value 100.
+	OneHundredInt = big.NewInt(OneHundred)
+
+	// ZeroInt is a big.Int of value 0.
+	ZeroInt = big.NewInt(0)
 )
 
 // CreateTempDir creates a directory in
@@ -92,12 +122,17 @@ func SerializeAndWrite(filePath string, object interface{}) error {
 // LoadAndParse reads the file at the provided path
 // and attempts to unmarshal it into output.
 func LoadAndParse(filePath string, output interface{}) error {
-	bytes, err := ioutil.ReadFile(path.Clean(filePath))
+	b, err := ioutil.ReadFile(path.Clean(filePath))
 	if err != nil {
 		return fmt.Errorf("%w: unable to load file %s", err, filePath)
 	}
 
-	if err := json.Unmarshal(bytes, &output); err != nil {
+	// To prevent silent erroring, we explicitly
+	// reject any unknown fields.
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&output); err != nil {
 		return fmt.Errorf("%w: unable to unmarshal", err)
 	}
 
@@ -134,14 +169,18 @@ func CheckNetworkSupported(
 	}
 
 	networkMatched := false
+	supportedNetworks := []*types.NetworkIdentifier{}
 	for _, availableNetwork := range networks.NetworkIdentifiers {
 		if types.Hash(availableNetwork) == types.Hash(networkIdentifier) {
 			networkMatched = true
 			break
 		}
+
+		supportedNetworks = append(supportedNetworks, availableNetwork)
 	}
 
 	if !networkMatched {
+		color.Yellow("Supported networks: %s", types.PrettyPrintStruct(supportedNetworks))
 		return nil, fmt.Errorf("%s is not available", types.PrettyPrintStruct(networkIdentifier))
 	}
 
@@ -155,4 +194,68 @@ func CheckNetworkSupported(
 	}
 
 	return status, nil
+}
+
+// BigPow10 computes the value of 10^e.
+// Inspired by:
+// https://steemit.com/tutorial/@gopher23/power-and-root-functions-using-big-float-in-golang
+func BigPow10(e int32) *big.Float {
+	a := big.NewFloat(base10)
+	result := Zero().Copy(a)
+	for i := int32(0); i < e-1; i++ {
+		result = Zero().Mul(result, a)
+	}
+	return result
+}
+
+// Zero returns a float with 256 bit precision.
+func Zero() *big.Float {
+	r := big.NewFloat(0)
+	r.SetPrec(bigFloatPrecision)
+	return r
+}
+
+// RandomNumber returns some number in the range [minimum, maximum).
+// Source: https://golang.org/pkg/math/big/#Int.Rand
+func RandomNumber(minimum *big.Int, maximum *big.Int) *big.Int {
+	source := rand.New(rand.NewSource(time.Now().UnixNano()))
+	transformed := new(big.Int).Sub(maximum, minimum)
+	addition := new(big.Int).Rand(source, transformed)
+
+	return new(big.Int).Add(minimum, addition)
+}
+
+// ContainsString returns a boolean indicating
+// whether the string s is in arr.
+func ContainsString(arr []string, s string) bool {
+	for _, v := range arr {
+		if v == s {
+			return true
+		}
+	}
+
+	return false
+}
+
+// PrettyAmount returns a currency amount in native format with
+// its symbol.
+func PrettyAmount(amount *big.Int, currency *types.Currency) string {
+	nativeUnits := new(big.Float).SetInt(amount)
+	precision := currency.Decimals
+	if precision > 0 {
+		divisor := BigPow10(precision)
+		nativeUnits = new(big.Float).Quo(nativeUnits, divisor)
+	}
+
+	return fmt.Sprintf(
+		"%s %s",
+		nativeUnits.Text('f', int(precision)),
+		currency.Symbol,
+	)
+}
+
+// Milliseconds gets the current time in milliseconds.
+func Milliseconds() int64 {
+	nanos := time.Now().UnixNano()
+	return nanos / NanosecondsInMillisecond
 }

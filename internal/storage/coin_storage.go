@@ -16,7 +16,9 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -25,13 +27,6 @@ import (
 const (
 	coinNamespace        = "coinNamespace"
 	coinAccountNamespace = "coinAccountNamespace"
-
-	// For UTXOs to be recognized by CoinStorage, they must contain
-	// coinCreated or coinSpent in the Operation.Metadata with a value
-	// of the unique identifier of the coin. In Bitcoin, this unique
-	// identifier would be the outpoint (tx_hash:index).
-	coinCreated = "utxo_created"
-	coinSpent   = "utxo_spent"
 )
 
 var _ BlockWorker = (*CoinStorage)(nil)
@@ -58,13 +53,13 @@ func NewCoinStorage(
 // Coin represents some spendable output (typically
 // referred to as a UTXO).
 type Coin struct {
-	Identifier  string             `json:"identifier"` // uses "utxo_created" or "utxo_spent"
-	Transaction *types.Transaction `json:"transaction"`
-	Operation   *types.Operation   `json:"operation"`
+	Identifier  *types.CoinIdentifier `json:"identifier"`
+	Transaction *types.Transaction    `json:"transaction"`
+	Operation   *types.Operation      `json:"operation"`
 }
 
-func getCoinKey(identifier string) []byte {
-	return []byte(fmt.Sprintf("%s/%s", coinNamespace, identifier))
+func getCoinKey(identifier *types.CoinIdentifier) []byte {
+	return []byte(fmt.Sprintf("%s/%s", coinNamespace, identifier.Identifier))
 }
 
 func getCoinAccountKey(accountIdentifier *types.AccountIdentifier) []byte {
@@ -74,7 +69,7 @@ func getCoinAccountKey(accountIdentifier *types.AccountIdentifier) []byte {
 func getAndDecodeCoin(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	coinIdentifier string,
+	coinIdentifier *types.CoinIdentifier,
 ) (bool, *Coin, error) {
 	exists, val, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
 	if err != nil {
@@ -98,52 +93,54 @@ func (c *CoinStorage) tryAddingCoin(
 	transaction DatabaseTransaction,
 	blockTransaction *types.Transaction,
 	operation *types.Operation,
-	identiferKey string,
+	action types.CoinAction,
 ) error {
-	rawIdentifier, ok := operation.Metadata[identiferKey]
-	if ok {
-		coinIdentifier, ok := rawIdentifier.(string)
-		if !ok {
-			return fmt.Errorf("unable to parse created coin %v", rawIdentifier)
-		}
+	if operation.CoinChange == nil {
+		return errors.New("coin change cannot be nil")
+	}
 
-		newCoin := &Coin{
-			Identifier:  coinIdentifier,
-			Transaction: blockTransaction,
-			Operation:   operation,
-		}
+	if operation.CoinChange.CoinAction != action {
+		return nil
+	}
 
-		encodedResult, err := encode(newCoin)
-		if err != nil {
-			return fmt.Errorf("%w: unable to encode coin data", err)
-		}
+	coinIdentifier := operation.CoinChange.CoinIdentifier
 
-		if err := transaction.Set(ctx, getCoinKey(coinIdentifier), encodedResult); err != nil {
-			return fmt.Errorf("%w: unable to store coin", err)
-		}
+	newCoin := &Coin{
+		Identifier:  coinIdentifier,
+		Transaction: blockTransaction,
+		Operation:   operation,
+	}
 
-		accountExists, coins, err := getAndDecodeCoins(ctx, transaction, operation.Account)
-		if err != nil {
-			return fmt.Errorf("%w: unable to query coin account", err)
-		}
+	encodedResult, err := encode(newCoin)
+	if err != nil {
+		return fmt.Errorf("%w: unable to encode coin data", err)
+	}
 
-		if !accountExists {
-			coins = map[string]struct{}{}
-		}
+	if err := transaction.Set(ctx, getCoinKey(coinIdentifier), encodedResult); err != nil {
+		return fmt.Errorf("%w: unable to store coin", err)
+	}
 
-		if _, exists := coins[coinIdentifier]; exists {
-			return fmt.Errorf(
-				"coin %s already exists in account %s",
-				coinIdentifier,
-				types.PrettyPrintStruct(operation.Account),
-			)
-		}
+	accountExists, coins, err := getAndDecodeCoins(ctx, transaction, operation.Account)
+	if err != nil {
+		return fmt.Errorf("%w: unable to query coin account", err)
+	}
 
-		coins[coinIdentifier] = struct{}{}
+	if !accountExists {
+		coins = map[string]struct{}{}
+	}
 
-		if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
-			return fmt.Errorf("%w: unable to set coin account", err)
-		}
+	if _, exists := coins[coinIdentifier.Identifier]; exists {
+		return fmt.Errorf(
+			"coin %s already exists in account %s",
+			coinIdentifier,
+			types.PrettyPrintStruct(operation.Account),
+		)
+	}
+
+	coins[coinIdentifier.Identifier] = struct{}{}
+
+	if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
+		return fmt.Errorf("%w: unable to set coin account", err)
 	}
 
 	return nil
@@ -193,50 +190,52 @@ func (c *CoinStorage) tryRemovingCoin(
 	ctx context.Context,
 	transaction DatabaseTransaction,
 	operation *types.Operation,
-	identiferKey string,
+	action types.CoinAction,
 ) error {
-	rawIdentifier, ok := operation.Metadata[identiferKey]
-	if ok {
-		coinIdentifier, ok := rawIdentifier.(string)
-		if !ok {
-			return fmt.Errorf("unable to parse spent coin %v", rawIdentifier)
-		}
+	if operation.CoinChange == nil {
+		return errors.New("coin change cannot be nil")
+	}
 
-		exists, _, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
-		if err != nil {
-			return fmt.Errorf("%w: unable to query for coin", err)
-		}
+	if operation.CoinChange.CoinAction != action {
+		return nil
+	}
 
-		if !exists { // this could occur if coin was created before we started syncing
-			return nil
-		}
+	coinIdentifier := operation.CoinChange.CoinIdentifier
 
-		if err := transaction.Delete(ctx, getCoinKey(coinIdentifier)); err != nil {
-			return fmt.Errorf("%w: unable to delete coin", err)
-		}
+	exists, _, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
+	if err != nil {
+		return fmt.Errorf("%w: unable to query for coin", err)
+	}
 
-		accountExists, coins, err := getAndDecodeCoins(ctx, transaction, operation.Account)
-		if err != nil {
-			return fmt.Errorf("%w: unable to query coin account", err)
-		}
+	if !exists { // this could occur if coin was created before we started syncing
+		return nil
+	}
 
-		if !accountExists {
-			return fmt.Errorf("%w: unable to find owner of coin", err)
-		}
+	if err := transaction.Delete(ctx, getCoinKey(coinIdentifier)); err != nil {
+		return fmt.Errorf("%w: unable to delete coin", err)
+	}
 
-		if _, exists := coins[coinIdentifier]; !exists {
-			return fmt.Errorf(
-				"unable to find coin %s in account %s",
-				coinIdentifier,
-				types.PrettyPrintStruct(operation.Account),
-			)
-		}
+	accountExists, coins, err := getAndDecodeCoins(ctx, transaction, operation.Account)
+	if err != nil {
+		return fmt.Errorf("%w: unable to query coin account", err)
+	}
 
-		delete(coins, coinIdentifier)
+	if !accountExists {
+		return fmt.Errorf("%w: unable to find owner of coin", err)
+	}
 
-		if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
-			return fmt.Errorf("%w: unable to set coin account", err)
-		}
+	if _, exists := coins[coinIdentifier.Identifier]; !exists {
+		return fmt.Errorf(
+			"unable to find coin %s in account %s",
+			coinIdentifier,
+			types.PrettyPrintStruct(operation.Account),
+		)
+	}
+
+	delete(coins, coinIdentifier.Identifier)
+
+	if err := encodeAndSetCoins(ctx, transaction, operation.Account, coins); err != nil {
+		return fmt.Errorf("%w: unable to set coin account", err)
 	}
 
 	return nil
@@ -250,6 +249,14 @@ func (c *CoinStorage) AddingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			if operation.CoinChange == nil {
+				continue
+			}
+
+			if operation.Amount == nil {
+				continue
+			}
+
 			success, err := c.asserter.OperationSuccessful(operation)
 			if err != nil {
 				return nil, fmt.Errorf("%w: unable to parse operation success", err)
@@ -259,15 +266,11 @@ func (c *CoinStorage) AddingBlock(
 				continue
 			}
 
-			if operation.Amount == nil {
-				continue
-			}
-
-			if err := c.tryAddingCoin(ctx, transaction, txn, operation, coinCreated); err != nil {
+			if err := c.tryAddingCoin(ctx, transaction, txn, operation, types.CoinCreated); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
-			if err := c.tryRemovingCoin(ctx, transaction, operation, coinSpent); err != nil {
+			if err := c.tryRemovingCoin(ctx, transaction, operation, types.CoinSpent); err != nil {
 				return nil, fmt.Errorf("%w: unable to remove coin", err)
 			}
 		}
@@ -284,6 +287,14 @@ func (c *CoinStorage) RemovingBlock(
 ) (CommitWorker, error) {
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
+			if operation.CoinChange == nil {
+				continue
+			}
+
+			if operation.Amount == nil {
+				continue
+			}
+
 			success, err := c.asserter.OperationSuccessful(operation)
 			if err != nil {
 				return nil, fmt.Errorf("%w: unable to parse operation success", err)
@@ -293,17 +304,13 @@ func (c *CoinStorage) RemovingBlock(
 				continue
 			}
 
-			if operation.Amount == nil {
-				continue
-			}
-
 			// We add spent coins and remove created coins during a re-org (opposite of
 			// AddingBlock).
-			if err := c.tryAddingCoin(ctx, transaction, txn, operation, coinSpent); err != nil {
+			if err := c.tryAddingCoin(ctx, transaction, txn, operation, types.CoinSpent); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
-			if err := c.tryRemovingCoin(ctx, transaction, operation, coinCreated); err != nil {
+			if err := c.tryRemovingCoin(ctx, transaction, operation, types.CoinCreated); err != nil {
 				return nil, fmt.Errorf("%w: unable to remove coin", err)
 			}
 		}
@@ -331,7 +338,11 @@ func (c *CoinStorage) GetCoins(
 
 	coinArr := []*Coin{}
 	for coinIdentifier := range coins {
-		exists, coin, err := getAndDecodeCoin(ctx, transaction, coinIdentifier)
+		exists, coin, err := getAndDecodeCoin(
+			ctx,
+			transaction,
+			&types.CoinIdentifier{Identifier: coinIdentifier},
+		)
 		if err != nil {
 			return nil, fmt.Errorf("%w: unable to query coin", err)
 		}
@@ -344,4 +355,49 @@ func (c *CoinStorage) GetCoins(
 	}
 
 	return coinArr, nil
+}
+
+// GetLargestCoin returns the largest Coin for a
+// *types.AccountIdentifier and *types.Currency.
+// If no Coins are available, a 0 balance is returned.
+func (c *CoinStorage) GetLargestCoin(
+	ctx context.Context,
+	accountIdentifier *types.AccountIdentifier,
+	currency *types.Currency,
+) (*big.Int, *types.CoinIdentifier, error) {
+	coins, err := c.GetCoins(ctx, accountIdentifier)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"%w: unable to get utxo balance for %s",
+			err,
+			accountIdentifier.Address,
+		)
+	}
+
+	bal := big.NewInt(0)
+	var coinIdentifier *types.CoinIdentifier
+	for _, coin := range coins {
+		if types.Hash(
+			coin.Operation.Amount.Currency,
+		) != types.Hash(
+			currency,
+		) {
+			continue
+		}
+
+		val, ok := new(big.Int).SetString(coin.Operation.Amount.Value, 10)
+		if !ok {
+			return nil, nil, fmt.Errorf(
+				"could not parse amount for coin %s",
+				coin.Identifier.Identifier,
+			)
+		}
+
+		if bal.Cmp(val) == -1 {
+			bal = val
+			coinIdentifier = coin.Identifier
+		}
+	}
+
+	return bal, coinIdentifier, nil
 }

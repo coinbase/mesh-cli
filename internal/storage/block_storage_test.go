@@ -249,6 +249,21 @@ var (
 	}
 )
 
+func findTransactionWithDbTransaction(
+	ctx context.Context,
+	storage *BlockStorage,
+	transactionIdentifier *types.TransactionIdentifier,
+) (*types.BlockIdentifier, *types.Transaction, error) {
+	txn := storage.db.NewDatabaseTransaction(ctx, false)
+	defer txn.Discard(ctx)
+
+	return storage.FindTransaction(
+		ctx,
+		transactionIdentifier,
+		txn,
+	)
+}
+
 func TestBlock(t *testing.T) {
 	ctx := context.Background()
 
@@ -263,8 +278,9 @@ func TestBlock(t *testing.T) {
 	storage := NewBlockStorage(database)
 
 	t.Run("Get non-existent tx", func(t *testing.T) {
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -284,8 +300,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -320,8 +337,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -344,8 +362,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -365,8 +384,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -419,5 +439,64 @@ func TestCreateBlockCache(t *testing.T) {
 			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock3.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
+	})
+}
+
+func TestAtTip(t *testing.T) {
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBlockStorage(database)
+	tipDelay := int64(100)
+
+	t.Run("no blocks processed", func(t *testing.T) {
+		atTip, err := storage.AtTip(ctx, tipDelay)
+		assert.NoError(t, err)
+		assert.False(t, atTip)
+	})
+
+	t.Run("Add old block", func(t *testing.T) {
+		err := storage.AddBlock(ctx, &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "block 0",
+				Index: 0,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "block 0",
+				Index: 0,
+			},
+			Timestamp: utils.Milliseconds() - (3 * tipDelay * utils.MillisecondsInSecond),
+		})
+		assert.NoError(t, err)
+
+		atTip, err := storage.AtTip(ctx, tipDelay)
+		assert.NoError(t, err)
+		assert.False(t, atTip)
+	})
+
+	t.Run("Add new block", func(t *testing.T) {
+		err := storage.AddBlock(ctx, &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "block 1",
+				Index: 1,
+			},
+			ParentBlockIdentifier: &types.BlockIdentifier{
+				Hash:  "block 0",
+				Index: 0,
+			},
+			Timestamp: utils.Milliseconds(),
+		})
+		assert.NoError(t, err)
+
+		atTip, err := storage.AtTip(ctx, tipDelay)
+		assert.NoError(t, err)
+		assert.True(t, atTip)
 	})
 }

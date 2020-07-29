@@ -96,8 +96,8 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	fetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithBlockConcurrency(Config.Data.BlockConcurrency),
-		fetcher.WithTransactionConcurrency(Config.Data.TransactionConcurrency),
+		fetcher.WithBlockConcurrency(Config.BlockConcurrency),
+		fetcher.WithTransactionConcurrency(Config.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
@@ -126,7 +126,6 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
-
 	g.Go(func() error {
 		return dataTester.StartPeriodicLogger(ctx)
 	})

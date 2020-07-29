@@ -87,7 +87,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 		lookupBlock = &types.PartialBlockIdentifier{Index: &index}
 	}
 
-	block, amounts, metadata, err := newFetcher.AccountBalanceRetry(
+	block, amounts, coins, metadata, err := newFetcher.AccountBalanceRetry(
 		ctx,
 		Config.Network,
 		account,
@@ -98,6 +98,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("Amounts: %s\n", types.PrettyPrintStruct(amounts))
+	log.Printf("Coins: %s\n", types.PrettyPrintStruct(coins))
 	log.Printf("Metadata: %s\n", types.PrettyPrintStruct(metadata))
 	log.Printf("Balance Fetched At: %s\n", types.PrettyPrintStruct(block))
 }

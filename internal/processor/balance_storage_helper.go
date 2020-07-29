@@ -38,6 +38,10 @@ type BalanceStorageHelper struct {
 	// Configuration settings
 	lookupBalanceByBlock bool
 	exemptAccounts       map[string]struct{}
+
+	// Interesting-only Parsing
+	interestingOnly      bool
+	interestingAddresses map[string]struct{}
 }
 
 // NewBalanceStorageHelper returns a new BalanceStorageHelper.
@@ -46,6 +50,7 @@ func NewBalanceStorageHelper(
 	fetcher *fetcher.Fetcher,
 	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
+	interestingOnly bool,
 ) *BalanceStorageHelper {
 	exemptMap := map[string]struct{}{}
 
@@ -60,6 +65,8 @@ func NewBalanceStorageHelper(
 		fetcher:              fetcher,
 		lookupBalanceByBlock: lookupBalanceByBlock,
 		exemptAccounts:       exemptMap,
+		interestingAddresses: map[string]struct{}{},
+		interestingOnly:      interestingOnly,
 	}
 }
 
@@ -106,9 +113,21 @@ func (h *BalanceStorageHelper) Asserter() *asserter.Asserter {
 	return h.fetcher.Asserter
 }
 
+// AddInterestingAddress adds an address to track the balance of.
+// This is often done after generating an account.
+func (h *BalanceStorageHelper) AddInterestingAddress(address string) {
+	h.interestingAddresses[address] = struct{}{}
+}
+
 // ExemptFunc returns a parser.ExemptOperation.
 func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
+		if h.interestingOnly {
+			if _, exists := h.interestingAddresses[op.Account.Address]; !exists {
+				return true
+			}
+		}
+
 		thisAcct := types.Hash(&reconciler.AccountCurrency{
 			Account:  op.Account,
 			Currency: op.Amount.Currency,

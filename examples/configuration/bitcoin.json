@@ -1,0 +1,71 @@
+{
+ "network": {
+  "blockchain": "Bitcoin",
+  "network": "Testnet3"
+ },
+ "data_directory": "bitcoin-data",
+ "http_timeout": 300,
+ "tip_delay": 1800,
+ "construction": {
+  "currency": {
+   "symbol": "BTC",
+   "decimals": 8
+  },
+  "minimum_balance": "600",
+  "maximum_fee": "500",
+  "curve_type": "secp256k1",
+  "accounting_model": "utxo",
+  "scenario": [
+   {
+    "operation_identifier": {
+     "index": 0
+    },
+    "type": "Vin",
+    "status": "",
+    "account": {
+     "address": "{{ SENDER }}"
+    },
+    "amount": {
+     "value": "{{ SENDER_VALUE }}",
+     "currency": null
+    },
+    "coin_change": {
+      "coin_action": "coin_spent",
+      "coin_identifier": {
+        "identifier": "{{ COIN_IDENTIFIER }}"
+      }
+    }
+   },
+   {
+    "operation_identifier": {
+     "index": 1
+    },
+    "type": "Vout",
+    "status": "",
+    "account": {
+     "address": "{{ RECIPIENT }}"
+    },
+    "amount": {
+     "value": "{{ RECIPIENT_VALUE }}",
+     "currency": null
+    }
+   }
+  ],
+  "confirmation_depth": 1,
+  "stale_depth": 1,
+  "change_scenario": {
+    "operation_identifier": {
+     "index": 2
+    },
+    "type": "Vout",
+    "status": "",
+    "account": {
+     "address": "{{ CHANGE_ADDRESS }}"
+    },
+    "amount": {
+     "value": "{{ CHANGE_VALUE }}",
+     "currency": null
+    }
+  }
+ }
+}

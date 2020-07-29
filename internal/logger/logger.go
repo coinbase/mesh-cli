@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/coinbase/rosetta-cli/internal/scenario"
 	"github.com/coinbase/rosetta-cli/internal/storage"
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
@@ -139,6 +140,52 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	)
 
 	// Don't print out the same stats message twice.
+	if statsMessage == l.lastStatsMessage {
+		return nil
+	}
+
+	l.lastStatsMessage = statsMessage
+	color.Cyan(statsMessage)
+
+	return nil
+}
+
+// LogConstructionStats logs all construction values in CounterStorage.
+func (l *Logger) LogConstructionStats(ctx context.Context, inflightTransactions int) error {
+	transactionsCreated, err := l.CounterStorage.Get(ctx, storage.TransactionsCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get transactions created counter", err)
+	}
+
+	transactionsConfirmed, err := l.CounterStorage.Get(ctx, storage.TransactionsConfirmedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get transactions confirmed counter", err)
+	}
+
+	staleBroadcasts, err := l.CounterStorage.Get(ctx, storage.StaleBroadcastsCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get stale broadcasts counter", err)
+	}
+
+	failedBroadcasts, err := l.CounterStorage.Get(ctx, storage.FailedBroadcastsCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get failed broadcasts counter", err)
+	}
+
+	addressesCreated, err := l.CounterStorage.Get(ctx, storage.AddressesCreatedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get addresses created counter", err)
+	}
+
+	statsMessage := fmt.Sprintf(
+		"[STATS] Transactions Confirmed: %d (Created: %d, In Progress: %d, Stale: %d, Failed: %d) Addresses Created: %d",
+		transactionsConfirmed,
+		transactionsCreated,
+		inflightTransactions,
+		staleBroadcasts,
+		failedBroadcasts,
+		addressesCreated,
+	)
 	if statsMessage == l.lastStatsMessage {
 		return nil
 	}
@@ -443,5 +490,33 @@ func closeFile(f *os.File) {
 	err := f.Close()
 	if err != nil {
 		log.Fatal(fmt.Errorf("%w: unable to close file", err))
+	}
+}
+
+// LogScenario logs what a scenario is perfoming
+// to the console.
+func LogScenario(
+	scenarioCtx *scenario.Context,
+	transactionIdentifier *types.TransactionIdentifier,
+	currency *types.Currency,
+) {
+	if len(scenarioCtx.ChangeAddress) == 0 {
+		color.Magenta(
+			"Transaction Created: %s\n  %s -- %s --> %s",
+			transactionIdentifier.Hash,
+			scenarioCtx.Sender,
+			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
+			scenarioCtx.Recipient,
+		)
+	} else {
+		color.Magenta(
+			"Transaction Created: %s\n  %s\n    -- %s --> %s\n    -- %s --> %s",
+			transactionIdentifier.Hash,
+			scenarioCtx.Sender,
+			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
+			scenarioCtx.Recipient,
+			utils.PrettyAmount(scenarioCtx.ChangeValue, currency),
+			scenarioCtx.ChangeAddress,
+		)
 	}
 }

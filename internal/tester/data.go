@@ -72,7 +72,15 @@ type DataTester struct {
 }
 
 func shouldReconcile(config *configuration.Configuration) bool {
-	return !config.Data.ReconciliationDisabled && !config.Data.BalanceTrackingDisabled
+	if config.Data.BalanceTrackingDisabled {
+		return false
+	}
+
+	if config.Data.ReconciliationDisabled {
+		return false
+	}
+
+	return true
 }
 
 // loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
@@ -185,6 +193,7 @@ func InitializeData(
 			fetcher,
 			!config.Data.HistoricalBalanceDisabled,
 			exemptAccounts,
+			false,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -260,7 +269,7 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartReconciler(
 	ctx context.Context,
 ) error {
-	if shouldReconcile(t.config) {
+	if !shouldReconcile(t.config) {
 		return nil
 	}
 
@@ -427,6 +436,7 @@ func (t *DataTester) recursiveOpSearch(
 		t.fetcher,
 		!t.config.Data.HistoricalBalanceDisabled,
 		nil,
+		false,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

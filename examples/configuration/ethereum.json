@@ -1,0 +1,54 @@
+{
+ "network": {
+  "blockchain": "Ethereum",
+  "network": "Ropsten"
+ },
+ "data_directory": "eth-data",
+ "http_timeout": 300,
+ "tip_delay": 60,
+ "construction": {
+  "currency": {
+   "symbol": "ETH",
+   "decimals": 18
+  },
+  "minimum_balance": "0",
+  "maximum_fee": "5000000000000000",
+  "curve_type": "secp256k1",
+  "accounting_model": "account",
+  "scenario": [
+   {
+    "operation_identifier": {
+     "index": 0
+    },
+    "type": "transfer",
+    "status": "",
+    "account": {
+     "address": "{{ SENDER }}"
+    },
+    "amount": {
+     "value": "{{ SENDER_VALUE }}",
+     "currency": null
+    }
+   },
+   {
+    "operation_identifier": {
+     "index": 1
+    },
+    "related_operations": [
+     {
+      "index": 0
+     }
+    ],
+    "type": "transfer",
+    "status": "",
+    "account": {
+     "address": "{{ RECIPIENT }}"
+    },
+    "amount": {
+     "value": "{{ RECIPIENT_VALUE }}",
+     "currency": null
+    }
+   }
+  ]
+ }
+}

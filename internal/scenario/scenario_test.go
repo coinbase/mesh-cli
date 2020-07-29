@@ -27,8 +27,10 @@ var (
 	sender         = "addr1"
 	senderValue    = big.NewInt(100)
 	recipient      = "addr2"
-	recipientValue = big.NewInt(90)
-	utxoIdentifier = "utxo1"
+	recipientValue = big.NewInt(70)
+	coinIdentifier = &types.CoinIdentifier{Identifier: "utxo1"}
+	changeAddress  = "addr3"
+	changeValue    = big.NewInt(20)
 
 	bitcoinCurrency = &types.Currency{
 		Symbol:   "BTC",
@@ -53,8 +55,10 @@ func TestPopulateScenario(t *testing.T) {
 				SenderValue:    senderValue,
 				Recipient:      recipient,
 				RecipientValue: recipientValue,
-				UTXOIdentifier: utxoIdentifier,
+				CoinIdentifier: coinIdentifier,
 				Currency:       bitcoinCurrency,
+				ChangeAddress:  changeAddress,
+				ChangeValue:    changeValue,
 			},
 			scenario: []*types.Operation{
 				{
@@ -68,8 +72,11 @@ func TestPopulateScenario(t *testing.T) {
 					Amount: &types.Amount{
 						Value: "{{ SENDER_VALUE }}",
 					},
-					Metadata: map[string]interface{}{
-						"utxo_spent": "{{ UTXO_IDENTIFIER }}",
+					CoinChange: &types.CoinChange{
+						CoinAction: types.CoinSpent,
+						CoinIdentifier: &types.CoinIdentifier{
+							Identifier: "{{ COIN_IDENTIFIER }}",
+						},
 					},
 				},
 				{
@@ -82,6 +89,18 @@ func TestPopulateScenario(t *testing.T) {
 					},
 					Amount: &types.Amount{
 						Value: "{{ RECIPIENT_VALUE }}",
+					},
+				},
+				{
+					Type: "Vout",
+					OperationIdentifier: &types.OperationIdentifier{
+						Index: 2,
+					},
+					Account: &types.AccountIdentifier{
+						Address: "{{ CHANGE_ADDRESS }}",
+					},
+					Amount: &types.Amount{
+						Value: "{{ CHANGE_VALUE }}",
 					},
 				},
 			},
@@ -98,8 +117,9 @@ func TestPopulateScenario(t *testing.T) {
 						Value:    new(big.Int).Neg(senderValue).String(),
 						Currency: bitcoinCurrency,
 					},
-					Metadata: map[string]interface{}{
-						"utxo_spent": utxoIdentifier,
+					CoinChange: &types.CoinChange{
+						CoinAction:     types.CoinSpent,
+						CoinIdentifier: coinIdentifier,
 					},
 				},
 				{
@@ -112,6 +132,19 @@ func TestPopulateScenario(t *testing.T) {
 					},
 					Amount: &types.Amount{
 						Value:    new(big.Int).Abs(recipientValue).String(),
+						Currency: bitcoinCurrency,
+					},
+				},
+				{
+					Type: "Vout",
+					OperationIdentifier: &types.OperationIdentifier{
+						Index: 2,
+					},
+					Account: &types.AccountIdentifier{
+						Address: changeAddress,
+					},
+					Amount: &types.Amount{
+						Value:    new(big.Int).Abs(changeValue).String(),
 						Currency: bitcoinCurrency,
 					},
 				},

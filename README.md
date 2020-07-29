@@ -50,7 +50,7 @@ Available Commands:
   version                      Print rosetta-cli version
   view:account                 View an account balance
   view:block                   View a block
-  view:network                 View network status
+  view:networks                View all network statuses
 
 Flags:
       --configuration-file string   Configuration file that provides connection and test settings.
@@ -64,7 +64,36 @@ Flags:
 Use "rosetta-cli [command] --help" for more information about a command.
 ```
 
-### version
+### Configuration
+All `rosetta-cli` parameters are populated from a configuration file (`--configuration-file`)
+provided at runtime. If a configuration file is not provided, the default
+configuration is used. This default configuration can be viewed
+[here](examples/configuration/default.json).
+
+In the `examples/configuration` directory, you can find examples configuration
+files for running tests against a Bitcoin Rosetta implementation
+([config](examples/configuration/bitcoin.json)) and an Ethereum Rosetta
+implementation ([config](examples/configuration/ethereum.json)).
+
+#### Disable Complex Checks
+If you are just getting started with your implementation, you may want
+to disable balance tracking (did any address balance go below zero?) and
+reconciliation (does the balance I calculated match the balance returned
+by the `/account/balance` endpoint?). Take a look at the
+[simple configuration](examples/configuration/simple.json) for an example of
+how to do this.
+
+#### Future Work
+In the near future, we will add support for providing complex exit conditions
+(i.e. did we reach tip? did we reconcile every account?) for both
+`check:construction` and `check:data` so that the `rosetta-cli`
+can be integrated into a CI flow. Currently, the only way to exit with a
+successful status in the `rosetta-cli` is to provide an `--end` flag
+when running `check:data` (returns 0 if no errors up to a block index
+are observed).
+
+### Commands
+#### version
 ```
 Print rosetta-cli version
 
@@ -83,7 +112,7 @@ Global Flags:
                                     default values.
 ```
 
-### check:data
+#### check:data
 ```
 Check all server responses are properly constructed, that
 there are no duplicate blocks and transactions, that blocks can be processed
@@ -137,14 +166,29 @@ Global Flags:
                                     default values.
 ```
 
-#### Status Codes
+##### Status Codes
 If there are no issues found while running `check`, it will exit with a `0` status code.
 If there are any issues, it will exit with a `1` status code. It can be useful
 to run this command as an integration test for any changes to your implementation.
 
-### configuration:create
+#### check:construction
 ```
-Check the correctness of a Rosetta Construction API Implementation
+The check:construction command runs an automated test of a
+Construction API implementation by creating and broadcasting transactions
+on a blockchain. In short, this tool generates new addresses, requests
+funds, constructs transactions, signs transactions, broadcasts transactions,
+and confirms transactions land on-chain. At each phase, a series of tests
+are run to ensure that intermediate representations are correct (i.e. does
+an unsigned transaction return a superset of operations provided during
+construction?).
+
+Check out the https://github.com/coinbase/rosetta-cli/tree/master/examples
+directory for examples of how to configure this test for Bitcoin and
+Ethereum.
+
+Right now, this tool only supports transfer testing (for both account-based
+and UTXO-based blockchains). However, we plan to add support for testing
+arbitrary scenarios (i.e. staking, governance).
 
 Usage:
   rosetta-cli check:construction [flags]
@@ -161,20 +205,15 @@ Global Flags:
                                     default values.
 ```
 
-### view:network
+#### configuration:create
 ```
-While debugging a Data API implementation, it can be very
-useful to view network(s) status. This command fetches the network
-status from all available networks and prints it to the terminal.
-
-If this command errors, it is likely because the /network/* endpoints are
-not formatted correctly.
+Create a default configuration file at the provided path
 
 Usage:
-  rosetta-cli view:network [flags]
+  rosetta-cli configuration:create [flags]
 
 Flags:
-  -h, --help   help for view:network
+  -h, --help   help for configuration:create
 
 Global Flags:
       --configuration-file string   Configuration file that provides connection and test settings.
@@ -185,7 +224,50 @@ Global Flags:
                                     default values.
 ```
 
-### view:account
+#### configuration:validate
+```
+Validate the correctness of a configuration file at the provided path
+
+Usage:
+  rosetta-cli configuration:validate [flags]
+
+Flags:
+  -h, --help   help for configuration:validate
+
+Global Flags:
+      --configuration-file string   Configuration file that provides connection and test settings.
+                                    If you would like to generate a starter configuration file (populated
+                                    with the defaults), run rosetta-cli configuration:create.
+
+                                    Any fields not populated in the configuration file will be populated with
+                                    default values.
+```
+
+#### view:networks
+```
+While debugging a Data API implementation, it can be very
+useful to view network(s) status. This command fetches the network
+status from all available networks and prints it to the terminal.
+
+If this command errors, it is likely because the /network/* endpoints are
+not formatted correctly.
+
+Usage:
+  rosetta-cli view:networks [flags]
+
+Flags:
+  -h, --help   help for view:networks
+
+Global Flags:
+      --configuration-file string   Configuration file that provides connection and test settings.
+                                    If you would like to generate a starter configuration file (populated
+                                    with the defaults), run rosetta-cli configuration:create.
+
+                                    Any fields not populated in the configuration file will be populated with
+                                    default values.
+```
+
+#### view:account
 ```
 While debugging, it is often useful to inspect the state
 of an account at a certain block. This command allows you to look up
@@ -211,7 +293,7 @@ Global Flags:
                                     default values.
 ```
 
-### view:block
+#### view:block
 ```
 While debugging a Data API implementation, it can be very
 useful to inspect block contents. This command allows you to fetch any
@@ -238,7 +320,7 @@ Global Flags:
                                     default values.
 ```
 
-### utils:asserter-configuration
+#### utils:asserter-configuration
 ```
 In production deployments, it is useful to initialize the response
 Asserter (https://github.com/coinbase/rosetta-sdk-go/tree/master/asserter) using

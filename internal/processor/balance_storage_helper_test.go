@@ -34,7 +34,7 @@ var (
 	}
 )
 
-func TestExemptFunc(t *testing.T) {
+func TestExemptFuncExemptAccounts(t *testing.T) {
 	var tests = map[string]struct {
 		exemptAccounts []*reconciler.AccountCurrency
 		exempt         bool
@@ -78,7 +78,58 @@ func TestExemptFunc(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			helper := NewBalanceStorageHelper(nil, nil, false, test.exemptAccounts)
+			helper := NewBalanceStorageHelper(
+				nil,
+				nil,
+				false,
+				test.exemptAccounts,
+				false,
+			)
+
+			result := helper.ExemptFunc()(&types.Operation{
+				Account: opAmountCurrency.Account,
+				Amount: &types.Amount{
+					Value:    "100",
+					Currency: opAmountCurrency.Currency,
+				},
+			})
+
+			assert.Equal(t, test.exempt, result)
+		})
+	}
+}
+
+func TestExemptFuncInterestingParsing(t *testing.T) {
+	var tests = map[string]struct {
+		interestingAddresses []string
+		exempt               bool
+	}{
+		"no interesting accounts": {
+			exempt: true,
+		},
+		"account interesting": {
+			interestingAddresses: []string{opAmountCurrency.Account.Address, "addr 3"},
+			exempt:               false,
+		},
+		"account not interesting": {
+			interestingAddresses: []string{"addr2"},
+			exempt:               true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			helper := NewBalanceStorageHelper(
+				nil,
+				nil,
+				false,
+				nil,
+				true,
+			)
+
+			for _, addr := range test.interestingAddresses {
+				helper.AddInterestingAddress(addr)
+			}
 
 			result := helper.ExemptFunc()(&types.Operation{
 				Account: opAmountCurrency.Account,

@@ -43,12 +43,22 @@ const (
 	// can be supported.
 	RecipientValue = "{{ RECIPIENT_VALUE }}"
 
-	// UTXOIdentifier is the globally unique identifier
+	// CoinIdentifier is the globally unique identifier
 	// of a UTXO. This should be in the Operation.metadata
 	// of any UTXO-based blockchain ("utxo_created" when
 	// a new UTXO is created and "utxo_spent" when a
 	// UTXO is spent).
-	UTXOIdentifier = "{{ UTXO_IDENTIFIER }}"
+	CoinIdentifier = "{{ COIN_IDENTIFIER }}"
+
+	// ChangeAddress is the recipient of change in a
+	// UTXO transaction (surplus above recipient value).
+	// TODO: generalize this to allow for generic
+	// one-to-many sends.
+	ChangeAddress = "{{ CHANGE_ADDRESS }}"
+
+	// ChangeValue is the amount to send to the change
+	// address.
+	ChangeValue = "{{ CHANGE_VALUE }}"
 )
 
 // Context is all information passed to PopulateScenario.
@@ -59,8 +69,10 @@ type Context struct {
 	SenderValue    *big.Int
 	Recipient      string
 	RecipientValue *big.Int
-	UTXOIdentifier string
+	CoinIdentifier *types.CoinIdentifier
 	Currency       *types.Currency
+	ChangeAddress  string
+	ChangeValue    *big.Int
 }
 
 // PopulateScenario populates a provided scenario (slice of
@@ -91,11 +103,25 @@ func PopulateScenario(
 		new(big.Int).Abs(scenarioContext.RecipientValue).String(),
 	)
 
-	if len(scenarioContext.UTXOIdentifier) > 0 {
+	if scenarioContext.CoinIdentifier != nil {
 		stringBytes = strings.ReplaceAll(
 			stringBytes,
-			UTXOIdentifier,
-			scenarioContext.UTXOIdentifier,
+			CoinIdentifier,
+			scenarioContext.CoinIdentifier.Identifier,
+		)
+	}
+
+	if len(scenarioContext.ChangeAddress) > 0 {
+		stringBytes = strings.ReplaceAll(
+			stringBytes,
+			ChangeAddress,
+			scenarioContext.ChangeAddress,
+		)
+
+		stringBytes = strings.ReplaceAll(
+			stringBytes,
+			ChangeValue,
+			new(big.Int).Abs(scenarioContext.ChangeValue).String(),
 		)
 	}
 

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/coinbase/rosetta-cli/internal/utils"
+
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -478,10 +480,8 @@ func (b *BlockStorage) removeTransactionHash(
 func (b *BlockStorage) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
+	txn DatabaseTransaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
-	txn := b.db.NewDatabaseTransaction(ctx, false)
-	defer txn.Discard(ctx)
-
 	txExists, tx, err := txn.Get(ctx, getTransactionHashKey(transactionIdentifier))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to query database for transaction", err)
@@ -531,4 +531,33 @@ func (b *BlockStorage) FindTransaction(
 		newestBlock.Hash,
 		newestBlock.Index,
 	)
+}
+
+// AtTip returns a boolean indicating if we
+// are at tip (provided some acceptable
+// tip delay).
+func (b *BlockStorage) AtTip(
+	ctx context.Context,
+	tipDelay int64,
+) (bool, error) {
+	head, err := b.GetHeadBlockIdentifier(ctx)
+	if errors.Is(err, ErrHeadBlockNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("%w: unable to get head block identifir", err)
+	}
+
+	block, err := b.GetBlock(ctx, head)
+	if err != nil {
+		return false, fmt.Errorf("%w: unable to get head block", err)
+	}
+
+	currentTime := utils.Milliseconds()
+	tipCutoff := currentTime - (tipDelay * utils.MillisecondsInSecond)
+	if block.Timestamp < tipCutoff {
+		return false, nil
+	}
+
+	return true, nil
 }
