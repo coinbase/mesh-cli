@@ -627,10 +627,13 @@ func (c *Constructor) canGetNewAddress(
 		return "", false, fmt.Errorf("%w: unable to get available addresses", err)
 	}
 
+	if len(addresses) >= c.maxAddresses && len(recipients) > 0 {
+		return recipients[0], false, nil
+	}
+
 	randNumber := c.helper.RandomAmount(utils.ZeroInt, utils.OneHundredInt).Int64()
 	convertedAccountProbability := int64(c.newAccountProbability * convertToInt)
-	if (randNumber < convertedAccountProbability &&
-		len(addresses) < c.maxAddresses) || len(recipients) == 0 {
+	if randNumber < convertedAccountProbability || len(recipients) == 0 {
 		addr, err := c.newAddress(ctx)
 		if err != nil {
 			return "", false, fmt.Errorf("%w: cannot create new address", err)
@@ -692,11 +695,12 @@ func (c *Constructor) generateAccountScenario(
 		)
 	}
 
-	recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
 	if new(big.Int).Sub(balance, c.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
 			return nil, nil, ErrInsufficientFunds
 		}
+
+		recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
 
 		return c.createScenarioContext(
 			sender,

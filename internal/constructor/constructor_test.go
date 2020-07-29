@@ -669,3 +669,71 @@ func TestCanGetNewAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateScenario_Account(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, _, _ := defaultAccountConstructor(t)
+
+	tests := map[string]struct {
+		minimumBalance *big.Int
+		maximumFee     *big.Int
+		maxAddresses   int
+		balances       map[string]*big.Int
+
+		senderBalance *big.Int
+
+		scenarioCtx *scenario.Context
+		scenarioOps []*types.Operation
+		err         error
+	}{
+		"insufficient funds": {
+			minimumBalance: big.NewInt(15),
+			maximumFee:     big.NewInt(1000),
+			maxAddresses:   5,
+			balances: map[string]*big.Int{
+				"addr 1": big.NewInt(10),
+				"addr 2": big.NewInt(30),
+				"addr 3": big.NewInt(15),
+				"addr 4": big.NewInt(1000),
+				"addr 5": big.NewInt(2),
+			},
+
+			senderBalance: big.NewInt(0),
+
+			scenarioCtx: nil,
+			scenarioOps: nil,
+			err:         ErrInsufficientFunds,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// reset at start of each loop
+			mockHelper := new(mocks.Helper)
+			constructor.helper = mockHelper
+
+			constructor.minimumBalance = test.minimumBalance
+			constructor.maxAddresses = test.maxAddresses
+			constructor.maximumFee = test.maximumFee
+
+			addresses := []string{}
+			for k := range test.balances {
+				mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(test.balances[k], nil)
+				addresses = append(addresses, k)
+			}
+			mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, "sender", test.senderBalance, nil)
+			if test.err != nil {
+				assert.Equal(t, test.err, err)
+				assert.Nil(t, scenarioCtx)
+				assert.Nil(t, scenarioOps)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.scenarioCtx, scenarioCtx)
+				assert.Equal(t, test.scenarioOps, scenarioOps)
+			}
+		})
+	}
+}
