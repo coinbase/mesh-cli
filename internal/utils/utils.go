@@ -31,6 +31,10 @@ import (
 	"github.com/fatih/color"
 )
 
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
+
 const (
 	// DefaultFilePermissions specifies that the user can
 	// read and write the file.

@@ -504,3 +504,76 @@ func TestFindRecipients_Utxo(t *testing.T) {
 	assert.ElementsMatch(t, []string{}, minimumRecipients)
 	assert.ElementsMatch(t, []string{"addr 1", "addr 2", "addr 3", "addr 5"}, belowMinimumRecipients)
 }
+
+func TestCreateScenarioContext_Account(t *testing.T) {
+	constructor, _, _ := defaultAccountConstructor(t)
+
+	sender := "sender"
+	senderValue := big.NewInt(5000)
+	recipient := "recipient"
+	recipientValue := big.NewInt(2000)
+
+	scenarioContext, scenarioOps, err := constructor.createScenarioContext(
+		sender,
+		senderValue,
+		recipient,
+		recipientValue,
+		"",
+		nil,
+		nil,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, &scenario.Context{
+		Sender:         sender,
+		SenderValue:    senderValue,
+		Recipient:      recipient,
+		RecipientValue: recipientValue,
+		Currency:       constructor.currency,
+	}, scenarioContext)
+	assert.Equal(t, constructor.scenario, scenarioOps)
+
+	// ensure copied correctly
+	constructor.scenario[0].Type = "blah"
+	assert.NotEqual(t, constructor.scenario[0], scenarioOps[0])
+}
+
+func TestCreateScenarioContext_Utxo(t *testing.T) {
+	constructor, _, _ := defaultUtxoConstructor(t)
+
+	sender := "sender"
+	senderValue := big.NewInt(5000)
+	recipient := "recipient"
+	recipientValue := big.NewInt(2000)
+	changeAddress := "change"
+	changeValue := big.NewInt(1900)
+	coinIdentifier := &types.CoinIdentifier{Identifier: "coin 2"}
+
+	scenarioContext, scenarioOps, err := constructor.createScenarioContext(
+		sender,
+		senderValue,
+		recipient,
+		recipientValue,
+		changeAddress,
+		changeValue,
+		coinIdentifier,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, &scenario.Context{
+		Sender:         sender,
+		SenderValue:    senderValue,
+		Recipient:      recipient,
+		RecipientValue: recipientValue,
+		ChangeAddress:  changeAddress,
+		ChangeValue:    changeValue,
+		CoinIdentifier: coinIdentifier,
+		Currency:       constructor.currency,
+	}, scenarioContext)
+	assert.Equal(t, append(constructor.scenario, constructor.changeScenario), scenarioOps)
+
+	// ensure copied correctly
+	constructor.scenario[0].Type = "blah"
+	assert.NotEqual(t, constructor.scenario[0], scenarioOps[0])
+
+	constructor.changeScenario.Type = "blah 2"
+	assert.NotEqual(t, constructor.changeScenario, scenarioOps[2])
+}
