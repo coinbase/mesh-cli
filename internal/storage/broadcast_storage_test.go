@@ -28,7 +28,7 @@ import (
 
 const (
 	confirmationDepth   = int64(2)
-	staleDepth          = int64(1)
+	staleDepth          = int64(2)
 	broadcastLimit      = 3
 	broadcastTipDelay   = 10
 	broadcastBehindTip  = false
@@ -301,19 +301,19 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		TransactionIdentifier: &types.TransactionIdentifier{Hash: "tx 2"},
 		Operations:            send2,
 	}
+	mockHelper.FindTransactions = map[string]*findTx{
+		tx1.TransactionIdentifier.Hash: {
+			blockIdentifier: blocks[3].BlockIdentifier,
+			transaction:     tx1,
+		},
+		tx2.TransactionIdentifier.Hash: {
+			blockIdentifier: blocks[4].BlockIdentifier,
+			transaction:     tx2,
+		},
+	}
 	t.Run("add block 3", func(t *testing.T) {
 		block := blocks[3]
-		block.Transactions = []*types.Transaction{tx1, tx2}
-		mockHelper.FindTransactions = map[string]*findTx{
-			tx1.TransactionIdentifier.Hash: {
-				blockIdentifier: block.BlockIdentifier,
-				transaction:     tx1,
-			},
-			tx2.TransactionIdentifier.Hash: {
-				blockIdentifier: block.BlockIdentifier,
-				transaction:     tx2,
-			},
-		}
+		block.Transactions = []*types.Transaction{tx1}
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -362,6 +362,7 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 	t.Run("add block 4", func(t *testing.T) {
 		block := blocks[4]
+		block.Transactions = []*types.Transaction{tx2}
 
 		txn := storage.db.NewDatabaseTransaction(ctx, true)
 		commitWorker, err := storage.AddingBlock(ctx, block, txn)
@@ -375,20 +376,12 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 
 		addresses, err := storage.LockedAddresses(ctx)
 		assert.NoError(t, err)
-		assert.Len(t, addresses, 2)
-		assert.ElementsMatch(t, []string{"addr 1", "addr 2"}, addresses)
+		assert.Len(t, addresses, 1)
+		assert.ElementsMatch(t, []string{"addr 2"}, addresses)
 
 		broadcasts, err := storage.GetAllBroadcasts(ctx)
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, []*Broadcast{
-			{
-				Identifier:    &types.TransactionIdentifier{Hash: "tx 1"},
-				Sender:        "addr 1",
-				Intent:        send1,
-				Payload:       "payload 1",
-				LastBroadcast: blocks[2].BlockIdentifier,
-				Broadcasts:    2,
-			},
 			{
 				Identifier:    &types.TransactionIdentifier{Hash: "tx 2"},
 				Sender:        "addr 2",
@@ -404,7 +397,13 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 			},
 		}, mockHandler.Stale)
 		assert.ElementsMatch(t, []*failedTx{}, mockHandler.Failed)
-		assert.ElementsMatch(t, []*confirmedTx{}, mockHandler.Confirmed)
+		assert.ElementsMatch(t, []*confirmedTx{
+			{
+				blockIdentifier: blocks[3].BlockIdentifier,
+				transaction:     tx1,
+				intent:          send1,
+			},
+		}, mockHandler.Confirmed)
 	})
 
 	t.Run("add block 5", func(t *testing.T) {
@@ -437,12 +436,12 @@ func TestBroadcastStorageBroadcastSuccess(t *testing.T) {
 		assert.ElementsMatch(t, []*failedTx{}, mockHandler.Failed)
 		assert.ElementsMatch(t, []*confirmedTx{
 			{
-				blockIdentifier: block.BlockIdentifier,
+				blockIdentifier: blocks[3].BlockIdentifier,
 				transaction:     tx1,
 				intent:          send1,
 			},
 			{
-				blockIdentifier: block.BlockIdentifier,
+				blockIdentifier: blocks[4].BlockIdentifier,
 				transaction:     tx2,
 				intent:          send2,
 			},

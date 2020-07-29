@@ -161,6 +161,7 @@ func (b *BroadcastStorage) addBlockCommitWorker(
 	staleTransactions []*types.TransactionIdentifier,
 	confirmedTransactions []*Broadcast,
 	foundTransactions []*types.Transaction,
+	foundBlocks []*types.BlockIdentifier,
 ) error {
 	for _, stale := range staleTransactions {
 		if err := b.handler.TransactionStale(ctx, stale); err != nil {
@@ -171,7 +172,7 @@ func (b *BroadcastStorage) addBlockCommitWorker(
 	for i, broadcast := range confirmedTransactions {
 		err := b.handler.TransactionConfirmed(
 			ctx,
-			block.BlockIdentifier,
+			foundBlocks[i],
 			foundTransactions[i],
 			broadcast.Intent,
 		)
@@ -205,6 +206,7 @@ func (b *BroadcastStorage) AddingBlock(
 	staleTransactions := []*types.TransactionIdentifier{}
 	confirmedTransactions := []*Broadcast{}
 	foundTransactions := []*types.Transaction{}
+	foundBlocks := []*types.BlockIdentifier{}
 
 	for _, broadcast := range broadcasts {
 		if broadcast.LastBroadcast == nil {
@@ -220,7 +222,7 @@ func (b *BroadcastStorage) AddingBlock(
 
 		// Check if we should mark the broadcast as stale
 		if foundBlock == nil &&
-			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index > b.staleDepth {
+			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index >= b.staleDepth {
 			staleTransactions = append(staleTransactions, broadcast.Identifier)
 			broadcast.LastBroadcast = nil
 			bytes, err := encode(broadcast)
@@ -241,9 +243,10 @@ func (b *BroadcastStorage) AddingBlock(
 		}
 
 		// Check if we should mark the transaction as confirmed
-		if block.BlockIdentifier.Index-foundBlock.Index >= b.confirmationDepth {
+		if block.BlockIdentifier.Index-foundBlock.Index >= b.confirmationDepth-1 {
 			confirmedTransactions = append(confirmedTransactions, broadcast)
 			foundTransactions = append(foundTransactions, foundTransaction)
+			foundBlocks = append(foundBlocks, foundBlock)
 
 			if err := transaction.Delete(ctx, key); err != nil {
 				return nil, fmt.Errorf("%w: unable to delete confirmed broadcast", err)
@@ -258,6 +261,7 @@ func (b *BroadcastStorage) AddingBlock(
 			staleTransactions,
 			confirmedTransactions,
 			foundTransactions,
+			foundBlocks,
 		)
 	}, nil
 }
