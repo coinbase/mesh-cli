@@ -186,7 +186,7 @@ type ConstructionConfiguration struct {
 
 	// NewAccountProbability is the probability we create a new
 	// recipient address on any transaction creation loop.
-	NewAccountProbability float64 `json:"create_new_account_probability"`
+	NewAccountProbability float64 `json:"new_account_probability"`
 
 	// MaxAddresses is the maximum number of addresses
 	// to generate while testing.

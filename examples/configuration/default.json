@@ -63,7 +63,7 @@
   "broadcast_behind_tip": false,
   "block_broadcast_limit": 5,
   "rebroadcast_all": false,
-  "create_new_account_probability": 0.5,
+  "new_account_probability": 0.5,
   "max_addresses": 200
  },
  "data": {
