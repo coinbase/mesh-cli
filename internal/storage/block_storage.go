@@ -480,10 +480,8 @@ func (b *BlockStorage) removeTransactionHash(
 func (b *BlockStorage) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
+	txn DatabaseTransaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
-	txn := b.db.NewDatabaseTransaction(ctx, false)
-	defer txn.Discard(ctx)
-
 	txExists, tx, err := txn.Get(ctx, getTransactionHashKey(transactionIdentifier))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to query database for transaction", err)

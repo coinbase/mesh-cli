@@ -249,6 +249,21 @@ var (
 	}
 )
 
+func findTransactionWithDbTransaction(
+	ctx context.Context,
+	storage *BlockStorage,
+	transactionIdentifier *types.TransactionIdentifier,
+) (*types.BlockIdentifier, *types.Transaction, error) {
+	txn := storage.db.NewDatabaseTransaction(ctx, false)
+	defer txn.Discard(ctx)
+
+	return storage.FindTransaction(
+		ctx,
+		transactionIdentifier,
+		txn,
+	)
+}
+
 func TestBlock(t *testing.T) {
 	ctx := context.Background()
 
@@ -263,8 +278,9 @@ func TestBlock(t *testing.T) {
 	storage := NewBlockStorage(database)
 
 	t.Run("Get non-existent tx", func(t *testing.T) {
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -284,8 +300,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -320,8 +337,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -344,8 +362,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)
@@ -365,8 +384,9 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock.BlockIdentifier, head)
 
-		newestBlock, transaction, err := storage.FindTransaction(
+		newestBlock, transaction, err := findTransactionWithDbTransaction(
 			ctx,
+			storage,
 			newBlock.Transactions[0].TransactionIdentifier,
 		)
 		assert.NoError(t, err)

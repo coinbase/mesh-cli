@@ -877,6 +877,7 @@ func (m *MockBroadcastStorageHelper) CurrentBlockIdentifier(
 func (m *MockBroadcastStorageHelper) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
+	txn DatabaseTransaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
 	val, exists := m.FindTransactions[transactionIdentifier.Hash]
 	if !exists {

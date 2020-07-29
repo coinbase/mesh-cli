@@ -79,8 +79,9 @@ func (h *BroadcastStorageHelper) CurrentBlockIdentifier(
 func (h *BroadcastStorageHelper) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
+	txn storage.DatabaseTransaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
-	newestBlock, transaction, err := h.blockStorage.FindTransaction(ctx, transactionIdentifier)
+	newestBlock, transaction, err := h.blockStorage.FindTransaction(ctx, transactionIdentifier, txn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to perform transaction search", err)
 	}

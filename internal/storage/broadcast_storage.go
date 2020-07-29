@@ -80,6 +80,7 @@ type BroadcastStorageHelper interface {
 	FindTransaction(
 		context.Context,
 		*types.TransactionIdentifier,
+		DatabaseTransaction,
 	) (*types.BlockIdentifier, *types.Transaction, error) // used to confirm
 
 	// BroadcastTransaction broadcasts a transaction to a Rosetta implementation
@@ -219,7 +220,10 @@ func (b *BroadcastStorage) AddingBlock(
 
 		key := getBroadcastKey(broadcast.Identifier)
 
-		foundBlock, foundTransaction, err := b.helper.FindTransaction(ctx, broadcast.Identifier)
+		// We perform the FindTransaction search in the context of the block database
+		// transaction so we can access any transactions of depth 1 (in the current
+		// block).
+		foundBlock, foundTransaction, err := b.helper.FindTransaction(ctx, broadcast.Identifier, transaction)
 		if err != nil {
 			return nil, fmt.Errorf("%w: unable to determine if transaction was seen", err)
 		}
