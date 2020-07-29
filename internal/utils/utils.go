@@ -169,14 +169,18 @@ func CheckNetworkSupported(
 	}
 
 	networkMatched := false
+	supportedNetworks := []*types.NetworkIdentifier{}
 	for _, availableNetwork := range networks.NetworkIdentifiers {
 		if types.Hash(availableNetwork) == types.Hash(networkIdentifier) {
 			networkMatched = true
 			break
 		}
+
+		supportedNetworks = append(supportedNetworks, availableNetwork)
 	}
 
 	if !networkMatched {
+		color.Yellow("Supported networks: %s", types.PrettyPrintStruct(supportedNetworks))
 		return nil, fmt.Errorf("%s is not available", types.PrettyPrintStruct(networkIdentifier))
 	}
 
