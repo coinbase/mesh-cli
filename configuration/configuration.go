@@ -145,7 +145,11 @@ type ConstructionConfiguration struct {
 	Scenario []*types.Operation `json:"scenario"`
 
 	// ConfirmationDepth is the number of blocks that must be synced
-	// after a transaction before the transaction is confirmed.
+	// after a transaction before a transaction is confirmed.
+	//
+	// Note: Rosetta uses Bitcoin's definition of depth, so
+	// a transaction has depth 1 if it is in the head block.
+	// Source: https://en.bitcoin.it/wiki/Confirmation
 	ConfirmationDepth int64 `json:"confirmation_depth"`
 
 	// StaleDepth is the number of blocks to wait before attempting

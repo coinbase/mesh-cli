@@ -236,7 +236,7 @@ func (b *BroadcastStorage) AddingBlock(
 		}
 
 		// Check if we should mark the transaction as confirmed
-		if block.BlockIdentifier.Index-foundBlock.Index > b.confirmationDepth {
+		if block.BlockIdentifier.Index-foundBlock.Index >= b.confirmationDepth {
 			confirmedTransactions = append(confirmedTransactions, broadcast)
 			foundTransactions = append(foundTransactions, foundTransaction)
 
