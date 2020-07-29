@@ -11,7 +11,12 @@ ADDLICENSE_CMD=go run github.com/google/addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 GOLINES_CMD=go run github.com/segmentio/golines
 GOVERALLS_CMD=go run github.com/mattn/goveralls
+COVERAGE_TEST_DIRECTORIES=./configuration/... ./internal/constructor/... \
+													./internal/logger/... ./internal/scenario/... \
+													./internal/statefulsyncer/... ./internal/storage/... \
+													./internal/tester/... ./internal/utils/...
 TEST_SCRIPT=go test -v ./internal/... ./configuration/...
+COVERAGE_TEST_SCRIPT=go test -v ${COVERAGE_TEST_DIRECTORIES}
 
 deps:
 	go get ./...
@@ -30,7 +35,7 @@ test:
 	${TEST_SCRIPT}
 
 test-cover:	
-	if [ "${COVERALLS_TOKEN}" ]; then ${TEST_SCRIPT} -coverprofile=c.out -covermode=count; ${GOVERALLS_CMD} -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}; fi
+	if [ "${COVERALLS_TOKEN}" ]; then ${COVERAGE_TEST_SCRIPT} -coverprofile=c.out -covermode=count; ${GOVERALLS_CMD} -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}; fi
 
 add-license:
 	${ADDLICENCE_SCRIPT} .
