@@ -24,6 +24,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/fatih/color"
 )
 
 // AccountingModel is a type representing possible accounting models
@@ -527,10 +528,12 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 		return nil, fmt.Errorf("%w: invalid configuration", err)
 	}
 
-	log.Printf(
+	color.Cyan(
 		"loaded configuration file: %s\n",
 		filePath,
 	)
+
+	log.Println(types.PrettyPrintStruct(config))
 
 	return config, nil
 }

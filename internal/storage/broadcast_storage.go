@@ -27,6 +27,11 @@ var _ BlockWorker = (*BroadcastStorage)(nil)
 
 const (
 	transactionBroadcastNamespace = "transaction-broadcast"
+
+	// depthOffset is used for adjusting depth checks because
+	// depth is "indexed by 1". Meaning, if a transaction is in
+	// tip it has depth 1.
+	depthOffset = 1
 )
 
 func getBroadcastKey(transactionIdentifier *types.TransactionIdentifier) []byte {
@@ -157,7 +162,6 @@ func (b *BroadcastStorage) Initialize(
 
 func (b *BroadcastStorage) addBlockCommitWorker(
 	ctx context.Context,
-	block *types.Block,
 	staleTransactions []*types.TransactionIdentifier,
 	confirmedTransactions []*Broadcast,
 	foundTransactions []*types.Transaction,
@@ -222,7 +226,7 @@ func (b *BroadcastStorage) AddingBlock(
 
 		// Check if we should mark the broadcast as stale
 		if foundBlock == nil &&
-			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index >= b.staleDepth-1 {
+			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index >= b.staleDepth-depthOffset {
 			staleTransactions = append(staleTransactions, broadcast.Identifier)
 			broadcast.LastBroadcast = nil
 			bytes, err := encode(broadcast)
@@ -243,7 +247,7 @@ func (b *BroadcastStorage) AddingBlock(
 		}
 
 		// Check if we should mark the transaction as confirmed
-		if block.BlockIdentifier.Index-foundBlock.Index >= b.confirmationDepth-1 {
+		if block.BlockIdentifier.Index-foundBlock.Index >= b.confirmationDepth-depthOffset {
 			confirmedTransactions = append(confirmedTransactions, broadcast)
 			foundTransactions = append(foundTransactions, foundTransaction)
 			foundBlocks = append(foundBlocks, foundBlock)
@@ -257,7 +261,6 @@ func (b *BroadcastStorage) AddingBlock(
 	return func(ctx context.Context) error {
 		return b.addBlockCommitWorker(
 			ctx,
-			block,
 			staleTransactions,
 			confirmedTransactions,
 			foundTransactions,

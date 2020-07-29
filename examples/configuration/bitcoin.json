@@ -52,7 +52,7 @@
    }
   ],
   "confirmation_depth": 1,
-  "stale_depth": 0,
+  "stale_depth": 1,
   "change_scenario": {
     "operation_identifier": {
      "index": 2
