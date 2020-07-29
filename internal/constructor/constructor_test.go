@@ -75,7 +75,7 @@ func defaultConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handl
 			Symbol:   "BTC",
 			Decimals: 8,
 		},
-		minimumBalance:        big.NewInt(0),
+		minimumBalance:        big.NewInt(2),
 		maximumFee:            big.NewInt(100),
 		curveType:             types.Secp256k1,
 		newAccountProbability: 0.5,
@@ -263,4 +263,16 @@ func TestCreateTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, transactionIdentifier, resultIdentifier)
 	assert.Equal(t, signedTransaction, networkTransaction)
+}
+
+func TestMinimumRequiredBalance(t *testing.T) {
+	constructor, _, _ := defaultConstructor(t)
+
+	// 2 * minimum_balance + maximum_fee
+	assert.Equal(t, big.NewInt(104), constructor.minimumRequiredBalance(newAccountSend))
+	assert.Equal(t, big.NewInt(104), constructor.minimumRequiredBalance(changeSend))
+
+	// minimum_balance + maximum_fee
+	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(existingAccountSend))
+	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(fullSend))
 }
