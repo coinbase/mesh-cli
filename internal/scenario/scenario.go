@@ -50,8 +50,14 @@ const (
 	// UTXO is spent).
 	CoinIdentifier = "{{ COIN_IDENTIFIER }}"
 
+	// ChangeAddress is the recipient of change in a
+	// UTXO transaction (surplus above recipient value).
+	// TODO: generalize this to allow for generic
+	// one-to-many sends.
 	ChangeAddress = "{{ CHANGE_ADDRESS }}"
 
+	// ChangeValue is the amount to send to the change
+	// address.
 	ChangeValue = "{{ CHANGE_VALUE }}"
 )
 

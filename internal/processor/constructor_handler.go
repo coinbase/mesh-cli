@@ -26,12 +26,16 @@ import (
 
 var _ constructor.Handler = (*ConstructorHandler)(nil)
 
+// ConstructorHandler is invoked by the Constructor
+// when addresses are created or transactions are created.
 type ConstructorHandler struct {
 	balanceStorageHelper *BalanceStorageHelper
 
 	counterStorage *storage.CounterStorage
 }
 
+// NewConstructorHandler returns a new
+// *ConstructorHandler.
 func NewConstructorHandler(
 	balanceStorageHelper *BalanceStorageHelper,
 	counterStorage *storage.CounterStorage,
@@ -42,6 +46,7 @@ func NewConstructorHandler(
 	}
 }
 
+// AddressCreated adds an address to balance tracking.
 func (h *ConstructorHandler) AddressCreated(ctx context.Context, address string) error {
 	h.balanceStorageHelper.AddInterestingAddress(address)
 
@@ -50,6 +55,8 @@ func (h *ConstructorHandler) AddressCreated(ctx context.Context, address string)
 	return nil
 }
 
+// TransactionCreated increments the TransactionsCreatedCounter in
+// CounterStorage.
 func (h *ConstructorHandler) TransactionCreated(
 	ctx context.Context,
 	sender string,

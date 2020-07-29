@@ -30,6 +30,8 @@ import (
 
 var _ constructor.Helper = (*ConstructorHelper)(nil)
 
+// ConstructorHelper implements the constructor.Helper
+// interface.
 type ConstructorHelper struct {
 	offlineFetcher *fetcher.Fetcher
 	onlineFetcher  *fetcher.Fetcher
@@ -40,6 +42,7 @@ type ConstructorHelper struct {
 	broadcastStorage *storage.BroadcastStorage
 }
 
+// NewConstructorHelper returns a new *ConstructorHelper.
 func NewConstructorHelper(
 	offlineFetcher *fetcher.Fetcher,
 	onlineFetcher *fetcher.Fetcher,
@@ -58,6 +61,7 @@ func NewConstructorHelper(
 	}
 }
 
+// Derive returns a new address for a provided publicKey.
 func (c *ConstructorHelper) Derive(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -67,6 +71,8 @@ func (c *ConstructorHelper) Derive(
 	return c.offlineFetcher.ConstructionDerive(ctx, networkIdentifier, publicKey, metadata)
 }
 
+// Preprocess calls the /construction/preprocess endpoint
+// on an offline node.
 func (c *ConstructorHelper) Preprocess(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -81,6 +87,8 @@ func (c *ConstructorHelper) Preprocess(
 	)
 }
 
+// Metadata calls the /construction/metadata endpoint
+// using the online node.
 func (c *ConstructorHelper) Metadata(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -93,6 +101,8 @@ func (c *ConstructorHelper) Metadata(
 	)
 }
 
+// Payloads calls the /construction/payloads endpoint
+// using the offline node.
 func (c *ConstructorHelper) Payloads(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -107,6 +117,8 @@ func (c *ConstructorHelper) Payloads(
 	)
 }
 
+// Parse calls the /construction/parse endpoint
+// using the offline node.
 func (c *ConstructorHelper) Parse(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -121,6 +133,8 @@ func (c *ConstructorHelper) Parse(
 	)
 }
 
+// Combine calls the /construction/combine endpoint
+// using the offline node.
 func (c *ConstructorHelper) Combine(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -135,6 +149,8 @@ func (c *ConstructorHelper) Combine(
 	)
 }
 
+// Hash calls the /construction/hash endpoint
+// using the offline node.
 func (c *ConstructorHelper) Hash(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
@@ -147,6 +163,8 @@ func (c *ConstructorHelper) Hash(
 	)
 }
 
+// Sign invokes the KeyStorage backend
+// to sign some payloads.
 func (c *ConstructorHelper) Sign(
 	ctx context.Context,
 	payloads []*types.SigningPayload,
@@ -154,6 +172,8 @@ func (c *ConstructorHelper) Sign(
 	return c.keyStorage.Sign(ctx, payloads)
 }
 
+// StoreKey stores a KeyPair and address
+// in KeyStorage.
 func (c *ConstructorHelper) StoreKey(
 	ctx context.Context,
 	address string,
@@ -162,6 +182,10 @@ func (c *ConstructorHelper) StoreKey(
 	return c.keyStorage.Store(ctx, address, keyPair)
 }
 
+// AccountBalance returns the balance
+// for a provided address using BalanceStorage.
+// If the address balance does not exist,
+// 0 will be returned.
 func (c *ConstructorHelper) AccountBalance(
 	ctx context.Context,
 	accountIdentifier *types.AccountIdentifier,
@@ -185,6 +209,8 @@ func (c *ConstructorHelper) AccountBalance(
 	return val, err
 }
 
+// CoinBalance returns the balance of the largest
+// Coin owned by an address.
 func (c *ConstructorHelper) CoinBalance(
 	ctx context.Context,
 	accountIdentifier *types.AccountIdentifier,
@@ -228,18 +254,23 @@ func (c *ConstructorHelper) CoinBalance(
 	return bal, coinIdentifier, nil
 }
 
+// LockedAddresses returns a slice of all addresses currently sending or receiving
+// funds.
 func (c *ConstructorHelper) LockedAddresses(ctx context.Context) ([]string, error) {
 	return c.broadcastStorage.LockedAddresses(ctx)
 }
 
+// AllBroadcasts returns a slice of all in-progress broadcasts in BroadcastStorage.
 func (c *ConstructorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
 	return c.broadcastStorage.GetAllBroadcasts(ctx)
 }
 
+// ClearBroadcasts deletes all pending broadcasts.
 func (c *ConstructorHelper) ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
 	return c.broadcastStorage.ClearBroadcasts(ctx)
 }
 
+// Broadcast enqueues a particular intent for broadcast.
 func (c *ConstructorHelper) Broadcast(
 	ctx context.Context,
 	sender string,
@@ -256,10 +287,12 @@ func (c *ConstructorHelper) Broadcast(
 	)
 }
 
+// AllAddresses returns a slice of all known addresses.
 func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) {
 	return c.keyStorage.GetAllAddresses(ctx)
 }
 
+// RandomAmount returns some integer between min and max.
 func (c *ConstructorHelper) RandomAmount(min *big.Int, max *big.Int) *big.Int {
 	return utils.RandomNumber(min, max)
 }

@@ -69,7 +69,11 @@ var (
 	ErrInsufficientFunds = errors.New("insufficient funds")
 )
 
+// Helper is an interface that provides access
+// to information needed by the constructor while
+// creating transactions.
 type Helper interface {
+	// Derive returns a new address for a provided publicKey.
 	Derive(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -77,6 +81,8 @@ type Helper interface {
 		map[string]interface{},
 	) (string, map[string]interface{}, error)
 
+	// Preprocess calls the /construction/preprocess endpoint
+	// on an offline node.
 	Preprocess(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -84,12 +90,16 @@ type Helper interface {
 		map[string]interface{},
 	) (map[string]interface{}, error)
 
+	// Metadata calls the /construction/metadata endpoint
+	// using the online node.
 	Metadata(
 		context.Context,
 		*types.NetworkIdentifier,
 		map[string]interface{},
 	) (map[string]interface{}, error)
 
+	// Payloads calls the /construction/payloads endpoint
+	// using the offline node.
 	Payloads(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -97,6 +107,8 @@ type Helper interface {
 		map[string]interface{},
 	) (string, []*types.SigningPayload, error)
 
+	// Parse calls the /construction/parse endpoint
+	// using the offline node.
 	Parse(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -104,6 +116,8 @@ type Helper interface {
 		string, // transaction
 	) ([]*types.Operation, []string, map[string]interface{}, error)
 
+	// Combine calls the /construction/combine endpoint
+	// using the offline node.
 	Combine(
 		context.Context,
 		*types.NetworkIdentifier,
@@ -111,6 +125,7 @@ type Helper interface {
 		[]*types.Signature,
 	) (string, error)
 
+	// Broadcast enqueues a particular intent for broadcast.
 	Broadcast(
 		context.Context,
 		string, // sender
@@ -119,51 +134,74 @@ type Helper interface {
 		string, // payload
 	) error
 
+	// Hash calls the /construction/hash endpoint
+	// using the offline node.
 	Hash(
 		context.Context,
 		*types.NetworkIdentifier,
 		string, // network transaction
 	) (*types.TransactionIdentifier, error)
 
+	// Sign returns signatures for the provided
+	// payloads.
 	Sign(
 		context.Context,
 		[]*types.SigningPayload,
 	) ([]*types.Signature, error)
 
+	// StoreKey is called to persist an
+	// address + KeyPair.
 	StoreKey(
 		context.Context,
 		string,
 		*keys.KeyPair,
 	) error
 
+	// AccountBalance returns the balance
+	// for a provided address.
 	AccountBalance(
 		context.Context,
 		*types.AccountIdentifier,
 		*types.Currency,
 	) (*big.Int, error)
 
+	// CoinBalance returns the balance of the largest
+	// Coin owned by an address.
 	CoinBalance(
 		context.Context,
 		*types.AccountIdentifier,
 		*types.Currency,
 	) (*big.Int, *types.CoinIdentifier, error)
 
+	// LockedAddresses is a slice of all addresses currently sending or receiving
+	// funds.
 	LockedAddresses(context.Context) ([]string, error)
 
+	// AllBroadcasts returns a slice of all in-progress broadcasts.
 	AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
 
+	// ClearBroadcasts deletes all pending broadcasts.
 	ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
 
+	// AllAddresses returns a slice of all known addresses.
 	AllAddresses(ctx context.Context) ([]string, error)
 
+	// RandomAmount returns some integer between min and max.
 	RandomAmount(*big.Int, *big.Int) *big.Int
 }
 
+// Handler is an interface called by the constructor whenever
+// an address is created or a transaction is created.
 type Handler interface {
 	AddressCreated(context.Context, string) error
 	TransactionCreated(context.Context, string, *types.TransactionIdentifier) error
 }
 
+// Constructor is responsible for managing the entire flow
+// of creating test transactions on the Construction API.
+// This runs from creating keypairs to requesting funds be
+// loaded on addresses to creating transactions that satisfy
+// minimum balance constraints.
 type Constructor struct {
 	network               *types.NetworkIdentifier
 	accountingModel       configuration.AccountingModel
@@ -182,6 +220,7 @@ type Constructor struct {
 	handler Handler
 }
 
+// New returns a new *Constructor.
 func New(
 	config *configuration.Configuration,
 	parser *parser.Parser,
