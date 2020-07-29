@@ -54,11 +54,14 @@ const (
 	// MillisecondsInSecond is the number
 	// of milliseconds in a second.
 	MillisecondsInSecond = 1000
+
+	// OneHundred is the number 100.
+	OneHundred = 100
 )
 
 var (
 	// OneHundredInt is a big.Int of value 100.
-	OneHundredInt = big.NewInt(100)
+	OneHundredInt = big.NewInt(OneHundred)
 
 	// ZeroInt is a big.Int of value 0.
 	ZeroInt = big.NewInt(0)

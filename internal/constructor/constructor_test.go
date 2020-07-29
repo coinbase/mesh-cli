@@ -134,9 +134,8 @@ func bitcoinScenarios() ([]*types.Operation, *types.Operation) {
 	return changelessTransfer, change
 }
 
-func defaultUtxoConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handler) {
+func defaultUtxoConstructor(t *testing.T) (*Constructor, *mocks.Helper) {
 	helper := new(mocks.Helper)
-	handler := new(mocks.Handler)
 	changelessTransfer, change := bitcoinScenarios()
 	return &Constructor{
 		network: &types.NetworkIdentifier{
@@ -157,9 +156,13 @@ func defaultUtxoConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.H
 		changeScenario:        change,
 		parser:                defaultParser(t),
 		helper:                helper,
-		handler:               handler,
-	}, helper, handler
+	}, helper
 }
+
+var (
+	sender    = "sender"
+	recipient = "recipient"
+)
 
 func TestNewAddress(t *testing.T) {
 	ctx := context.Background()
@@ -190,9 +193,7 @@ func TestCreateTransaction(t *testing.T) {
 
 	constructor, mockHelper, _ := defaultAccountConstructor(t)
 
-	sender := "sender"
 	senderValue := big.NewInt(100)
-	recipient := "recipient"
 	recipientValue := big.NewInt(90)
 
 	scenarioContext, scenarioOps, err := constructor.createScenarioContext(
@@ -350,7 +351,7 @@ func TestMinimumRequiredBalance_Account(t *testing.T) {
 }
 
 func TestMinimumRequiredBalance_Utxo(t *testing.T) {
-	constructor, _, _ := defaultUtxoConstructor(t)
+	constructor, _ := defaultUtxoConstructor(t)
 
 	// 2 * minimum_balance + maximum_fee
 	assert.Equal(t, big.NewInt(1700), constructor.minimumRequiredBalance(changeSend))
@@ -398,7 +399,7 @@ func TestBestUnlockedSender_Account(t *testing.T) {
 func TestBestUnlockedSender_Utxo(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, mockHelper, _ := defaultUtxoConstructor(t)
+	constructor, mockHelper := defaultUtxoConstructor(t)
 
 	lockedAddresses := []string{"addr 2", "addr 4"}
 	mockHelper.On("LockedAddresses", ctx).Return(lockedAddresses, nil)
@@ -646,7 +647,7 @@ type intAndCoin struct {
 func TestFindRecipients_Utxo(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, mockHelper, _ := defaultUtxoConstructor(t)
+	constructor, mockHelper := defaultUtxoConstructor(t)
 
 	balances := map[string]*intAndCoin{
 		"addr 1": {
@@ -700,9 +701,7 @@ func TestFindRecipients_Utxo(t *testing.T) {
 func TestCreateScenarioContext_Account(t *testing.T) {
 	constructor, _, _ := defaultAccountConstructor(t)
 
-	sender := "sender"
 	senderValue := big.NewInt(5000)
-	recipient := "recipient"
 	recipientValue := big.NewInt(2000)
 
 	scenarioContext, scenarioOps, err := constructor.createScenarioContext(
@@ -730,11 +729,9 @@ func TestCreateScenarioContext_Account(t *testing.T) {
 }
 
 func TestCreateScenarioContext_Utxo(t *testing.T) {
-	constructor, _, _ := defaultUtxoConstructor(t)
+	constructor, _ := defaultUtxoConstructor(t)
 
-	sender := "sender"
 	senderValue := big.NewInt(5000)
-	recipient := "recipient"
 	recipientValue := big.NewInt(2000)
 	changeAddress := "change"
 	changeValue := big.NewInt(1900)
@@ -877,7 +874,6 @@ func TestGenerateScenario_Account(t *testing.T) {
 
 	constructor, _, _ := defaultAccountConstructor(t)
 
-	sender := "sender"
 	newAddress := "new addr 1"
 
 	tests := map[string]struct {
@@ -1129,9 +1125,8 @@ func TestGenerateScenario_Account(t *testing.T) {
 func TestGenerateScenario_Utxo(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, _, _ := defaultUtxoConstructor(t)
+	constructor, _ := defaultUtxoConstructor(t)
 
-	sender := "sender"
 	senderCoin := &types.CoinIdentifier{Identifier: "sender coin"}
 	newAddress := "new addr 1"
 	changeAddress := "change addr 1"
