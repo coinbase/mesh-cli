@@ -62,18 +62,18 @@ func defaultParser(t *testing.T) *parser.Parser {
 	return parser.New(asserter, nil)
 }
 
-func defaultConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handler) {
+func defaultAccountConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handler) {
 	helper := new(mocks.Helper)
 	handler := new(mocks.Handler)
 	return &Constructor{
 		network: &types.NetworkIdentifier{
-			Blockchain: "Bitcoin",
+			Blockchain: "Ethereum",
 			Network:    "Mainnet",
 		},
 		accountingModel: configuration.AccountModel,
 		currency: &types.Currency{
-			Symbol:   "BTC",
-			Decimals: 8,
+			Symbol:   "ETH",
+			Decimals: 18,
 		},
 		minimumBalance:        big.NewInt(2),
 		maximumFee:            big.NewInt(100),
@@ -90,7 +90,7 @@ func defaultConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handl
 func TestNewAddress(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, mockHelper, mockHandler := defaultConstructor(t)
+	constructor, mockHelper, mockHandler := defaultAccountConstructor(t)
 
 	mockHelper.On(
 		"Derive",
@@ -114,7 +114,7 @@ func TestNewAddress(t *testing.T) {
 func TestCreateTransaction(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, mockHelper, _ := defaultConstructor(t)
+	constructor, mockHelper, _ := defaultAccountConstructor(t)
 
 	sender := "sender"
 	senderValue := big.NewInt(100)
@@ -265,8 +265,8 @@ func TestCreateTransaction(t *testing.T) {
 	assert.Equal(t, signedTransaction, networkTransaction)
 }
 
-func TestMinimumRequiredBalance(t *testing.T) {
-	constructor, _, _ := defaultConstructor(t)
+func TestMinimumRequiredBalance_Account(t *testing.T) {
+	constructor, _, _ := defaultAccountConstructor(t)
 
 	// 2 * minimum_balance + maximum_fee
 	assert.Equal(t, big.NewInt(104), constructor.minimumRequiredBalance(newAccountSend))
@@ -275,4 +275,32 @@ func TestMinimumRequiredBalance(t *testing.T) {
 	// minimum_balance + maximum_fee
 	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(existingAccountSend))
 	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(fullSend))
+}
+
+func TestBestUnlockedSender_Account(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultAccountConstructor(t)
+
+	lockedAddresses := []string{"addr 2", "addr 4"}
+	mockHelper.On("LockedAddresses", ctx).Return(lockedAddresses, nil)
+
+	balances := map[string]*big.Int{
+		"addr 1": big.NewInt(10),
+		"addr 2": big.NewInt(30),
+		"addr 3": big.NewInt(15),
+		"addr 4": big.NewInt(1000),
+		"addr 5": big.NewInt(2),
+	}
+	addresses := []string{}
+	for k := range balances {
+		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		addresses = append(addresses, k)
+	}
+
+	bestAddress, bestBalance, bestCoin, err := constructor.bestUnlockedSender(ctx, addresses)
+	assert.NoError(t, err)
+	assert.Equal(t, "addr 3", bestAddress)
+	assert.Equal(t, big.NewInt(15), bestBalance)
+	assert.Nil(t, bestCoin)
 }

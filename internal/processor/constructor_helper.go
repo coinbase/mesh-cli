@@ -21,6 +21,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/internal/constructor"
 	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
@@ -257,4 +258,8 @@ func (c *ConstructorHelper) Broadcast(
 
 func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) {
 	return c.keyStorage.GetAllAddresses(ctx)
+}
+
+func (c *ConstructorHelper) RandomAmount(min *big.Int, max *big.Int) *big.Int {
+	return utils.RandomNumber(min, max)
 }

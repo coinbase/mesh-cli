@@ -158,6 +158,8 @@ type Helper interface {
 	ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error)
 
 	AllAddresses(ctx context.Context) ([]string, error)
+
+	RandomAmount(*big.Int, *big.Int) *big.Int
 }
 
 type Handler interface {
@@ -427,7 +429,7 @@ func (c *Constructor) balance(
 	return nil, nil, fmt.Errorf("unable to find balance for %s", address)
 }
 
-func (c *Constructor) getBestUnlockedSender(
+func (c *Constructor) bestUnlockedSender(
 	ctx context.Context,
 	addresses []string,
 ) (
@@ -502,7 +504,7 @@ func (c *Constructor) findSender(
 			continue // we will exit on next loop
 		}
 
-		bestAddress, bestBalance, bestCoin, err := c.getBestUnlockedSender(ctx, addresses)
+		bestAddress, bestBalance, bestCoin, err := c.bestUnlockedSender(ctx, addresses)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("%w: unable to get best unlocked sender", err)
 		}
@@ -665,7 +667,7 @@ func (c *Constructor) generateAccountScenario(
 		}
 
 		if created || utils.ContainsString(belowMinimumRecipients, recipient) {
-			recipientValue := utils.RandomNumber(c.minimumBalance, adjustedBalance)
+			recipientValue := c.helper.RandomAmount(c.minimumBalance, adjustedBalance)
 			return c.createScenarioContext(
 				sender,
 				recipientValue,
@@ -679,7 +681,7 @@ func (c *Constructor) generateAccountScenario(
 
 		// We do not need to send the minimum amount here because the recipient
 		// already has a minimum balance.
-		recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
+		recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
 		return c.createScenarioContext(
 			sender,
 			recipientValue,
@@ -691,7 +693,7 @@ func (c *Constructor) generateAccountScenario(
 		)
 	}
 
-	recipientValue := utils.RandomNumber(big.NewInt(0), adjustedBalance)
+	recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
 	if new(big.Int).Sub(balance, c.minimumRequiredBalance(existingAccountSend)).Sign() != -1 {
 		if len(minimumRecipients) == 0 {
 			return nil, nil, ErrInsufficientFunds
@@ -752,7 +754,7 @@ func (c *Constructor) generateUtxoScenario(
 		doubleMinimumBalance := new(big.Int).Add(c.minimumBalance, c.minimumBalance)
 		changeDifferential := new(big.Int).Sub(feeLessBalance, doubleMinimumBalance)
 
-		recipientShare := utils.RandomNumber(big.NewInt(0), changeDifferential)
+		recipientShare := c.helper.RandomAmount(big.NewInt(0), changeDifferential)
 		changeShare := new(big.Int).Sub(changeDifferential, recipientShare)
 
 		recipientValue := new(big.Int).Add(c.minimumBalance, recipientShare)
@@ -774,7 +776,7 @@ func (c *Constructor) generateUtxoScenario(
 			sender,
 			balance,
 			recipient,
-			utils.RandomNumber(c.minimumBalance, feeLessBalance),
+			c.helper.RandomAmount(c.minimumBalance, feeLessBalance),
 			"",
 			nil,
 			nil,
