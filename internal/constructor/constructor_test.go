@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/internal/scenario"
+	"github.com/coinbase/rosetta-cli/internal/storage"
 	mocks "github.com/coinbase/rosetta-cli/mocks/constructor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -431,6 +433,72 @@ func TestBestUnlockedSender_Utxo(t *testing.T) {
 	assert.Equal(t, "addr 3", bestAddress)
 	assert.Equal(t, big.NewInt(15), bestBalance)
 	assert.Equal(t, "coin 3", bestCoin.Identifier)
+}
+
+func TestFindSender_Available(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultAccountConstructor(t)
+
+	lockedAddresses := []string{"addr 2", "addr 4"}
+	mockHelper.On("LockedAddresses", ctx).Return(lockedAddresses, nil)
+
+	balances := map[string]*big.Int{
+		"addr 1": big.NewInt(10),
+		"addr 2": big.NewInt(30),
+		"addr 3": big.NewInt(15),
+		"addr 4": big.NewInt(1000),
+		"addr 5": big.NewInt(2),
+	}
+	addresses := []string{}
+	for k := range balances {
+		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		addresses = append(addresses, k)
+	}
+
+	mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+	sender, balance, coin, err := constructor.findSender(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, "addr 3", sender)
+	assert.Equal(t, big.NewInt(15), balance)
+	assert.Nil(t, coin)
+}
+
+func TestFindSender_Broadcasting(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultAccountConstructor(t)
+
+	// This will trigger a loop while waiting for broadcasts
+	mockHelper.On("LockedAddresses", ctx).Return([]string{"addr 1", "addr 2", "addr 3", "addr 4", "addr 5"}, nil).Once()
+
+	balances := map[string]*big.Int{
+		"addr 1": big.NewInt(10),
+		"addr 2": big.NewInt(30),
+		"addr 3": big.NewInt(15),
+		"addr 4": big.NewInt(1000),
+		"addr 5": big.NewInt(2),
+	}
+	addresses := []string{}
+	for k := range balances {
+		addresses = append(addresses, k)
+	}
+
+	mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: "addr 3"}, constructor.currency).Return(balances["addr 3"], nil)
+
+	mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+	mockHelper.On("AllBroadcasts", ctx).Return([]*storage.Broadcast{{}}, nil)
+
+	// After first fail, addr 3 will be available
+	mockHelper.On("LockedAddresses", ctx).Return([]string{"addr 1", "addr 2", "addr 4", "addr 5"}, nil).After(8 * time.Second)
+
+	sender, balance, coin, err := constructor.findSender(ctx)
+	mockHelper.AssertExpectations(t)
+	assert.NoError(t, err)
+	assert.Equal(t, "addr 3", sender)
+	assert.Equal(t, big.NewInt(15), balance)
+	assert.Nil(t, coin)
 }
 
 func TestFindRecipients_Account(t *testing.T) {
