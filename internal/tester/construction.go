@@ -150,7 +150,6 @@ func InitializeConstruction(
 	constructorHelper := processor.NewConstructorHelper(
 		offlineFetcher,
 		onlineFetcher,
-		parser,
 		keyStorage,
 		balanceStorage,
 		coinStorage,
@@ -164,6 +163,7 @@ func InitializeConstruction(
 
 	constructor, err := constructor.New(
 		config,
+		parser,
 		constructorHelper,
 		constructorHandler,
 	)

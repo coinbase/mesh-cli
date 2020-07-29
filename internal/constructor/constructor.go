@@ -30,6 +30,7 @@ import (
 	"github.com/coinbase/rosetta-cli/internal/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/fatih/color"
 	"github.com/jinzhu/copier"
@@ -127,18 +128,6 @@ type Helper interface {
 		string, // network transaction
 	) (*types.TransactionIdentifier, error)
 
-	ExpectedOperations(
-		[]*types.Operation, // intent
-		[]*types.Operation, // observed
-		bool, // error extra
-		bool, // confirm success
-	) error
-
-	ExpectedSigners(
-		[]*types.SigningPayload,
-		[]string,
-	) error
-
 	Sign(
 		context.Context,
 		[]*types.SigningPayload,
@@ -189,12 +178,14 @@ type Constructor struct {
 	scenario       []*types.Operation
 	changeScenario *types.Operation
 
+	parser  *parser.Parser
 	helper  Helper
 	handler Handler
 }
 
 func New(
 	config *configuration.Configuration,
+	parser *parser.Parser,
 	helper Helper,
 	handler Handler,
 ) (*Constructor, error) {
@@ -275,7 +266,7 @@ func (c *Constructor) createTransaction(
 		)
 	}
 
-	if err := c.helper.ExpectedOperations(intent, parsedOps, false, false); err != nil {
+	if err := c.parser.ExpectedOperations(intent, parsedOps, false, false); err != nil {
 		return nil, "", fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
 
@@ -304,11 +295,11 @@ func (c *Constructor) createTransaction(
 		return nil, "", fmt.Errorf("%w: unable to parse signed transaction", err)
 	}
 
-	if err := c.helper.ExpectedOperations(intent, signedParsedOps, false, false); err != nil {
+	if err := c.parser.ExpectedOperations(intent, signedParsedOps, false, false); err != nil {
 		return nil, "", fmt.Errorf("%w: signed parsed ops do not match intent", err)
 	}
 
-	if err := c.helper.ExpectedSigners(payloads, signers); err != nil {
+	if err := parser.ExpectedSigners(payloads, signers); err != nil {
 		return nil, "", fmt.Errorf("%w: signed transactions signers do not match intent", err)
 	}
 

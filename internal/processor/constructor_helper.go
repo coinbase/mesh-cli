@@ -24,7 +24,6 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
-	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -33,7 +32,6 @@ var _ constructor.Helper = (*ConstructorHelper)(nil)
 type ConstructorHelper struct {
 	offlineFetcher *fetcher.Fetcher
 	onlineFetcher  *fetcher.Fetcher
-	parser         *parser.Parser
 
 	keyStorage       *storage.KeyStorage
 	balanceStorage   *storage.BalanceStorage
@@ -44,7 +42,6 @@ type ConstructorHelper struct {
 func NewConstructorHelper(
 	offlineFetcher *fetcher.Fetcher,
 	onlineFetcher *fetcher.Fetcher,
-	parser *parser.Parser,
 	keyStorage *storage.KeyStorage,
 	balanceStorage *storage.BalanceStorage,
 	coinStorage *storage.CoinStorage,
@@ -53,7 +50,6 @@ func NewConstructorHelper(
 	return &ConstructorHelper{
 		offlineFetcher:   offlineFetcher,
 		onlineFetcher:    onlineFetcher,
-		parser:           parser,
 		keyStorage:       keyStorage,
 		balanceStorage:   balanceStorage,
 		coinStorage:      coinStorage,
@@ -148,22 +144,6 @@ func (c *ConstructorHelper) Hash(
 		networkIdentifier,
 		networkTransaction,
 	)
-}
-
-func (c *ConstructorHelper) ExpectedOperations(
-	intent []*types.Operation,
-	observed []*types.Operation,
-	errExtra bool,
-	confirmSuccess bool,
-) error {
-	return c.parser.ExpectedOperations(intent, observed, errExtra, confirmSuccess)
-}
-
-func (c *ConstructorHelper) ExpectedSigners(
-	payloads []*types.SigningPayload,
-	signers []string,
-) error {
-	return parser.ExpectedSigners(payloads, signers)
 }
 
 func (c *ConstructorHelper) Sign(
