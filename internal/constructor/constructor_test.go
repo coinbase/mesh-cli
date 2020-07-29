@@ -967,6 +967,96 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			scenarioOps: append(constructor.scenario, constructor.changeScenario),
 			err:         nil,
 		},
+		"create new recipient, create new change - bad flips": {
+			minimumBalance:         big.NewInt(400),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(95),
+			expectNewRecipient:     true,
+			changeAccountNumber:    big.NewInt(95),
+			expectNewChange:        true,
+
+			changeDifferential:       big.NewInt(300),
+			changeDifferentialAmount: big.NewInt(151),
+
+			addresses: 0,
+
+			senderBalance: big.NewInt(1500),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(1500),
+				Recipient:      newAddress,
+				RecipientValue: big.NewInt(551),
+				ChangeAddress:  changeAddress,
+				ChangeValue:    big.NewInt(549),
+				Currency:       constructor.currency,
+				CoinIdentifier: senderCoin,
+			},
+			scenarioOps: append(constructor.scenario, constructor.changeScenario),
+			err:         nil,
+		},
+		"existing recipient, create new change": {
+			minimumBalance:         big.NewInt(400),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(95),
+			expectNewRecipient:     false,
+			changeAccountNumber:    big.NewInt(1),
+			expectNewChange:        true,
+
+			changeDifferential:       big.NewInt(300),
+			changeDifferentialAmount: big.NewInt(151),
+
+			addresses: 10,
+
+			senderBalance: big.NewInt(1500),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(1500),
+				Recipient:      "addr 1",
+				RecipientValue: big.NewInt(551),
+				ChangeAddress:  changeAddress,
+				ChangeValue:    big.NewInt(549),
+				Currency:       constructor.currency,
+				CoinIdentifier: senderCoin,
+			},
+			scenarioOps: append(constructor.scenario, constructor.changeScenario),
+			err:         nil,
+		},
+		"existing recipient, existing change": {
+			minimumBalance:         big.NewInt(400),
+			maximumFee:             big.NewInt(400),
+			maxAddresses:           100,
+			newAccountProbability:  0.5,
+			recipientAccountNumber: big.NewInt(95),
+			expectNewRecipient:     false,
+			changeAccountNumber:    big.NewInt(90),
+			expectNewChange:        false,
+
+			changeDifferential:       big.NewInt(300),
+			changeDifferentialAmount: big.NewInt(151),
+
+			addresses: 10,
+
+			senderBalance: big.NewInt(1500),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(1500),
+				Recipient:      "addr 1",
+				RecipientValue: big.NewInt(551),
+				ChangeAddress:  "addr 2",
+				ChangeValue:    big.NewInt(549),
+				Currency:       constructor.currency,
+				CoinIdentifier: senderCoin,
+			},
+			scenarioOps: append(constructor.scenario, constructor.changeScenario),
+			err:         nil,
+		},
 		"create new address, no change - good flip": {
 			minimumBalance:         big.NewInt(500),
 			maximumFee:             big.NewInt(400),
