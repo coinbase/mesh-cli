@@ -460,15 +460,15 @@ func TestFindRecipients_Account(t *testing.T) {
 	assert.ElementsMatch(t, []string{"addr 1", "addr 5"}, belowMinimumRecipients)
 }
 
+type intAndCoin struct {
+	amount *big.Int
+	coin   *types.CoinIdentifier
+}
+
 func TestFindRecipients_Utxo(t *testing.T) {
 	ctx := context.Background()
 
 	constructor, mockHelper, _ := defaultUtxoConstructor(t)
-
-	type intAndCoin struct {
-		amount *big.Int
-		coin   *types.CoinIdentifier
-	}
 
 	balances := map[string]*intAndCoin{
 		"addr 1": {
@@ -891,6 +891,179 @@ func TestGenerateScenario_Account(t *testing.T) {
 			}
 
 			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, sender, test.senderBalance, nil)
+			if test.err != nil {
+				assert.Equal(t, test.err, err)
+				assert.Nil(t, scenarioCtx)
+				assert.Nil(t, scenarioOps)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.scenarioCtx, scenarioCtx)
+				assert.Equal(t, test.scenarioOps, scenarioOps)
+			}
+		})
+	}
+}
+
+func TestGenerateScenario_Utxo(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, _, _ := defaultUtxoConstructor(t)
+
+	sender := "sender"
+	senderCoin := &types.CoinIdentifier{Identifier: "sender coin"}
+	newAddress := "new addr 1"
+
+	tests := map[string]struct {
+		minimumBalance        *big.Int
+		maximumFee            *big.Int
+		maxAddresses          int
+		newAccountProbability float64
+		randomAccountNumber   *big.Int
+		expectNew             bool
+
+		balances map[string]*intAndCoin
+
+		senderBalance *big.Int
+
+		sendAmount      *big.Int
+		recipientAmount *big.Int
+
+		scenarioCtx *scenario.Context
+		scenarioOps []*types.Operation
+		err         error
+	}{
+		"create new address, no change - good flip": {
+			minimumBalance:        big.NewInt(500),
+			maximumFee:            big.NewInt(400),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(1),
+			expectNew:             true,
+
+			balances: map[string]*intAndCoin{
+				"addr 1": {
+					amount: big.NewInt(10),
+					coin:   &types.CoinIdentifier{Identifier: "coin 1"},
+				},
+				"addr 2": {
+					amount: big.NewInt(30),
+					coin:   &types.CoinIdentifier{Identifier: "coin 2"},
+				},
+				"addr 3": {
+					amount: big.NewInt(15),
+					coin:   &types.CoinIdentifier{Identifier: "coin 3"},
+				},
+				"addr 4": {
+					amount: big.NewInt(1000),
+					coin:   &types.CoinIdentifier{Identifier: "coin 4"},
+				},
+				"addr 5": {
+					amount: big.NewInt(2),
+					coin:   &types.CoinIdentifier{Identifier: "coin 5"},
+				},
+			},
+
+			senderBalance: big.NewInt(1000),
+
+			sendAmount:      big.NewInt(1000),
+			recipientAmount: big.NewInt(600),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(1000),
+				Recipient:      newAddress,
+				RecipientValue: big.NewInt(600),
+				Currency:       constructor.currency,
+				CoinIdentifier: senderCoin,
+			},
+			scenarioOps: constructor.scenario,
+			err:         nil,
+		},
+		"zero funds": {
+			minimumBalance:        big.NewInt(0),
+			maximumFee:            big.NewInt(0),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(1),
+
+			balances: map[string]*intAndCoin{
+				"addr 1": {
+					amount: big.NewInt(10),
+					coin:   &types.CoinIdentifier{Identifier: "coin 1"},
+				},
+				"addr 2": {
+					amount: big.NewInt(30),
+					coin:   &types.CoinIdentifier{Identifier: "coin 2"},
+				},
+				"addr 3": {
+					amount: big.NewInt(15),
+					coin:   &types.CoinIdentifier{Identifier: "coin 3"},
+				},
+				"addr 4": {
+					amount: big.NewInt(1000),
+					coin:   &types.CoinIdentifier{Identifier: "coin 4"},
+				},
+				"addr 5": {
+					amount: big.NewInt(2),
+					coin:   &types.CoinIdentifier{Identifier: "coin 5"},
+				},
+			},
+
+			senderBalance: big.NewInt(0),
+
+			sendAmount: big.NewInt(0),
+
+			scenarioCtx: nil,
+			scenarioOps: nil,
+			err:         ErrInsufficientFunds,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// reset at start of each loop
+			mockHelper := new(mocks.Helper)
+			constructor.helper = mockHelper
+
+			mockHandler := new(mocks.Handler)
+			constructor.handler = mockHandler
+
+			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.randomAccountNumber).Once()
+			if test.expectNew {
+				mockHelper.On(
+					"Derive",
+					ctx,
+					constructor.network,
+					mock.Anything,
+					mock.Anything,
+				).Return(
+					"new addr 1",
+					nil,
+					nil,
+				)
+				mockHelper.On("StoreKey", ctx, "new addr 1", mock.Anything).Return(nil)
+				mockHandler.On("AddressCreated", ctx, "new addr 1").Return(nil).Once()
+			}
+
+			constructor.minimumBalance = test.minimumBalance
+			constructor.maxAddresses = test.maxAddresses
+			constructor.maximumFee = test.maximumFee
+			constructor.newAccountProbability = test.newAccountProbability
+
+			// Lock in addresses order so don't introduce flaky test (instead of
+			// iterating over balance map)
+			addresses := []string{}
+			for i := 0; i < len(test.balances); i++ {
+				addresses = append(addresses, fmt.Sprintf("addr %d", i+1))
+			}
+
+			mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+			for _, k := range addresses {
+				mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(test.balances[k], nil)
+			}
+
+			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, sender, test.senderBalance, senderCoin)
 			if test.err != nil {
 				assert.Equal(t, test.err, err)
 				assert.Nil(t, scenarioCtx)

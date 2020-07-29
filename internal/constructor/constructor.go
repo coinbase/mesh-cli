@@ -779,10 +779,10 @@ func (c *Constructor) generateUtxoScenario(
 			sender,
 			balance,
 			recipient,
-			c.helper.RandomAmount(c.minimumBalance, feeLessBalance),
+			feeLessBalance,
 			"",
 			nil,
-			nil,
+			coinIdentifier,
 		)
 	}
 
