@@ -431,3 +431,30 @@ func TestBestUnlockedSender_Utxo(t *testing.T) {
 	assert.Equal(t, big.NewInt(15), bestBalance)
 	assert.Equal(t, "coin 3", bestCoin.Identifier)
 }
+
+func TestFindRecipients_Account(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultAccountConstructor(t)
+	constructor.minimumBalance = big.NewInt(15)
+
+	balances := map[string]*big.Int{
+		"addr 1": big.NewInt(10),
+		"addr 2": big.NewInt(30),
+		"addr 3": big.NewInt(15),
+		"addr 4": big.NewInt(1000),
+		"addr 5": big.NewInt(2),
+	}
+	addresses := []string{}
+	for k := range balances {
+		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		addresses = append(addresses, k)
+	}
+
+	mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+	minimumRecipients, belowMinimumRecipients, err := constructor.findRecipients(ctx, "addr 4")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"addr 2", "addr 3"}, minimumRecipients)
+	assert.ElementsMatch(t, []string{"addr 1", "addr 5"}, belowMinimumRecipients)
+}
