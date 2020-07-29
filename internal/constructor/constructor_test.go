@@ -458,3 +458,49 @@ func TestFindRecipients_Account(t *testing.T) {
 	assert.ElementsMatch(t, []string{"addr 2", "addr 3"}, minimumRecipients)
 	assert.ElementsMatch(t, []string{"addr 1", "addr 5"}, belowMinimumRecipients)
 }
+
+func TestFindRecipients_Utxo(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultUtxoConstructor(t)
+
+	type intAndCoin struct {
+		amount *big.Int
+		coin   *types.CoinIdentifier
+	}
+
+	balances := map[string]*intAndCoin{
+		"addr 1": {
+			amount: big.NewInt(10),
+			coin:   &types.CoinIdentifier{Identifier: "coin 1"},
+		},
+		"addr 2": {
+			amount: big.NewInt(30),
+			coin:   &types.CoinIdentifier{Identifier: "coin 2"},
+		},
+		"addr 3": {
+			amount: big.NewInt(15),
+			coin:   &types.CoinIdentifier{Identifier: "coin 3"},
+		},
+		"addr 4": {
+			amount: big.NewInt(1000),
+			coin:   &types.CoinIdentifier{Identifier: "coin 4"},
+		},
+		"addr 5": {
+			amount: big.NewInt(2),
+			coin:   &types.CoinIdentifier{Identifier: "coin 5"},
+		},
+	}
+	addresses := []string{}
+	for k := range balances {
+		mockHelper.On("CoinBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k].amount, balances[k].coin, nil)
+		addresses = append(addresses, k)
+	}
+
+	mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+	minimumRecipients, belowMinimumRecipients, err := constructor.findRecipients(ctx, "addr 4")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{}, minimumRecipients)
+	assert.ElementsMatch(t, []string{"addr 1", "addr 2", "addr 3", "addr 5"}, belowMinimumRecipients)
+}
