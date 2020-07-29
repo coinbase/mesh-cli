@@ -802,6 +802,11 @@ func (c *Constructor) generateScenario(
 	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
+	if balance.Sign() == 0 {
+		// Cannot perform any transfer.
+		return nil, nil, ErrInsufficientFunds
+	}
+
 	minimumRecipients, belowMinimumRecipients, err := c.findRecipients(ctx, sender)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to find recipients", err)
