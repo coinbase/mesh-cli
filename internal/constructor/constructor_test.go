@@ -925,9 +925,6 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 
 		senderBalance *big.Int
 
-		sendAmount      *big.Int
-		recipientAmount *big.Int
-
 		scenarioCtx *scenario.Context
 		scenarioOps []*types.Operation
 		err         error
@@ -943,9 +940,6 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			addresses: 10,
 
 			senderBalance: big.NewInt(1000),
-
-			sendAmount:      big.NewInt(1000),
-			recipientAmount: big.NewInt(600),
 
 			scenarioCtx: &scenario.Context{
 				Sender:         sender,
@@ -970,9 +964,6 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 
 			senderBalance: big.NewInt(1000),
 
-			sendAmount:      big.NewInt(1000),
-			recipientAmount: big.NewInt(600),
-
 			scenarioCtx: &scenario.Context{
 				Sender:         sender,
 				SenderValue:    big.NewInt(1000),
@@ -996,9 +987,6 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 
 			addresses: 10,
 
-			sendAmount:      big.NewInt(1000),
-			recipientAmount: big.NewInt(600),
-
 			scenarioCtx: &scenario.Context{
 				Sender:         sender,
 				SenderValue:    big.NewInt(1000),
@@ -1010,6 +998,22 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			scenarioOps: constructor.scenario,
 			err:         nil,
 		},
+		"insufficient funds": {
+			minimumBalance:        big.NewInt(500),
+			maximumFee:            big.NewInt(400),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(90),
+			expectNew:             false,
+
+			senderBalance: big.NewInt(500),
+
+			addresses: 10,
+
+			scenarioCtx: nil,
+			scenarioOps: nil,
+			err:         ErrInsufficientFunds,
+		},
 		"zero funds": {
 			minimumBalance:        big.NewInt(0),
 			maximumFee:            big.NewInt(0),
@@ -1020,8 +1024,6 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			senderBalance: big.NewInt(0),
 
 			addresses: 10,
-
-			sendAmount: big.NewInt(0),
 
 			scenarioCtx: nil,
 			scenarioOps: nil,
