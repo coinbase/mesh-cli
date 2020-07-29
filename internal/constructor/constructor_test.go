@@ -376,7 +376,15 @@ func TestBestUnlockedSender_Account(t *testing.T) {
 	}
 	addresses := []string{}
 	for k := range balances {
-		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		mockHelper.On(
+			"AccountBalance",
+			ctx,
+			&types.AccountIdentifier{Address: k},
+			constructor.currency,
+		).Return(
+			balances[k],
+			nil,
+		)
 		addresses = append(addresses, k)
 	}
 
@@ -424,7 +432,16 @@ func TestBestUnlockedSender_Utxo(t *testing.T) {
 	}
 	addresses := []string{}
 	for k := range balances {
-		mockHelper.On("CoinBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k].amount, balances[k].coin, nil)
+		mockHelper.On(
+			"CoinBalance",
+			ctx,
+			&types.AccountIdentifier{Address: k},
+			constructor.currency,
+		).Return(
+			balances[k].amount,
+			balances[k].coin,
+			nil,
+		)
 		addresses = append(addresses, k)
 	}
 
@@ -452,7 +469,15 @@ func TestFindSender_Available(t *testing.T) {
 	}
 	addresses := []string{}
 	for k := range balances {
-		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		mockHelper.On(
+			"AccountBalance",
+			ctx,
+			&types.AccountIdentifier{Address: k},
+			constructor.currency,
+		).Return(
+			balances[k],
+			nil,
+		)
 		addresses = append(addresses, k)
 	}
 
@@ -471,7 +496,13 @@ func TestFindSender_Broadcasting(t *testing.T) {
 	constructor, mockHelper, _ := defaultAccountConstructor(t)
 
 	// This will trigger a loop while waiting for broadcasts
-	mockHelper.On("LockedAddresses", ctx).Return([]string{"addr 1", "addr 2", "addr 3", "addr 4", "addr 5"}, nil).Once()
+	mockHelper.On(
+		"LockedAddresses",
+		ctx,
+	).Return(
+		[]string{"addr 1", "addr 2", "addr 3", "addr 4", "addr 5"},
+		nil,
+	).Once()
 
 	balances := map[string]*big.Int{
 		"addr 1": big.NewInt(10),
@@ -485,13 +516,29 @@ func TestFindSender_Broadcasting(t *testing.T) {
 		addresses = append(addresses, k)
 	}
 
-	mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: "addr 3"}, constructor.currency).Return(balances["addr 3"], nil)
+	mockHelper.On(
+		"AccountBalance",
+		ctx,
+		&types.AccountIdentifier{Address: "addr 3"},
+		constructor.currency,
+	).Return(
+		balances["addr 3"],
+		nil,
+	)
 
 	mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
 	mockHelper.On("AllBroadcasts", ctx).Return([]*storage.Broadcast{{}}, nil)
 
 	// After first fail, addr 3 will be available
-	mockHelper.On("LockedAddresses", ctx).Return([]string{"addr 1", "addr 2", "addr 4", "addr 5"}, nil).After(8 * time.Second)
+	mockHelper.On(
+		"LockedAddresses",
+		ctx,
+	).Return(
+		[]string{"addr 1", "addr 2", "addr 4", "addr 5"},
+		nil,
+	).After(
+		8 * time.Second,
+	)
 
 	sender, balance, coin, err := constructor.findSender(ctx)
 	mockHelper.AssertExpectations(t)
@@ -516,7 +563,15 @@ func TestFindRecipients_Account(t *testing.T) {
 	}
 	addresses := []string{}
 	for k := range balances {
-		mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k], nil)
+		mockHelper.On(
+			"AccountBalance",
+			ctx,
+			&types.AccountIdentifier{Address: k},
+			constructor.currency,
+		).Return(
+			balances[k],
+			nil,
+		)
 		addresses = append(addresses, k)
 	}
 
@@ -562,7 +617,16 @@ func TestFindRecipients_Utxo(t *testing.T) {
 	}
 	addresses := []string{}
 	for k := range balances {
-		mockHelper.On("CoinBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k].amount, balances[k].coin, nil)
+		mockHelper.On(
+			"CoinBalance",
+			ctx,
+			&types.AccountIdentifier{Address: k},
+			constructor.currency,
+		).Return(
+			balances[k].amount,
+			balances[k].coin,
+			nil,
+		)
 		addresses = append(addresses, k)
 	}
 
@@ -571,7 +635,11 @@ func TestFindRecipients_Utxo(t *testing.T) {
 	minimumRecipients, belowMinimumRecipients, err := constructor.findRecipients(ctx, "addr 4")
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{}, minimumRecipients)
-	assert.ElementsMatch(t, []string{"addr 1", "addr 2", "addr 3", "addr 5"}, belowMinimumRecipients)
+	assert.ElementsMatch(
+		t,
+		[]string{"addr 1", "addr 2", "addr 3", "addr 5"},
+		belowMinimumRecipients,
+	)
 }
 
 func TestCreateScenarioContext_Account(t *testing.T) {
@@ -731,7 +799,13 @@ func TestCanGetNewAddress(t *testing.T) {
 			}
 
 			mockHelper.On("AllAddresses", ctx).Return(addresses, nil).Once()
-			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.randomAmount).Once()
+			mockHelper.On(
+				"RandomAmount",
+				big.NewInt(0),
+				big.NewInt(100),
+			).Return(
+				test.randomAmount,
+			).Once()
 			constructor.newAccountProbability = test.newAccountProbability
 			constructor.maxAddresses = test.maxAddresses
 
@@ -919,7 +993,13 @@ func TestGenerateScenario_Account(t *testing.T) {
 			mockHandler := new(mocks.Handler)
 			constructor.handler = mockHandler
 
-			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.randomAccountNumber).Once()
+			mockHelper.On(
+				"RandomAmount",
+				big.NewInt(0),
+				big.NewInt(100),
+			).Return(
+				test.randomAccountNumber,
+			).Once()
 			if test.expectNew {
 				mockHelper.On(
 					"Derive",
@@ -942,7 +1022,13 @@ func TestGenerateScenario_Account(t *testing.T) {
 			constructor.newAccountProbability = test.newAccountProbability
 
 			if test.sendRandomLowAmount != nil && test.sendRandomHighAmount != nil {
-				mockHelper.On("RandomAmount", test.sendRandomLowAmount, test.sendRandomHighAmount).Return(test.sendAmount)
+				mockHelper.On(
+					"RandomAmount",
+					test.sendRandomLowAmount,
+					test.sendRandomHighAmount,
+				).Return(
+					test.sendAmount,
+				)
 			}
 
 			// Lock in addresses order so don't introduce flaky test (instead of
@@ -955,10 +1041,23 @@ func TestGenerateScenario_Account(t *testing.T) {
 			mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
 
 			for _, k := range addresses {
-				mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(test.balances[k], nil)
+				mockHelper.On(
+					"AccountBalance",
+					ctx,
+					&types.AccountIdentifier{Address: k},
+					constructor.currency,
+				).Return(
+					test.balances[k],
+					nil,
+				)
 			}
 
-			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, sender, test.senderBalance, nil)
+			scenarioCtx, scenarioOps, err := constructor.generateScenario(
+				ctx,
+				sender,
+				test.senderBalance,
+				nil,
+			)
 			if test.err != nil {
 				assert.Equal(t, test.err, err)
 				assert.Nil(t, scenarioCtx)
@@ -1236,7 +1335,13 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			mockHandler := new(mocks.Handler)
 			constructor.handler = mockHandler
 
-			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.recipientAccountNumber).Once()
+			mockHelper.On(
+				"RandomAmount",
+				big.NewInt(0),
+				big.NewInt(100),
+			).Return(
+				test.recipientAccountNumber,
+			).Once()
 			if test.expectNewRecipient {
 				mockHelper.On(
 					"Derive",
@@ -1253,7 +1358,13 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 				mockHandler.On("AddressCreated", ctx, newAddress).Return(nil).Once()
 			}
 
-			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.changeAccountNumber).Once()
+			mockHelper.On(
+				"RandomAmount",
+				big.NewInt(0),
+				big.NewInt(100),
+			).Return(
+				test.changeAccountNumber,
+			).Once()
 			if test.expectNewChange {
 				mockHelper.On(
 					"Derive",
@@ -1271,7 +1382,13 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 			}
 
 			if test.changeDifferential != nil {
-				mockHelper.On("RandomAmount", big.NewInt(0), test.changeDifferential).Return(test.changeDifferentialAmount).Once()
+				mockHelper.On(
+					"RandomAmount",
+					big.NewInt(0),
+					test.changeDifferential,
+				).Return(
+					test.changeDifferentialAmount,
+				).Once()
 			}
 
 			constructor.minimumBalance = test.minimumBalance
@@ -1288,7 +1405,12 @@ func TestGenerateScenario_Utxo(t *testing.T) {
 
 			mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
 
-			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, sender, test.senderBalance, senderCoin)
+			scenarioCtx, scenarioOps, err := constructor.generateScenario(
+				ctx,
+				sender,
+				test.senderBalance,
+				senderCoin,
+			)
 			if test.err != nil {
 				assert.Equal(t, test.err, err)
 				assert.Nil(t, scenarioCtx)
