@@ -72,8 +72,8 @@ configuration is used. This default configuration can be viewed
 
 In the `examples/configuration` directory, you can find examples configuration
 files for running tests against a Bitcoin Rosetta implementation
-[config](examples/configuration/bitcoin.json) and an Ethereum Rosetta
-implementation [config](examples/configuration/ethereum.json).
+([config](examples/configuration/bitcoin.json)) and an Ethereum Rosetta
+implementation ([config](examples/configuration/ethereum.json)).
 
 #### Disable Complex Checks
 If you are just getting started with your implementation, you may want
