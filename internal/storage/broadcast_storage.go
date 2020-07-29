@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -47,6 +48,10 @@ type BroadcastStorage struct {
 	tipDelay            int64
 	broadcastBehindTip  bool
 	blockBroadcastLimit int
+
+	// Running BroadcastAll concurrently
+	// could cause corruption.
+	broadcastAllMutex sync.Mutex
 }
 
 // BroadcastStorageHelper is used by BroadcastStorage to submit transactions
@@ -309,6 +314,12 @@ func (b *BroadcastStorage) Broadcast(
 		return fmt.Errorf("%w: unable to commit broadcast", err)
 	}
 
+	// Broadcast all pending transactions (instead of waiting
+	// until after processing the next block).
+	if err := b.BroadcastAll(ctx, true); err != nil {
+		return fmt.Errorf("%w: unable to broadcast pending transactions", err)
+	}
+
 	return nil
 }
 
@@ -384,9 +395,19 @@ func (b *BroadcastStorage) performBroadcast(
 // is set to true, then only transactions that should be broadcast again
 // are actually broadcast.
 func (b *BroadcastStorage) BroadcastAll(ctx context.Context, onlyEligible bool) error {
+	// Corruption can occur if we run this concurrently.
+	b.broadcastAllMutex.Lock()
+	defer b.broadcastAllMutex.Unlock()
+
 	currBlock, err := b.helper.CurrentBlockIdentifier(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: unable to get current block identifier", err)
+	}
+
+	// We have not yet synced a block and should wait to broadcast
+	// until we do so (otherwise we can't track last broadcast correctly).
+	if currBlock == nil {
+		return nil
 	}
 
 	// Wait to broadcast transaction until close to tip
