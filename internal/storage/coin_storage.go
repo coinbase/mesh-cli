@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -354,4 +355,49 @@ func (c *CoinStorage) GetCoins(
 	}
 
 	return coinArr, nil
+}
+
+// GetLargestCoin returns the largest Coin for a
+// *types.AccountIdentifier and *types.Currency.
+// If no Coins are available, a 0 balance is returned.
+func (c *CoinStorage) GetLargestCoin(
+	ctx context.Context,
+	accountIdentifier *types.AccountIdentifier,
+	currency *types.Currency,
+) (*big.Int, *types.CoinIdentifier, error) {
+	coins, err := c.GetCoins(ctx, accountIdentifier)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"%w: unable to get utxo balance for %s",
+			err,
+			accountIdentifier.Address,
+		)
+	}
+
+	bal := big.NewInt(0)
+	var coinIdentifier *types.CoinIdentifier
+	for _, coin := range coins {
+		if types.Hash(
+			coin.Operation.Amount.Currency,
+		) != types.Hash(
+			currency,
+		) {
+			continue
+		}
+
+		val, ok := new(big.Int).SetString(coin.Operation.Amount.Value, 10)
+		if !ok {
+			return nil, nil, fmt.Errorf(
+				"could not parse amount for coin %s",
+				coin.Identifier.Identifier,
+			)
+		}
+
+		if bal.Cmp(val) == -1 {
+			bal = val
+			coinIdentifier = coin.Identifier
+		}
+	}
+
+	return bal, coinIdentifier, nil
 }

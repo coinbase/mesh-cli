@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/internal/utils"
@@ -73,6 +74,16 @@ var (
 	successStatus = "success"
 	failureStatus = "failure"
 
+	currency = &types.Currency{
+		Symbol:   "sym",
+		Decimals: 12,
+	}
+
+	currency2 = &types.Currency{
+		Symbol:   "sym2",
+		Decimals: 12,
+	}
+
 	coinBlock = &types.Block{
 		Transactions: []*types.Transaction{
 			{
@@ -81,7 +92,8 @@ var (
 						Account: account,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "10",
+							Value:    "10",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinCreated,
@@ -94,7 +106,8 @@ var (
 						Account: account2,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "15",
+							Value:    "15",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinSpent,
@@ -107,7 +120,8 @@ var (
 						Account: account2,
 						Status:  failureStatus,
 						Amount: &types.Amount{
-							Value: "20",
+							Value:    "20",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinSpent,
@@ -129,7 +143,8 @@ var (
 						Account: account,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "-10",
+							Value:    "-10",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinSpent,
@@ -151,7 +166,8 @@ var (
 						Account: account3,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "4",
+							Value:    "4",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinCreated,
@@ -168,7 +184,8 @@ var (
 						Account: account3,
 						Status:  successStatus,
 						Amount: &types.Amount{
-							Value: "6",
+							Value:    "6",
+							Currency: currency2,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinCreated,
@@ -185,7 +202,8 @@ var (
 						Account: account3,
 						Status:  failureStatus,
 						Amount: &types.Amount{
-							Value: "12",
+							Value:    "12",
+							Currency: currency,
 						},
 						CoinChange: &types.CoinChange{
 							CoinAction: types.CoinCreated,
@@ -242,6 +260,11 @@ func TestCoinStorage(t *testing.T) {
 		coins, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+
+		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account, currency)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(0), bal)
+		assert.Nil(t, coinIdentifier)
 	})
 
 	t.Run("add block", func(t *testing.T) {
@@ -324,5 +347,15 @@ func TestCoinStorage(t *testing.T) {
 		coins, err = c.GetCoins(ctx, account3)
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, account3Coins, coins)
+
+		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account3, currency)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(4), bal)
+		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin3"}, coinIdentifier)
+
+		bal, coinIdentifier, err = c.GetLargestCoin(ctx, account3, currency2)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(6), bal)
+		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin4"}, coinIdentifier)
 	})
 }
