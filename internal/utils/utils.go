@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -121,12 +122,17 @@ func SerializeAndWrite(filePath string, object interface{}) error {
 // LoadAndParse reads the file at the provided path
 // and attempts to unmarshal it into output.
 func LoadAndParse(filePath string, output interface{}) error {
-	bytes, err := ioutil.ReadFile(path.Clean(filePath))
+	b, err := ioutil.ReadFile(path.Clean(filePath))
 	if err != nil {
 		return fmt.Errorf("%w: unable to load file %s", err, filePath)
 	}
 
-	if err := json.Unmarshal(bytes, &output); err != nil {
+	// To prevent silent erroring, we explicitly
+	// reject any unknown fields.
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&output); err != nil {
 		return fmt.Errorf("%w: unable to unmarshal", err)
 	}
 

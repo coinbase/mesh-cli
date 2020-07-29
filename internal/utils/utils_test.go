@@ -63,6 +63,12 @@ func TestCreateAndRemoveTempDir(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, curr, &newCurr)
 
+	// Test that we error when unknown fields
+	var newBlock types.Block
+	err = LoadAndParse(currPath, &newBlock)
+	assert.Error(t, err)
+	assert.Equal(t, types.Block{}, newBlock)
+
 	RemoveTempDir(dir)
 
 	_, err = os.Stat(dir)
