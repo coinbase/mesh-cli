@@ -656,7 +656,8 @@ func (c *Constructor) generateAccountScenario(
 	[]*types.Operation, // scenario operations
 	error, // ErrInsufficientFunds
 ) {
-	adjustedBalance := new(big.Int).Sub(balance, c.minimumBalance)
+	sendableBalance := new(big.Int).Sub(balance, c.minimumBalance)
+	sendableBalance = new(big.Int).Sub(sendableBalance, c.maximumFee)
 
 	// should send to new account, existing account, or no acccount?
 	if new(big.Int).Sub(balance, c.minimumRequiredBalance(newAccountSend)).Sign() != -1 {
@@ -669,7 +670,7 @@ func (c *Constructor) generateAccountScenario(
 		}
 
 		if created || utils.ContainsString(belowMinimumRecipients, recipient) {
-			recipientValue := c.helper.RandomAmount(c.minimumBalance, adjustedBalance)
+			recipientValue := c.helper.RandomAmount(c.minimumBalance, sendableBalance)
 			return c.createScenarioContext(
 				sender,
 				recipientValue,
@@ -683,7 +684,7 @@ func (c *Constructor) generateAccountScenario(
 
 		// We do not need to send the minimum amount here because the recipient
 		// already has a minimum balance.
-		recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
+		recipientValue := c.helper.RandomAmount(big.NewInt(0), sendableBalance)
 		return c.createScenarioContext(
 			sender,
 			recipientValue,
@@ -700,8 +701,7 @@ func (c *Constructor) generateAccountScenario(
 			return nil, nil, ErrInsufficientFunds
 		}
 
-		recipientValue := c.helper.RandomAmount(big.NewInt(0), adjustedBalance)
-
+		recipientValue := c.helper.RandomAmount(big.NewInt(0), sendableBalance)
 		return c.createScenarioContext(
 			sender,
 			recipientValue,

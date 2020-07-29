@@ -582,21 +582,7 @@ func TestCreateScenarioContext_Utxo(t *testing.T) {
 func TestCanGetNewAddress(t *testing.T) {
 	ctx := context.Background()
 
-	constructor, mockHelper, mockHandler := defaultAccountConstructor(t)
-
-	mockHelper.On(
-		"Derive",
-		ctx,
-		constructor.network,
-		mock.Anything,
-		mock.Anything,
-	).Return(
-		"addr 1",
-		nil,
-		nil,
-	)
-	mockHelper.On("StoreKey", ctx, "addr 1", mock.Anything).Return(nil)
-	mockHandler.On("AddressCreated", ctx, "addr 1").Return(nil)
+	constructor, _, mockHandler := defaultAccountConstructor(t)
 
 	var tests = map[string]struct {
 		addresses             int
@@ -652,6 +638,25 @@ func TestCanGetNewAddress(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			mockHelper := new(mocks.Helper)
+			constructor.helper = mockHelper
+
+			if test.created {
+				mockHelper.On(
+					"Derive",
+					ctx,
+					constructor.network,
+					mock.Anything,
+					mock.Anything,
+				).Return(
+					"addr 1",
+					nil,
+					nil,
+				)
+				mockHelper.On("StoreKey", ctx, "addr 1", mock.Anything).Return(nil)
+				mockHandler.On("AddressCreated", ctx, "addr 1").Return(nil)
+			}
+
 			addresses := []string{}
 			for i := 0; i < test.addresses; i++ {
 				addresses = append(addresses, fmt.Sprintf("old addr %d", i))
@@ -698,9 +703,9 @@ func TestGenerateScenario_Account(t *testing.T) {
 		scenarioOps []*types.Operation
 		err         error
 	}{
-		"create new address": {
-			minimumBalance:        big.NewInt(0),
-			maximumFee:            big.NewInt(0),
+		"create new address - good flip": {
+			minimumBalance:        big.NewInt(100),
+			maximumFee:            big.NewInt(10),
 			maxAddresses:          100,
 			newAccountProbability: 0.5,
 			randomAccountNumber:   big.NewInt(1),
@@ -716,9 +721,9 @@ func TestGenerateScenario_Account(t *testing.T) {
 
 			senderBalance: big.NewInt(1000),
 
-			sendRandomLowAmount:  big.NewInt(0),
+			sendRandomLowAmount:  big.NewInt(100),
 			sendAmount:           big.NewInt(100),
-			sendRandomHighAmount: big.NewInt(1000),
+			sendRandomHighAmount: big.NewInt(890),
 
 			scenarioCtx: &scenario.Context{
 				Sender:         sender,
@@ -730,7 +735,89 @@ func TestGenerateScenario_Account(t *testing.T) {
 			scenarioOps: constructor.scenario,
 			err:         nil,
 		},
-		"insufficient funds": {
+		"create new address - bad flip": {
+			minimumBalance:        big.NewInt(100),
+			maximumFee:            big.NewInt(10),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(90),
+			expectNew:             false,
+
+			balances: map[string]*big.Int{
+				"addr 1": big.NewInt(10),
+				"addr 2": big.NewInt(30),
+				"addr 3": big.NewInt(15),
+				"addr 4": big.NewInt(1000),
+				"addr 5": big.NewInt(2),
+			},
+
+			senderBalance: big.NewInt(1000),
+
+			sendRandomLowAmount:  big.NewInt(0),
+			sendAmount:           big.NewInt(100),
+			sendRandomHighAmount: big.NewInt(890),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(100),
+				Recipient:      "addr 4",
+				RecipientValue: big.NewInt(100),
+				Currency:       constructor.currency,
+			},
+			scenarioOps: constructor.scenario,
+			err:         nil,
+		},
+		"can't afford new address": {
+			minimumBalance:        big.NewInt(500),
+			maximumFee:            big.NewInt(100),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(1),
+			expectNew:             false,
+
+			balances: map[string]*big.Int{
+				"addr 1": big.NewInt(10),
+				"addr 2": big.NewInt(30),
+				"addr 3": big.NewInt(15),
+				"addr 4": big.NewInt(1000),
+				"addr 5": big.NewInt(2),
+			},
+
+			senderBalance: big.NewInt(1000),
+
+			sendRandomLowAmount:  big.NewInt(0),
+			sendAmount:           big.NewInt(100),
+			sendRandomHighAmount: big.NewInt(400),
+
+			scenarioCtx: &scenario.Context{
+				Sender:         sender,
+				SenderValue:    big.NewInt(100),
+				Recipient:      "addr 4",
+				RecipientValue: big.NewInt(100),
+				Currency:       constructor.currency,
+			},
+			scenarioOps: constructor.scenario,
+			err:         nil,
+		},
+		"can't afford new address but no addresses above minimum": {
+			minimumBalance:        big.NewInt(500),
+			maximumFee:            big.NewInt(100),
+			maxAddresses:          100,
+			newAccountProbability: 0.5,
+			randomAccountNumber:   big.NewInt(1),
+			expectNew:             false,
+
+			balances: map[string]*big.Int{},
+
+			senderBalance: big.NewInt(1000),
+
+			sendAmount: big.NewInt(100),
+
+			scenarioCtx: nil,
+			scenarioOps: nil,
+			err:         ErrInsufficientFunds,
+		},
+		"zero funds": {
 			minimumBalance:        big.NewInt(0),
 			maximumFee:            big.NewInt(0),
 			maxAddresses:          100,
@@ -790,12 +877,18 @@ func TestGenerateScenario_Account(t *testing.T) {
 				mockHelper.On("RandomAmount", test.sendRandomLowAmount, test.sendRandomHighAmount).Return(test.sendAmount)
 			}
 
+			// Lock in addresses order so don't introduce flaky test (instead of
+			// iterating over balance map)
 			addresses := []string{}
-			for k := range test.balances {
-				mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(test.balances[k], nil)
-				addresses = append(addresses, k)
+			for i := 0; i < len(test.balances); i++ {
+				addresses = append(addresses, fmt.Sprintf("addr %d", i+1))
 			}
+
 			mockHelper.On("AllAddresses", ctx).Return(addresses, nil)
+
+			for _, k := range addresses {
+				mockHelper.On("AccountBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(test.balances[k], nil)
+			}
 
 			scenarioCtx, scenarioOps, err := constructor.generateScenario(ctx, sender, test.senderBalance, nil)
 			if test.err != nil {
