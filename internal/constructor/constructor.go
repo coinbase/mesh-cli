@@ -354,7 +354,7 @@ func (c *Constructor) requestFunds(
 	ctx context.Context,
 	address string,
 ) (*big.Int, *types.CoinIdentifier, error) {
-	printedMessage := false
+	var lastMessage string
 	for ctx.Err() == nil {
 		balance, coinIdentifier, err := c.balance(ctx, address)
 		if err != nil {
@@ -371,10 +371,21 @@ func (c *Constructor) requestFunds(
 			return balance, coinIdentifier, nil
 		}
 
-		if !printedMessage {
-			color.Yellow("Waiting for funds on %s", address)
-			printedMessage = true
+		message := fmt.Sprintf("Waiting for funds on %s", address)
+		if balance != nil && balance.Sign() == 1 {
+			message = fmt.Sprintf(
+				"Found balance %s on %s (need %s to continue)",
+				utils.PrettyAmount(balance, c.currency),
+				address,
+				utils.PrettyAmount(minBalance, c.currency),
+			)
 		}
+
+		if message != lastMessage {
+			color.Yellow(message)
+			lastMessage = message
+		}
+
 		time.Sleep(defaultSleepTime * time.Second)
 	}
 

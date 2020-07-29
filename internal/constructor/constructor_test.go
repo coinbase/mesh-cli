@@ -452,6 +452,61 @@ func TestBestUnlockedSender_Utxo(t *testing.T) {
 	assert.Equal(t, "coin 3", bestCoin.Identifier)
 }
 
+func TestFindSender_Load(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, mockHandler := defaultAccountConstructor(t)
+
+	lockedAddresses := []string{}
+	mockHelper.On("LockedAddresses", ctx).Return(lockedAddresses, nil)
+
+	mockHelper.On("AllAddresses", ctx).Return([]string{}, nil).Once()
+
+	mockHelper.On(
+		"Derive",
+		ctx,
+		constructor.network,
+		mock.Anything,
+		mock.Anything,
+	).Return(
+		"addr 1",
+		nil,
+		nil,
+	)
+	mockHelper.On("StoreKey", ctx, "addr 1", mock.Anything).Return(nil)
+	mockHandler.On("AddressCreated", ctx, "addr 1").Return(nil)
+
+	// Deposit insufficient funds
+	mockHelper.On(
+		"AccountBalance",
+		ctx,
+		&types.AccountIdentifier{Address: "addr 1"},
+		constructor.currency,
+	).Return(
+		big.NewInt(100),
+		nil,
+	).After(5 * time.Second).Once()
+
+	// Deposit sufficient funds
+	mockHelper.On(
+		"AccountBalance",
+		ctx,
+		&types.AccountIdentifier{Address: "addr 1"},
+		constructor.currency,
+	).Return(
+		big.NewInt(10000),
+		nil,
+	).After(15 * time.Second).Twice()
+	mockHelper.On("AllAddresses", ctx).Return([]string{"addr 1"}, nil)
+
+	sender, balance, coin, err := constructor.findSender(ctx)
+	mockHelper.AssertExpectations(t)
+	assert.NoError(t, err)
+	assert.Equal(t, "addr 1", sender)
+	assert.Equal(t, big.NewInt(10000), balance)
+	assert.Nil(t, coin)
+}
+
 func TestFindSender_Available(t *testing.T) {
 	ctx := context.Background()
 
