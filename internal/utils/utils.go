@@ -208,7 +208,7 @@ func Zero() *big.Float {
 // RandomNumber returns some number in the range [minimum, maximum).
 // Source: https://golang.org/pkg/math/big/#Int.Rand
 func RandomNumber(minimum *big.Int, maximum *big.Int) *big.Int {
-	source := rand.New(rand.NewSource(time.Now().Unix()))
+	source := rand.New(rand.NewSource(time.Now().UnixNano()))
 	transformed := new(big.Int).Sub(maximum, minimum)
 	addition := new(big.Int).Rand(source, transformed)
 
