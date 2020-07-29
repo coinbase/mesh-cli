@@ -222,7 +222,7 @@ func (b *BroadcastStorage) AddingBlock(
 
 		// Check if we should mark the broadcast as stale
 		if foundBlock == nil &&
-			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index >= b.staleDepth {
+			block.BlockIdentifier.Index-broadcast.LastBroadcast.Index >= b.staleDepth-1 {
 			staleTransactions = append(staleTransactions, broadcast.Identifier)
 			broadcast.LastBroadcast = nil
 			bytes, err := encode(broadcast)

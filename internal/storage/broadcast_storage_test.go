@@ -28,7 +28,7 @@ import (
 
 const (
 	confirmationDepth   = int64(2)
-	staleDepth          = int64(2)
+	staleDepth          = int64(3)
 	broadcastLimit      = 3
 	broadcastTipDelay   = 10
 	broadcastBehindTip  = false
