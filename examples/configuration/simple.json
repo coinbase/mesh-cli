@@ -1,0 +1,18 @@
+{
+ "network": {
+  "blockchain": "Ethereum",
+  "network": "Ropsten"
+ },
+ "online_url": "http://localhost:8080",
+ "data_directory": "",
+ "http_timeout": 10,
+ "block_concurrency": 8,
+ "transaction_concurrency": 16,
+ "tip_delay": 300,
+ "data": {
+  "historical_balance_disabled": true,
+  "reconciliation_disabled": true,
+  "inactive_discrepency_search_disabled": true,
+  "balance_tracking_disabled": true 
+ }
+}

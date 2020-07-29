@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
-	github.com/coinbase/rosetta-sdk-go v0.3.3-0.20200727193951-833ada9a8ea7
+	github.com/coinbase/rosetta-sdk-go v0.3.3
 	github.com/dgraph-io/badger v1.6.1
 	github.com/ethereum/go-ethereum v1.9.15
 	github.com/fatih/color v1.9.0

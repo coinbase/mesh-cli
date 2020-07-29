@@ -33,7 +33,23 @@ var (
 	checkConstructionCmd = &cobra.Command{
 		Use:   "check:construction",
 		Short: "Check the correctness of a Rosetta Construction API Implementation",
-		Run:   runCheckConstructionCmd,
+		Long: `The check:construction command runs an automated test of a
+Construction API implementation by creating and broadcasting transactions
+on a blockchain. In short, this tool generates new addresses, requests
+funds, constructs transactions, signs transactions, broadcasts transactions,
+and confirms transactions land on-chain. At each phase, a series of tests
+are run to ensure that intermediate representations are correct (i.e. does
+an unsigned transaction return a superset of operations provided during
+construction?).
+
+Check out the https://github.com/coinbase/rosetta-cli/tree/master/examples
+directory for examples of how to configure this test for Bitcoin and
+Ethereum.
+
+Right now, this tool only supports transfer testing (for both account-based
+and UTXO-based blockchains). However, we plan to add support for testing
+arbitrary scenarios (i.e. staking, governance).`,
+		Run: runCheckConstructionCmd,
 	}
 )
 
