@@ -87,6 +87,77 @@ func defaultAccountConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mock
 	}, helper, handler
 }
 
+func bitcoinScenarios() ([]*types.Operation, *types.Operation) {
+	changelessTransfer := []*types.Operation{
+		{
+			OperationIdentifier: &types.OperationIdentifier{
+				Index: 0,
+			},
+			Type: "Vin",
+			Account: &types.AccountIdentifier{
+				Address: "{{ SENDER }}",
+			},
+			Amount: &types.Amount{
+				Value: "{{ SENDER_VALUE }}",
+			},
+		},
+		{
+			OperationIdentifier: &types.OperationIdentifier{
+				Index: 1,
+			},
+			Type: "Vout",
+			Account: &types.AccountIdentifier{
+				Address: "{{ RECIPIENT }}",
+			},
+			Amount: &types.Amount{
+				Value: "{{ RECIPIENT_VALUE }}",
+			},
+		},
+	}
+
+	change := &types.Operation{
+		OperationIdentifier: &types.OperationIdentifier{
+			Index: 2,
+		},
+		Type: "Vout",
+		Account: &types.AccountIdentifier{
+			Address: "{{ CHANGE_ADDRESS }}",
+		},
+		Amount: &types.Amount{
+			Value: "{{ CHANGE_VALUE }}",
+		},
+	}
+
+	return changelessTransfer, change
+}
+
+func defaultUtxoConstructor(t *testing.T) (*Constructor, *mocks.Helper, *mocks.Handler) {
+	helper := new(mocks.Helper)
+	handler := new(mocks.Handler)
+	changelessTransfer, change := bitcoinScenarios()
+	return &Constructor{
+		network: &types.NetworkIdentifier{
+			Blockchain: "Bitcoin",
+			Network:    "Mainnet",
+		},
+		accountingModel: configuration.UtxoModel,
+		currency: &types.Currency{
+			Symbol:   "BTC",
+			Decimals: 8,
+		},
+		minimumBalance:        big.NewInt(600),
+		maximumFee:            big.NewInt(500),
+		curveType:             types.Secp256k1,
+		newAccountProbability: 0.5,
+		maxAddresses:          100,
+		scenario:              changelessTransfer,
+		changeScenario:        change,
+		parser:                defaultParser(t),
+		helper:                helper,
+		handler:               handler,
+	}, helper, handler
+}
+
 func TestNewAddress(t *testing.T) {
 	ctx := context.Background()
 
@@ -270,11 +341,19 @@ func TestMinimumRequiredBalance_Account(t *testing.T) {
 
 	// 2 * minimum_balance + maximum_fee
 	assert.Equal(t, big.NewInt(104), constructor.minimumRequiredBalance(newAccountSend))
-	assert.Equal(t, big.NewInt(104), constructor.minimumRequiredBalance(changeSend))
 
 	// minimum_balance + maximum_fee
 	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(existingAccountSend))
-	assert.Equal(t, big.NewInt(102), constructor.minimumRequiredBalance(fullSend))
+}
+
+func TestMinimumRequiredBalance_Utxo(t *testing.T) {
+	constructor, _, _ := defaultUtxoConstructor(t)
+
+	// 2 * minimum_balance + maximum_fee
+	assert.Equal(t, big.NewInt(1700), constructor.minimumRequiredBalance(changeSend))
+
+	// minimum_balance + maximum_fee
+	assert.Equal(t, big.NewInt(1100), constructor.minimumRequiredBalance(fullSend))
 }
 
 func TestBestUnlockedSender_Account(t *testing.T) {
@@ -303,4 +382,52 @@ func TestBestUnlockedSender_Account(t *testing.T) {
 	assert.Equal(t, "addr 3", bestAddress)
 	assert.Equal(t, big.NewInt(15), bestBalance)
 	assert.Nil(t, bestCoin)
+}
+
+func TestBestUnlockedSender_Utxo(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, _ := defaultUtxoConstructor(t)
+
+	lockedAddresses := []string{"addr 2", "addr 4"}
+	mockHelper.On("LockedAddresses", ctx).Return(lockedAddresses, nil)
+
+	type intAndCoin struct {
+		amount *big.Int
+		coin   *types.CoinIdentifier
+	}
+
+	balances := map[string]*intAndCoin{
+		"addr 1": {
+			amount: big.NewInt(10),
+			coin:   &types.CoinIdentifier{Identifier: "coin 1"},
+		},
+		"addr 2": {
+			amount: big.NewInt(30),
+			coin:   &types.CoinIdentifier{Identifier: "coin 2"},
+		},
+		"addr 3": {
+			amount: big.NewInt(15),
+			coin:   &types.CoinIdentifier{Identifier: "coin 3"},
+		},
+		"addr 4": {
+			amount: big.NewInt(1000),
+			coin:   &types.CoinIdentifier{Identifier: "coin 4"},
+		},
+		"addr 5": {
+			amount: big.NewInt(2),
+			coin:   &types.CoinIdentifier{Identifier: "coin 5"},
+		},
+	}
+	addresses := []string{}
+	for k := range balances {
+		mockHelper.On("CoinBalance", ctx, &types.AccountIdentifier{Address: k}, constructor.currency).Return(balances[k].amount, balances[k].coin, nil)
+		addresses = append(addresses, k)
+	}
+
+	bestAddress, bestBalance, bestCoin, err := constructor.bestUnlockedSender(ctx, addresses)
+	assert.NoError(t, err)
+	assert.Equal(t, "addr 3", bestAddress)
+	assert.Equal(t, big.NewInt(15), bestBalance)
+	assert.Equal(t, "coin 3", bestCoin.Identifier)
 }
