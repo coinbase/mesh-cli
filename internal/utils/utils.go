@@ -56,6 +56,14 @@ const (
 	MillisecondsInSecond = 1000
 )
 
+var (
+	// OneHundredInt is a big.Int of value 100.
+	OneHundredInt = big.NewInt(100)
+
+	// ZeroInt is a big.Int of value 0.
+	ZeroInt = big.NewInt(0)
+)
+
 // CreateTempDir creates a directory in
 // /tmp for usage within testing.
 func CreateTempDir() (string, error) {

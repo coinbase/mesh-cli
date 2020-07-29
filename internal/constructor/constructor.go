@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -36,16 +35,14 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
-
 // action is some supported intent we can
 // perform. This is used to determine the minimum
 // required balance to complete the transaction.
 type action string
 
 const (
+	convertToInt = 100
+
 	// defaultSleepTime is the default time we sleep
 	// while waiting to perform the next task.
 	defaultSleepTime = 10
@@ -625,13 +622,15 @@ func (c *Constructor) canGetNewAddress(
 	ctx context.Context,
 	recipients []string,
 ) (string, bool, error) {
-	availableAddresses, err := c.helper.AllAddresses(ctx)
+	addresses, err := c.helper.AllAddresses(ctx)
 	if err != nil {
 		return "", false, fmt.Errorf("%w: unable to get available addresses", err)
 	}
 
-	if (rand.Float64() > c.newAccountProbability &&
-		len(availableAddresses) < c.maxAddresses) || len(recipients) == 0 {
+	randNumber := c.helper.RandomAmount(utils.ZeroInt, utils.OneHundredInt).Int64()
+	convertedAccountProbability := int64(c.newAccountProbability * convertToInt)
+	if (randNumber < convertedAccountProbability &&
+		len(addresses) < c.maxAddresses) || len(recipients) == 0 {
 		addr, err := c.newAddress(ctx)
 		if err != nil {
 			return "", false, fmt.Errorf("%w: cannot create new address", err)

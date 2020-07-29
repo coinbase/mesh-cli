@@ -16,6 +16,7 @@ package constructor
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -576,4 +577,95 @@ func TestCreateScenarioContext_Utxo(t *testing.T) {
 
 	constructor.changeScenario.Type = "blah 2"
 	assert.NotEqual(t, constructor.changeScenario, scenarioOps[2])
+}
+
+func TestCanGetNewAddress(t *testing.T) {
+	ctx := context.Background()
+
+	constructor, mockHelper, mockHandler := defaultAccountConstructor(t)
+
+	mockHelper.On(
+		"Derive",
+		ctx,
+		constructor.network,
+		mock.Anything,
+		mock.Anything,
+	).Return(
+		"addr 1",
+		nil,
+		nil,
+	)
+	mockHelper.On("StoreKey", ctx, "addr 1", mock.Anything).Return(nil)
+	mockHandler.On("AddressCreated", ctx, "addr 1").Return(nil)
+
+	var tests = map[string]struct {
+		addresses             int
+		randomAmount          *big.Int
+		newAccountProbability float64
+		maxAddresses          int
+		recipients            []string
+
+		addr    string
+		created bool
+	}{
+		"no addresses": {
+			addresses:             0,
+			randomAmount:          big.NewInt(0),
+			newAccountProbability: 0.0,
+			maxAddresses:          0,
+			recipients:            []string{},
+
+			addr:    "addr 1",
+			created: true,
+		},
+		"less than max addresses - bad flip": {
+			addresses:             100,
+			randomAmount:          big.NewInt(50),
+			newAccountProbability: 0.25,
+			maxAddresses:          200,
+			recipients:            []string{"addr 6", "addr 9"},
+
+			addr:    "addr 6",
+			created: false,
+		},
+		"less than max addresses - good flip": {
+			addresses:             100,
+			randomAmount:          big.NewInt(10),
+			newAccountProbability: 0.25,
+			maxAddresses:          200,
+			recipients:            []string{"addr 6", "addr 8"},
+
+			addr:    "addr 1",
+			created: true,
+		},
+		"max addresses - good flip": {
+			addresses:             100,
+			randomAmount:          big.NewInt(10),
+			newAccountProbability: 0.25,
+			maxAddresses:          100,
+			recipients:            []string{"addr 6", "addr 7"},
+
+			addr:    "addr 6",
+			created: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			addresses := []string{}
+			for i := 0; i < test.addresses; i++ {
+				addresses = append(addresses, fmt.Sprintf("old addr %d", i))
+			}
+
+			mockHelper.On("AllAddresses", ctx).Return(addresses, nil).Once()
+			mockHelper.On("RandomAmount", big.NewInt(0), big.NewInt(100)).Return(test.randomAmount).Once()
+			constructor.newAccountProbability = test.newAccountProbability
+			constructor.maxAddresses = test.maxAddresses
+
+			addr, created, err := constructor.canGetNewAddress(ctx, test.recipients)
+			assert.NoError(t, err)
+			assert.Equal(t, test.addr, addr)
+			assert.Equal(t, test.created, created)
+		})
+	}
 }
