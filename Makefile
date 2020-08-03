@@ -11,11 +11,11 @@ ADDLICENSE_CMD=go run github.com/google/addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 GOLINES_CMD=go run github.com/segmentio/golines
 GOVERALLS_CMD=go run github.com/mattn/goveralls
-COVERAGE_TEST_DIRECTORIES=./configuration/... ./internal/constructor/... \
-	./internal/logger/... ./internal/scenario/... \
-	./internal/statefulsyncer/... ./internal/storage/... \
-	./internal/tester/... ./internal/utils/...
-TEST_SCRIPT=go test -v ./internal/... ./configuration/...
+COVERAGE_TEST_DIRECTORIES=./configuration/... ./pkg/constructor/... \
+	./pkg/logger/... ./pkg/scenario/... \
+	./pkg/statefulsyncer/... ./pkg/storage/... \
+	./pkg/tester/... ./pkg/utils/...
+TEST_SCRIPT=go test -v ./pkg/... ./configuration/...
 COVERAGE_TEST_SCRIPT=go test -v ${COVERAGE_TEST_DIRECTORIES}
 
 deps:
@@ -44,7 +44,7 @@ check-license:
 	${ADDLICENCE_SCRIPT} -check .
 
 shorten-lines:
-	${GOLINES_CMD} -w --shorten-comments internal cmd configuration
+	${GOLINES_CMD} -w --shorten-comments pkg cmd configuration
 
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
@@ -59,4 +59,4 @@ install:
 
 mocks:
 	rm -rf mocks;
-	mockery --dir internal/constructor --all --case underscore --outpkg constructor --output mocks/constructor;
+	mockery --dir pkg/constructor --all --case underscore --outpkg constructor --output mocks/constructor;

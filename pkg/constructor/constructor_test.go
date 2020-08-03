@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/scenario"
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/scenario"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
 	mocks "github.com/coinbase/rosetta-cli/mocks/constructor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"

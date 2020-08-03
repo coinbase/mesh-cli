@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"

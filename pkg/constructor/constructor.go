@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/scenario"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/logger"
+	"github.com/slowboat0/rosetta-cli/pkg/scenario"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/parser"

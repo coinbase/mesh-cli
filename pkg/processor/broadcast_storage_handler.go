@@ -20,7 +20,7 @@ import (
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"

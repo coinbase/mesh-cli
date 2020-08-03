@@ -363,7 +363,7 @@ reconciliation of an account was successful.
 ```
 cmd
 examples // examples of different config files
-internal
+pkg
   logger // logic to write syncing information to stdout/files
   processor // Helper/Handler implementations for reconciler, storage, and syncer
   storage // persists block to temporary storage and allows for querying balances

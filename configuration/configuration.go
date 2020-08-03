@@ -19,8 +19,8 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/internal/scenario"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/scenario"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"

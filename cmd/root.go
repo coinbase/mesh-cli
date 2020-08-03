@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"

@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/constructor"
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
-	"github.com/coinbase/rosetta-cli/internal/statefulsyncer"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/constructor"
+	"github.com/slowboat0/rosetta-cli/pkg/logger"
+	"github.com/slowboat0/rosetta-cli/pkg/processor"
+	"github.com/slowboat0/rosetta-cli/pkg/statefulsyncer"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"

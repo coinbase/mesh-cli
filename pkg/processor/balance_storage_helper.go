@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"

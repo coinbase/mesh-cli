@@ -19,7 +19,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/stretchr/testify/assert"
 )

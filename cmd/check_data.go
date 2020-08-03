@@ -19,8 +19,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/internal/tester"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/slowboat0/rosetta-cli/pkg/tester"
+	"github.com/slowboat0/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/spf13/cobra"

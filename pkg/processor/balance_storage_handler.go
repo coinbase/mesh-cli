@@ -17,8 +17,8 @@ package processor
 import (
 	"context"
 
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/slowboat0/rosetta-cli/pkg/logger"
+	"github.com/slowboat0/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
