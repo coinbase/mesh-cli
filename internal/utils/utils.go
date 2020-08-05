@@ -270,6 +270,24 @@ func PrintMemUsage() uint64 {
 	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
 
+	f, err := os.OpenFile(
+		"mem_usage.csv",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		os.FileMode(DefaultFilePermissions),
+	)
+	if err != nil {
+		log.Fatalf("%s: unable to open", err.Error())
+	}
+
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf(
+		"%v,%v,%v,%v,%v\n", bToMb(m.HeapAlloc), bToMb(m.HeapSys), bToMb(m.StackInuse), bToMb(m.StackSys), bToMb(m.Sys),
+	))
+	if err != nil {
+		log.Fatalf("%s: unable to write", err.Error())
+	}
+
 	return bToMb(m.Alloc)
 }
 
