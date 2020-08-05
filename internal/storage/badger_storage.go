@@ -18,7 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2/options"
 )
 
 // BadgerStorage is a wrapper around Badger DB
@@ -27,10 +28,37 @@ type BadgerStorage struct {
 	db *badger.DB
 }
 
+func lowMemoryOptions(dir string) badger.Options {
+	// https://github.com/dgraph-io/badger/issues/1304
+	opts := badger.DefaultOptions(dir)
+	opts.TableLoadingMode = options.FileIO
+	opts.ValueLogLoadingMode = options.FileIO
+
+	// To allow writes at a faster speed, we create a new memtable as soon as
+	// an existing memtable is filled up. This option determines how many
+	// memtables should be kept in memory.
+	opts.NumMemtables = 1
+
+	// This option will have a significant effect the memory. If the level is kept
+	// in-memory, read are faster but the tables will be kept in memory.
+	opts.KeepL0InMemory = false
+
+	// LoadBloomsOnOpen=false will improve the db startup speed
+	opts.LoadBloomsOnOpen = false
+
+	// Bloom filters will be kept in memory if the following option is not set. Each
+	// bloom filter takes up 5 MB of memory. A smaller bf cache would mean that
+	// bloom filters will be evicted quickly from the cache and they will be read from
+	// the disk (which is slow) and inserted into the cache.
+	opts.MaxBfCacheSize = 10 << 20
+
+	return opts
+}
+
 // NewBadgerStorage creates a new BadgerStorage.
 func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
-	options := badger.DefaultOptions(dir)
-	options.Logger = nil
+	options := lowMemoryOptions(dir) //badger.DefaultOptions(dir)
+	// options.Logger = nil
 	db, err := badger.Open(options)
 	if err != nil {
 		return nil, fmt.Errorf("%w could not open badger database", err)
