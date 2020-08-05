@@ -282,7 +282,7 @@ func PrintMemUsage() uint64 {
 	defer f.Close()
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"%v,%v,%v,%v,%v\n", bToMb(m.HeapAlloc), bToMb(m.HeapSys), bToMb(m.StackInuse), bToMb(m.StackSys), bToMb(m.Sys),
+		"%v,%v,%v,%v,%v,%v\n", bToMb(m.HeapAlloc), bToMb(m.HeapSys), bToMb(m.StackInuse), bToMb(m.StackSys), bToMb(m.Sys), bToMb(m.TotalAlloc),
 	))
 	if err != nil {
 		log.Fatalf("%s: unable to write", err.Error())

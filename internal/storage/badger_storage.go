@@ -52,6 +52,10 @@ func lowMemoryOptions(dir string) badger.Options {
 	// the disk (which is slow) and inserted into the cache.
 	opts.MaxBfCacheSize = 10 << 20
 
+	opts.MaxCacheSize = 10 << 20
+
+	opts.ValueLogFileSize = 75 << 20
+
 	return opts
 }
 
