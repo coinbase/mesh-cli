@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"runtime"
 	"time"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -258,4 +259,20 @@ func PrettyAmount(amount *big.Int, currency *types.Currency) string {
 func Milliseconds() int64 {
 	nanos := time.Now().UnixNano()
 	return nanos / NanosecondsInMillisecond
+}
+
+func PrintMemUsage() uint64 {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB (In-Use: Heap = %v Stack = %v)", bToMb(m.Alloc), bToMb(m.HeapInuse), bToMb(m.StackInuse))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+
+	return bToMb(m.Alloc)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }

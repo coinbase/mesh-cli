@@ -16,11 +16,31 @@ package main
 
 import (
 	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/cmd"
+	"github.com/coinbase/rosetta-cli/internal/utils"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	go func() {
+		var allocated uint64
+		for {
+			newInterval := utils.PrintMemUsage()
+			if newInterval > allocated {
+				allocated = newInterval
+				log.Printf("New Max Alloc: %d MB", allocated)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
