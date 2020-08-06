@@ -341,6 +341,10 @@ type Configuration struct {
 	// we are considered to be behind tip.
 	TipDelay int64 `json:"tip_delay"`
 
+	// DisableMemoryLimit uses a performance-optimized database mode
+	// that uses more memory.
+	DisableMemoryLimit bool `json:"disable_memory_limit"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
