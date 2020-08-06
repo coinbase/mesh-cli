@@ -55,7 +55,7 @@ missing an operation. If historical balance disabled is true, this automatic
 debugging tool does not work.
 
 To debug an INACTIVE account reconciliation error without historical balance lookup,
-set the interesting accunts to the path of a JSON file containing
+set the interesting accounts to the path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
 corresponding operations.
