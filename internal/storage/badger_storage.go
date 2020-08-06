@@ -28,8 +28,8 @@ type BadgerStorage struct {
 	db *badger.DB
 }
 
-func lowMemoryOptions(dir string) badger.Options {
-	// https://github.com/dgraph-io/badger/issues/1304
+func defaultOptions(dir string) badger.Options {
+	// Inspired by: https://github.com/dgraph-io/badger/issues/1304
 	opts := badger.DefaultOptions(dir)
 	opts.TableLoadingMode = options.FileIO
 	opts.ValueLogLoadingMode = options.FileIO
@@ -52,16 +52,20 @@ func lowMemoryOptions(dir string) badger.Options {
 	// the disk (which is slow) and inserted into the cache.
 	opts.MaxBfCacheSize = 10 << 20
 
-	opts.MaxCacheSize = 10 << 20
+	opts.MaxCacheSize = 0
 
-	opts.ValueLogFileSize = 75 << 20
+	opts.NumLevelZeroTables = 1
+	opts.NumLevelZeroTablesStall = 2
+	opts.NumMemtables = 1
+
+	opts.ValueLogFileSize = 100 << 20
 
 	return opts
 }
 
 // NewBadgerStorage creates a new BadgerStorage.
 func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
-	options := lowMemoryOptions(dir) //badger.DefaultOptions(dir)
+	options := defaultOptions(dir)
 	// options.Logger = nil
 	db, err := badger.Open(options)
 	if err != nil {
