@@ -235,6 +235,7 @@ func InitializeData(
 		logger,
 		cancel,
 		blockWorkers,
+		config.SyncConcurrency,
 	)
 
 	return &DataTester{
@@ -457,6 +458,7 @@ func (t *DataTester) recursiveOpSearch(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage},
+		t.config.SyncConcurrency,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

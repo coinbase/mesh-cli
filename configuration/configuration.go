@@ -42,7 +42,7 @@ const (
 // Default Configuration Values
 const (
 	DefaultURL                               = "http://localhost:8080"
-	DefaultBlockConcurrency                  = 8
+	DefaultSyncConcurrency                   = 8
 	DefaultTransactionConcurrency            = 16
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
@@ -236,7 +236,7 @@ func DefaultConfiguration() *Configuration {
 		Network:                EthereumNetwork,
 		OnlineURL:              DefaultURL,
 		HTTPTimeout:            DefaultTimeout,
-		BlockConcurrency:       DefaultBlockConcurrency,
+		SyncConcurrency:        DefaultSyncConcurrency,
 		TransactionConcurrency: DefaultTransactionConcurrency,
 		TipDelay:               DefaultTipDelay,
 		Construction:           DefaultConstructionConfiguration(),
@@ -330,8 +330,8 @@ type Configuration struct {
 	// HTTPTimeout is the timeout for HTTP requests in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
 
-	// BlockConcurrency is the concurrency to use while fetching blocks.
-	BlockConcurrency uint64 `json:"block_concurrency"`
+	// SyncConcurrency is the concurrency to use while syncing blocks.
+	SyncConcurrency uint64 `json:"sync_concurrency"`
 
 	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
 	TransactionConcurrency uint64 `json:"transaction_concurrency"`
@@ -444,8 +444,8 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.HTTPTimeout = DefaultTimeout
 	}
 
-	if config.BlockConcurrency == 0 {
-		config.BlockConcurrency = DefaultBlockConcurrency
+	if config.SyncConcurrency == 0 {
+		config.SyncConcurrency = DefaultSyncConcurrency
 	}
 
 	if config.TransactionConcurrency == 0 {

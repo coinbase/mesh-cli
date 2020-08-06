@@ -28,6 +28,7 @@ import (
 )
 
 var _ syncer.Handler = (*StatefulSyncer)(nil)
+var _ syncer.Helper = (*StatefulSyncer)(nil)
 
 // StatefulSyncer is an abstraction layer over
 // the stateless syncer package. This layer
@@ -42,6 +43,8 @@ type StatefulSyncer struct {
 	counterStorage *storage.CounterStorage
 	logger         *logger.Logger
 	workers        []storage.BlockWorker
+
+	concurrency uint64
 }
 
 // New returns a new *StatefulSyncer.
@@ -54,6 +57,7 @@ func New(
 	logger *logger.Logger,
 	cancel context.CancelFunc,
 	workers []storage.BlockWorker,
+	concurrency uint64,
 ) *StatefulSyncer {
 	return &StatefulSyncer{
 		network:        network,
@@ -63,6 +67,7 @@ func New(
 		counterStorage: counterStorage,
 		workers:        workers,
 		logger:         logger,
+		concurrency:    concurrency,
 	}
 }
 
@@ -90,10 +95,11 @@ func (s *StatefulSyncer) Sync(ctx context.Context, startIndex int64, endIndex in
 
 	syncer := syncer.New(
 		s.network,
-		s.fetcher,
+		s,
 		s,
 		s.cancel,
-		pastBlocks,
+		syncer.WithConcurrency(s.concurrency),
+		syncer.WithPastBlocks(pastBlocks),
 	)
 
 	return syncer.Sync(ctx, startIndex, endIndex)
@@ -154,4 +160,22 @@ func (s *StatefulSyncer) BlockRemoved(
 	_, _ = s.counterStorage.Update(ctx, storage.OrphanCounter, big.NewInt(1))
 
 	return err
+}
+
+// NetworkStatus is called by the syncer to get the current
+// network status.
+func (s *StatefulSyncer) NetworkStatus(
+	ctx context.Context,
+	network *types.NetworkIdentifier,
+) (*types.NetworkStatusResponse, error) {
+	return s.fetcher.NetworkStatusRetry(ctx, network, nil)
+}
+
+// Block is called by the syncer to fetch a block.
+func (s *StatefulSyncer) Block(
+	ctx context.Context,
+	network *types.NetworkIdentifier,
+	block *types.PartialBlockIdentifier,
+) (*types.Block, error) {
+	return s.fetcher.BlockRetry(ctx, network, block)
 }

@@ -180,6 +180,7 @@ func InitializeConstruction(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
+		config.SyncConcurrency,
 	)
 
 	return &ConstructionTester{

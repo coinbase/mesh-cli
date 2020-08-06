@@ -59,7 +59,6 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	fetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithBlockConcurrency(Config.BlockConcurrency),
 		fetcher.WithTransactionConcurrency(Config.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
