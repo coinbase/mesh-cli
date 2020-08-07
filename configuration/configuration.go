@@ -117,7 +117,7 @@ var (
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
-	// OfflineURL is the URL of a Rosetta API implementation in "online mode".
+	// OfflineURL is the URL of a Rosetta API implementation in "offline mode".
 	OfflineURL string `json:"offline_url"`
 
 	// Currency is the *types.Currency to track and use for transactions.
