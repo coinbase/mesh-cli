@@ -188,7 +188,6 @@ func (s *StatefulSyncer) EndAtTipLoop(
 	tipDelay int64,
 	interval time.Duration,
 ) {
-
 	tc := time.NewTicker(interval)
 	defer tc.Stop()
 
