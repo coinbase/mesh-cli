@@ -129,6 +129,15 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 	transaction := b.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
+	return b.GetHeadBlockIdentifierTransactional(ctx, transaction)
+}
+
+// GetHeadBlockIdentifierTransactional returns the head block identifier,
+// if it exists, in the context of a DatabaseTransaction.
+func (b *BlockStorage) GetHeadBlockIdentifierTransactional(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+) (*types.BlockIdentifier, error) {
 	exists, block, err := transaction.Get(ctx, getHeadBlockKey())
 	if err != nil {
 		return nil, err

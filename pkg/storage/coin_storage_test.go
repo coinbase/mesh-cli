@@ -383,6 +383,9 @@ type MockCoinStorageHelper struct{}
 
 var _ CoinStorageHelper = (*MockCoinStorageHelper)(nil)
 
-func (h *MockCoinStorageHelper) CurrentBlockIdentifier(ctx context.Context, transaction DatabaseTransaction) (*types.BlockIdentifier, error) {
+func (h *MockCoinStorageHelper) CurrentBlockIdentifier(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+) (*types.BlockIdentifier, error) {
 	return blockIdentifier, nil
 }

@@ -84,7 +84,8 @@ func InitializeConstruction(
 
 	blockStorage := storage.NewBlockStorage(localStore)
 	keyStorage := storage.NewKeyStorage(localStore)
-	coinStorage := storage.NewCoinStorage(localStore, onlineFetcher.Asserter)
+	coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
+	coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, onlineFetcher.Asserter)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
 	balanceStorageHelper := processor.NewBalanceStorageHelper(

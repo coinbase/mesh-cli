@@ -216,7 +216,13 @@ func (c *ConstructorHelper) CoinBalance(
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) (*big.Int, *types.CoinIdentifier, error) {
-	return c.coinStorage.GetLargestCoin(ctx, accountIdentifier, currency)
+	coinValue, coinIdentifier, _, err := c.coinStorage.GetLargestCoin(
+		ctx,
+		accountIdentifier,
+		currency,
+	)
+
+	return coinValue, coinIdentifier, err
 }
 
 // LockedAddresses returns a slice of all addresses currently sending or receiving
