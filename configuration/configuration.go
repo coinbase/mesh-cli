@@ -358,6 +358,10 @@ type Configuration struct {
 	// that uses more memory.
 	DisableMemoryLimit bool `json:"disable_memory_limit"`
 
+	// LogConfiguration determines if the configuration settings
+	// should be printed to the console when a file is loaded.
+	LogConfiguration bool `json:"log_configuration"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
@@ -550,7 +554,9 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 		filePath,
 	)
 
-	log.Println(types.PrettyPrintStruct(config))
+	if config.LogConfiguration {
+		log.Println(types.PrettyPrintStruct(config))
+	}
 
 	return config, nil
 }
