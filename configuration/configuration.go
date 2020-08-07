@@ -323,7 +323,7 @@ type DataConfiguration struct {
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
 	// EndCondition contains the conditions for the syncer to stop
-	EndConditions EndConditions `json:"end_conditions"`
+	EndConditions *EndConditions `json:"end_conditions,omitempty"`
 }
 
 // Configuration contains all configuration settings for running
