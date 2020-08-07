@@ -17,7 +17,9 @@ package statefulsyncer
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/storage"
@@ -178,4 +180,37 @@ func (s *StatefulSyncer) Block(
 	block *types.PartialBlockIdentifier,
 ) (*types.Block, error) {
 	return s.fetcher.BlockRetry(ctx, network, block)
+}
+
+func (s *StatefulSyncer) EndAtTipLoop(
+	ctx context.Context,
+	tipDelay int64,
+	interval time.Duration,
+) {
+
+	tc := time.NewTicker(interval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-tc.C:
+			atTip, err := s.blockStorage.AtTip(ctx, tipDelay)
+			if err != nil {
+				log.Printf(
+					"%s: unable to evaluate if at tip\n",
+					err.Error(),
+				)
+
+				continue
+			}
+
+			if atTip {
+				s.cancel()
+				return
+			}
+		}
+	}
 }

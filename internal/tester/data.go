@@ -293,6 +293,19 @@ func (t *DataTester) StartPeriodicLogger(
 	return ctx.Err()
 }
 
+// WatchEndCondition starts go routines to watch the end conditions
+func (t *DataTester) WatchEndCondition(
+	ctx context.Context,
+	config *configuration.Configuration,
+) error {
+	if config.Data.EndCondition.EndAtTip {
+		// runs a go routine to end when reach tip
+		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, 10*time.Second)
+	}
+
+	return nil
+}
+
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
