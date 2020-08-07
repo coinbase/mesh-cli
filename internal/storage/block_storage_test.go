@@ -43,7 +43,7 @@ func TestHeadBlockIdentifier(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -271,7 +271,7 @@ func TestBlock(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -411,7 +411,7 @@ func TestCreateBlockCache(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -449,7 +449,7 @@ func TestAtTip(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 

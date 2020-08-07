@@ -33,7 +33,7 @@ var (
 		},
 		OnlineURL:              "http://hasudhasjkdk",
 		HTTPTimeout:            21,
-		BlockConcurrency:       12,
+		SyncConcurrency:        12,
 		TransactionConcurrency: 2,
 		TipDelay:               1231,
 		Construction: &ConstructionConfiguration{

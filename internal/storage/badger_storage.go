@@ -18,7 +18,19 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2/options"
+)
+
+const (
+	// DefaultCacheSize is 0 MB.
+	DefaultCacheSize = 0
+
+	// DefaultBfCacheSize is 10 MB.
+	DefaultBfCacheSize = 10 << 20
+
+	// DefaultValueLogFileSize is 100 MB.
+	DefaultValueLogFileSize = 100 << 20
 )
 
 // BadgerStorage is a wrapper around Badger DB
@@ -27,10 +39,68 @@ type BadgerStorage struct {
 	db *badger.DB
 }
 
+// lowMemoryOptions returns a set of BadgerDB configuration
+// options that significantly reduce memory usage.
+//
+// Inspired by: https://github.com/dgraph-io/badger/issues/1304
+func lowMemoryOptions(dir string) badger.Options {
+	opts := badger.DefaultOptions(dir)
+	opts.Logger = nil
+
+	// Don't load tables into memory.
+	opts.TableLoadingMode = options.FileIO
+	opts.ValueLogLoadingMode = options.FileIO
+
+	// To allow writes at a faster speed, we create a new memtable as soon as
+	// an existing memtable is filled up. This option determines how many
+	// memtables should be kept in memory.
+	opts.NumMemtables = 1
+
+	// This option will have a significant effect the memory. If the level is kept
+	// in-memory, read are faster but the tables will be kept in memory.
+	opts.KeepL0InMemory = false
+
+	// LoadBloomsOnOpen=false will improve the db startup speed
+	opts.LoadBloomsOnOpen = false
+
+	// Bloom filters will be kept in memory if the following option is not set. Each
+	// bloom filter takes up 5 MB of memory. A smaller bf cache would mean that
+	// bloom filters will be evicted quickly from the cache and they will be read from
+	// the disk (which is slow) and inserted into the cache.
+	opts.MaxBfCacheSize = DefaultBfCacheSize
+
+	// Don't cache blocks in memory. All reads should go to disk.
+	opts.MaxCacheSize = DefaultCacheSize
+
+	// Don't keep multiple memtables in memory.
+	opts.NumLevelZeroTables = 1
+	opts.NumLevelZeroTablesStall = 2
+	opts.NumMemtables = 1
+
+	// Limit ValueLogFileSize as log files
+	// must be read into memory during compaction.
+	opts.ValueLogFileSize = DefaultValueLogFileSize
+
+	return opts
+}
+
+// performanceOptions returns a set of BadgerDB configuration
+// options that don't attempt to reduce memory usage (can
+// improve performance).
+func performanceOptions(dir string) badger.Options {
+	opts := badger.DefaultOptions(dir)
+	opts.Logger = nil
+
+	return opts
+}
+
 // NewBadgerStorage creates a new BadgerStorage.
-func NewBadgerStorage(ctx context.Context, dir string) (Database, error) {
-	options := badger.DefaultOptions(dir)
-	options.Logger = nil
+func NewBadgerStorage(ctx context.Context, dir string, disableMemoryLimit bool) (Database, error) {
+	options := lowMemoryOptions(dir)
+	if disableMemoryLimit {
+		options = performanceOptions(dir)
+	}
+
 	db, err := badger.Open(options)
 	if err != nil {
 		return nil, fmt.Errorf("%w could not open badger database", err)

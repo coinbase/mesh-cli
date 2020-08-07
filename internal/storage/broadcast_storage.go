@@ -223,7 +223,11 @@ func (b *BroadcastStorage) AddingBlock(
 		// We perform the FindTransaction search in the context of the block database
 		// transaction so we can access any transactions of depth 1 (in the current
 		// block).
-		foundBlock, foundTransaction, err := b.helper.FindTransaction(ctx, broadcast.Identifier, transaction)
+		foundBlock, foundTransaction, err := b.helper.FindTransaction(
+			ctx,
+			broadcast.Identifier,
+			transaction,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("%w: unable to determine if transaction was seen", err)
 		}

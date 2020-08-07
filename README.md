@@ -44,7 +44,7 @@ Available Commands:
   check:construction           Check the correctness of a Rosetta Construction API Implementation
   check:data                   Check the correctness of a Rosetta Data API Implementation
   configuration:create         Create a default configuration file at the provided path
-  configuration:validate       Validate the correctness of a configuration file at the provided path
+  configuration:validate       Ensure a configuration file at the provided path is formatted correctly
   help                         Help about any command
   utils:asserter-configuration Generate a static configuration file for the Asserter
   version                      Print rosetta-cli version
@@ -138,7 +138,7 @@ missing an operation. If historical balance disabled is true, this automatic
 debugging tool does not work.
 
 To debug an INACTIVE account reconciliation error without historical balance lookup,
-set the interesting accunts to the path of a JSON file containing
+set the interesting accounts to the path of a JSON file containing
 accounts that will be actively checked for balance changes at each block. This
 will return an error at the block where a balance change occurred with no
 corresponding operations.

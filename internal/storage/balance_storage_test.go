@@ -145,7 +145,7 @@ func TestBalance(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 
@@ -468,7 +468,7 @@ func TestBootstrapBalances(t *testing.T) {
 	assert.NoError(t, err)
 	defer utils.RemoveTempDir(newDir)
 
-	database, err := NewBadgerStorage(ctx, newDir)
+	database, err := NewBadgerStorage(ctx, newDir, false)
 	assert.NoError(t, err)
 	defer database.Close(ctx)
 

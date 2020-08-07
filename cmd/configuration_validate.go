@@ -25,7 +25,7 @@ import (
 var (
 	configurationValidateCmd = &cobra.Command{
 		Use:   "configuration:validate",
-		Short: "Validate the correctness of a configuration file at the provided path",
+		Short: "Ensure a configuration file at the provided path is formatted correctly",
 		Run:   runConfigurationValidateCmd,
 		Args:  cobra.ExactArgs(1),
 	}
