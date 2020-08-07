@@ -27,6 +27,10 @@ import (
 )
 
 var (
+	blockIdentifier = &types.BlockIdentifier{
+		Hash:  "block",
+		Index: 1,
+	}
 	account = &types.AccountIdentifier{
 		Address: "blah",
 	}
@@ -254,17 +258,21 @@ func TestCoinStorage(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, a)
 
-	c := NewCoinStorage(database, a)
+	mockHelper := &MockCoinStorageHelper{}
+
+	c := NewCoinStorage(database, mockHelper, a)
 
 	t.Run("get coins of unset account", func(t *testing.T) {
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, blockIdentifier, block)
 
-		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account, currency)
+		bal, coinIdentifier, block, err := c.GetLargestCoin(ctx, account, currency)
 		assert.NoError(t, err)
 		assert.Equal(t, big.NewInt(0), bal)
 		assert.Nil(t, coinIdentifier)
+		assert.Equal(t, blockIdentifier, block)
 	})
 
 	t.Run("add block", func(t *testing.T) {
@@ -274,9 +282,10 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, tx.Commit(ctx))
 
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, accountCoins, coins)
+		assert.Equal(t, blockIdentifier, block)
 	})
 
 	t.Run("add duplicate coin", func(t *testing.T) {
@@ -286,9 +295,10 @@ func TestCoinStorage(t *testing.T) {
 		assert.Error(t, err)
 		tx.Discard(ctx)
 
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, accountCoins, coins)
+		assert.Equal(t, blockIdentifier, block)
 	})
 
 	t.Run("remove block", func(t *testing.T) {
@@ -298,13 +308,15 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, tx.Commit(ctx))
 
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, blockIdentifier, block)
 
-		coins, err = c.GetCoins(ctx, account2)
+		coins, block, err = c.GetCoins(ctx, account2)
 		assert.NoError(t, err)
 		assert.Equal(t, account2Coins, coins)
+		assert.Equal(t, blockIdentifier, block)
 	})
 
 	t.Run("spend coin", func(t *testing.T) {
@@ -314,9 +326,10 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, tx.Commit(ctx))
 
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, accountCoins, coins)
+		assert.Equal(t, blockIdentifier, block)
 
 		tx = c.db.NewDatabaseTransaction(ctx, true)
 		commitFunc, err = c.AddingBlock(ctx, coinBlock2, tx)
@@ -324,13 +337,15 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, tx.Commit(ctx))
 
-		coins, err = c.GetCoins(ctx, account)
+		coins, block, err = c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, blockIdentifier, block)
 
-		coins, err = c.GetCoins(ctx, account2)
+		coins, block, err = c.GetCoins(ctx, account2)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, blockIdentifier, block)
 	})
 
 	t.Run("add block with multiple outputs for 1 account", func(t *testing.T) {
@@ -340,22 +355,34 @@ func TestCoinStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, tx.Commit(ctx))
 
-		coins, err := c.GetCoins(ctx, account)
+		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
 		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, blockIdentifier, block)
 
-		coins, err = c.GetCoins(ctx, account3)
+		coins, block, err = c.GetCoins(ctx, account3)
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, account3Coins, coins)
+		assert.Equal(t, blockIdentifier, block)
 
-		bal, coinIdentifier, err := c.GetLargestCoin(ctx, account3, currency)
+		bal, coinIdentifier, block, err := c.GetLargestCoin(ctx, account3, currency)
 		assert.NoError(t, err)
 		assert.Equal(t, big.NewInt(4), bal)
 		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin3"}, coinIdentifier)
+		assert.Equal(t, blockIdentifier, block)
 
-		bal, coinIdentifier, err = c.GetLargestCoin(ctx, account3, currency2)
+		bal, coinIdentifier, block, err = c.GetLargestCoin(ctx, account3, currency2)
 		assert.NoError(t, err)
 		assert.Equal(t, big.NewInt(6), bal)
 		assert.Equal(t, &types.CoinIdentifier{Identifier: "coin4"}, coinIdentifier)
+		assert.Equal(t, blockIdentifier, block)
 	})
+}
+
+type MockCoinStorageHelper struct{}
+
+var _ CoinStorageHelper = (*MockCoinStorageHelper)(nil)
+
+func (h *MockCoinStorageHelper) CurrentBlockIdentifier(ctx context.Context, transaction DatabaseTransaction) (*types.BlockIdentifier, error) {
+	return blockIdentifier, nil
 }
