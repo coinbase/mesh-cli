@@ -317,7 +317,7 @@ type DataConfiguration struct {
 
 	// EndSeconds is an end condtion that dictates how long the
 	// check:data command would be running for
-	EndSeconds int64 `json:"end_seconds"`
+	EndSeconds uint64 `json:"end_seconds"`
 }
 
 // Configuration contains all configuration settings for running
