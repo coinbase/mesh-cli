@@ -14,7 +14,7 @@
   "reconciliation_disabled": true,
   "inactive_discrepency_search_disabled": true,
   "balance_tracking_disabled": true,
-  "end_condition": {
+  "end_conditions": {
     "end_at_tip": true,
     "end_duration": 7200
   }

@@ -244,8 +244,8 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
-// EndCondition contains all the conditions for the syncer to stop.
-type EndCondition struct {
+// EndConditions contains all the conditions for the syncer to stop.
+type EndConditions struct {
 	// EndAtTip determines if syncer should stop once it reached the tip
 	EndAtTip bool `json:"end_at_tip"`
 
@@ -323,7 +323,7 @@ type DataConfiguration struct {
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
 	// EndCondition contains the conditions for the syncer to stop
-	EndCondition EndCondition `json:"end_condition"`
+	EndConditions EndConditions `json:"end_conditions"`
 }
 
 // Configuration contains all configuration settings for running
