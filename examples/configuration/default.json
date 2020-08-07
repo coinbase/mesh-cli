@@ -81,6 +81,10 @@
   "interesting_accounts": "",
   "reconciliation_disabled": false,
   "inactive_discrepency_search_disabled": false,
-  "balance_tracking_disabled": false
+  "balance_tracking_disabled": false,
+  "end_condition": {
+    "end_at_tip": false,
+    "end_duration": 0
+  }
  }
 }
