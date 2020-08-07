@@ -299,18 +299,18 @@ func (t *DataTester) StartPeriodicLogger(
 	return ctx.Err()
 }
 
-// WatchEndCondition starts go routines to watch the end conditions
+// WatchEndConditions starts go routines to watch the end conditions
 func (t *DataTester) WatchEndConditions(
 	ctx context.Context,
 	config *configuration.Configuration,
 ) error {
-	if config.Data.EndAtTip {
+	if config.Data.EndCondition.EndAtTip {
 		// runs a go routine that ends when reaching tip
 		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, EndAtTipCheckInterval)
 	}
 
-	if config.Data.EndDuration != "" {
-		dur, err := time.ParseDuration(config.Data.EndDuration)
+	if config.Data.EndCondition.EndDuration != "" {
+		dur, err := time.ParseDuration(config.Data.EndCondition.EndDuration)
 		if err != nil {
 			log.Fatalf(
 				"%s: invalid during string for EndDuration",
