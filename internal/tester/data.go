@@ -299,13 +299,20 @@ func (t *DataTester) WatchEndCondition(
 	config *configuration.Configuration,
 ) error {
 	if config.Data.EndAtTip {
-		// runs a go routine to end when reach tip
+		// runs a go routine that ends when reach tip
 		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, 10*time.Second)
 	}
 
-	if config.Data.EndSeconds != 0 {
-		// runs a go routine to end after X second
-		go t.syncer.EndSecondsLoop(ctx, time.Duration(config.Data.EndSeconds)*time.Second)
+	if config.Data.EndDuration != "" {
+		dur, err := time.ParseDuration(config.Data.EndDuration)
+		if err != nil {
+			log.Fatalf(
+				"%s: invalid during string for EndDuration",
+				err.Error(),
+			)
+		}
+		// runs a go routine that ends after a duration
+		go t.syncer.EndDurationLoop(ctx, dur)
 	}
 
 	return nil

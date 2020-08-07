@@ -315,9 +315,9 @@ type DataConfiguration struct {
 	// EndAtTip is an end condition. syncing will stop once the node has reached tip,
 	EndAtTip bool `json:"end_at_tip"`
 
-	// EndSeconds is an end condtion that dictates how long the
+	// EndDuration is an end condtion that dictates how long the
 	// check:data command would be running for
-	EndSeconds uint64 `json:"end_seconds"`
+	EndDuration string `json:"end_duration"`
 }
 
 // Configuration contains all configuration settings for running
