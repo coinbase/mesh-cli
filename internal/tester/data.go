@@ -54,12 +54,6 @@ const (
 	//
 	// TODO: make configurable
 	PeriodicLoggingFrequency = 10 * time.Second
-
-	// EndAtTipCheckInterval is the frequency that EndAtTip condition
-	// is evaludated
-	//
-	// TODO: make configurable
-	EndAtTipCheckInterval = 10 * time.Second
 )
 
 // DataTester coordinates the `check:data` test.
@@ -306,7 +300,7 @@ func (t *DataTester) WatchEndConditions(
 ) error {
 	if config.Data.EndConditions.EndAtTip {
 		// runs a go routine that ends when reaching tip
-		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, EndAtTipCheckInterval)
+		go t.syncer.EndAtTipLoop(ctx, config.TipDelay)
 	}
 
 	if config.Data.EndConditions.EndDuration != 0 {

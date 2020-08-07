@@ -29,6 +29,14 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+var (
+	// EndAtTipCheckInterval is the frequency that EndAtTip condition
+	// is evaludated
+	//
+	// TODO: make configurable
+	EndAtTipCheckInterval = 10 * time.Second
+)
+
 var _ syncer.Handler = (*StatefulSyncer)(nil)
 var _ syncer.Helper = (*StatefulSyncer)(nil)
 
@@ -186,9 +194,8 @@ func (s *StatefulSyncer) Block(
 func (s *StatefulSyncer) EndAtTipLoop(
 	ctx context.Context,
 	tipDelay int64,
-	interval time.Duration,
 ) {
-	tc := time.NewTicker(interval)
+	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
 
 	for {
