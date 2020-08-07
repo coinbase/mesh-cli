@@ -298,19 +298,19 @@ func (t *DataTester) WatchEndConditions(
 	ctx context.Context,
 	config *configuration.Configuration,
 ) error {
-	endCond := config.Data.EndConditions
-	if endCond == nil {
+	endConds := config.Data.EndConditions
+	if endConds == nil {
 		return nil
 	}
 
-	if endCond.EndAtTip {
+	if endConds.EndAtTip {
 		// runs a go routine that ends when reaching tip
 		go t.syncer.EndAtTipLoop(ctx, config.TipDelay)
 	}
 
-	if endCond.EndDuration != 0 {
+	if endConds.EndDuration != 0 {
 		// runs a go routine that ends after a duration
-		go t.syncer.EndDurationLoop(ctx, time.Duration(endCond.EndDuration)*time.Second)
+		go t.syncer.EndDurationLoop(ctx, time.Duration(endConds.EndDuration)*time.Second)
 	}
 
 	return nil
