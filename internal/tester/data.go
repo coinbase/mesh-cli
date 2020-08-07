@@ -305,7 +305,7 @@ func (t *DataTester) WatchEndCondition(
 	config *configuration.Configuration,
 ) error {
 	if config.Data.EndAtTip {
-		// runs a go routine that ends when reach tip
+		// runs a go routine that ends when reaching tip
 		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, EndAtTipCheckInterval)
 	}
 

@@ -312,7 +312,7 @@ type DataConfiguration struct {
 	// consistency.
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
-	// EndAtTip is an end condition. syncing will stop once the node has reached tip,
+	// EndAtTip is an end condition. syncing will stop once tip is reached
 	EndAtTip bool `json:"end_at_tip"`
 
 	// EndDuration is an end condtion that dictates how long the
