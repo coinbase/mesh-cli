@@ -244,12 +244,6 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
-// EndCondition contains all condtions that check:data could end
-type EndCondition struct {
-	// End once the node has reached tip
-	EndAtTip bool `json:"end_at_tip"`
-}
-
 // DataConfiguration contains all configurations to run check:data.
 type DataConfiguration struct {
 	// ActiveReconciliationConcurrency is the concurrency to use while fetching accounts
@@ -318,8 +312,12 @@ type DataConfiguration struct {
 	// consistency.
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
-	// EndCondition defines the condition when the Data API would end
-	EndCondition EndCondition `json:"end_condition"`
+	// EndAtTip is an end condition. syncing will stop once the node has reached tip,
+	EndAtTip bool `json:"end_at_tip"`
+
+	// EndSeconds is an end condtion that dictates how long the
+	// check:data command would be running for
+	EndSeconds int64 `json:"end_seconds"`
 }
 
 // Configuration contains all configuration settings for running

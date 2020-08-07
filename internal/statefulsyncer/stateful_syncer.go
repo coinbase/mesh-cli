@@ -182,6 +182,7 @@ func (s *StatefulSyncer) Block(
 	return s.fetcher.BlockRetry(ctx, network, block)
 }
 
+// EndAtTipLoop runs a loop that evaluates end condition EndAtTip
 func (s *StatefulSyncer) EndAtTipLoop(
 	ctx context.Context,
 	tipDelay int64,
@@ -200,17 +201,41 @@ func (s *StatefulSyncer) EndAtTipLoop(
 			atTip, err := s.blockStorage.AtTip(ctx, tipDelay)
 			if err != nil {
 				log.Printf(
-					"%s: unable to evaluate if at tip\n",
+					"%s: unable to evaluate if node is at tip\n",
 					err.Error(),
 				)
-
 				continue
 			}
 
 			if atTip {
+				log.Println("Node has reached tip")
 				s.cancel()
 				return
 			}
+		}
+	}
+}
+
+// EndSecondsLoop runs a loop that evaluates end condition EndSeconds
+func (s *StatefulSyncer) EndSecondsLoop(
+	ctx context.Context,
+	duration time.Duration,
+) {
+	t := time.NewTimer(duration)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-t.C:
+			log.Printf(
+				"StatefulSyncer has reached end condtion after %d seconds\n",
+				int(duration.Seconds()),
+			)
+			s.cancel()
+			return
 		}
 	}
 }
