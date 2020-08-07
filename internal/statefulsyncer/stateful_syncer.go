@@ -230,7 +230,7 @@ func (s *StatefulSyncer) EndDurationLoop(
 
 		case <-t.C:
 			log.Printf(
-				"syncer has reached end condtion after %d seconds",
+				"syncer has reached end condition after %d seconds",
 				int(duration.Seconds()),
 			)
 			s.cancel()

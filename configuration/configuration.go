@@ -249,7 +249,7 @@ type EndCondition struct {
 	// EndAtTip determines if syncer should stop once it reached the tip
 	EndAtTip bool `json:"end_at_tip"`
 
-	// EndDuration is an end condtion that dictates how long the
+	// EndDuration is an end condition that dictates how long the
 	// check:data command would be running for in seconds
 	EndDuration uint64 `json:"end_duration"`
 }
