@@ -60,3 +60,4 @@ install:
 mocks:
 	rm -rf mocks;
 	mockery --dir pkg/constructor --all --case underscore --outpkg constructor --output mocks/constructor;
+	${ADDLICENCE_SCRIPT} .;
