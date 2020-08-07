@@ -3,7 +3,7 @@ module github.com/coinbase/rosetta-cli
 go 1.13
 
 require (
-	github.com/coinbase/rosetta-sdk-go v0.3.4-0.20200806182127-a0b262f73fc3
+	github.com/coinbase/rosetta-sdk-go v0.3.4-0.20200807162047-31075a509b1f
 	github.com/dgraph-io/badger/v2 v2.0.3
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/ethereum/go-ethereum v1.9.18
