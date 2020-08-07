@@ -309,16 +309,9 @@ func (t *DataTester) WatchEndConditions(
 		go t.syncer.EndAtTipLoop(ctx, config.TipDelay, EndAtTipCheckInterval)
 	}
 
-	if config.Data.EndCondition.EndDuration != "" {
-		dur, err := time.ParseDuration(config.Data.EndCondition.EndDuration)
-		if err != nil {
-			log.Fatalf(
-				"%s: invalid during string for EndDuration",
-				err.Error(),
-			)
-		}
+	if config.Data.EndCondition.EndDuration != 0 {
 		// runs a go routine that ends after a duration
-		go t.syncer.EndDurationLoop(ctx, dur)
+		go t.syncer.EndDurationLoop(ctx, time.Duration(config.Data.EndCondition.EndDuration)*time.Second)
 	}
 
 	return nil

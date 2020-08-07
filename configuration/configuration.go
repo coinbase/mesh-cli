@@ -250,8 +250,8 @@ type EndCondition struct {
 	EndAtTip bool `json:"end_at_tip"`
 
 	// EndDuration is an end condtion that dictates how long the
-	// check:data command would be running for
-	EndDuration string `json:"end_duration"`
+	// check:data command would be running for in seconds
+	EndDuration uint64 `json:"end_duration"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
