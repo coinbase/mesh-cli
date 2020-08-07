@@ -200,14 +200,14 @@ func (s *StatefulSyncer) EndAtTipLoop(
 			atTip, err := s.blockStorage.AtTip(ctx, tipDelay)
 			if err != nil {
 				log.Printf(
-					"%s: unable to evaluate if node is at tip",
+					"%s: unable to evaluate if syncer is at tip",
 					err.Error(),
 				)
 				continue
 			}
 
 			if atTip {
-				log.Println("Node has reached tip")
+				log.Println("syncer has reached tip")
 				s.cancel()
 				return
 			}
@@ -230,7 +230,7 @@ func (s *StatefulSyncer) EndDurationLoop(
 
 		case <-t.C:
 			log.Printf(
-				"StatefulSyncer has reached end condtion after %d seconds",
+				"syncer has reached end condtion after %d seconds",
 				int(duration.Seconds()),
 			)
 			s.cancel()

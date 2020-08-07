@@ -300,7 +300,7 @@ func (t *DataTester) StartPeriodicLogger(
 }
 
 // WatchEndCondition starts go routines to watch the end conditions
-func (t *DataTester) WatchEndCondition(
+func (t *DataTester) WatchEndConditions(
 	ctx context.Context,
 	config *configuration.Configuration,
 ) error {
