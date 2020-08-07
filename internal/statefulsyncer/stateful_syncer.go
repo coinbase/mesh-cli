@@ -17,7 +17,9 @@ package statefulsyncer
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/internal/logger"
 	"github.com/coinbase/rosetta-cli/internal/storage"
@@ -25,6 +27,14 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
+)
+
+var (
+	// EndAtTipCheckInterval is the frequency that EndAtTip condition
+	// is evaludated
+	//
+	// TODO: make configurable
+	EndAtTipCheckInterval = 10 * time.Second
 )
 
 var _ syncer.Handler = (*StatefulSyncer)(nil)
@@ -178,4 +188,60 @@ func (s *StatefulSyncer) Block(
 	block *types.PartialBlockIdentifier,
 ) (*types.Block, error) {
 	return s.fetcher.BlockRetry(ctx, network, block)
+}
+
+// EndAtTipLoop runs a loop that evaluates end condition EndAtTip
+func (s *StatefulSyncer) EndAtTipLoop(
+	ctx context.Context,
+	tipDelay int64,
+) {
+	tc := time.NewTicker(EndAtTipCheckInterval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-tc.C:
+			atTip, err := s.blockStorage.AtTip(ctx, tipDelay)
+			if err != nil {
+				log.Printf(
+					"%s: unable to evaluate if syncer is at tip",
+					err.Error(),
+				)
+				continue
+			}
+
+			if atTip {
+				log.Println("syncer has reached tip")
+				s.cancel()
+				return
+			}
+		}
+	}
+}
+
+// EndDurationLoop runs a loop that evaluates end condition EndDuration
+func (s *StatefulSyncer) EndDurationLoop(
+	ctx context.Context,
+	duration time.Duration,
+) {
+	t := time.NewTimer(duration)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-t.C:
+			log.Printf(
+				"syncer has reached end condition after %d seconds",
+				int(duration.Seconds()),
+			)
+			s.cancel()
+			return
+		}
+	}
 }

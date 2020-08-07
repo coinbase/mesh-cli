@@ -244,6 +244,16 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
+// EndConditions contains all the conditions for the syncer to stop.
+type EndConditions struct {
+	// EndAtTip determines if syncer should stop once it reached the tip
+	EndAtTip bool `json:"end_at_tip"`
+
+	// EndDuration is an end condition that dictates how long the
+	// check:data command would be running for in seconds
+	EndDuration uint64 `json:"end_duration"`
+}
+
 // DataConfiguration contains all configurations to run check:data.
 type DataConfiguration struct {
 	// ActiveReconciliationConcurrency is the concurrency to use while fetching accounts
@@ -311,6 +321,9 @@ type DataConfiguration struct {
 	// useful to just try to fetch all blocks before checking for balance
 	// consistency.
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
+
+	// EndCondition contains the conditions for the syncer to stop
+	EndConditions *EndConditions `json:"end_conditions,omitempty"`
 }
 
 // Configuration contains all configuration settings for running

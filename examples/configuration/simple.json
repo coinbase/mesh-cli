@@ -13,6 +13,10 @@
   "historical_balance_disabled": true,
   "reconciliation_disabled": true,
   "inactive_discrepency_search_disabled": true,
-  "balance_tracking_disabled": true 
+  "balance_tracking_disabled": true,
+  "end_conditions": {
+    "end_at_tip": true,
+    "end_duration": 7200
+  }
  }
 }

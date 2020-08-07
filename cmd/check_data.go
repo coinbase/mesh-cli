@@ -137,6 +137,10 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		return dataTester.StartSyncing(ctx, StartIndex, EndIndex)
 	})
 
+	g.Go(func() error {
+		return dataTester.WatchEndConditions(ctx, Config)
+	})
+
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(sigListeners)
 
