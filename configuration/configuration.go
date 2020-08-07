@@ -322,6 +322,12 @@ type DataConfiguration struct {
 	// consistency.
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
+	// CoinTrackingDisabled is a boolean that indicates coin (or UTXO) tracking
+	// should not be attempted. When first testing an implemenation, it can be
+	// useful to just try to fetch all blocks before checking for coin
+	// consistency.
+	CoinTrackingDisabled bool `json:"coin_tracking_disabled"`
+
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *EndConditions `json:"end_conditions,omitempty"`
 }

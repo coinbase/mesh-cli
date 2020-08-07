@@ -225,6 +225,13 @@ func InitializeData(
 		blockWorkers = append(blockWorkers, balanceStorage)
 	}
 
+	if !config.Data.CoinTrackingDisabled {
+		coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
+		coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, fetcher.Asserter)
+
+		blockWorkers = append(blockWorkers, coinStorage)
+	}
+
 	syncer := statefulsyncer.New(
 		ctx,
 		network,
