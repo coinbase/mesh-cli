@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )

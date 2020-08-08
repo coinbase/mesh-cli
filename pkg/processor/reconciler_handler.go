@@ -19,8 +19,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/storage"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/types"

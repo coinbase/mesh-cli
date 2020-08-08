@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -129,6 +129,15 @@ func (b *BlockStorage) GetHeadBlockIdentifier(
 	transaction := b.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
+	return b.GetHeadBlockIdentifierTransactional(ctx, transaction)
+}
+
+// GetHeadBlockIdentifierTransactional returns the head block identifier,
+// if it exists, in the context of a DatabaseTransaction.
+func (b *BlockStorage) GetHeadBlockIdentifierTransactional(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+) (*types.BlockIdentifier, error) {
 	exists, block, err := transaction.Get(ctx, getHeadBlockKey())
 	if err != nil {
 		return nil, err
@@ -373,6 +382,11 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 
 		cache = append([]*types.BlockIdentifier{block.BlockIdentifier}, cache...)
 		head = block.ParentBlockIdentifier
+
+		// We should break if we have reached genesis.
+		if head.Index == block.BlockIdentifier.Index {
+			break
+		}
 	}
 
 	return cache

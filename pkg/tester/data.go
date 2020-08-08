@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
-	"github.com/coinbase/rosetta-cli/internal/statefulsyncer"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/statefulsyncer"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -223,6 +223,13 @@ func InitializeData(
 		}
 
 		blockWorkers = append(blockWorkers, balanceStorage)
+	}
+
+	if !config.Data.CoinTrackingDisabled {
+		coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
+		coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, fetcher.Asserter)
+
+		blockWorkers = append(blockWorkers, coinStorage)
 	}
 
 	syncer := statefulsyncer.New(

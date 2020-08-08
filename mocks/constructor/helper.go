@@ -25,7 +25,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	storage "github.com/coinbase/rosetta-cli/internal/storage"
+	storage "github.com/coinbase/rosetta-cli/pkg/storage"
 
 	types "github.com/coinbase/rosetta-sdk-go/types"
 )

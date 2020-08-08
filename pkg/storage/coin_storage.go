@@ -36,16 +36,31 @@ var _ BlockWorker = (*CoinStorage)(nil)
 type CoinStorage struct {
 	db Database
 
+	helper   CoinStorageHelper
 	asserter *asserter.Asserter
+}
+
+// CoinStorageHelper is used by CoinStorage to determine
+// at which block a Coin set is valid.
+type CoinStorageHelper interface {
+	// CurrentBlockIdentifier is called while fetching coins in a single
+	// database transaction to return the *types.BlockIdentifier where
+	// the Coin set is valid.
+	CurrentBlockIdentifier(
+		context.Context,
+		DatabaseTransaction,
+	) (*types.BlockIdentifier, error)
 }
 
 // NewCoinStorage returns a new CoinStorage.
 func NewCoinStorage(
 	db Database,
+	helper CoinStorageHelper,
 	asserter *asserter.Asserter,
 ) *CoinStorage {
 	return &CoinStorage{
 		db:       db,
+		helper:   helper,
 		asserter: asserter,
 	}
 }
@@ -323,17 +338,22 @@ func (c *CoinStorage) RemovingBlock(
 func (c *CoinStorage) GetCoins(
 	ctx context.Context,
 	accountIdentifier *types.AccountIdentifier,
-) ([]*Coin, error) {
+) ([]*Coin, *types.BlockIdentifier, error) {
 	transaction := c.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
 	accountExists, coins, err := getAndDecodeCoins(ctx, transaction, accountIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to query account identifier", err)
+		return nil, nil, fmt.Errorf("%w: unable to query account identifier", err)
+	}
+
+	headBlockIdentifier, err := c.helper.CurrentBlockIdentifier(ctx, transaction)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: unable to get current block identifier", err)
 	}
 
 	if !accountExists {
-		return []*Coin{}, nil
+		return []*Coin{}, headBlockIdentifier, nil
 	}
 
 	coinArr := []*Coin{}
@@ -344,17 +364,17 @@ func (c *CoinStorage) GetCoins(
 			&types.CoinIdentifier{Identifier: coinIdentifier},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("%w: unable to query coin", err)
+			return nil, nil, fmt.Errorf("%w: unable to query coin", err)
 		}
 
 		if !exists {
-			return nil, fmt.Errorf("%w: unable to get coin %s", err, coinIdentifier)
+			return nil, nil, fmt.Errorf("%w: unable to get coin %s", err, coinIdentifier)
 		}
 
 		coinArr = append(coinArr, coin)
 	}
 
-	return coinArr, nil
+	return coinArr, headBlockIdentifier, nil
 }
 
 // GetLargestCoin returns the largest Coin for a
@@ -364,10 +384,10 @@ func (c *CoinStorage) GetLargestCoin(
 	ctx context.Context,
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
-) (*big.Int, *types.CoinIdentifier, error) {
-	coins, err := c.GetCoins(ctx, accountIdentifier)
+) (*big.Int, *types.CoinIdentifier, *types.BlockIdentifier, error) {
+	coins, blockIdentifier, err := c.GetCoins(ctx, accountIdentifier)
 	if err != nil {
-		return nil, nil, fmt.Errorf(
+		return nil, nil, nil, fmt.Errorf(
 			"%w: unable to get utxo balance for %s",
 			err,
 			accountIdentifier.Address,
@@ -387,7 +407,7 @@ func (c *CoinStorage) GetLargestCoin(
 
 		val, ok := new(big.Int).SetString(coin.Operation.Amount.Value, 10)
 		if !ok {
-			return nil, nil, fmt.Errorf(
+			return nil, nil, nil, fmt.Errorf(
 				"could not parse amount for coin %s",
 				coin.Identifier.Identifier,
 			)
@@ -399,5 +419,5 @@ func (c *CoinStorage) GetLargestCoin(
 		}
 	}
 
-	return bal, coinIdentifier, nil
+	return bal, coinIdentifier, blockIdentifier, nil
 }

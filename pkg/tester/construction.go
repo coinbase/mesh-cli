@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/internal/constructor"
-	"github.com/coinbase/rosetta-cli/internal/logger"
-	"github.com/coinbase/rosetta-cli/internal/processor"
-	"github.com/coinbase/rosetta-cli/internal/statefulsyncer"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/constructor"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/statefulsyncer"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -84,7 +84,8 @@ func InitializeConstruction(
 
 	blockStorage := storage.NewBlockStorage(localStore)
 	keyStorage := storage.NewKeyStorage(localStore)
-	coinStorage := storage.NewCoinStorage(localStore, onlineFetcher.Asserter)
+	coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
+	coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, onlineFetcher.Asserter)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
 	balanceStorageHelper := processor.NewBalanceStorageHelper(

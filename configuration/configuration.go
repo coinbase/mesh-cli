@@ -19,8 +19,8 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/internal/scenario"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/scenario"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -322,6 +322,12 @@ type DataConfiguration struct {
 	// consistency.
 	BalanceTrackingDisabled bool `json:"balance_tracking_disabled"`
 
+	// CoinTrackingDisabled is a boolean that indicates coin (or UTXO) tracking
+	// should not be attempted. When first testing an implemenation, it can be
+	// useful to just try to fetch all blocks before checking for coin
+	// consistency.
+	CoinTrackingDisabled bool `json:"coin_tracking_disabled"`
+
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *EndConditions `json:"end_conditions,omitempty"`
 }
@@ -357,6 +363,10 @@ type Configuration struct {
 	// DisableMemoryLimit uses a performance-optimized database mode
 	// that uses more memory.
 	DisableMemoryLimit bool `json:"disable_memory_limit"`
+
+	// LogConfiguration determines if the configuration settings
+	// should be printed to the console when a file is loaded.
+	LogConfiguration bool `json:"log_configuration"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
@@ -550,7 +560,9 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 		filePath,
 	)
 
-	log.Println(types.PrettyPrintStruct(config))
+	if config.LogConfiguration {
+		log.Println(types.PrettyPrintStruct(config))
+	}
 
 	return config, nil
 }

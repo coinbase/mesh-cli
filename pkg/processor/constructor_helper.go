@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/internal/constructor"
-	"github.com/coinbase/rosetta-cli/internal/storage"
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/constructor"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
@@ -216,7 +216,13 @@ func (c *ConstructorHelper) CoinBalance(
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) (*big.Int, *types.CoinIdentifier, error) {
-	return c.coinStorage.GetLargestCoin(ctx, accountIdentifier, currency)
+	coinValue, coinIdentifier, _, err := c.coinStorage.GetLargestCoin(
+		ctx,
+		accountIdentifier,
+		currency,
+	)
+
+	return coinValue, coinIdentifier, err
 }
 
 // LockedAddresses returns a slice of all addresses currently sending or receiving

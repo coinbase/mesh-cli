@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/coinbase/rosetta-cli/internal/utils"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
@@ -122,6 +122,18 @@ func simpleTransactionFactory(
 }
 
 var (
+	genesisBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 0",
+			Index: 0,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 0",
+			Index: 0,
+		},
+		Timestamp: 1,
+	}
+
 	newBlock = &types.Block{
 		BlockIdentifier: &types.BlockIdentifier{
 			Hash:  "blah 1",
@@ -155,18 +167,6 @@ var (
 		Transactions: []*types.Transaction{
 			simpleTransactionFactory("blahTx", "addr1", "100", &types.Currency{Symbol: "hello"}),
 		},
-	}
-
-	newBlock3 = &types.Block{
-		BlockIdentifier: &types.BlockIdentifier{
-			Hash:  "blah 2",
-			Index: 2,
-		},
-		ParentBlockIdentifier: &types.BlockIdentifier{
-			Hash:  "blah 1",
-			Index: 1,
-		},
-		Timestamp: 1,
 	}
 
 	complexBlock = &types.Block{
@@ -422,21 +422,21 @@ func TestCreateBlockCache(t *testing.T) {
 	})
 
 	t.Run("1 block processed", func(t *testing.T) {
-		err = storage.AddBlock(ctx, newBlock)
+		err = storage.AddBlock(ctx, genesisBlock)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]*types.BlockIdentifier{newBlock.BlockIdentifier},
+			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
 	})
 
 	t.Run("2 blocks processed", func(t *testing.T) {
-		err = storage.AddBlock(ctx, newBlock3)
+		err = storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock3.BlockIdentifier},
+			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier, newBlock.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
 	})
