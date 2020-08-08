@@ -382,6 +382,11 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 
 		cache = append([]*types.BlockIdentifier{block.BlockIdentifier}, cache...)
 		head = block.ParentBlockIdentifier
+
+		// We should break if we have reached genesis.
+		if head.Index == block.BlockIdentifier.Index {
+			break
+		}
 	}
 
 	return cache
