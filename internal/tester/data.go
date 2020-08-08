@@ -219,7 +219,6 @@ func InitializeData(
 				}
 			} else {
 				log.Println("Skipping balance bootstrapping because already started syncing")
-				return nil
 			}
 		}
 
