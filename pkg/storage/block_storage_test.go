@@ -247,6 +247,17 @@ var (
 			simpleTransactionFactory("blahTx3", "addr2", "200", &types.Currency{Symbol: "hello"}),
 		},
 	}
+
+	gapBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "block 10",
+			Index: 10,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 3",
+			Index: 3,
+		},
+	}
 )
 
 func findTransactionWithDbTransaction(
@@ -402,6 +413,20 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock.BlockIdentifier, head)
 	})
+
+	t.Run("Add block after omitted", func(t *testing.T) {
+		err := storage.AddBlock(ctx, gapBlock)
+		assert.NoError(t, err)
+
+		block, err := storage.GetBlock(ctx, gapBlock.BlockIdentifier)
+		assert.NoError(t, err)
+		assert.Equal(t, gapBlock, block)
+
+		head, err := storage.GetHeadBlockIdentifier(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, gapBlock.BlockIdentifier, head)
+	})
+
 }
 
 func TestCreateBlockCache(t *testing.T) {
@@ -437,6 +462,24 @@ func TestCreateBlockCache(t *testing.T) {
 		assert.Equal(
 			t,
 			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier, newBlock.BlockIdentifier},
+			storage.CreateBlockCache(ctx),
+		)
+	})
+
+	t.Run("3 blocks processed (with gap)", func(t *testing.T) {
+		simpleGap := &types.Block{
+			BlockIdentifier: &types.BlockIdentifier{
+				Hash:  "block 100",
+				Index: 100,
+			},
+			ParentBlockIdentifier: newBlock.BlockIdentifier,
+		}
+
+		err = storage.AddBlock(ctx, simpleGap)
+		assert.NoError(t, err)
+		assert.Equal(
+			t,
+			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier, newBlock.BlockIdentifier, simpleGap.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
 	})
