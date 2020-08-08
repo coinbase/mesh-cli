@@ -169,18 +169,6 @@ var (
 		},
 	}
 
-	newBlock3 = &types.Block{
-		BlockIdentifier: &types.BlockIdentifier{
-			Hash:  "blah 2",
-			Index: 2,
-		},
-		ParentBlockIdentifier: &types.BlockIdentifier{
-			Hash:  "blah 1",
-			Index: 1,
-		},
-		Timestamp: 1,
-	}
-
 	complexBlock = &types.Block{
 		BlockIdentifier: &types.BlockIdentifier{
 			Hash:  "blah 3",
