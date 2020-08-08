@@ -177,7 +177,9 @@ func (b *BlockStorage) GetBlock(
 	var exists bool
 	var block []byte
 	var err error
-	if blockIdentifier == nil || (blockIdentifier.Hash == nil && blockIdentifier.Index == nil) {
+	switch {
+	case blockIdentifier == nil || (blockIdentifier.Hash == nil && blockIdentifier.Index == nil):
+		// Get current block when no blockIdentifier is provided
 		var head *types.BlockIdentifier
 		head, err = b.GetHeadBlockIdentifierTransactional(ctx, transaction)
 		if err != nil {
@@ -185,9 +187,11 @@ func (b *BlockStorage) GetBlock(
 		}
 
 		exists, block, err = transaction.Get(ctx, getBlockHashKey(head.Hash))
-	} else if blockIdentifier.Hash != nil {
+	case blockIdentifier.Hash != nil:
+		// Get block by hash if provided
 		exists, block, err = transaction.Get(ctx, getBlockHashKey(*blockIdentifier.Hash))
-	} else {
+	default:
+		// Get block by index if hash not provided
 		var blockKey []byte
 		exists, blockKey, err = transaction.Get(ctx, getBlockIndexKey(*blockIdentifier.Index))
 		if exists {
@@ -212,7 +216,11 @@ func (b *BlockStorage) GetBlock(
 	return &rosettaBlock, nil
 }
 
-func (b *BlockStorage) storeBlock(ctx context.Context, transaction DatabaseTransaction, block *types.Block) error {
+func (b *BlockStorage) storeBlock(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	block *types.Block,
+) error {
 	buf, err := encode(block)
 	if err != nil {
 		return fmt.Errorf("%w: unable to encode block", err)
@@ -222,7 +230,12 @@ func (b *BlockStorage) storeBlock(ctx context.Context, transaction DatabaseTrans
 		return fmt.Errorf("%w: unable to store block", err)
 	}
 
-	if err := b.storeUniqueKey(ctx, transaction, getBlockIndexKey(block.BlockIdentifier.Index), getBlockHashKey(block.BlockIdentifier.Hash)); err != nil {
+	if err := b.storeUniqueKey(
+		ctx,
+		transaction,
+		getBlockIndexKey(block.BlockIdentifier.Index),
+		getBlockHashKey(block.BlockIdentifier.Hash),
+	); err != nil {
 		return fmt.Errorf("%w: unable to store block index", err)
 	}
 
@@ -263,7 +276,11 @@ func (b *BlockStorage) AddBlock(
 	return b.callWorkersAndCommit(ctx, block, transaction, true)
 }
 
-func (b *BlockStorage) deleteBlock(ctx context.Context, transaction DatabaseTransaction, block *types.Block) error {
+func (b *BlockStorage) deleteBlock(
+	ctx context.Context,
+	transaction DatabaseTransaction,
+	block *types.Block,
+) error {
 	blockIdentifier := block.BlockIdentifier
 	if err := transaction.Delete(ctx, getBlockHashKey(blockIdentifier.Hash)); err != nil {
 		return fmt.Errorf("%w: unable to delete block", err)

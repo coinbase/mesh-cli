@@ -303,11 +303,17 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(newBlock.BlockIdentifier))
+		block, err := storage.GetBlock(
+			ctx,
+			types.ConstructPartialBlockIdentifier(newBlock.BlockIdentifier),
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock, block)
 
-		block, err = storage.GetBlock(ctx, &types.PartialBlockIdentifier{Index: &newBlock.BlockIdentifier.Index})
+		block, err = storage.GetBlock(
+			ctx,
+			&types.PartialBlockIdentifier{Index: &newBlock.BlockIdentifier.Index},
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock, block)
 
@@ -361,11 +367,17 @@ func TestBlock(t *testing.T) {
 		err = storage.AddBlock(ctx, newBlock2)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(newBlock2.BlockIdentifier))
+		block, err := storage.GetBlock(
+			ctx,
+			types.ConstructPartialBlockIdentifier(newBlock2.BlockIdentifier),
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2, block)
 
-		block, err = storage.GetBlock(ctx, &types.PartialBlockIdentifier{Index: &newBlock2.BlockIdentifier.Index})
+		block, err = storage.GetBlock(
+			ctx,
+			&types.PartialBlockIdentifier{Index: &newBlock2.BlockIdentifier.Index},
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2, block)
 
@@ -416,7 +428,10 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, complexBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(complexBlock.BlockIdentifier))
+		block, err := storage.GetBlock(
+			ctx,
+			types.ConstructPartialBlockIdentifier(complexBlock.BlockIdentifier),
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock, block)
 
@@ -447,7 +462,10 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, gapBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(gapBlock.BlockIdentifier))
+		block, err := storage.GetBlock(
+			ctx,
+			types.ConstructPartialBlockIdentifier(gapBlock.BlockIdentifier),
+		)
 		assert.NoError(t, err)
 		assert.Equal(t, gapBlock, block)
 
@@ -455,7 +473,6 @@ func TestBlock(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, gapBlock.BlockIdentifier, head)
 	})
-
 }
 
 func TestCreateBlockCache(t *testing.T) {
@@ -508,7 +525,11 @@ func TestCreateBlockCache(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier, newBlock.BlockIdentifier, simpleGap.BlockIdentifier},
+			[]*types.BlockIdentifier{
+				genesisBlock.BlockIdentifier,
+				newBlock.BlockIdentifier,
+				simpleGap.BlockIdentifier,
+			},
 			storage.CreateBlockCache(ctx),
 		)
 	})

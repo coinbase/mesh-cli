@@ -49,7 +49,7 @@ func (h *ReconcilerHelper) BlockExists(
 	ctx context.Context,
 	block *types.BlockIdentifier,
 ) (bool, error) {
-	_, err := h.blockStorage.GetBlock(ctx, block)
+	_, err := h.blockStorage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(block))
 	if err == nil {
 		return true, nil
 	}
