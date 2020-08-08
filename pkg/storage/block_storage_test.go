@@ -303,7 +303,15 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, newBlock.BlockIdentifier)
+		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(newBlock.BlockIdentifier))
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock, block)
+
+		block, err = storage.GetBlock(ctx, &types.PartialBlockIdentifier{Index: &newBlock.BlockIdentifier.Index})
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock, block)
+
+		block, err = storage.GetBlock(ctx, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock, block)
 
@@ -322,25 +330,46 @@ func TestBlock(t *testing.T) {
 	})
 
 	t.Run("Get non-existent block", func(t *testing.T) {
-		block, err := storage.GetBlock(ctx, badBlockIdentifier)
+		identifier := types.ConstructPartialBlockIdentifier(badBlockIdentifier)
+		block, err := storage.GetBlock(ctx, identifier)
 		assert.EqualError(
 			t,
 			err,
-			fmt.Errorf("%w %+v", ErrBlockNotFound, badBlockIdentifier).Error(),
+			fmt.Errorf("%w: %+v", ErrBlockNotFound, identifier).Error(),
+		)
+		assert.Nil(t, block)
+	})
+
+	t.Run("Get non-existent block index", func(t *testing.T) {
+		badIndex := int64(100000)
+		identifier := &types.PartialBlockIdentifier{Index: &badIndex}
+		block, err := storage.GetBlock(ctx, identifier)
+		assert.EqualError(
+			t,
+			err,
+			fmt.Errorf("%w: %+v", ErrBlockNotFound, identifier).Error(),
 		)
 		assert.Nil(t, block)
 	})
 
 	t.Run("Set duplicate block hash", func(t *testing.T) {
 		err = storage.AddBlock(ctx, newBlock)
-		assert.Contains(t, err.Error(), ErrDuplicateBlockHash.Error())
+		assert.Contains(t, err.Error(), ErrDuplicateKey.Error())
 	})
 
 	t.Run("Set duplicate transaction hash (from prior block)", func(t *testing.T) {
 		err = storage.AddBlock(ctx, newBlock2)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, newBlock2.BlockIdentifier)
+		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(newBlock2.BlockIdentifier))
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock2, block)
+
+		block, err = storage.GetBlock(ctx, &types.PartialBlockIdentifier{Index: &newBlock2.BlockIdentifier.Index})
+		assert.NoError(t, err)
+		assert.Equal(t, newBlock2, block)
+
+		block, err = storage.GetBlock(ctx, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, newBlock2, block)
 
@@ -387,7 +416,7 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, complexBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, complexBlock.BlockIdentifier)
+		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(complexBlock.BlockIdentifier))
 		assert.NoError(t, err)
 		assert.Equal(t, complexBlock, block)
 
@@ -418,7 +447,7 @@ func TestBlock(t *testing.T) {
 		err := storage.AddBlock(ctx, gapBlock)
 		assert.NoError(t, err)
 
-		block, err := storage.GetBlock(ctx, gapBlock.BlockIdentifier)
+		block, err := storage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(gapBlock.BlockIdentifier))
 		assert.NoError(t, err)
 		assert.Equal(t, gapBlock, block)
 

@@ -35,11 +35,8 @@ const (
 	// blockNamespace is prepended to any stored block.
 	blockNamespace = "block"
 
-	// blockHashNamespace is prepended to any stored block hash.
-	// We cannot just use the stored block key to lookup whether
-	// a hash has been used before because it is concatenated
-	// with the index of the stored block.
-	blockHashNamespace = "block-hash"
+	// blockIndexNamespace is prepended to any stored block index.
+	blockIndexNamespace = "block-index"
 
 	// transactionHashNamespace is prepended to any stored
 	// transaction hash.
@@ -55,9 +52,9 @@ var (
 	// found in BlockStorage.
 	ErrBlockNotFound = errors.New("block not found")
 
-	// ErrDuplicateBlockHash is returned when a block hash
+	// ErrDuplicateKey is returned when a key
 	// cannot be stored because it is a duplicate.
-	ErrDuplicateBlockHash = errors.New("duplicate block hash")
+	ErrDuplicateKey = errors.New("duplicate key")
 
 	// ErrDuplicateTransactionHash is returned when a transaction
 	// hash cannot be stored because it is a duplicate.
@@ -68,14 +65,12 @@ func getHeadBlockKey() []byte {
 	return []byte(headBlockKey)
 }
 
-func getBlockKey(blockIdentifier *types.BlockIdentifier) []byte {
-	return []byte(
-		fmt.Sprintf("%s/%s/%d", blockNamespace, blockIdentifier.Hash, blockIdentifier.Index),
-	)
+func getBlockHashKey(hash string) []byte {
+	return []byte(fmt.Sprintf("%s/%s", blockNamespace, hash))
 }
 
-func getBlockHashKey(blockIdentifier *types.BlockIdentifier) []byte {
-	return []byte(fmt.Sprintf("%s/%s", blockHashNamespace, blockIdentifier.Hash))
+func getBlockIndexKey(index int64) []byte {
+	return []byte(fmt.Sprintf("%s/%d", blockIndexNamespace, index))
 }
 
 func getTransactionHashKey(transactionIdentifier *types.TransactionIdentifier) []byte {
@@ -174,18 +169,38 @@ func (b *BlockStorage) StoreHeadBlockIdentifier(
 // GetBlock returns a block, if it exists.
 func (b *BlockStorage) GetBlock(
 	ctx context.Context,
-	blockIdentifier *types.BlockIdentifier,
+	blockIdentifier *types.PartialBlockIdentifier,
 ) (*types.Block, error) {
 	transaction := b.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
-	exists, block, err := transaction.Get(ctx, getBlockKey(blockIdentifier))
+	var exists bool
+	var block []byte
+	var err error
+	if blockIdentifier == nil || (blockIdentifier.Hash == nil && blockIdentifier.Index == nil) {
+		var head *types.BlockIdentifier
+		head, err = b.GetHeadBlockIdentifierTransactional(ctx, transaction)
+		if err != nil {
+			return nil, fmt.Errorf("%w: cannot get head block identifier", err)
+		}
+
+		exists, block, err = transaction.Get(ctx, getBlockHashKey(head.Hash))
+	} else if blockIdentifier.Hash != nil {
+		exists, block, err = transaction.Get(ctx, getBlockHashKey(*blockIdentifier.Hash))
+	} else {
+		var blockKey []byte
+		exists, blockKey, err = transaction.Get(ctx, getBlockIndexKey(*blockIdentifier.Index))
+		if exists {
+			exists, block, err = transaction.Get(ctx, blockKey)
+		}
+	}
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to get block", err)
 	}
 
 	if !exists {
-		return nil, fmt.Errorf("%w %+v", ErrBlockNotFound, blockIdentifier)
+		return nil, fmt.Errorf("%w: %+v", ErrBlockNotFound, blockIdentifier)
 	}
 
 	var rosettaBlock types.Block
@@ -197,6 +212,27 @@ func (b *BlockStorage) GetBlock(
 	return &rosettaBlock, nil
 }
 
+func (b *BlockStorage) storeBlock(ctx context.Context, transaction DatabaseTransaction, block *types.Block) error {
+	buf, err := encode(block)
+	if err != nil {
+		return fmt.Errorf("%w: unable to encode block", err)
+	}
+
+	if err := b.storeUniqueKey(ctx, transaction, getBlockHashKey(block.BlockIdentifier.Hash), buf); err != nil {
+		return fmt.Errorf("%w: unable to store block", err)
+	}
+
+	if err := b.storeUniqueKey(ctx, transaction, getBlockIndexKey(block.BlockIdentifier.Index), getBlockHashKey(block.BlockIdentifier.Hash)); err != nil {
+		return fmt.Errorf("%w: unable to store block index", err)
+	}
+
+	if err := b.StoreHeadBlockIdentifier(ctx, transaction, block.BlockIdentifier); err != nil {
+		return fmt.Errorf("%w: unable to update head block identifier", err)
+	}
+
+	return nil
+}
+
 // AddBlock stores a block or returns an error.
 func (b *BlockStorage) AddBlock(
 	ctx context.Context,
@@ -205,25 +241,10 @@ func (b *BlockStorage) AddBlock(
 	transaction := b.db.NewDatabaseTransaction(ctx, true)
 	defer transaction.Discard(ctx)
 
-	buf, err := encode(block)
-	if err != nil {
-		return err
-	}
-
 	// Store block
-	err = transaction.Set(ctx, getBlockKey(block.BlockIdentifier), buf)
+	err := b.storeBlock(ctx, transaction, block)
 	if err != nil {
-		return err
-	}
-
-	if err = b.StoreHeadBlockIdentifier(ctx, transaction, block.BlockIdentifier); err != nil {
-		return err
-	}
-
-	// Store block hash
-	err = b.storeBlockHash(ctx, transaction, block.BlockIdentifier)
-	if err != nil {
-		return fmt.Errorf("%w: unable to store block hash", err)
+		return fmt.Errorf("%w: unable to store block", err)
 	}
 
 	// Store all transaction hashes
@@ -242,6 +263,23 @@ func (b *BlockStorage) AddBlock(
 	return b.callWorkersAndCommit(ctx, block, transaction, true)
 }
 
+func (b *BlockStorage) deleteBlock(ctx context.Context, transaction DatabaseTransaction, block *types.Block) error {
+	blockIdentifier := block.BlockIdentifier
+	if err := transaction.Delete(ctx, getBlockHashKey(blockIdentifier.Hash)); err != nil {
+		return fmt.Errorf("%w: unable to delete block", err)
+	}
+
+	if err := transaction.Delete(ctx, getBlockIndexKey(blockIdentifier.Index)); err != nil {
+		return fmt.Errorf("%w: unable to delete block index", err)
+	}
+
+	if err := b.StoreHeadBlockIdentifier(ctx, transaction, block.ParentBlockIdentifier); err != nil {
+		return fmt.Errorf("%w: unable to update head block identifier", err)
+	}
+
+	return nil
+}
+
 // RemoveBlock removes a block or returns an error.
 // RemoveBlock also removes the block hash and all
 // its transaction hashes to not break duplicate
@@ -250,7 +288,7 @@ func (b *BlockStorage) RemoveBlock(
 	ctx context.Context,
 	blockIdentifier *types.BlockIdentifier,
 ) error {
-	block, err := b.GetBlock(ctx, blockIdentifier)
+	block, err := b.GetBlock(ctx, types.ConstructPartialBlockIdentifier(blockIdentifier))
 	if err != nil {
 		return err
 	}
@@ -266,19 +304,9 @@ func (b *BlockStorage) RemoveBlock(
 		}
 	}
 
-	// Remove block hash
-	err = transaction.Delete(ctx, getBlockHashKey(blockIdentifier))
-	if err != nil {
-		return err
-	}
-
-	// Remove block
-	if err := transaction.Delete(ctx, getBlockKey(blockIdentifier)); err != nil {
-		return err
-	}
-
-	if err = b.StoreHeadBlockIdentifier(ctx, transaction, block.ParentBlockIdentifier); err != nil {
-		return err
+	// Delete block
+	if err := b.deleteBlock(ctx, transaction, block); err != nil {
+		return fmt.Errorf("%w: unable to delete block", err)
 	}
 
 	return b.callWorkersAndCommit(ctx, block, transaction, false)
@@ -348,7 +376,7 @@ func (b *BlockStorage) SetNewStartIndex(
 	currBlock := head
 	for currBlock.Index >= startIndex {
 		log.Printf("Removing block %+v\n", currBlock)
-		block, err := b.GetBlock(ctx, currBlock)
+		block, err := b.GetBlock(ctx, types.ConstructPartialBlockIdentifier(currBlock))
 		if err != nil {
 			return err
 		}
@@ -373,7 +401,7 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 	}
 
 	for len(cache) < syncer.PastBlockSize {
-		block, err := b.GetBlock(ctx, head)
+		block, err := b.GetBlock(ctx, types.ConstructPartialBlockIdentifier(head))
 		if err != nil {
 			return cache
 		}
@@ -392,22 +420,22 @@ func (b *BlockStorage) CreateBlockCache(ctx context.Context) []*types.BlockIdent
 	return cache
 }
 
-func (b *BlockStorage) storeBlockHash(
+func (b *BlockStorage) storeUniqueKey(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	block *types.BlockIdentifier,
+	key []byte,
+	value []byte,
 ) error {
-	hashKey := getBlockHashKey(block)
-	exists, _, err := transaction.Get(ctx, hashKey)
+	exists, _, err := transaction.Get(ctx, key)
 	if err != nil {
 		return err
 	}
 
 	if exists {
-		return fmt.Errorf("%w: duplicate block hash %s found", ErrDuplicateBlockHash, block.Hash)
+		return fmt.Errorf("%w: duplicate key %s found", ErrDuplicateKey, string(key))
 	}
 
-	return transaction.Set(ctx, hashKey, []byte(""))
+	return transaction.Set(ctx, key, value)
 }
 
 func (b *BlockStorage) storeTransactionHash(
@@ -518,7 +546,7 @@ func (b *BlockStorage) FindTransaction(
 		}
 	}
 
-	blockExists, block, err := txn.Get(ctx, getBlockKey(newestBlock))
+	blockExists, block, err := txn.Get(ctx, getBlockHashKey(newestBlock.Hash))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: unable to query database for block", err)
 	}
@@ -554,15 +582,11 @@ func (b *BlockStorage) AtTip(
 	ctx context.Context,
 	tipDelay int64,
 ) (bool, error) {
-	head, err := b.GetHeadBlockIdentifier(ctx)
+	block, err := b.GetBlock(ctx, nil)
 	if errors.Is(err, ErrHeadBlockNotFound) {
 		return false, nil
 	}
-	if err != nil {
-		return false, fmt.Errorf("%w: unable to get head block identifir", err)
-	}
 
-	block, err := b.GetBlock(ctx, head)
 	if err != nil {
 		return false, fmt.Errorf("%w: unable to get head block", err)
 	}
