@@ -122,6 +122,18 @@ func simpleTransactionFactory(
 }
 
 var (
+	genesisBlock = &types.Block{
+		BlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 0",
+			Index: 0,
+		},
+		ParentBlockIdentifier: &types.BlockIdentifier{
+			Hash:  "blah 0",
+			Index: 0,
+		},
+		Timestamp: 1,
+	}
+
 	newBlock = &types.Block{
 		BlockIdentifier: &types.BlockIdentifier{
 			Hash:  "blah 1",
@@ -422,21 +434,21 @@ func TestCreateBlockCache(t *testing.T) {
 	})
 
 	t.Run("1 block processed", func(t *testing.T) {
-		err = storage.AddBlock(ctx, newBlock)
+		err = storage.AddBlock(ctx, genesisBlock)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]*types.BlockIdentifier{newBlock.BlockIdentifier},
+			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
 	})
 
 	t.Run("2 blocks processed", func(t *testing.T) {
-		err = storage.AddBlock(ctx, newBlock3)
+		err = storage.AddBlock(ctx, newBlock)
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]*types.BlockIdentifier{newBlock.BlockIdentifier, newBlock3.BlockIdentifier},
+			[]*types.BlockIdentifier{genesisBlock.BlockIdentifier, newBlock.BlockIdentifier},
 			storage.CreateBlockCache(ctx),
 		)
 	})
