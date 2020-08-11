@@ -165,6 +165,8 @@ func InitializeData(
 	)
 
 	reconcilerHelper := processor.NewReconcilerHelper(
+		network,
+		fetcher,
 		blockStorage,
 		balanceStorage,
 	)
@@ -181,10 +183,8 @@ func InitializeData(
 	}
 
 	r := reconciler.New(
-		network,
 		reconcilerHelper,
 		reconcilerHandler,
-		fetcher,
 		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
 		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
 		reconciler.WithLookupBalanceByBlock(!config.Data.HistoricalBalanceDisabled),
@@ -507,6 +507,8 @@ func (t *DataTester) recursiveOpSearch(
 	)
 
 	reconcilerHelper := processor.NewReconcilerHelper(
+		t.network,
+		t.fetcher,
 		blockStorage,
 		balanceStorage,
 	)
@@ -517,10 +519,8 @@ func (t *DataTester) recursiveOpSearch(
 	)
 
 	r := reconciler.New(
-		t.network,
 		reconcilerHelper,
 		reconcilerHandler,
-		t.fetcher,
 
 		// When using concurrency > 1, we could start looking up balance changes
 		// on multiple blocks at once. This can cause us to return the wrong block
