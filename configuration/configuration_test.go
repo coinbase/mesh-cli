@@ -64,7 +64,7 @@ var (
 			ActiveReconciliationConcurrency:   100,
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
-			ReconciliationDisabled:            true,
+			ReconciliationDisabled:            false,
 			HistoricalBalanceDisabled:         true,
 			StartIndex:                        &startIndex,
 			EndConditions: &DataEndConditions{
@@ -190,6 +190,39 @@ func TestLoadConfiguration(t *testing.T) {
 		"invalid reconciliation coverage": {
 			provided: invalidReconciliationCoverage,
 			err:      true,
+		},
+		"invalid reconciliation coverage (reconciliation disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					ReconciliationDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (balance tracking disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					BalanceTrackingDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (ignore reconciliation error)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					IgnoreReconciliationError: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
 		},
 		"multiple end conditions": {
 			provided: multipleEndConditions,

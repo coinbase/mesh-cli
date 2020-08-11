@@ -15,6 +15,7 @@
 package configuration
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -578,6 +579,18 @@ func assertDataConfiguration(config *DataConfiguration) error {
 		coverage := *config.EndConditions.ReconciliationCoverage
 		if coverage < 0 || coverage > 1 {
 			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
+		}
+
+		if config.BalanceTrackingDisabled {
+			return errors.New("balance tracking must be enabled for reconciliation coverage end condition")
+		}
+
+		if config.IgnoreReconciliationError {
+			return errors.New("reconciliation errors cannot be ignored for reconciliation coverage end condition")
+		}
+
+		if config.ReconciliationDisabled {
+			return errors.New("reconciliation cannot be disabled for reconciliation coverage end condition")
 		}
 	}
 
