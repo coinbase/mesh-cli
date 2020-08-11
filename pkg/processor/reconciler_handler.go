@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
@@ -29,6 +30,7 @@ import (
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
+	balanceStorage            *storage.BalanceStorage
 	haltOnReconciliationError bool
 
 	InactiveFailure      *reconciler.AccountCurrency
@@ -40,10 +42,12 @@ type ReconcilerHandler struct {
 // NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
 	logger *logger.Logger,
+	balanceStorage *storage.BalanceStorage,
 	haltOnReconciliationError bool,
 ) *ReconcilerHandler {
 	return &ReconcilerHandler{
 		logger:                    logger,
+		balanceStorage:            balanceStorage,
 		haltOnReconciliationError: haltOnReconciliationError,
 	}
 }
@@ -110,6 +114,10 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 		)
 	} else {
 		_, _ = h.logger.CounterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
+	}
+
+	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
+		return fmt.Errorf("%w: unable to store updated reconciliation", err)
 	}
 
 	return h.logger.ReconcileSuccessStream(

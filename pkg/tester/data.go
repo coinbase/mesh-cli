@@ -70,6 +70,7 @@ type DataTester struct {
 	syncer            *statefulsyncer.StatefulSyncer
 	reconciler        *reconciler.Reconciler
 	logger            *logger.Logger
+	balanceStorage    *storage.BalanceStorage
 	blockStorage      *storage.BlockStorage
 	counterStorage    *storage.CounterStorage
 	reconcilerHandler *processor.ReconcilerHandler
@@ -77,6 +78,8 @@ type DataTester struct {
 	signalReceived    *bool
 	genesisBlock      *types.BlockIdentifier
 	cancel            context.CancelFunc
+
+	endConditionReached string
 }
 
 func shouldReconcile(config *configuration.Configuration) bool {
@@ -155,8 +158,14 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
+	loggerBalanceStorage := balanceStorage
+	if !shouldReconcile(config) {
+		loggerBalanceStorage = nil
+	}
+
 	logger := logger.NewLogger(
 		counterStorage,
+		loggerBalanceStorage,
 		dataPath,
 		config.Data.LogBlocks,
 		config.Data.LogTransactions,
@@ -173,6 +182,7 @@ func InitializeData(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		balanceStorage,
 		!config.Data.IgnoreReconciliationError,
 	)
 
@@ -260,6 +270,7 @@ func InitializeData(
 		cancel:            cancel,
 		reconciler:        r,
 		logger:            logger,
+		balanceStorage:    balanceStorage,
 		blockStorage:      blockStorage,
 		counterStorage:    counterStorage,
 		reconcilerHandler: reconcilerHandler,
@@ -306,24 +317,31 @@ func (t *DataTester) StartReconciler(
 func (t *DataTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
-	for ctx.Err() == nil {
-		_ = t.logger.LogDataStats(ctx)
-		time.Sleep(PeriodicLoggingFrequency)
+	tc := time.NewTicker(PeriodicLoggingFrequency)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Print stats one last time before exiting
+			_ = t.logger.LogDataStats(ctx)
+
+			return ctx.Err()
+		case <-tc.C:
+			_ = t.logger.LogDataStats(ctx)
+		}
 	}
-
-	// Print stats one last time before exiting
-	_ = t.logger.LogDataStats(ctx)
-
-	return ctx.Err()
 }
 
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
 func (t *DataTester) EndAtTipLoop(
 	ctx context.Context,
-	tipDelay int64,
+	minReconciliationCoverage float64,
 ) {
 	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
+
+	firstTipIndex := int64(-1)
 
 	for {
 		select {
@@ -331,7 +349,7 @@ func (t *DataTester) EndAtTipLoop(
 			return
 
 		case <-tc.C:
-			atTip, err := t.blockStorage.AtTip(ctx, tipDelay)
+			atTip, blockIdentifier, err := t.blockStorage.AtTip(ctx, t.config.TipDelay)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate if syncer is at tip",
@@ -340,8 +358,48 @@ func (t *DataTester) EndAtTipLoop(
 				continue
 			}
 
-			if atTip {
-				log.Println("syncer has reached tip")
+			// If we fall behind tip, we must reset the firstTipIndex.
+			if !atTip {
+				firstTipIndex = int64(-1)
+				continue
+			}
+
+			// If minReconciliationCoverage is less than 0,
+			// we should just stop at tip.
+			if minReconciliationCoverage < 0 {
+				t.endConditionReached = fmt.Sprintf(
+					"%s [Tip: %d]",
+					configuration.TipEndCondition,
+					blockIdentifier.Index,
+				)
+				t.cancel()
+				return
+			}
+
+			// Once at tip, we want to consider
+			// coverage. It is not feasible that we could
+			// get high reconciliation coverage at the tip
+			// block, so we take the range from when first
+			// at tip to the current block.
+			if firstTipIndex < 0 {
+				firstTipIndex = blockIdentifier.Index
+			}
+
+			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, firstTipIndex)
+			if err != nil {
+				log.Printf(
+					"%s: unable to get reconciliations coverage",
+					err.Error(),
+				)
+				continue
+			}
+
+			if coverage >= minReconciliationCoverage {
+				t.endConditionReached = fmt.Sprintf(
+					"%s [Coverage: %f%%]",
+					configuration.ReconciliationCoverageEndCondition,
+					coverage*utils.OneHundred,
+				)
 				t.cancel()
 				return
 			}
@@ -363,8 +421,9 @@ func (t *DataTester) EndDurationLoop(
 			return
 
 		case <-timer.C:
-			log.Printf(
-				"syncer has reached end condition after %d seconds",
+			t.endConditionReached = fmt.Sprintf(
+				"%s [Seconds: %d]",
+				configuration.DurationEndCondition,
 				int(duration.Seconds()),
 			)
 			t.cancel()
@@ -384,12 +443,16 @@ func (t *DataTester) WatchEndConditions(
 
 	if endConds.Tip != nil && *endConds.Tip {
 		// runs a go routine that ends when reaching tip
-		go t.EndAtTipLoop(ctx, t.config.TipDelay)
+		go t.EndAtTipLoop(ctx, -1)
 	}
 
 	if endConds.Duration != nil && *endConds.Duration != 0 {
 		// runs a go routine that ends after a duration
 		go t.EndDurationLoop(ctx, time.Duration(*endConds.Duration)*time.Second)
+	}
+
+	if endConds.ReconciliationCoverage != nil {
+		go t.EndAtTipLoop(ctx, *endConds.ReconciliationCoverage)
 	}
 
 	return nil
@@ -405,7 +468,16 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		return
 	}
 
-	if err == nil || err == context.Canceled { // err == context.Canceled when --end
+	if (err == nil || err == context.Canceled) && len(t.endConditionReached) == 0 && t.config.Data.EndConditions != nil &&
+		t.config.Data.EndConditions.Index != nil { // occurs at syncer end
+		t.endConditionReached = fmt.Sprintf(
+			"%s [Index: %d]",
+			configuration.IndexEndCondition,
+			*t.config.Data.EndConditions.Index,
+		)
+	}
+
+	if len(t.endConditionReached) != 0 {
 		activeReconciliations, activeErr := t.counterStorage.Get(
 			ctx,
 			storage.ActiveReconciliationCounter,
@@ -415,11 +487,12 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 			storage.InactiveReconciliationCounter,
 		)
 
-		if activeErr != nil || inactiveErr != nil ||
+		successMessage := fmt.Sprintf("Check succeeded: %s", t.endConditionReached)
+		if activeErr == nil && inactiveErr == nil &&
 			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
-			color.Green("Check succeeded")
+			color.Green(successMessage)
 		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
-			color.Yellow("Check succeeded, however, no reconciliations were performed!")
+			color.Yellow(fmt.Sprintf("%s (warning: no reconciliations were performed)", successMessage))
 		}
 		os.Exit(0)
 	}
@@ -499,6 +572,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	logger := logger.NewLogger(
 		counterStorage,
+		nil,
 		tmpDir,
 		false,
 		false,
@@ -515,6 +589,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		balanceStorage,
 		true, // halt on reconciliation error
 	)
 

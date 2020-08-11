@@ -70,13 +70,14 @@ type Logger struct {
 
 	lastStatsMessage string
 
-	// CounterStorage is some initialized CounterStorage.
 	CounterStorage *storage.CounterStorage
+	BalanceStorage *storage.BalanceStorage
 }
 
 // NewLogger constructs a new Logger.
 func NewLogger(
 	counterStorage *storage.CounterStorage,
+	balanceStorage *storage.BalanceStorage,
 	logDir string,
 	logBlocks bool,
 	logTransactions bool,
@@ -85,6 +86,7 @@ func NewLogger(
 ) *Logger {
 	return &Logger{
 		CounterStorage:    counterStorage,
+		BalanceStorage:    balanceStorage,
 		logDir:            logDir,
 		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
@@ -130,14 +132,27 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s Reconciliations: %s (Inactive: %s)",
+		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s",
 		blocks.String(),
 		orphans.String(),
 		txs.String(),
 		ops.String(),
-		new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
-		inactiveReconciliations.String(),
 	)
+
+	if l.BalanceStorage != nil {
+		coverage, err := l.BalanceStorage.ReconciliationCoverage(ctx, 0)
+		if err != nil {
+			return fmt.Errorf("%w: cannot get reconcile coverage", err)
+		}
+
+		statsMessage = fmt.Sprintf(
+			"%s Reconciliations: %s (Inactive: %s, Coverage: %f%%)",
+			statsMessage,
+			new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
+			inactiveReconciliations.String(),
+			coverage*utils.OneHundred,
+		)
+	}
 
 	// Don't print out the same stats message twice.
 	if statsMessage == l.lastStatsMessage {

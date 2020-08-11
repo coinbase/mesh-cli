@@ -598,21 +598,21 @@ func (b *BlockStorage) FindTransaction(
 func (b *BlockStorage) AtTip(
 	ctx context.Context,
 	tipDelay int64,
-) (bool, error) {
+) (bool, *types.BlockIdentifier, error) {
 	block, err := b.GetBlock(ctx, nil)
 	if errors.Is(err, ErrHeadBlockNotFound) {
-		return false, nil
+		return false, nil, nil
 	}
 
 	if err != nil {
-		return false, fmt.Errorf("%w: unable to get head block", err)
+		return false, nil, fmt.Errorf("%w: unable to get head block", err)
 	}
 
 	currentTime := utils.Milliseconds()
 	tipCutoff := currentTime - (tipDelay * utils.MillisecondsInSecond)
 	if block.Timestamp < tipCutoff {
-		return false, nil
+		return false, nil, nil
 	}
 
-	return true, nil
+	return true, block.BlockIdentifier, nil
 }

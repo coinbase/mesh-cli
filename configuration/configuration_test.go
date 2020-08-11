@@ -28,6 +28,8 @@ import (
 var (
 	startIndex    = int64(89)
 	badStartIndex = int64(-10)
+	goodCoverage  = float64(0.33)
+	badCoverage   = float64(-2)
 	endTip        = false
 	whackyConfig  = &Configuration{
 		Network: &types.NetworkIdentifier{
@@ -62,9 +64,12 @@ var (
 			ActiveReconciliationConcurrency:   100,
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
-			ReconciliationDisabled:            true,
+			ReconciliationDisabled:            false,
 			HistoricalBalanceDisabled:         true,
 			StartIndex:                        &startIndex,
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &goodCoverage,
+			},
 		},
 	}
 	invalidNetwork = &Configuration{
@@ -116,6 +121,13 @@ var (
 		Data: &DataConfiguration{
 			EndConditions: &DataEndConditions{
 				Index: &badStartIndex,
+			},
+		},
+	}
+	invalidReconciliationCoverage = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &badCoverage,
 			},
 		},
 	}
@@ -174,6 +186,43 @@ func TestLoadConfiguration(t *testing.T) {
 		"invalid end index": {
 			provided: invalidEndIndex,
 			err:      true,
+		},
+		"invalid reconciliation coverage": {
+			provided: invalidReconciliationCoverage,
+			err:      true,
+		},
+		"invalid reconciliation coverage (reconciliation disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					ReconciliationDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (balance tracking disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					BalanceTrackingDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (ignore reconciliation error)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					IgnoreReconciliationError: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
 		},
 		"multiple end conditions": {
 			provided: multipleEndConditions,

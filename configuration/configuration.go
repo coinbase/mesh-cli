@@ -15,6 +15,7 @@
 package configuration
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -66,6 +67,22 @@ const (
 	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
 	EthereumCurveType       = types.Secp256k1
 	EthereumAccountingModel = AccountModel
+
+	// IndexEndCondition is used to indicate that the index end condition
+	// has been met.
+	IndexEndCondition = "Index End Condition"
+
+	// DurationEndCondition is used to indicate that the duration
+	// end condition has been met.
+	DurationEndCondition = "Duration End Condition"
+
+	// TipEndCondition is used to indicate that the tip end condition
+	// has been met.
+	TipEndCondition = "Tip End Condition"
+
+	// ReconciliationCoverageEndCondition is used to indicate that the reconciliation
+	// coverage end condition has been met.
+	ReconciliationCoverageEndCondition = "Reconciliation Coverage End Condition"
 )
 
 // Default Configuration Values
@@ -259,6 +276,13 @@ type DataEndConditions struct {
 	// Duration configures the syncer to stop after running
 	// for Duration seconds.
 	Duration *uint64 `json:"duration,omitempty"`
+
+	// ReconciliationCoverage configures the syncer to stop
+	// once it has reached tip AND some proportion of
+	// all addresses have been reconciled at an index >=
+	// to when tip was first reached. The range of inputs
+	// for this condition are [0.0, 1.0].
+	ReconciliationCoverage *float64 `json:"reconciliation_coverage,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
@@ -564,6 +588,32 @@ func assertDataConfiguration(config *DataConfiguration) error {
 
 	if config.EndConditions.Duration != nil {
 		foundConditions++
+	}
+
+	if config.EndConditions.ReconciliationCoverage != nil {
+		foundConditions++
+		coverage := *config.EndConditions.ReconciliationCoverage
+		if coverage < 0 || coverage > 1 {
+			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
+		}
+
+		if config.BalanceTrackingDisabled {
+			return errors.New(
+				"balance tracking must be enabled for reconciliation coverage end condition",
+			)
+		}
+
+		if config.IgnoreReconciliationError {
+			return errors.New(
+				"reconciliation errors cannot be ignored for reconciliation coverage end condition",
+			)
+		}
+
+		if config.ReconciliationDisabled {
+			return errors.New(
+				"reconciliation cannot be disabled for reconciliation coverage end condition",
+			)
+		}
 	}
 
 	if foundConditions != 1 {
