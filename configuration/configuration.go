@@ -259,6 +259,13 @@ type DataEndConditions struct {
 	// Duration configures the syncer to stop after running
 	// for Duration seconds.
 	Duration *uint64 `json:"duration,omitempty"`
+
+	// ReconciliationCoverage configures the syncer to stop
+	// once it has reached tip AND some proportion of
+	// all addresses have been reconciled at an index >=
+	// to when tip was first reached. The range of inputs
+	// for this condition are [0.0, 1.0].
+	ReconciliationCoverage *float64 `json:"reconciliation_coverage,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
@@ -564,6 +571,14 @@ func assertDataConfiguration(config *DataConfiguration) error {
 
 	if config.EndConditions.Duration != nil {
 		foundConditions++
+	}
+
+	if config.EndConditions.ReconciliationCoverage != nil {
+		foundConditions++
+		coverage := *config.EndConditions.ReconciliationCoverage
+		if coverage < 0 || coverage > 1 {
+			return fmt.Errorf("reconcilation coverage %f must be [0.0,1.0]", coverage)
+		}
 	}
 
 	if foundConditions != 1 {

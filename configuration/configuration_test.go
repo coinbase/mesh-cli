@@ -28,6 +28,8 @@ import (
 var (
 	startIndex    = int64(89)
 	badStartIndex = int64(-10)
+	goodCoverage  = float64(0.33)
+	badCoverage   = float64(-2)
 	endTip        = false
 	whackyConfig  = &Configuration{
 		Network: &types.NetworkIdentifier{
@@ -65,6 +67,9 @@ var (
 			ReconciliationDisabled:            true,
 			HistoricalBalanceDisabled:         true,
 			StartIndex:                        &startIndex,
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &goodCoverage,
+			},
 		},
 	}
 	invalidNetwork = &Configuration{
@@ -116,6 +121,13 @@ var (
 		Data: &DataConfiguration{
 			EndConditions: &DataEndConditions{
 				Index: &badStartIndex,
+			},
+		},
+	}
+	invalidReconciliationCoverage = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &badCoverage,
 			},
 		},
 	}
@@ -173,6 +185,10 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"invalid end index": {
 			provided: invalidEndIndex,
+			err:      true,
+		},
+		"invalid reconciliation coverage": {
+			provided: invalidReconciliationCoverage,
 			err:      true,
 		},
 		"multiple end conditions": {
