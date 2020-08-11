@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/coinbase/rosetta-cli/pkg/storage"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -90,20 +91,20 @@ func (h *BalanceStorageHelper) AccountBalance(
 	// In the case that we are syncing from arbitrary height,
 	// we may need to recover the balance of an account to
 	// perform validations.
-	_, value, err := reconciler.GetCurrencyBalance(
+	amount, _, err := utils.CurrencyBalance(
 		ctx,
-		h.fetcher,
 		h.network,
+		h.fetcher,
 		account,
 		currency,
-		types.ConstructPartialBlockIdentifier(block),
+		block,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get currency balance in storage helper", err)
+		return nil, fmt.Errorf("%w: unable to get currency balance", err)
 	}
 
 	return &types.Amount{
-		Value:    value,
+		Value:    amount.Value,
 		Currency: currency,
 	}, nil
 }

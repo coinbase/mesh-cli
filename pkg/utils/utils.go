@@ -259,3 +259,45 @@ func Milliseconds() int64 {
 	nanos := time.Now().UnixNano()
 	return nanos / NanosecondsInMillisecond
 }
+
+// CurrencyBalance returns the balance of an account
+// for a particular currency.
+func CurrencyBalance(
+	ctx context.Context,
+	network *types.NetworkIdentifier,
+	fetcher *fetcher.Fetcher,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	block *types.BlockIdentifier,
+) (*types.Amount, *types.BlockIdentifier, error) {
+	var lookupBlock *types.PartialBlockIdentifier
+	if block != nil {
+		lookupBlock = types.ConstructPartialBlockIdentifier(block)
+	}
+
+	liveBlock, liveBalances, _, _, err := fetcher.AccountBalanceRetry(
+		ctx,
+		network,
+		account,
+		lookupBlock,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"%w: unable to lookup acccount balance for %s",
+			err,
+			types.PrettyPrintStruct(account),
+		)
+	}
+
+	liveAmount, err := types.ExtractAmount(liveBalances, currency)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"%w: could not get %s currency balance for %s",
+			err,
+			types.PrettyPrintStruct(currency),
+			types.PrettyPrintStruct(account),
+		)
+	}
+
+	return liveAmount, liveBlock, nil
+}
