@@ -317,15 +317,20 @@ func (t *DataTester) StartReconciler(
 func (t *DataTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
-	for ctx.Err() == nil {
-		_ = t.logger.LogDataStats(ctx)
-		time.Sleep(PeriodicLoggingFrequency)
+	tc := time.NewTicker(PeriodicLoggingFrequency)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Print stats one last time before exiting
+			_ = t.logger.LogDataStats(ctx)
+
+			return ctx.Err()
+		case <-tc.C:
+			_ = t.logger.LogDataStats(ctx)
+		}
 	}
-
-	// Print stats one last time before exiting
-	_ = t.logger.LogDataStats(ctx)
-
-	return ctx.Err()
 }
 
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
