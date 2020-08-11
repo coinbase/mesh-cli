@@ -146,10 +146,11 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 		}
 
 		statsMessage = fmt.Sprintf(
-			"Reconciliations (Coverage: %f%%): %s (Inactive: %s)",
-			coverage*utils.OneHundred,
+			"%s Reconciliations: %s (Inactive: %s, Coverage: %f%%)",
+			statsMessage,
 			new(big.Int).Add(activeReconciliations, inactiveReconciliations).String(),
 			inactiveReconciliations.String(),
+			coverage*utils.OneHundred,
 		)
 	}
 
