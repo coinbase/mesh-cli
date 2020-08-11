@@ -70,6 +70,7 @@ type DataTester struct {
 	syncer            *statefulsyncer.StatefulSyncer
 	reconciler        *reconciler.Reconciler
 	logger            *logger.Logger
+	balanceStorage    *storage.BalanceStorage
 	blockStorage      *storage.BlockStorage
 	counterStorage    *storage.CounterStorage
 	reconcilerHandler *processor.ReconcilerHandler
@@ -261,6 +262,7 @@ func InitializeData(
 		cancel:            cancel,
 		reconciler:        r,
 		logger:            logger,
+		balanceStorage:    balanceStorage,
 		blockStorage:      blockStorage,
 		counterStorage:    counterStorage,
 		reconcilerHandler: reconcilerHandler,
@@ -321,10 +323,12 @@ func (t *DataTester) StartPeriodicLogger(
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
 func (t *DataTester) EndAtTipLoop(
 	ctx context.Context,
-	tipDelay int64,
+	minReconciliationCoverage float64,
 ) {
 	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
+
+	firstTipIndex := int64(-1)
 
 	for {
 		select {
@@ -332,7 +336,7 @@ func (t *DataTester) EndAtTipLoop(
 			return
 
 		case <-tc.C:
-			atTip, err := t.blockStorage.AtTip(ctx, tipDelay)
+			atTip, blockIdentifier, err := t.blockStorage.AtTip(ctx, t.config.TipDelay)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate if syncer is at tip",
@@ -341,8 +345,40 @@ func (t *DataTester) EndAtTipLoop(
 				continue
 			}
 
-			if atTip {
+			// If we fall behind tip, we must reset the firstTipIndex.
+			if !atTip {
+				firstTipIndex = int64(-1)
+				continue
+			}
+
+			// If minReconciliationCoverage is less than 0,
+			// we should just stop at tip.
+			if minReconciliationCoverage < 0 {
 				log.Println("syncer has reached tip")
+				t.cancel()
+				return
+			}
+
+			// Once at tip, we want to consider
+			// coverage. It is not feasible that we could
+			// get high reconciliation coverage at the tip
+			// block, so we take the range from when first
+			// at tip to the current block.
+			if firstTipIndex < 0 {
+				firstTipIndex = blockIdentifier.Index
+			}
+
+			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, firstTipIndex)
+			if err != nil {
+				log.Printf(
+					"%s: unable to get reconciliations coverage",
+					err.Error(),
+				)
+				continue
+			}
+
+			if coverage >= minReconciliationCoverage {
+				log.Printf("syncer has reached tip and reconciliation coverage is %f%%\n", coverage*utils.OneHundred)
 				t.cancel()
 				return
 			}
@@ -385,12 +421,16 @@ func (t *DataTester) WatchEndConditions(
 
 	if endConds.Tip != nil && *endConds.Tip {
 		// runs a go routine that ends when reaching tip
-		go t.EndAtTipLoop(ctx, t.config.TipDelay)
+		go t.EndAtTipLoop(ctx, -1)
 	}
 
 	if endConds.Duration != nil && *endConds.Duration != 0 {
 		// runs a go routine that ends after a duration
 		go t.EndDurationLoop(ctx, time.Duration(*endConds.Duration)*time.Second)
+	}
+
+	if endConds.ReconciliationCoverage != nil {
+		go t.EndAtTipLoop(ctx, *endConds.ReconciliationCoverage)
 	}
 
 	return nil

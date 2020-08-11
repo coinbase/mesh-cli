@@ -52,7 +52,7 @@ func (h *BroadcastStorageHelper) AtTip(
 	ctx context.Context,
 	tipDelay int64,
 ) (bool, error) {
-	atTip, err := h.blockStorage.AtTip(ctx, tipDelay)
+	atTip, _, err := h.blockStorage.AtTip(ctx, tipDelay)
 	if err != nil {
 		return false, fmt.Errorf("%w: unable to determine if at tip", err)
 	}

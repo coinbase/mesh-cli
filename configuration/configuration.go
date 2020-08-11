@@ -577,7 +577,7 @@ func assertDataConfiguration(config *DataConfiguration) error {
 		foundConditions++
 		coverage := *config.EndConditions.ReconciliationCoverage
 		if coverage < 0 || coverage > 1 {
-			return fmt.Errorf("reconcilation coverage %f must be [0.0,1.0]", coverage)
+			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
 		}
 	}
 
