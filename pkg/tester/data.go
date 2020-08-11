@@ -173,6 +173,7 @@ func InitializeData(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		balanceStorage,
 		!config.Data.IgnoreReconciliationError,
 	)
 
@@ -515,6 +516,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		balanceStorage,
 		true, // halt on reconciliation error
 	)
 
