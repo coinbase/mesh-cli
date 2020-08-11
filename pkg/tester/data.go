@@ -78,6 +78,8 @@ type DataTester struct {
 	signalReceived    *bool
 	genesisBlock      *types.BlockIdentifier
 	cancel            context.CancelFunc
+
+	endConditionReached string
 }
 
 func shouldReconcile(config *configuration.Configuration) bool {
@@ -360,7 +362,11 @@ func (t *DataTester) EndAtTipLoop(
 			// If minReconciliationCoverage is less than 0,
 			// we should just stop at tip.
 			if minReconciliationCoverage < 0 {
-				log.Println("syncer has reached tip")
+				t.endConditionReached = fmt.Sprintf(
+					"%s [Tip: %d]",
+					configuration.TipEndCondition,
+					blockIdentifier.Index,
+				)
 				t.cancel()
 				return
 			}
@@ -384,8 +390,9 @@ func (t *DataTester) EndAtTipLoop(
 			}
 
 			if coverage >= minReconciliationCoverage {
-				log.Printf(
-					"syncer has reached tip and reconciliation coverage is %f%%\n",
+				t.endConditionReached = fmt.Sprintf(
+					"%s [Coverage: %f%%]",
+					configuration.ReconciliationCoverageEndCondition,
 					coverage*utils.OneHundred,
 				)
 				t.cancel()
@@ -409,8 +416,9 @@ func (t *DataTester) EndDurationLoop(
 			return
 
 		case <-timer.C:
-			log.Printf(
-				"syncer has reached end condition after %d seconds",
+			t.endConditionReached = fmt.Sprintf(
+				"%s [Seconds: %d]",
+				configuration.DurationEndCondition,
 				int(duration.Seconds()),
 			)
 			t.cancel()
@@ -455,7 +463,15 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		return
 	}
 
-	if err == nil || err == context.Canceled { // err == context.Canceled when --end
+	if (err == nil || err == context.Canceled) && len(t.endConditionReached) == 0 && t.config.Data.EndConditions != nil && t.config.Data.EndConditions.Index != nil { // occurs at syncer end
+		t.endConditionReached = fmt.Sprintf(
+			"%s [Index: %d]",
+			configuration.IndexEndCondition,
+			*t.config.Data.EndConditions.Index,
+		)
+	}
+
+	if len(t.endConditionReached) != 0 {
 		activeReconciliations, activeErr := t.counterStorage.Get(
 			ctx,
 			storage.ActiveReconciliationCounter,
@@ -465,11 +481,12 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 			storage.InactiveReconciliationCounter,
 		)
 
-		if activeErr != nil || inactiveErr != nil ||
+		successMessage := fmt.Sprintf("Check succeeded: %s", t.endConditionReached)
+		if activeErr == nil && inactiveErr == nil &&
 			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
-			color.Green("Check succeeded")
+			color.Green(successMessage)
 		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
-			color.Yellow("Check succeeded, however, no reconciliations were performed!")
+			color.Yellow(fmt.Sprintf("%s (warning: no reconciliations were performed)", successMessage))
 		}
 		os.Exit(0)
 	}

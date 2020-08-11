@@ -67,6 +67,22 @@ const (
 	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
 	EthereumCurveType       = types.Secp256k1
 	EthereumAccountingModel = AccountModel
+
+	// IndexEndCondition is used to indicate that the index end condition
+	// has been met.
+	IndexEndCondition = "Index End Condition"
+
+	// DurationEndCondition is used to indicate that the duration
+	// end condition has been met.
+	DurationEndCondition = "Duration End Condition"
+
+	// TipEndCondition is used to indicate that the tip end condition
+	// has been met.
+	TipEndCondition = "Tip End Condition"
+
+	// ReconciliationCoverageEndCondition is used to indicate that the reconciliation
+	// coverage end condition has been met.
+	ReconciliationCoverageEndCondition = "Reconciliation Coverage End Condition"
 )
 
 // Default Configuration Values
