@@ -153,9 +153,7 @@ Usage:
   rosetta-cli check:data [flags]
 
 Flags:
-      --end int     block index to stop syncing (default -1)
-  -h, --help        help for check:data
-      --start int   block index to start syncing (default -1)
+  -h, --help   help for check:data
 
 Global Flags:
       --configuration-file string   Configuration file that provides connection and test settings.

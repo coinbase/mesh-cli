@@ -244,14 +244,21 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
-// EndConditions contains all the conditions for the syncer to stop.
-type EndConditions struct {
-	// EndAtTip determines if syncer should stop once it reached the tip
-	EndAtTip bool `json:"end_at_tip"`
+// DataEndConditions contains all the conditions for the syncer to stop
+// when running check:data.
+// Only 1 end condition can be populated at once!
+type DataEndConditions struct {
+	// Index configures the syncer to stop once reaching a particular block height.
+	Index *int64 `json:"index,omitempty"`
 
-	// EndDuration is an end condition that dictates how long the
-	// check:data command would be running for in seconds
-	EndDuration uint64 `json:"end_duration"`
+	// Tip configures the syncer to stop once it reached the tip.
+	// Make sure to configure `tip_delay` if you use this end
+	// condition.
+	Tip *bool `json:"tip,omitempty"`
+
+	// Duration configures the syncer to stop after running
+	// for Duration seconds.
+	Duration *uint64 `json:"duration,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
@@ -328,8 +335,13 @@ type DataConfiguration struct {
 	// consistency.
 	CoinTrackingDisabled bool `json:"coin_tracking_disabled"`
 
+	// StartIndex is the block height to start syncing from. If no StartIndex
+	// is provided, syncing will start from the last saved block.
+	// If no blocks have ever been synced, syncing will start from genesis.
+	StartIndex *int64 `json:"start_index"`
+
 	// EndCondition contains the conditions for the syncer to stop
-	EndConditions *EndConditions `json:"end_conditions,omitempty"`
+	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
 }
 
 // Configuration contains all configuration settings for running
@@ -529,9 +541,45 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	return nil
 }
 
+func assertDataConfiguration(config *DataConfiguration) error {
+	if config.StartIndex != nil && *config.StartIndex < 0 {
+		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
+	}
+
+	if config.EndConditions == nil {
+		return nil
+	}
+
+	foundConditions := 0
+	if config.EndConditions.Index != nil {
+		foundConditions++
+		if *config.EndConditions.Index < 0 {
+			return fmt.Errorf("end index %d cannot be negative", *config.EndConditions.Index)
+		}
+	}
+
+	if config.EndConditions.Tip != nil {
+		foundConditions++
+	}
+
+	if config.EndConditions.Duration != nil {
+		foundConditions++
+	}
+
+	if foundConditions != 1 {
+		return fmt.Errorf("found %d populated end conditions", foundConditions)
+	}
+
+	return nil
+}
+
 func assertConfiguration(config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
 		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	if err := assertDataConfiguration(config.Data); err != nil {
+		return fmt.Errorf("%w: invalid data configuration", err)
 	}
 
 	if err := assertConstructionConfiguration(config.Construction); err != nil {

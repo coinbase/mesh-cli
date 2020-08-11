@@ -26,7 +26,10 @@ import (
 )
 
 var (
-	whackyConfig = &Configuration{
+	startIndex    = int64(89)
+	badStartIndex = int64(-10)
+	endTip        = false
+	whackyConfig  = &Configuration{
 		Network: &types.NetworkIdentifier{
 			Blockchain: "sweet",
 			Network:    "sweeter",
@@ -61,6 +64,7 @@ var (
 			InactiveReconciliationFrequency:   3,
 			ReconciliationDisabled:            true,
 			HistoricalBalanceDisabled:         true,
+			StartIndex:                        &startIndex,
 		},
 	}
 	invalidNetwork = &Configuration{
@@ -93,6 +97,26 @@ var (
 	invalidMaximumFee = &Configuration{
 		Construction: &ConstructionConfiguration{
 			MaximumFee: "hello",
+		},
+	}
+	invalidStartIndex = &Configuration{
+		Data: &DataConfiguration{
+			StartIndex: &badStartIndex,
+		},
+	}
+	multipleEndConditions = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				Index: &startIndex,
+				Tip:   &endTip,
+			},
+		},
+	}
+	invalidEndIndex = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				Index: &badStartIndex,
+			},
 		},
 	}
 )
@@ -141,6 +165,18 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"invalid maximum fee": {
 			provided: invalidMaximumFee,
+			err:      true,
+		},
+		"invalid start index": {
+			provided: invalidStartIndex,
+			err:      true,
+		},
+		"invalid end index": {
+			provided: invalidEndIndex,
+			err:      true,
+		},
+		"multiple end conditions": {
+			provided: multipleEndConditions,
 			err:      true,
 		},
 	}

@@ -54,6 +54,12 @@ const (
 	//
 	// TODO: make configurable
 	PeriodicLoggingFrequency = 10 * time.Second
+
+	// EndAtTipCheckInterval is the frequency that EndAtTip condition
+	// is evaludated
+	//
+	// TODO: make configurable
+	EndAtTipCheckInterval = 10 * time.Second
 )
 
 // DataTester coordinates the `check:data` test.
@@ -64,11 +70,13 @@ type DataTester struct {
 	syncer            *statefulsyncer.StatefulSyncer
 	reconciler        *reconciler.Reconciler
 	logger            *logger.Logger
+	blockStorage      *storage.BlockStorage
 	counterStorage    *storage.CounterStorage
 	reconcilerHandler *processor.ReconcilerHandler
 	fetcher           *fetcher.Fetcher
 	signalReceived    *bool
 	genesisBlock      *types.BlockIdentifier
+	cancel            context.CancelFunc
 }
 
 func shouldReconcile(config *configuration.Configuration) bool {
@@ -249,8 +257,10 @@ func InitializeData(
 		database:          localStore,
 		config:            config,
 		syncer:            syncer,
+		cancel:            cancel,
 		reconciler:        r,
 		logger:            logger,
+		blockStorage:      blockStorage,
 		counterStorage:    counterStorage,
 		reconcilerHandler: reconcilerHandler,
 		fetcher:           fetcher,
@@ -265,9 +275,17 @@ func InitializeData(
 // continuously (or until an error).
 func (t *DataTester) StartSyncing(
 	ctx context.Context,
-	startIndex int64,
-	endIndex int64,
 ) error {
+	startIndex := int64(-1)
+	if t.config.Data.StartIndex != nil {
+		startIndex = *t.config.Data.StartIndex
+	}
+
+	endIndex := int64(-1)
+	if t.config.Data.EndConditions != nil && t.config.Data.EndConditions.Index != nil {
+		endIndex = *t.config.Data.EndConditions.Index
+	}
+
 	return t.syncer.Sync(ctx, startIndex, endIndex)
 }
 
@@ -299,24 +317,79 @@ func (t *DataTester) StartPeriodicLogger(
 	return ctx.Err()
 }
 
+// EndAtTipLoop runs a loop that evaluates end condition EndAtTip
+func (t *DataTester) EndAtTipLoop(
+	ctx context.Context,
+	tipDelay int64,
+) {
+	tc := time.NewTicker(EndAtTipCheckInterval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-tc.C:
+			atTip, err := t.blockStorage.AtTip(ctx, tipDelay)
+			if err != nil {
+				log.Printf(
+					"%s: unable to evaluate if syncer is at tip",
+					err.Error(),
+				)
+				continue
+			}
+
+			if atTip {
+				log.Println("syncer has reached tip")
+				t.cancel()
+				return
+			}
+		}
+	}
+}
+
+// EndDurationLoop runs a loop that evaluates end condition EndDuration.
+func (t *DataTester) EndDurationLoop(
+	ctx context.Context,
+	duration time.Duration,
+) {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-timer.C:
+			log.Printf(
+				"syncer has reached end condition after %d seconds",
+				int(duration.Seconds()),
+			)
+			t.cancel()
+			return
+		}
+	}
+}
+
 // WatchEndConditions starts go routines to watch the end conditions
 func (t *DataTester) WatchEndConditions(
 	ctx context.Context,
-	config *configuration.Configuration,
 ) error {
-	endConds := config.Data.EndConditions
+	endConds := t.config.Data.EndConditions
 	if endConds == nil {
 		return nil
 	}
 
-	if endConds.EndAtTip {
+	if endConds.Tip != nil && *endConds.Tip {
 		// runs a go routine that ends when reaching tip
-		go t.syncer.EndAtTipLoop(ctx, config.TipDelay)
+		go t.EndAtTipLoop(ctx, t.config.TipDelay)
 	}
 
-	if endConds.EndDuration != 0 {
+	if endConds.Duration != nil && *endConds.Duration != 0 {
 		// runs a go routine that ends after a duration
-		go t.syncer.EndDurationLoop(ctx, time.Duration(endConds.EndDuration)*time.Second)
+		go t.EndDurationLoop(ctx, time.Duration(*endConds.Duration)*time.Second)
 	}
 
 	return nil
