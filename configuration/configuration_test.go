@@ -95,6 +95,15 @@ var (
 			MaximumFee: "hello",
 		},
 	}
+	invalidPrefundedAccounts = &Configuration{
+		Construction: &ConstructionConfiguration{
+			PrefundedAccounts: []PrefundedAccount{
+				PrefundedAccount{
+					PrivateKeyHex: "hello",
+				},
+			},
+		},
+	}
 )
 
 func TestLoadConfiguration(t *testing.T) {
@@ -141,6 +150,10 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"invalid maximum fee": {
 			provided: invalidMaximumFee,
+			err:      true,
+		},
+		"invalid prefunded accounts": {
+			provided: invalidPrefundedAccounts,
 			err:      true,
 		},
 	}

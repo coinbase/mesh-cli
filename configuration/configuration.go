@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 
 	"github.com/coinbase/rosetta-cli/pkg/scenario"
 	"github.com/coinbase/rosetta-cli/pkg/utils"
@@ -196,6 +197,15 @@ type ConstructionConfiguration struct {
 	// MaxAddresses is the maximum number of addresses
 	// to generate while testing.
 	MaxAddresses int `json:"max_addresses"`
+
+	// PrefundedAccounts is an array of prefunded accounts
+	// to use while testing.
+	PrefundedAccounts []PrefundedAccount `json:"prefunded_accounts"`
+}
+
+type PrefundedAccount struct {
+	PrivateKeyHex string `json:"privkey"`
+	Address       string `json:"address"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -524,6 +534,13 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 
 	if err := checkStringUint(config.MaximumFee); err != nil {
 		return fmt.Errorf("%w: invalid value for MaximumFee", err)
+	}
+
+	for _, account := range config.PrefundedAccounts {
+		_, err := strconv.ParseUint(account.PrivateKeyHex, 16, 64)
+		if err != nil {
+			return fmt.Errorf("%s is not hex encoded", account.PrivateKeyHex)
+		}
 	}
 
 	return nil
