@@ -338,7 +338,7 @@ type DataConfiguration struct {
 	// StartIndex is the block height to start syncing from. If no StartIndex
 	// is provided, syncing will start from the last saved block.
 	// If no blocks have ever been synced, syncing will start from genesis.
-	StartIndex *int64 `json:"start_index"`
+	StartIndex *int64 `json:"start_index,omitempty"`
 
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
