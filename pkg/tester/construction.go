@@ -75,6 +75,7 @@ func InitializeConstruction(
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
 		counterStorage,
+		nil,
 		dataPath,
 		false,
 		false,

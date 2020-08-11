@@ -156,8 +156,14 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
+	loggerBalanceStorage := balanceStorage
+	if !shouldReconcile(config) {
+		loggerBalanceStorage = nil
+	}
+
 	logger := logger.NewLogger(
 		counterStorage,
+		loggerBalanceStorage,
 		dataPath,
 		config.Data.LogBlocks,
 		config.Data.LogTransactions,
@@ -378,7 +384,10 @@ func (t *DataTester) EndAtTipLoop(
 			}
 
 			if coverage >= minReconciliationCoverage {
-				log.Printf("syncer has reached tip and reconciliation coverage is %f%%\n", coverage*utils.OneHundred)
+				log.Printf(
+					"syncer has reached tip and reconciliation coverage is %f%%\n",
+					coverage*utils.OneHundred,
+				)
 				t.cancel()
 				return
 			}
@@ -540,6 +549,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	logger := logger.NewLogger(
 		counterStorage,
+		nil,
 		tmpDir,
 		false,
 		false,

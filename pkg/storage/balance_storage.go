@@ -239,7 +239,10 @@ func (b *BalanceStorage) Reconciled(
 
 // ReconciliationCoverage returns the proportion of accounts [0.0, 1.0] that
 // have been reconciled at an index >= to a minimumIndex.
-func (b *BalanceStorage) ReconciliationCoverage(ctx context.Context, minimumIndex int64) (float64, error) {
+func (b *BalanceStorage) ReconciliationCoverage(
+	ctx context.Context,
+	minimumIndex int64,
+) (float64, error) {
 	balances, err := b.getAllBalanceEntries(ctx)
 	if err != nil {
 		return -1, fmt.Errorf("%w: unable to get all balance entries", err)
