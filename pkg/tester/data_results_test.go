@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	t = true
-	f = false
+	tr = true
+	f  = false
 )
 
 func TestComputeCheckDataResults(t *testing.T) {
@@ -84,6 +84,36 @@ func TestComputeCheckDataResults(t *testing.T) {
 					RequestResponse:   true,
 					ResponseAssertion: true,
 					BlockSyncing:      &f,
+				},
+			},
+		},
+		"default configuration, counter storage no blocks, balance errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			err:                   []error{storage.ErrNegativeBalance},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BalanceTracking:   &f,
+				},
+				Stats: &CheckDataStats{},
+			},
+		},
+		"default configuration, counter storage with blocks, balance errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			blockCount:            100,
+			err:                   []error{storage.ErrNegativeBalance},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+					BalanceTracking:   &f,
+				},
+				Stats: &CheckDataStats{
+					Blocks: 100,
 				},
 			},
 		},
