@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/storage"
 
 	"github.com/olekukonko/tablewriter"
@@ -14,11 +15,7 @@ import (
 
 // Root Causes
 var (
-	ErrResponseInvalid       = errors.New("response invalid")
-	ErrUnableToSync          = errors.New("unable to sync")
-	ErrBalanceInvalid        = errors.New("balance invalid")
-	ErrCoinInvalid           = errors.New("coin invalid")
-	ErrReconciliationFailure = errors.New("reconciliation failure")
+	ErrResponseInvalid = errors.New("response invalid")
 )
 
 // CheckDataResults indicates which tests passed.
@@ -45,12 +42,11 @@ func convertBool(v bool) string {
 // which tests were successful.
 func (c *CheckDataResults) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Test", "Status"})
+	table.SetHeader([]string{"check:data Tests", "Status"})
 	table.Append([]string{"Response Correctness", convertBool(c.ResponseCorrectness)})
 	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
 
 	if c.BalanceTracking != nil {
-		// TODO: don't print if no operations
 		table.Append([]string{"Balance Tracking", convertBool(*c.BalanceTracking)})
 	}
 
@@ -80,7 +76,7 @@ func ResponseCorrectnessPassed(err error) bool {
 // indicating if it was possible to sync
 // blocks.
 func BlockSyncingPassed(err error) bool {
-	if errors.Is(err, ErrUnableToSync) || !ResponseCorrectnessPassed(err) {
+	if !ResponseCorrectnessPassed(err) {
 		return false
 	}
 
@@ -91,12 +87,13 @@ func BlockSyncingPassed(err error) bool {
 // indicating if any balances went negative
 // while syncing.
 func BalanceTrackingPassed(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
-	if cfg.Data.BalanceTrackingDisabled || !operationsSeen {
+	negBalanceErr := errors.Is(err, storage.ErrNegativeBalance)
+	if (cfg.Data.BalanceTrackingDisabled || !operationsSeen) && !negBalanceErr {
 		return nil
 	}
 
 	status := true
-	if errors.Is(err, ErrBalanceInvalid) {
+	if negBalanceErr {
 		status = false
 	}
 
@@ -110,13 +107,14 @@ func ReconciliationPassed(
 	err error,
 	reconciliationsPerformed bool,
 ) *bool {
-	if cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError ||
-		!reconciliationsPerformed {
+	recErr := errors.Is(err, processor.ErrReconciliationFailure)
+	if (cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError ||
+		!reconciliationsPerformed) && !recErr {
 		return nil
 	}
 
 	status := true
-	if errors.Is(err, ErrReconciliationFailure) {
+	if recErr {
 		status = false
 	}
 
