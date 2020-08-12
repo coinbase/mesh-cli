@@ -2,6 +2,7 @@ package tester
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 )
@@ -15,9 +16,10 @@ var (
 	ErrReconciliationFailure = errors.New("reconciliation failure")
 )
 
-// TestResult indicates which tests passed.
+// CheckDataResults indicates which tests passed.
 // If a test is nil, it did not apply to the run.
-type TestResult struct {
+type CheckDataResults struct {
+	FullError           error
 	ResponseCorrectness bool  `json:"response_correctness"`
 	BlockSyncing        bool  `json:"block_syncing"`
 	BalanceTracking     *bool `json:"balance_tracking,omitempty"`
@@ -25,11 +27,32 @@ type TestResult struct {
 	Reconciliation      *bool `json:"reconciliation,omitempty"`
 }
 
+func (c *CheckDataResults) String() string {
+	outputString := fmt.Sprintf("Full Error: %s\n", c.FullError.Error())
+	outputString = fmt.Sprintf("%s**** Test Results ****\n", outputString)
+	outputString = fmt.Sprintf("%sResponse Correctness: %t\n", outputString, c.ResponseCorrectness)
+	outputString = fmt.Sprintf("%sBlock Syncing: %t\n", outputString, c.BlockSyncing)
+
+	if c.BalanceTracking != nil {
+		outputString = fmt.Sprintf("%sBalance Tracking: %t\n", outputString, *c.BalanceTracking)
+	}
+
+	if c.CoinTracking != nil {
+		outputString = fmt.Sprintf("%sCoin Tracking: %t\n", outputString, *c.CoinTracking)
+	}
+
+	if c.Reconciliation != nil {
+		outputString = fmt.Sprintf("%sReconciliation: %t\n", outputString, *c.Reconciliation)
+	}
+
+	return outputString
+}
+
 // ResponseCorrectnessPassed returns a boolean
 // indicating if all responses received from
 // the server were correctly formatted.
 func ResponseCorrectnessPassed(err error) bool {
-	if errors.Is(err, ErrResponseInvalid) {
+	if errors.Is(err, ErrResponseInvalid) { // nolint
 		return false
 	}
 
@@ -40,7 +63,7 @@ func ResponseCorrectnessPassed(err error) bool {
 // indicating if it was possible to sync
 // blocks.
 func BlockSyncingPassed(err error) bool {
-	if errors.Is(err, ErrUnableToSync) {
+	if errors.Is(err, ErrUnableToSync) || !ResponseCorrectnessPassed(err) {
 		return false
 	}
 
@@ -82,8 +105,13 @@ func CoinTrackingPassed(cfg *configuration.Configuration, err error) *bool {
 
 // ReconciliationPassed returns a boolean
 // if no reconciliation errors were received.
-func ReconciliationPassed(cfg *configuration.Configuration, err error) *bool {
-	if cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError {
+func ReconciliationPassed(
+	cfg *configuration.Configuration,
+	err error,
+	reconciliationsPerformed bool,
+) *bool {
+	if cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError ||
+		!reconciliationsPerformed {
 		return nil
 	}
 
@@ -95,14 +123,19 @@ func ReconciliationPassed(cfg *configuration.Configuration, err error) *bool {
 	return &status
 }
 
-// TestStatus returns the status of `check:data`
+// CheckDataResult returns the status of `check:data`
 // based on the error received.
-func TestStatus(cfg *configuration.Configuration, err error) *TestResult {
-	return &TestResult{
+func CheckDataResult(
+	cfg *configuration.Configuration,
+	err error,
+	reconciliationsPerformed bool,
+) *CheckDataResults {
+	return &CheckDataResults{
+		FullError:           err,
 		ResponseCorrectness: ResponseCorrectnessPassed(err),
 		BlockSyncing:        BlockSyncingPassed(err),
 		BalanceTracking:     BalanceTrackingPassed(cfg, err),
 		CoinTracking:        CoinTrackingPassed(cfg, err),
-		Reconciliation:      ReconciliationPassed(cfg, err),
+		Reconciliation:      ReconciliationPassed(cfg, err, reconciliationsPerformed),
 	}
 }
