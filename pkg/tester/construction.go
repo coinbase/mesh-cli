@@ -137,7 +137,7 @@ func InitializeConstruction(
 	)
 
 	// Import prefunded account and save to database
-	err := keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
+	err = keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
 	if err != nil {
 		return nil, err
 	}
