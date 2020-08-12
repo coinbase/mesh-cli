@@ -593,24 +593,13 @@ func assertDataConfiguration(config *DataConfiguration) error {
 		return nil
 	}
 
-	foundConditions := 0
 	if config.EndConditions.Index != nil {
-		foundConditions++
 		if *config.EndConditions.Index < 0 {
 			return fmt.Errorf("end index %d cannot be negative", *config.EndConditions.Index)
 		}
 	}
 
-	if config.EndConditions.Tip != nil {
-		foundConditions++
-	}
-
-	if config.EndConditions.Duration != nil {
-		foundConditions++
-	}
-
 	if config.EndConditions.ReconciliationCoverage != nil {
-		foundConditions++
 		coverage := *config.EndConditions.ReconciliationCoverage
 		if coverage < 0 || coverage > 1 {
 			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
@@ -633,10 +622,6 @@ func assertDataConfiguration(config *DataConfiguration) error {
 				"reconciliation cannot be disabled for reconciliation coverage end condition",
 			)
 		}
-	}
-
-	if foundConditions != 1 {
-		return fmt.Errorf("found %d populated end conditions", foundConditions)
 	}
 
 	return nil

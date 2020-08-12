@@ -227,7 +227,13 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"multiple end conditions": {
 			provided: multipleEndConditions,
-			err:      true,
+			expected: func() *Configuration {
+				def := DefaultConfiguration()
+				def.Data.EndConditions = multipleEndConditions.Data.EndConditions
+
+				return def
+			}(),
+			err: false,
 		},
 	}
 
