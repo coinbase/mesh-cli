@@ -458,6 +458,13 @@ func (t *DataTester) WatchEndConditions(
 	return nil
 }
 
+// Exit exits the program and prints the test results to the console.
+func (t *DataTester) Exit(err error, status int, reconciliationsPerformed bool) {
+	checkResults := CheckDataResult(t.config, err, reconciliationsPerformed)
+	fmt.Printf(checkResults.String())
+	os.Exit(status)
+}
+
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
@@ -477,6 +484,7 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		)
 	}
 
+	reconciliationsPerformed := false
 	if len(t.endConditionReached) != 0 {
 		activeReconciliations, activeErr := t.counterStorage.Get(
 			ctx,
@@ -487,41 +495,45 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 			storage.InactiveReconciliationCounter,
 		)
 
+		if activeErr == nil && inactiveErr == nil && new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
+			reconciliationsPerformed = true
+		}
+
 		successMessage := fmt.Sprintf("Check succeeded: %s", t.endConditionReached)
-		if activeErr == nil && inactiveErr == nil &&
-			new(big.Int).Add(activeReconciliations, inactiveReconciliations).Sign() != 0 {
+		if reconciliationsPerformed {
 			color.Green(successMessage)
 		} else { // warn caller when check succeeded but no reconciliations performed (as issues may still exist)
 			color.Yellow(fmt.Sprintf("%s (warning: no reconciliations were performed)", successMessage))
 		}
-		os.Exit(0)
+
+		t.Exit(err, 0, reconciliationsPerformed)
 	}
 
-	color.Red("Check failed: %s", err.Error())
+	color.Red("Check failed!")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		os.Exit(1)
+		t.Exit(err, 1, reconciliationsPerformed)
 	}
 
 	if t.config.Data.HistoricalBalanceDisabled {
-		color.Red(
+		color.Yellow(
 			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
 		)
-		os.Exit(1)
+		t.Exit(err, 1, reconciliationsPerformed)
 	}
 
-	t.FindMissingOps(ctx, sigListeners)
+	if t.config.Data.InactiveDiscrepencySearchDisabled {
+		color.Yellow("Search for inactive reconciliation discrepency is disabled")
+		t.Exit(err, 1, reconciliationsPerformed)
+	}
+
+	t.FindMissingOps(ctx, err, sigListeners)
 }
 
 // FindMissingOps logs the types.BlockIdentifier of a block
 // that is missing balance-changing operations for a
 // *reconciler.AccountCurrency.
-func (t *DataTester) FindMissingOps(ctx context.Context, sigListeners []context.CancelFunc) {
-	if t.config.Data.InactiveDiscrepencySearchDisabled {
-		color.Red("Search for inactive reconciliation discrepency is disabled")
-		os.Exit(1)
-	}
-
-	color.Red("Searching for block with missing operations...hold tight")
+func (t *DataTester) FindMissingOps(ctx context.Context, originalErr error, sigListeners []context.CancelFunc) {
+	color.Cyan("Searching for block with missing operations...hold tight")
 	badBlock, err := t.recursiveOpSearch(
 		ctx,
 		&sigListeners,
@@ -530,17 +542,17 @@ func (t *DataTester) FindMissingOps(ctx context.Context, sigListeners []context.
 		t.reconcilerHandler.InactiveFailureBlock.Index,
 	)
 	if err != nil {
-		color.Red("%s: could not find block with missing ops", err.Error())
-		os.Exit(1)
+		color.Yellow("%s: could not find block with missing ops", err.Error())
+		t.Exit(originalErr, 1, true)
 	}
 
-	color.Red(
+	color.Yellow(
 		"Missing ops for %s in block %d:%s",
 		types.AccountString(t.reconcilerHandler.InactiveFailure.Account),
 		badBlock.Index,
 		badBlock.Hash,
 	)
-	os.Exit(1)
+	t.Exit(originalErr, 1, true)
 }
 
 func (t *DataTester) recursiveOpSearch(
@@ -678,7 +690,7 @@ func (t *DataTester) recursiveOpSearch(
 			)
 		}
 
-		color.Red(
+		color.Cyan(
 			"Unable to find missing ops in block range %d-%d, now searching %d-%d",
 			startIndex, endIndex,
 			newStart,
