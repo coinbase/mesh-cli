@@ -3,13 +3,13 @@ package tester
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/storage"
 
+	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -21,11 +21,12 @@ var (
 // CheckDataResults indicates which tests passed.
 // If a test is nil, it did not apply to the run.
 type CheckDataResults struct {
-	FullError           error
-	ResponseCorrectness bool  `json:"response_correctness"`
-	BlockSyncing        bool  `json:"block_syncing"`
-	BalanceTracking     *bool `json:"balance_tracking,omitempty"`
-	Reconciliation      *bool `json:"reconciliation,omitempty"`
+	Error             error `json:"error"`
+	Endpoints         bool  `json:"endpoints"`
+	ResponseAssertion bool  `json:"response_assertion"`
+	BlockSyncing      bool  `json:"block_syncing"`
+	BalanceTracking   *bool `json:"balance_tracking,omitempty"`
+	Reconciliation    *bool `json:"reconciliation,omitempty"`
 
 	// TODO: add CoinTracking
 }
@@ -43,7 +44,8 @@ func convertBool(v bool) string {
 func (c *CheckDataResults) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Tests", "Status"})
-	table.Append([]string{"Response Correctness", convertBool(c.ResponseCorrectness)})
+	table.Append([]string{"Endpoints", convertBool(c.Endpoints)})
+	table.Append([]string{"Response Assertion", convertBool(c.ResponseAssertion)})
 	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
 
 	if c.BalanceTracking != nil {
@@ -56,15 +58,22 @@ func (c *CheckDataResults) Print() {
 
 	table.Render()
 
-	if c.FullError != nil {
-		fmt.Printf("Full Error: %s\n", c.FullError.Error())
+	if c.Error != nil {
+		color.Red("Error: %s", c.Error.Error())
 	}
 }
 
-// ResponseCorrectnessPassed returns a boolean
+// EndpointsPassed returns a boolean
+// indicating if all endpoints received
+// a non-500 response.
+func EndpointsPassed(err error) bool {
+	return false
+}
+
+// ResponseAssertionPassed returns a boolean
 // indicating if all responses received from
 // the server were correctly formatted.
-func ResponseCorrectnessPassed(err error) bool {
+func ResponseAssertionPassed(err error) bool {
 	if errors.Is(err, ErrResponseInvalid) { // nolint
 		return false
 	}
@@ -76,7 +85,7 @@ func ResponseCorrectnessPassed(err error) bool {
 // indicating if it was possible to sync
 // blocks.
 func BlockSyncingPassed(err error) bool {
-	if !ResponseCorrectnessPassed(err) {
+	if !ResponseAssertionPassed(err) {
 		return false
 	}
 
@@ -150,10 +159,11 @@ func CheckDataResult(
 	}
 
 	return &CheckDataResults{
-		FullError:           err,
-		ResponseCorrectness: ResponseCorrectnessPassed(err),
-		BlockSyncing:        BlockSyncingPassed(err),
-		BalanceTracking:     BalanceTrackingPassed(cfg, err, operationsSeen),
-		Reconciliation:      ReconciliationPassed(cfg, err, reconciliationsPerformed),
+		Error:             err,
+		Endpoints:         EndpointsPassed(err),
+		ResponseAssertion: ResponseAssertionPassed(err),
+		BlockSyncing:      BlockSyncingPassed(err),
+		BalanceTracking:   BalanceTrackingPassed(cfg, err, operationsSeen),
+		Reconciliation:    ReconciliationPassed(cfg, err, reconciliationsPerformed),
 	}
 }
