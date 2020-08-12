@@ -85,6 +85,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		tester.Exit(
 			Config,
 			nil,
+			nil,
 			fmt.Errorf("%w: unable to initialize asserter", err),
 			1,
 		)
@@ -94,6 +95,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		tester.Exit(
 			Config,
+			nil,
 			nil,
 			fmt.Errorf("%w: unable to confirm network", err),
 			1,

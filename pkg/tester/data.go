@@ -461,11 +461,21 @@ func (t *DataTester) WatchEndConditions(
 func Exit(
 	config *configuration.Configuration,
 	counterStorage *storage.CounterStorage,
+	balanceStorage *storage.BalanceStorage,
 	err error,
 	status int,
 ) {
-	results := CheckDataResult(config, err, counterStorage)
+	results := CheckDataResult(config, err, counterStorage, balanceStorage)
 	results.Print()
+
+	outputFile := config.Data.ResultsOutputFile
+	if len(outputFile) > 0 {
+		writeErr := utils.SerializeAndWrite(outputFile, results)
+		if writeErr != nil {
+			log.Printf("%s: unable to save results\n", writeErr.Error())
+		}
+	}
+
 	os.Exit(status)
 }
 
@@ -490,24 +500,24 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 
 	if len(t.endConditionReached) != 0 {
 		color.Green(fmt.Sprintf("Check succeeded: %s", t.endConditionReached))
-		Exit(t.config, t.counterStorage, nil, 0)
+		Exit(t.config, t.counterStorage, t.balanceStorage, nil, 0)
 	}
 
 	color.Red("Check failed!")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		Exit(t.config, t.counterStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
 	}
 
 	if t.config.Data.HistoricalBalanceDisabled {
 		color.Yellow(
 			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
 		)
-		Exit(t.config, t.counterStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
 		color.Yellow("Search for inactive reconciliation discrepency is disabled")
-		Exit(t.config, t.counterStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
 	}
 
 	t.FindMissingOps(ctx, err, sigListeners)
@@ -531,7 +541,7 @@ func (t *DataTester) FindMissingOps(
 	)
 	if err != nil {
 		color.Yellow("%s: could not find block with missing ops", err.Error())
-		Exit(t.config, t.counterStorage, originalErr, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1)
 	}
 
 	color.Yellow(
@@ -540,7 +550,7 @@ func (t *DataTester) FindMissingOps(
 		badBlock.Index,
 		badBlock.Hash,
 	)
-	Exit(t.config, t.counterStorage, originalErr, 1)
+	Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1)
 }
 
 func (t *DataTester) recursiveOpSearch(

@@ -368,6 +368,10 @@ type DataConfiguration struct {
 
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
+
+	// ResultsOutputFile is the absolute filepath of where to save
+	// the results of a check:data run.
+	ResultsOutputFile string `json:"results_output_file"`
 }
 
 // Configuration contains all configuration settings for running

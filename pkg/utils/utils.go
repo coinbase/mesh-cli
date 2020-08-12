@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -61,6 +62,10 @@ const (
 )
 
 var (
+	// ErrNetworkNotSupported is returned when the network
+	// you are attempting to connect to is not supported.
+	ErrNetworkNotSupported = errors.New("network not supported")
+
 	// OneHundredInt is a big.Int of value 100.
 	OneHundredInt = big.NewInt(OneHundred)
 
@@ -181,7 +186,11 @@ func CheckNetworkSupported(
 
 	if !networkMatched {
 		color.Yellow("Supported networks: %s", types.PrettyPrintStruct(supportedNetworks))
-		return nil, fmt.Errorf("%s is not available", types.PrettyPrintStruct(networkIdentifier))
+		return nil, fmt.Errorf(
+			"%w: %s is not available",
+			ErrNetworkNotSupported,
+			types.PrettyPrintStruct(networkIdentifier),
+		)
 	}
 
 	status, err := fetcher.NetworkStatusRetry(
