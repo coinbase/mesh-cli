@@ -199,9 +199,9 @@ func ComputeCheckDataStats(
 type CheckDataTests struct {
 	RequestResponse   bool  `json:"request_response"`
 	ResponseAssertion bool  `json:"response_assertion"`
-	BlockSyncing      *bool `json:"block_syncing,omitempty"`
-	BalanceTracking   *bool `json:"balance_tracking,omitempty"`
-	Reconciliation    *bool `json:"reconciliation,omitempty"`
+	BlockSyncing      *bool `json:"block_syncing"`
+	BalanceTracking   *bool `json:"balance_tracking"`
+	Reconciliation    *bool `json:"reconciliation"`
 }
 
 // convertBool converts a *bool
