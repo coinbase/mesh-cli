@@ -26,12 +26,22 @@ type CheckDataResults struct {
 }
 
 func (c *CheckDataResults) Print() {
+	fmt.Printf("\n")
 	c.Tests.Print()
-	fmt.Printf("\n\n")
+	fmt.Printf("\n")
 	c.Stats.Print()
 	if len(c.Error) > 0 {
-		fmt.Printf("\n\n")
+		fmt.Printf("\n")
 		color.Red("Error: %s", c.Error)
+	}
+}
+
+func (c *CheckDataResults) Output(path string) {
+	if len(path) > 0 {
+		writeErr := utils.SerializeAndWrite(path, c)
+		if writeErr != nil {
+			log.Printf("%s: unable to save results\n", writeErr.Error())
+		}
 	}
 }
 
@@ -138,8 +148,12 @@ type CheckDataTests struct {
 	Reconciliation    *bool `json:"reconciliation,omitempty"`
 }
 
-func convertBool(v bool) string {
-	if v {
+func convertBool(v *bool) string {
+	if v == nil {
+		return "NOT TESTED"
+	}
+
+	if *v {
 		return "PASSED"
 	}
 
@@ -149,20 +163,11 @@ func convertBool(v bool) string {
 func (c *CheckDataTests) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Tests", "Status"})
-	table.Append([]string{"Request/Response", convertBool(c.RequestResponse)})
-	table.Append([]string{"Response Assertion", convertBool(c.ResponseAssertion)})
-
-	if c.BlockSyncing != nil {
-		table.Append([]string{"Block Syncing", convertBool(*c.BlockSyncing)})
-	}
-
-	if c.BalanceTracking != nil {
-		table.Append([]string{"Balance Tracking", convertBool(*c.BalanceTracking)})
-	}
-
-	if c.Reconciliation != nil {
-		table.Append([]string{"Reconciliation", convertBool(*c.Reconciliation)})
-	}
+	table.Append([]string{"Request/Response", convertBool(&c.RequestResponse)})
+	table.Append([]string{"Response Assertion", convertBool(&c.ResponseAssertion)})
+	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
+	table.Append([]string{"Balance Tracking", convertBool(c.BalanceTracking)})
+	table.Append([]string{"Reconciliation", convertBool(c.Reconciliation)})
 
 	table.Render()
 }
@@ -338,14 +343,7 @@ func Exit(
 ) {
 	results := ComputeCheckDataResults(config, err, counterStorage, balanceStorage)
 	results.Print()
-
-	outputFile := config.Data.ResultsOutputFile
-	if len(outputFile) > 0 {
-		writeErr := utils.SerializeAndWrite(outputFile, results)
-		if writeErr != nil {
-			log.Printf("%s: unable to save results\n", writeErr.Error())
-		}
-	}
+	results.Output(config.Data.ResultsOutputFile)
 
 	os.Exit(status)
 }

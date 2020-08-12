@@ -1,7 +1,10 @@
 package tester
 
 import (
+	"context"
 	"fmt"
+	"math/big"
+	"path"
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -11,6 +14,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,13 +27,22 @@ func TestComputeCheckDataResults(t *testing.T) {
 	var tests = map[string]struct {
 		cfg *configuration.Configuration
 
+		// counter storage values
+		provideCounterStorage   bool
+		blockCount              int64
+		operationCount          int64
+		activeReconciliations   int64
+		inactiveReconciliations int64
+
+		// balance storage values
+		provideBalanceStorage bool
+		totalAccounts         int
+		reconciledAccounts    int
+
 		// We use a slice of errors here because
 		// there typically a collection of errors
 		// that should return the same result.
 		err []error
-
-		counterStorage *storage.CounterStorage
-		balanceStorage *storage.BalanceStorage
 
 		result *CheckDataResults
 	}{
@@ -109,9 +122,81 @@ func TestComputeCheckDataResults(t *testing.T) {
 					test.result.Error = testErr.Error()
 				}
 
+				dir, err := utils.CreateTempDir()
+				assert.NoError(t, err)
+
+				ctx := context.Background()
+				localStore, err := storage.NewBadgerStorage(ctx, dir, false)
+				assert.NoError(t, err)
+
+				logPath := path.Join(dir, "results.json")
+
+				var counterStorage *storage.CounterStorage
+				if test.provideCounterStorage {
+					counterStorage = storage.NewCounterStorage(localStore)
+					_, err = counterStorage.Update(ctx, storage.BlockCounter, big.NewInt(test.blockCount))
+					assert.NoError(t, err)
+
+					_, err = counterStorage.Update(ctx, storage.OperationCounter, big.NewInt(test.operationCount))
+					assert.NoError(t, err)
+
+					_, err = counterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(test.activeReconciliations))
+					assert.NoError(t, err)
+
+					_, err = counterStorage.Update(ctx, storage.InactiveReconciliationCounter, big.NewInt(test.inactiveReconciliations))
+					assert.NoError(t, err)
+				}
+
+				var balanceStorage *storage.BalanceStorage
+				if test.provideBalanceStorage {
+					balanceStorage = storage.NewBalanceStorage(localStore)
+
+					dbTransaction := localStore.NewDatabaseTransaction(ctx, true)
+					j := 0
+					currency := &types.Currency{Symbol: "BLAH"}
+					block := &types.BlockIdentifier{Hash: "0", Index: 0}
+					for i := 0; i < test.totalAccounts; i++ {
+						acct := &types.AccountIdentifier{
+							Address: fmt.Sprintf("account %d", i),
+						}
+						assert.NoError(t, balanceStorage.SetBalance(
+							ctx,
+							dbTransaction,
+							acct,
+							&types.Amount{Value: "1", Currency: currency},
+							block,
+						))
+
+						if j >= test.reconciledAccounts {
+							continue
+						}
+
+						assert.NoError(t, balanceStorage.Reconciled(
+							ctx,
+							acct,
+							currency,
+							block,
+						))
+
+						j++
+					}
+
+					assert.NoError(t, dbTransaction.Commit(ctx))
+				}
+
 				t.Run(testName, func(t *testing.T) {
-					assert.Equal(t, test.result, ComputeCheckDataResults(test.cfg, testErr, test.counterStorage, test.balanceStorage))
+					results := ComputeCheckDataResults(test.cfg, testErr, counterStorage, balanceStorage)
+					assert.Equal(t, test.result, results)
+					results.Print() // make sure doesn't panic
+					results.Output(logPath)
+
+					var output CheckDataResults
+					assert.NoError(t, utils.LoadAndParse(logPath, &output))
+					assert.Equal(t, test.result, &output)
 				})
+
+				assert.NoError(t, localStore.Close(ctx))
+				utils.RemoveTempDir(dir)
 			}
 		})
 	}
