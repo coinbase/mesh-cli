@@ -33,13 +33,22 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+// EndCondition contains the type of
+// end condition and any detail associated
+// with the stop.
+type EndCondition struct {
+	Type   configuration.CheckDataEndCondition `json:"type"`
+	Detail string                              `json:"detail"`
+}
+
 // CheckDataResults contains any error that occurred
 // on a check:data run, the outcome of certain tests,
 // and a collection of interesting stats.
 type CheckDataResults struct {
-	Error string          `json:"error,omitempty"`
-	Tests *CheckDataTests `json:"tests,omitempty"`
-	Stats *CheckDataStats `json:"stats,omitempty"`
+	Error        string          `json:"error,omitempty"`
+	EndCondition *EndCondition   `json:"end_condition"`
+	Tests        *CheckDataTests `json:"tests,omitempty"`
+	Stats        *CheckDataStats `json:"stats,omitempty"`
 }
 
 // Print logs CheckDataResults to the console.
@@ -51,6 +60,13 @@ func (c *CheckDataResults) Print() {
 	if len(c.Error) > 0 {
 		fmt.Printf("\n")
 		color.Red("Error: %s", c.Error)
+		fmt.Printf("\n")
+	}
+
+	if c.EndCondition != nil {
+		fmt.Printf("\n")
+		color.Green("Success: %s [%s]", c.EndCondition.Type, c.EndCondition.Detail)
+		fmt.Printf("\n")
 	}
 }
 
@@ -410,6 +426,8 @@ func ComputeCheckDataResults(
 	err error,
 	counterStorage *storage.CounterStorage,
 	balanceStorage *storage.BalanceStorage,
+	endCondition configuration.CheckDataEndCondition,
+	endConditionDetail string,
 ) *CheckDataResults {
 	ctx := context.Background()
 	tests := ComputeCheckDataTests(ctx, cfg, err, counterStorage)
@@ -421,6 +439,17 @@ func ComputeCheckDataResults(
 
 	if err != nil {
 		results.Error = err.Error()
+
+		// We never want to populate an end condition
+		// if there was an error!
+		return results
+	}
+
+	if len(endCondition) > 0 {
+		results.EndCondition = &EndCondition{
+			Type:   endCondition,
+			Detail: endConditionDetail,
+		}
 	}
 
 	return results
@@ -434,8 +463,10 @@ func Exit(
 	balanceStorage *storage.BalanceStorage,
 	err error,
 	status int,
+	endCondition configuration.CheckDataEndCondition,
+	endConditionDetail string,
 ) {
-	results := ComputeCheckDataResults(config, err, counterStorage, balanceStorage)
+	results := ComputeCheckDataResults(config, err, counterStorage, balanceStorage, endCondition, endConditionDetail)
 	results.Print()
 	results.Output(config.Data.ResultsOutputFile)
 

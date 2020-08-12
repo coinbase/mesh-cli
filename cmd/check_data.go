@@ -88,6 +88,8 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 			nil,
 			fmt.Errorf("%w: unable to initialize asserter", err),
 			1,
+			"",
+			"",
 		)
 	}
 
@@ -99,6 +101,8 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 			nil,
 			fmt.Errorf("%w: unable to confirm network", err),
 			1,
+			"",
+			"",
 		)
 	}
 
