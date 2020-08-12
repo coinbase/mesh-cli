@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
@@ -19,7 +20,7 @@ import (
 )
 
 type CheckDataResults struct {
-	Error error           `json:"error,omitempty"`
+	Error string          `json:"error,omitempty"`
 	Tests *CheckDataTests `json:"tests,omitempty"`
 	Stats *CheckDataStats `json:"stats,omitempty"`
 }
@@ -28,9 +29,9 @@ func (c *CheckDataResults) Print() {
 	c.Tests.Print()
 	fmt.Printf("\n\n")
 	c.Stats.Print()
-	if c.Error != nil {
+	if len(c.Error) > 0 {
 		fmt.Printf("\n\n")
-		color.Red("Error: %s", c.Error.Error())
+		color.Red("Error: %s", c.Error)
 	}
 }
 
@@ -51,18 +52,18 @@ func (c *CheckDataStats) Print() {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Stats", "Value"})
-	table.Append([]string{"Blocks", string(c.Blocks)})
-	table.Append([]string{"Orphans", string(c.Orphans)})
-	table.Append([]string{"Transactions", string(c.Transactions)})
-	table.Append([]string{"Operations", string(c.Operations)})
-	table.Append([]string{"Active Reconciliations", string(c.ActiveReconciliations)})
-	table.Append([]string{"Inactive Reconciliations", string(c.InactiveReconciliations)})
+	table.Append([]string{"Blocks", strconv.FormatInt(c.Blocks, 10)})
+	table.Append([]string{"Orphans", strconv.FormatInt(c.Orphans, 10)})
+	table.Append([]string{"Transactions", strconv.FormatInt(c.Transactions, 10)})
+	table.Append([]string{"Operations", strconv.FormatInt(c.Operations, 10)})
+	table.Append([]string{"Active Reconciliations", strconv.FormatInt(c.ActiveReconciliations, 10)})
+	table.Append([]string{"Inactive Reconciliations", strconv.FormatInt(c.InactiveReconciliations, 10)})
 	table.Append([]string{"Reconciliation Coverage", fmt.Sprintf("%f%%", c.ReconciliationCoverage*utils.OneHundred)})
 
 	table.Render()
 }
 
-func CheckDataStat(ctx context.Context, counters *storage.CounterStorage, balances *storage.BalanceStorage) *CheckDataStats {
+func ComputeCheckDataStats(ctx context.Context, counters *storage.CounterStorage, balances *storage.BalanceStorage) *CheckDataStats {
 	if counters == nil {
 		return nil
 	}
@@ -199,31 +200,41 @@ func BlockSyncingTest(err error, blocksSynced bool) *bool {
 		storage.ErrDuplicateKey,
 		storage.ErrDuplicateTransactionHash,
 	}
-	syncErr := false
+	syncPass := true
 	for _, relatedError := range relatedErrors {
 		if errors.Is(err, relatedError) {
-			syncErr = true
+			syncPass = false
 			break
 		}
 	}
 
-	if !blocksSynced && !syncErr {
+	if !blocksSynced && syncPass {
 		return nil
 	}
 
-	return &syncErr
+	return &syncPass
 }
 
 // BalanceTrackingTest returns a boolean
 // indicating if any balances went negative
 // while syncing.
 func BalanceTrackingTest(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
-	negBalanceErr := errors.Is(err, storage.ErrNegativeBalance)
-	if (cfg.Data.BalanceTrackingDisabled || !operationsSeen) && !negBalanceErr {
+	relatedErrors := []error{
+		storage.ErrNegativeBalance,
+	}
+	balancePass := true
+	for _, relatedError := range relatedErrors {
+		if errors.Is(err, relatedError) {
+			balancePass = false
+			break
+		}
+	}
+
+	if (cfg.Data.BalanceTrackingDisabled || !operationsSeen) && balancePass {
 		return nil
 	}
 
-	return &negBalanceErr
+	return &balancePass
 }
 
 // ReconciliationTest returns a boolean
@@ -233,17 +244,27 @@ func ReconciliationTest(
 	err error,
 	reconciliationsPerformed bool,
 ) *bool {
-	recErr := errors.Is(err, processor.ErrReconciliationFailure)
+	relatedErrors := []error{
+		processor.ErrReconciliationFailure,
+	}
+	reconciliationPass := true
+	for _, relatedError := range relatedErrors {
+		if errors.Is(err, relatedError) {
+			reconciliationPass = false
+			break
+		}
+	}
+
 	if (cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError ||
 		!reconciliationsPerformed) &&
-		!recErr {
+		reconciliationPass {
 		return nil
 	}
 
-	return &recErr
+	return &reconciliationPass
 }
 
-func CheckDataTest(
+func ComputeCheckDataTests(
 	ctx context.Context,
 	cfg *configuration.Configuration,
 	err error,
@@ -293,11 +314,16 @@ func CheckDataResult(
 	balanceStorage *storage.BalanceStorage,
 ) *CheckDataResults {
 	ctx := context.Background()
-	tests := CheckDataTest(ctx, cfg, err, counterStorage)
-	stats := CheckDataStat(ctx, counterStorage, balanceStorage)
-	return &CheckDataResults{
-		Error: err,
+	tests := ComputeCheckDataTests(ctx, cfg, err, counterStorage)
+	stats := ComputeCheckDataStats(ctx, counterStorage, balanceStorage)
+	results := &CheckDataResults{
 		Tests: tests,
 		Stats: stats,
 	}
+
+	if err != nil {
+		results.Error = err.Error()
+	}
+
+	return results
 }
