@@ -53,19 +53,21 @@ type CheckDataResults struct {
 
 // Print logs CheckDataResults to the console.
 func (c *CheckDataResults) Print() {
-	fmt.Printf("\n")
-	c.Tests.Print()
-	fmt.Printf("\n")
-	c.Stats.Print()
 	if len(c.Error) > 0 {
 		fmt.Printf("\n")
 		color.Red("Error: %s", c.Error)
-		fmt.Printf("\n")
 	}
 
 	if c.EndCondition != nil {
 		fmt.Printf("\n")
 		color.Green("Success: %s [%s]", c.EndCondition.Type, c.EndCondition.Detail)
+	}
+
+	fmt.Printf("\n")
+	c.Tests.Print()
+	fmt.Printf("\n")
+	if c.Stats != nil {
+		c.Stats.Print()
 		fmt.Printf("\n")
 	}
 }
@@ -95,10 +97,6 @@ type CheckDataStats struct {
 
 // Print logs CheckDataStats to the console.
 func (c *CheckDataStats) Print() {
-	if c == nil {
-		return
-	}
-
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetRowLine(true)
 	table.SetRowSeparator("-")
