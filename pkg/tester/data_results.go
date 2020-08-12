@@ -131,7 +131,7 @@ func ComputeCheckDataStats(ctx context.Context, counters *storage.CounterStorage
 //
 // TODO: add CoinTracking
 type CheckDataTests struct {
-	Endpoints         bool  `json:"endpoints"`
+	RequestResponse   bool  `json:"request_response"`
 	ResponseAssertion bool  `json:"response_assertion"`
 	BlockSyncing      *bool `json:"block_syncing,omitempty"`
 	BalanceTracking   *bool `json:"balance_tracking,omitempty"`
@@ -149,7 +149,7 @@ func convertBool(v bool) string {
 func (c *CheckDataTests) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Tests", "Status"})
-	table.Append([]string{"Endpoints", convertBool(c.Endpoints)})
+	table.Append([]string{"Request/Response", convertBool(c.RequestResponse)})
 	table.Append([]string{"Response Assertion", convertBool(c.ResponseAssertion)})
 
 	if c.BlockSyncing != nil {
@@ -167,10 +167,10 @@ func (c *CheckDataTests) Print() {
 	table.Render()
 }
 
-// EndpointsTest returns a boolean
+// RequestResponseTest returns a boolean
 // indicating if all endpoints received
 // a non-500 response.
-func EndpointsTest(err error) bool {
+func RequestResponseTest(err error) bool {
 	if errors.Is(err, fetcher.ErrExhaustedRetries) || errors.Is(err, fetcher.ErrRequestFailed) ||
 		errors.Is(err, fetcher.ErrNoNetworks) || errors.Is(err, utils.ErrNetworkNotSupported) {
 		return false
@@ -299,7 +299,7 @@ func ComputeCheckDataTests(
 	}
 
 	return &CheckDataTests{
-		Endpoints:         EndpointsTest(err),
+		RequestResponse:   RequestResponseTest(err),
 		ResponseAssertion: ResponseAssertionTest(err),
 		BlockSyncing:      BlockSyncingTest(err, blocksSynced),
 		BalanceTracking:   BalanceTrackingTest(cfg, err, operationsSeen),
