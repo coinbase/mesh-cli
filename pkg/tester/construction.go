@@ -75,6 +75,7 @@ func InitializeConstruction(
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
 		counterStorage,
+		nil,
 		dataPath,
 		false,
 		false,
@@ -215,17 +216,22 @@ func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
 func (t *ConstructionTester) StartPeriodicLogger(
 	ctx context.Context,
 ) error {
-	for ctx.Err() == nil {
-		inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-		_ = t.logger.LogConstructionStats(ctx, len(inflight))
-		time.Sleep(PeriodicLoggingFrequency)
+	tc := time.NewTicker(PeriodicLoggingFrequency)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Print stats one last time before exiting
+			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+			_ = t.logger.LogConstructionStats(ctx, len(inflight))
+
+			return ctx.Err()
+		case <-tc.C:
+			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
+			_ = t.logger.LogConstructionStats(ctx, len(inflight))
+		}
 	}
-
-	// Print stats one last time before exiting
-	inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-	_ = t.logger.LogConstructionStats(ctx, len(inflight))
-
-	return ctx.Err()
 }
 
 // StartSyncer uses the tester's stateful syncer

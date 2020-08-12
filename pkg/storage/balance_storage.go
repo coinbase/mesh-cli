@@ -150,9 +150,10 @@ func (b *BalanceStorage) RemovingBlock(
 }
 
 type balanceEntry struct {
-	Account *types.AccountIdentifier `json:"account"`
-	Amount  *types.Amount            `json:"amount"`
-	Block   *types.BlockIdentifier   `json:"block"`
+	Account        *types.AccountIdentifier `json:"account"`
+	Amount         *types.Amount            `json:"amount"`
+	Block          *types.BlockIdentifier   `json:"block"`
+	LastReconciled *types.BlockIdentifier   `json:"last_reconciled"`
 }
 
 // SetBalance allows a client to set the balance of an account in a database
@@ -180,6 +181,89 @@ func (b *BalanceStorage) SetBalance(
 	}
 
 	return nil
+}
+
+// Reconciled updates the LastReconciled field on a particular
+// balance. Tracking reconciliation coverage is an important
+// end condition.
+func (b *BalanceStorage) Reconciled(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	block *types.BlockIdentifier,
+) error {
+	dbTransaction := b.db.NewDatabaseTransaction(ctx, true)
+	defer dbTransaction.Discard(ctx)
+
+	key := GetBalanceKey(account, currency)
+	exists, balance, err := dbTransaction.Get(ctx, key)
+	if err != nil {
+		return fmt.Errorf(
+			"%w: unable to get balance entry for account %s:%s",
+			err,
+			types.PrettyPrintStruct(account),
+			types.PrettyPrintStruct(currency),
+		)
+	}
+
+	if !exists {
+		return fmt.Errorf(
+			"balance entry is missing for account %s:%s",
+			types.PrettyPrintStruct(account),
+			types.PrettyPrintStruct(currency),
+		)
+	}
+
+	var bal balanceEntry
+	if err := decode(balance, &bal); err != nil {
+		return fmt.Errorf("%w: unable to decode balance entry", err)
+	}
+
+	bal.LastReconciled = block
+
+	serialBal, err := encode(bal)
+	if err != nil {
+		return fmt.Errorf("%w: unable to encod balance entry", err)
+	}
+
+	if err := dbTransaction.Set(ctx, key, serialBal); err != nil {
+		return fmt.Errorf("%w: unable to set balance entry", err)
+	}
+
+	if err := dbTransaction.Commit(ctx); err != nil {
+		return fmt.Errorf("%w: unable to commit last reconciliation update", err)
+	}
+
+	return nil
+}
+
+// ReconciliationCoverage returns the proportion of accounts [0.0, 1.0] that
+// have been reconciled at an index >= to a minimumIndex.
+func (b *BalanceStorage) ReconciliationCoverage(
+	ctx context.Context,
+	minimumIndex int64,
+) (float64, error) {
+	balances, err := b.getAllBalanceEntries(ctx)
+	if err != nil {
+		return -1, fmt.Errorf("%w: unable to get all balance entries", err)
+	}
+
+	if len(balances) == 0 {
+		return 0, nil
+	}
+
+	validCoverage := 0
+	for _, b := range balances {
+		if b.LastReconciled == nil {
+			continue
+		}
+
+		if b.LastReconciled.Index >= minimumIndex {
+			validCoverage++
+		}
+	}
+
+	return float64(validCoverage) / float64(len(balances)), nil
 }
 
 // UpdateBalance updates a types.AccountIdentifer
@@ -324,7 +408,6 @@ func (b *BalanceStorage) GetBalance(
 // BootstrapBalance represents a balance of
 // a *types.AccountIdentifier and a *types.Currency in the
 // genesis block.
-// TODO: Must be exported for use
 type BootstrapBalance struct {
 	Account  *types.AccountIdentifier `json:"account_identifier,omitempty"`
 	Currency *types.Currency          `json:"currency,omitempty"`
@@ -392,32 +475,46 @@ func (b *BalanceStorage) BootstrapBalances(
 	return nil
 }
 
+func (b *BalanceStorage) getAllBalanceEntries(ctx context.Context) ([]*balanceEntry, error) {
+	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
+	if err != nil {
+		return nil, fmt.Errorf("%w: database scan failed", err)
+	}
+
+	balances := make([]*balanceEntry, len(rawBalances))
+	for i, rawBalance := range rawBalances {
+		var deserialBal balanceEntry
+		err := decode(rawBalance, &deserialBal)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"%w: unable to parse balance entry for %s",
+				err,
+				string(rawBalance),
+			)
+		}
+
+		balances[i] = &deserialBal
+	}
+
+	return balances, nil
+}
+
 // GetAllAccountCurrency scans the db for all balances and returns a slice
 // of reconciler.AccountCurrency. This is useful for bootstrapping the reconciler
 // after restart.
 func (b *BalanceStorage) GetAllAccountCurrency(
 	ctx context.Context,
 ) ([]*reconciler.AccountCurrency, error) {
-	rawBalances, err := b.db.Scan(ctx, []byte(balanceNamespace))
+	balances, err := b.getAllBalanceEntries(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w database scan failed", err)
+		return nil, fmt.Errorf("%w: unable to get all balance entries", err)
 	}
 
-	accounts := make([]*reconciler.AccountCurrency, len(rawBalances))
-	for i, rawBalance := range rawBalances {
-		var deserialBal balanceEntry
-		err := decode(rawBalance, &deserialBal)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"%w unable to parse balance entry for %s",
-				err,
-				string(rawBalance),
-			)
-		}
-
+	accounts := make([]*reconciler.AccountCurrency, len(balances))
+	for i, balance := range balances {
 		accounts[i] = &reconciler.AccountCurrency{
-			Account:  deserialBal.Account,
-			Currency: deserialBal.Amount.Currency,
+			Account:  balance.Account,
+			Currency: balance.Amount.Currency,
 		}
 	}
 

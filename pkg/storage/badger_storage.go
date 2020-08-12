@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/dgraph-io/badger/v2"
 	"github.com/dgraph-io/badger/v2/options"
@@ -37,6 +38,8 @@ const (
 // that implements the Database interface.
 type BadgerStorage struct {
 	db *badger.DB
+
+	writer sync.Mutex
 }
 
 // lowMemoryOptions returns a set of BadgerDB configuration
@@ -125,7 +128,10 @@ func (b *BadgerStorage) Close(ctx context.Context) error {
 // DB transaction that implements the DatabaseTransaction
 // interface.
 type BadgerTransaction struct {
+	db  *BadgerStorage
 	txn *badger.Txn
+
+	holdsLock bool
 }
 
 // NewDatabaseTransaction creates a new BadgerTransaction.
@@ -136,20 +142,42 @@ func (b *BadgerStorage) NewDatabaseTransaction(
 	ctx context.Context,
 	write bool,
 ) DatabaseTransaction {
+	if write {
+		// To avoid database commit conflicts,
+		// we need to lock the writer.
+		//
+		// Because we process blocks serially,
+		// this doesn't lead to much lock contention.
+		b.writer.Lock()
+	}
+
 	return &BadgerTransaction{
-		txn: b.db.NewTransaction(write),
+		db:        b,
+		txn:       b.db.NewTransaction(write),
+		holdsLock: write,
 	}
 }
 
 // Commit attempts to commit and discard the transaction.
 func (b *BadgerTransaction) Commit(context.Context) error {
-	return b.txn.Commit()
+	err := b.txn.Commit()
+	b.holdsLock = false
+	b.db.writer.Unlock()
+
+	if err != nil {
+		return fmt.Errorf("%w: unable to commit transaction", err)
+	}
+
+	return nil
 }
 
 // Discard discards an open transaction. All transactions
 // must be either discarded or committed.
 func (b *BadgerTransaction) Discard(context.Context) {
 	b.txn.Discard()
+	if b.holdsLock {
+		b.db.writer.Unlock()
+	}
 }
 
 // Set changes the value of the key to the value within a transaction.

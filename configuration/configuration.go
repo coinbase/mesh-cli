@@ -16,6 +16,7 @@ package configuration
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -67,6 +68,22 @@ const (
 	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
 	EthereumCurveType       = types.Secp256k1
 	EthereumAccountingModel = AccountModel
+
+	// IndexEndCondition is used to indicate that the index end condition
+	// has been met.
+	IndexEndCondition = "Index End Condition"
+
+	// DurationEndCondition is used to indicate that the duration
+	// end condition has been met.
+	DurationEndCondition = "Duration End Condition"
+
+	// TipEndCondition is used to indicate that the tip end condition
+	// has been met.
+	TipEndCondition = "Tip End Condition"
+
+	// ReconciliationCoverageEndCondition is used to indicate that the reconciliation
+	// coverage end condition has been met.
+	ReconciliationCoverageEndCondition = "Reconciliation Coverage End Condition"
 )
 
 // Default Configuration Values
@@ -255,14 +272,28 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
-// EndConditions contains all the conditions for the syncer to stop.
-type EndConditions struct {
-	// EndAtTip determines if syncer should stop once it reached the tip
-	EndAtTip bool `json:"end_at_tip"`
+// DataEndConditions contains all the conditions for the syncer to stop
+// when running check:data.
+// Only 1 end condition can be populated at once!
+type DataEndConditions struct {
+	// Index configures the syncer to stop once reaching a particular block height.
+	Index *int64 `json:"index,omitempty"`
 
-	// EndDuration is an end condition that dictates how long the
-	// check:data command would be running for in seconds
-	EndDuration uint64 `json:"end_duration"`
+	// Tip configures the syncer to stop once it reached the tip.
+	// Make sure to configure `tip_delay` if you use this end
+	// condition.
+	Tip *bool `json:"tip,omitempty"`
+
+	// Duration configures the syncer to stop after running
+	// for Duration seconds.
+	Duration *uint64 `json:"duration,omitempty"`
+
+	// ReconciliationCoverage configures the syncer to stop
+	// once it has reached tip AND some proportion of
+	// all addresses have been reconciled at an index >=
+	// to when tip was first reached. The range of inputs
+	// for this condition are [0.0, 1.0].
+	ReconciliationCoverage *float64 `json:"reconciliation_coverage,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
@@ -339,8 +370,13 @@ type DataConfiguration struct {
 	// consistency.
 	CoinTrackingDisabled bool `json:"coin_tracking_disabled"`
 
+	// StartIndex is the block height to start syncing from. If no StartIndex
+	// is provided, syncing will start from the last saved block.
+	// If no blocks have ever been synced, syncing will start from genesis.
+	StartIndex *int64 `json:"start_index,omitempty"`
+
 	// EndCondition contains the conditions for the syncer to stop
-	EndConditions *EndConditions `json:"end_conditions,omitempty"`
+	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
 }
 
 // Configuration contains all configuration settings for running
@@ -547,9 +583,71 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	return nil
 }
 
+func assertDataConfiguration(config *DataConfiguration) error {
+	if config.StartIndex != nil && *config.StartIndex < 0 {
+		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
+	}
+
+	if config.EndConditions == nil {
+		return nil
+	}
+
+	foundConditions := 0
+	if config.EndConditions.Index != nil {
+		foundConditions++
+		if *config.EndConditions.Index < 0 {
+			return fmt.Errorf("end index %d cannot be negative", *config.EndConditions.Index)
+		}
+	}
+
+	if config.EndConditions.Tip != nil {
+		foundConditions++
+	}
+
+	if config.EndConditions.Duration != nil {
+		foundConditions++
+	}
+
+	if config.EndConditions.ReconciliationCoverage != nil {
+		foundConditions++
+		coverage := *config.EndConditions.ReconciliationCoverage
+		if coverage < 0 || coverage > 1 {
+			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
+		}
+
+		if config.BalanceTrackingDisabled {
+			return errors.New(
+				"balance tracking must be enabled for reconciliation coverage end condition",
+			)
+		}
+
+		if config.IgnoreReconciliationError {
+			return errors.New(
+				"reconciliation errors cannot be ignored for reconciliation coverage end condition",
+			)
+		}
+
+		if config.ReconciliationDisabled {
+			return errors.New(
+				"reconciliation cannot be disabled for reconciliation coverage end condition",
+			)
+		}
+	}
+
+	if foundConditions != 1 {
+		return fmt.Errorf("found %d populated end conditions", foundConditions)
+	}
+
+	return nil
+}
+
 func assertConfiguration(config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
 		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	if err := assertDataConfiguration(config.Data); err != nil {
+		return fmt.Errorf("%w: invalid data configuration", err)
 	}
 
 	if err := assertConstructionConfiguration(config.Construction); err != nil {

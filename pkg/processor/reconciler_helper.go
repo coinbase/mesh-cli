@@ -19,23 +19,32 @@ import (
 	"errors"
 
 	"github.com/coinbase/rosetta-cli/pkg/storage"
+	"github.com/coinbase/rosetta-cli/pkg/utils"
 
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
 // ReconcilerHelper implements the Reconciler.Helper
 // interface.
 type ReconcilerHelper struct {
+	network *types.NetworkIdentifier
+	fetcher *fetcher.Fetcher
+
 	blockStorage   *storage.BlockStorage
 	balanceStorage *storage.BalanceStorage
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
 func NewReconcilerHelper(
+	network *types.NetworkIdentifier,
+	fetcher *fetcher.Fetcher,
 	blockStorage *storage.BlockStorage,
 	balanceStorage *storage.BalanceStorage,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
+		network:        network,
+		fetcher:        fetcher,
 		blockStorage:   blockStorage,
 		balanceStorage: balanceStorage,
 	}
@@ -70,14 +79,24 @@ func (h *ReconcilerHelper) CurrentBlock(
 	return h.blockStorage.GetHeadBlockIdentifier(ctx)
 }
 
-// AccountBalance returns the balance of an account in block storage.
+// ComputedBalance returns the balance of an account in block storage.
 // It is necessary to perform this check outside of the Reconciler
 // package to allow for separation from a default storage backend.
-func (h *ReconcilerHelper) AccountBalance(
+func (h *ReconcilerHelper) ComputedBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
 	return h.balanceStorage.GetBalance(ctx, account, currency, headBlock)
+}
+
+// LiveBalance returns the live balance of an account.
+func (h *ReconcilerHelper) LiveBalance(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	headBlock *types.BlockIdentifier,
+) (*types.Amount, *types.BlockIdentifier, error) {
+	return utils.CurrencyBalance(ctx, h.network, h.fetcher, account, currency, headBlock)
 }

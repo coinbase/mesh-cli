@@ -67,28 +67,7 @@ bootstrap balance config. You can look at the examples folder for an example
 of what one of these files looks like.`,
 		Run: runCheckDataCmd,
 	}
-
-	// StartIndex is the block index to start syncing.
-	StartIndex int64
-
-	// EndIndex is the block index to stop syncing.
-	EndIndex int64
 )
-
-func init() {
-	checkDataCmd.Flags().Int64Var(
-		&StartIndex,
-		"start",
-		-1,
-		"block index to start syncing",
-	)
-	checkDataCmd.Flags().Int64Var(
-		&EndIndex,
-		"end",
-		-1,
-		"block index to stop syncing",
-	)
-}
 
 func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	ensureDataDirectoryExists()
@@ -134,11 +113,11 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
-		return dataTester.StartSyncing(ctx, StartIndex, EndIndex)
+		return dataTester.StartSyncing(ctx)
 	})
 
 	g.Go(func() error {
-		return dataTester.WatchEndConditions(ctx, Config)
+		return dataTester.WatchEndConditions(ctx)
 	})
 
 	sigListeners := []context.CancelFunc{cancel}

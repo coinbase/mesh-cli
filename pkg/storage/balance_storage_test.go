@@ -607,6 +607,149 @@ func TestBootstrapBalances(t *testing.T) {
 	})
 }
 
+func TestBalanceReconciliation(t *testing.T) {
+	var (
+		account = &types.AccountIdentifier{
+			Address: "blah",
+		}
+		subAccountMetadata2 = &types.AccountIdentifier{
+			Address: "blah",
+			SubAccount: &types.SubAccountIdentifier{
+				Address: "stake",
+				Metadata: map[string]interface{}{
+					"cool": float64(10),
+				},
+			},
+		}
+		currency = &types.Currency{
+			Symbol:   "BLAH",
+			Decimals: 2,
+		}
+		currency2 = &types.Currency{
+			Symbol:   "BLAH2",
+			Decimals: 4,
+		}
+		genesisBlock = &types.BlockIdentifier{
+			Hash:  "0",
+			Index: 0,
+		}
+		newBlock = &types.BlockIdentifier{
+			Hash:  "kdasdj",
+			Index: 123890,
+		}
+		mockHelper = &MockBalanceStorageHelper{
+			AccountBalances: map[string]string{
+				"genesis": "100",
+			},
+		}
+	)
+
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir, false)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBalanceStorage(database)
+	storage.Initialize(mockHelper, nil)
+
+	t.Run("attempt to store reconciliation for non-existent account", func(t *testing.T) {
+		err := storage.Reconciled(ctx, account, currency, genesisBlock)
+		assert.Error(t, err)
+
+		coverage, err := storage.ReconciliationCoverage(ctx, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.0, coverage)
+	})
+
+	t.Run("set balance", func(t *testing.T) {
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
+		err := storage.UpdateBalance(
+			ctx,
+			txn,
+			&parser.BalanceChange{
+				Account:    account,
+				Currency:   currency,
+				Block:      genesisBlock,
+				Difference: "100",
+			},
+			genesisBlock,
+		)
+		assert.NoError(t, err)
+		assert.NoError(t, txn.Commit(ctx))
+
+		coverage, err := storage.ReconciliationCoverage(ctx, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.0, coverage)
+	})
+
+	t.Run("store reconciliation", func(t *testing.T) {
+		err := storage.Reconciled(ctx, account, currency, genesisBlock)
+		assert.NoError(t, err)
+
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
+		err = storage.UpdateBalance(
+			ctx,
+			txn,
+			&parser.BalanceChange{
+				Account:    account,
+				Currency:   currency2,
+				Block:      genesisBlock,
+				Difference: "200",
+			},
+			genesisBlock,
+		)
+		assert.NoError(t, err)
+		assert.NoError(t, txn.Commit(ctx))
+
+		coverage, err := storage.ReconciliationCoverage(ctx, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.5, coverage)
+
+		coverage, err = storage.ReconciliationCoverage(ctx, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.0, coverage)
+	})
+
+	t.Run("update reconciliation", func(t *testing.T) {
+		err := storage.Reconciled(ctx, account, currency, newBlock)
+		assert.NoError(t, err)
+
+		coverage, err := storage.ReconciliationCoverage(ctx, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.5, coverage)
+
+		coverage, err = storage.ReconciliationCoverage(ctx, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, 0.5, coverage)
+	})
+
+	t.Run("add unreconciled", func(t *testing.T) {
+		txn := storage.db.NewDatabaseTransaction(ctx, true)
+		err = storage.UpdateBalance(
+			ctx,
+			txn,
+			&parser.BalanceChange{
+				Account:    subAccountMetadata2,
+				Currency:   currency2,
+				Block:      newBlock,
+				Difference: "200",
+			},
+			newBlock,
+		)
+		assert.NoError(t, err)
+		assert.NoError(t, txn.Commit(ctx))
+
+		coverage, err := storage.ReconciliationCoverage(ctx, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, float64(1)/float64(3), coverage)
+	})
+}
+
 var _ BalanceStorageHelper = (*MockBalanceStorageHelper)(nil)
 
 type MockBalanceStorageHelper struct {

@@ -26,7 +26,12 @@ import (
 )
 
 var (
-	whackyConfig = &Configuration{
+	startIndex    = int64(89)
+	badStartIndex = int64(-10)
+	goodCoverage  = float64(0.33)
+	badCoverage   = float64(-2)
+	endTip        = false
+	whackyConfig  = &Configuration{
 		Network: &types.NetworkIdentifier{
 			Blockchain: "sweet",
 			Network:    "sweeter",
@@ -59,8 +64,12 @@ var (
 			ActiveReconciliationConcurrency:   100,
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
-			ReconciliationDisabled:            true,
+			ReconciliationDisabled:            false,
 			HistoricalBalanceDisabled:         true,
+			StartIndex:                        &startIndex,
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &goodCoverage,
+			},
 		},
 	}
 	invalidNetwork = &Configuration{
@@ -95,12 +104,40 @@ var (
 			MaximumFee: "hello",
 		},
 	}
+
 	invalidPrefundedAccounts = &Configuration{
 		Construction: &ConstructionConfiguration{
 			PrefundedAccounts: []PrefundedAccount{
 				PrefundedAccount{
 					PrivateKeyHex: "hello",
 				},
+			},
+		},
+	}
+	invalidStartIndex = &Configuration{
+		Data: &DataConfiguration{
+			StartIndex: &badStartIndex,
+		},
+	}
+	multipleEndConditions = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				Index: &startIndex,
+				Tip:   &endTip,
+			},
+		},
+	}
+	invalidEndIndex = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				Index: &badStartIndex,
+			},
+		},
+	}
+	invalidReconciliationCoverage = &Configuration{
+		Data: &DataConfiguration{
+			EndConditions: &DataEndConditions{
+				ReconciliationCoverage: &badCoverage,
 			},
 		},
 	}
@@ -154,6 +191,55 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"invalid prefunded accounts": {
 			provided: invalidPrefundedAccounts,
+			err:      true,
+		},
+		"invalid start index": {
+			provided: invalidStartIndex,
+			err:      true,
+		},
+		"invalid end index": {
+			provided: invalidEndIndex,
+			err:      true,
+		},
+		"invalid reconciliation coverage": {
+			provided: invalidReconciliationCoverage,
+			err:      true,
+		},
+		"invalid reconciliation coverage (reconciliation disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					ReconciliationDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (balance tracking disabled)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					BalanceTrackingDisabled: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (ignore reconciliation error)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					IgnoreReconciliationError: true,
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &goodCoverage,
+					},
+				},
+			},
+			err: true,
+		},
+		"multiple end conditions": {
+			provided: multipleEndConditions,
 			err:      true,
 		},
 	}
