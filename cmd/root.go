@@ -21,23 +21,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-)
-
-const (
-	// ExtendedRetryElapsedTime is used to override the default fetcher
-	// retry elapsed time. In practice, extending the retry elapsed time
-	// has prevented retry exhaustion errors when many goroutines are
-	// used to fetch data from the Rosetta server.
-	//
-	// TODO: make configurable
-	ExtendedRetryElapsedTime = 5 * time.Minute
 )
 
 var (

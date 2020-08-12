@@ -1,10 +1,15 @@
 package tester
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/pkg/storage"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // Root Causes
@@ -23,29 +28,41 @@ type CheckDataResults struct {
 	ResponseCorrectness bool  `json:"response_correctness"`
 	BlockSyncing        bool  `json:"block_syncing"`
 	BalanceTracking     *bool `json:"balance_tracking,omitempty"`
-	CoinTracking        *bool `json:"coin_tracking,omitempty"`
 	Reconciliation      *bool `json:"reconciliation,omitempty"`
+
+	// TODO: add CoinTracking
 }
 
-func (c *CheckDataResults) String() string {
-	outputString := fmt.Sprintf("Full Error: %s\n", c.FullError.Error())
-	outputString = fmt.Sprintf("%s**** Test Results ****\n", outputString)
-	outputString = fmt.Sprintf("%sResponse Correctness: %t\n", outputString, c.ResponseCorrectness)
-	outputString = fmt.Sprintf("%sBlock Syncing: %t\n", outputString, c.BlockSyncing)
-
-	if c.BalanceTracking != nil {
-		outputString = fmt.Sprintf("%sBalance Tracking: %t\n", outputString, *c.BalanceTracking)
+func convertBool(v bool) string {
+	if v {
+		return "PASSED"
 	}
 
-	if c.CoinTracking != nil {
-		outputString = fmt.Sprintf("%sCoin Tracking: %t\n", outputString, *c.CoinTracking)
+	return "FAILED"
+}
+
+// Print writes a table output to the console indicating
+// which tests were successful.
+func (c *CheckDataResults) Print() {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Test", "Status"})
+	table.Append([]string{"Response Correctness", convertBool(c.ResponseCorrectness)})
+	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
+
+	if c.BalanceTracking != nil {
+		// TODO: don't print if no operations
+		table.Append([]string{"Balance Tracking", convertBool(*c.BalanceTracking)})
 	}
 
 	if c.Reconciliation != nil {
-		outputString = fmt.Sprintf("%sReconciliation: %t\n", outputString, *c.Reconciliation)
+		table.Append([]string{"Reconciliation", convertBool(*c.Reconciliation)})
 	}
 
-	return outputString
+	table.Render()
+
+	if c.FullError != nil {
+		fmt.Printf("Full Error: %s\n", c.FullError.Error())
+	}
 }
 
 // ResponseCorrectnessPassed returns a boolean
@@ -73,30 +90,13 @@ func BlockSyncingPassed(err error) bool {
 // BalanceTrackingPassed returns a boolean
 // indicating if any balances went negative
 // while syncing.
-func BalanceTrackingPassed(cfg *configuration.Configuration, err error) *bool {
-	if cfg.Data.BalanceTrackingDisabled {
+func BalanceTrackingPassed(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
+	if cfg.Data.BalanceTrackingDisabled || !operationsSeen {
 		return nil
 	}
 
 	status := true
 	if errors.Is(err, ErrBalanceInvalid) {
-		status = false
-	}
-
-	return &status
-}
-
-// CoinTrackingPassed returns a boolean
-// indicating if coins could not be tracked.
-// Note: this will always return true for
-// account-based blockchains.
-func CoinTrackingPassed(cfg *configuration.Configuration, err error) *bool {
-	if cfg.Data.CoinTrackingDisabled {
-		return nil
-	}
-
-	status := true
-	if errors.Is(err, ErrCoinInvalid) {
 		status = false
 	}
 
@@ -128,14 +128,34 @@ func ReconciliationPassed(
 func CheckDataResult(
 	cfg *configuration.Configuration,
 	err error,
-	reconciliationsPerformed bool,
+	counterStorage *storage.CounterStorage,
 ) *CheckDataResults {
+	ctx := context.Background()
+
+	operationsSeen := false
+	reconciliationsPerformed := false
+	if counterStorage != nil {
+		ops, err := counterStorage.Get(ctx, storage.OperationCounter)
+		if err == nil && ops.Int64() > 0 {
+			operationsSeen = true
+		}
+
+		activeReconciliations, err := counterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+		if err == nil && activeReconciliations.Int64() > 0 {
+			reconciliationsPerformed = true
+		}
+
+		inactiveReconciliations, err := counterStorage.Get(ctx, storage.InactiveReconciliationCounter)
+		if err == nil && inactiveReconciliations.Int64() > 0 {
+			reconciliationsPerformed = true
+		}
+	}
+
 	return &CheckDataResults{
 		FullError:           err,
 		ResponseCorrectness: ResponseCorrectnessPassed(err),
 		BlockSyncing:        BlockSyncingPassed(err),
-		BalanceTracking:     BalanceTrackingPassed(cfg, err),
-		CoinTracking:        CoinTrackingPassed(cfg, err),
+		BalanceTracking:     BalanceTrackingPassed(cfg, err, operationsSeen),
 		Reconciliation:      ReconciliationPassed(cfg, err, reconciliationsPerformed),
 	}
 }

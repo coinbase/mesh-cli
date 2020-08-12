@@ -49,6 +49,7 @@ const (
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
 	DefaultTimeout                           = 10
+	DefaultRetryElapsedTime                  = 60
 	DefaultConfirmationDepth                 = 10
 	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
@@ -253,6 +254,7 @@ func DefaultConfiguration() *Configuration {
 		Network:                EthereumNetwork,
 		OnlineURL:              DefaultURL,
 		HTTPTimeout:            DefaultTimeout,
+		RetryElapsedTime:       DefaultRetryElapsedTime,
 		SyncConcurrency:        DefaultSyncConcurrency,
 		TransactionConcurrency: DefaultTransactionConcurrency,
 		TipDelay:               DefaultTipDelay,
@@ -382,8 +384,11 @@ type Configuration struct {
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
 	DataDirectory string `json:"data_directory"`
 
-	// HTTPTimeout is the timeout for HTTP requests in seconds.
+	// HTTPTimeout is the timeout for a HTTP request in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
+
+	// RetryElapsedTime is the total time to spend retrying a HTTP request in seconds.
+	RetryElapsedTime uint64 `json:"retry_elapsed_time"`
 
 	// SyncConcurrency is the concurrency to use while syncing blocks.
 	SyncConcurrency uint64 `json:"sync_concurrency"`
@@ -505,6 +510,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.HTTPTimeout == 0 {
 		config.HTTPTimeout = DefaultTimeout
+	}
+
+	if config.RetryElapsedTime == 0 {
+		config.RetryElapsedTime = DefaultRetryElapsedTime
 	}
 
 	if config.SyncConcurrency == 0 {

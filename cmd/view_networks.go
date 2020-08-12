@@ -44,7 +44,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 
 	f := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 

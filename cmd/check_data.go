@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/tester"
@@ -76,18 +76,20 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	fetcher := fetcher.New(
 		Config.OnlineURL,
 		fetcher.WithTransactionConcurrency(Config.TransactionConcurrency),
-		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
 	_, _, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
-		log.Fatalf("%s: unable to initialize asserter", err.Error())
+		err = fmt.Errorf("%w: unable to initialize asserter", err)
+		tester.Exit(Config, nil, fmt.Errorf("%w: %s", tester.ErrResponseInvalid, err.Error()), 1)
 	}
 
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		log.Fatalf("%s: unable to confirm network is supported", err.Error())
+		err = fmt.Errorf("%w: unable to confirm network", err)
+		tester.Exit(Config, nil, fmt.Errorf("%w: %s", tester.ErrResponseInvalid, err.Error()), 1)
 	}
 
 	dataTester := tester.InitializeData(
