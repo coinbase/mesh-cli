@@ -117,6 +117,121 @@ func TestComputeCheckDataResults(t *testing.T) {
 				},
 			},
 		},
+		"default configuration, counter storage with blocks no ops, no errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			blockCount:            100,
+			err:                   []error{nil},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+				},
+				Stats: &CheckDataStats{
+					Blocks: 100,
+				},
+			},
+		},
+		"default configuration, counter storage with blocks with ops, no errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			blockCount:            100,
+			operationCount:        1,
+			err:                   []error{nil},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+					BalanceTracking:   &tr,
+				},
+				Stats: &CheckDataStats{
+					Blocks:     100,
+					Operations: 1,
+				},
+			},
+		},
+		"default configuration, counter storage with blocks with ops, with inactive reconciliations no errors": {
+			cfg:                     configuration.DefaultConfiguration(),
+			provideCounterStorage:   true,
+			blockCount:              100,
+			operationCount:          1,
+			inactiveReconciliations: 1,
+			provideBalanceStorage:   true,
+			reconciledAccounts:      1,
+			totalAccounts:           4,
+			err:                     []error{nil},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+					BalanceTracking:   &tr,
+					Reconciliation:    &tr,
+				},
+				Stats: &CheckDataStats{
+					Blocks:                  100,
+					Operations:              1,
+					InactiveReconciliations: 1,
+					ReconciliationCoverage:  0.25,
+				},
+			},
+		},
+		"default configuration, counter storage with blocks with ops, with active reconciliations no errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			blockCount:            100,
+			operationCount:        1,
+			activeReconciliations: 1,
+			provideBalanceStorage: true,
+			reconciledAccounts:    1,
+			totalAccounts:         2,
+			err:                   []error{nil},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+					BalanceTracking:   &tr,
+					Reconciliation:    &tr,
+				},
+				Stats: &CheckDataStats{
+					Blocks:                 100,
+					Operations:             1,
+					ActiveReconciliations:  1,
+					ReconciliationCoverage: 0.5,
+				},
+			},
+		},
+		"default configuration, counter storage with blocks with ops, with reconciliations no errors": {
+			cfg:                     configuration.DefaultConfiguration(),
+			provideCounterStorage:   true,
+			blockCount:              100,
+			operationCount:          1,
+			inactiveReconciliations: 1,
+			activeReconciliations:   1,
+			provideBalanceStorage:   true,
+			reconciledAccounts:      1,
+			totalAccounts:           4,
+			err:                     []error{nil},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &tr,
+					BalanceTracking:   &tr,
+					Reconciliation:    &tr,
+				},
+				Stats: &CheckDataStats{
+					Blocks:                  100,
+					Operations:              1,
+					InactiveReconciliations: 1,
+					ActiveReconciliations:   1,
+					ReconciliationCoverage:  0.25,
+				},
+			},
+		},
 		"default configuration, no storage, balance errors": {
 			cfg: configuration.DefaultConfiguration(),
 			err: []error{storage.ErrNegativeBalance},
@@ -181,11 +296,11 @@ func TestComputeCheckDataResults(t *testing.T) {
 				if test.provideBalanceStorage {
 					balanceStorage = storage.NewBalanceStorage(localStore)
 
-					dbTransaction := localStore.NewDatabaseTransaction(ctx, true)
 					j := 0
 					currency := &types.Currency{Symbol: "BLAH"}
 					block := &types.BlockIdentifier{Hash: "0", Index: 0}
 					for i := 0; i < test.totalAccounts; i++ {
+						dbTransaction := localStore.NewDatabaseTransaction(ctx, true)
 						acct := &types.AccountIdentifier{
 							Address: fmt.Sprintf("account %d", i),
 						}
@@ -196,6 +311,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 							&types.Amount{Value: "1", Currency: currency},
 							block,
 						))
+						assert.NoError(t, dbTransaction.Commit(ctx))
 
 						if j >= test.reconciledAccounts {
 							continue
@@ -211,7 +327,6 @@ func TestComputeCheckDataResults(t *testing.T) {
 						j++
 					}
 
-					assert.NoError(t, dbTransaction.Commit(ctx))
 				}
 
 				t.Run(testName, func(t *testing.T) {
