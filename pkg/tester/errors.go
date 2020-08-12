@@ -90,9 +90,18 @@ func ResponseAssertionPassed(err error) bool {
 // indicating if it was possible to sync
 // blocks.
 func BlockSyncingPassed(err error, blocksSynced bool) *bool {
-	syncErr := errors.Is(err, syncer.ErrCannotRemoveGenesisBlock)
-	if !syncErr {
-		syncErr = errors.Is(err, syncer.ErrOutOfOrder)
+	relatedErrors := []error{
+		syncer.ErrCannotRemoveGenesisBlock,
+		syncer.ErrOutOfOrder,
+		storage.ErrDuplicateKey,
+		storage.ErrDuplicateTransactionHash,
+	}
+	syncErr := false
+	for _, relatedError := range relatedErrors {
+		if errors.Is(err, relatedError) {
+			syncErr = true
+			break
+		}
 	}
 
 	if !blocksSynced && !syncErr {
