@@ -19,12 +19,16 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+// CheckDataResults contains any error that occurred
+// on a check:data run, the outcome of certain tests,
+// and a collection of interesting stats.
 type CheckDataResults struct {
 	Error string          `json:"error,omitempty"`
 	Tests *CheckDataTests `json:"tests,omitempty"`
 	Stats *CheckDataStats `json:"stats,omitempty"`
 }
 
+// Print logs CheckDataResults to the console.
 func (c *CheckDataResults) Print() {
 	fmt.Printf("\n")
 	c.Tests.Print()
@@ -36,6 +40,8 @@ func (c *CheckDataResults) Print() {
 	}
 }
 
+// Output writes *CheckDataResults to the provided
+// path.
 func (c *CheckDataResults) Output(path string) {
 	if len(path) > 0 {
 		writeErr := utils.SerializeAndWrite(path, c)
@@ -45,6 +51,8 @@ func (c *CheckDataResults) Output(path string) {
 	}
 }
 
+// CheckDataStats contains interesting stats that
+// are counted while running the check:data.
 type CheckDataStats struct {
 	Blocks                  int64   `json:"blocks"`
 	Orphans                 int64   `json:"orphans"`
@@ -55,6 +63,7 @@ type CheckDataStats struct {
 	ReconciliationCoverage  float64 `json:"reconciliation_coverage"`
 }
 
+// Print logs CheckDataStats to the console.
 func (c *CheckDataStats) Print() {
 	if c == nil {
 		return
@@ -67,13 +76,25 @@ func (c *CheckDataStats) Print() {
 	table.Append([]string{"Transactions", strconv.FormatInt(c.Transactions, 10)})
 	table.Append([]string{"Operations", strconv.FormatInt(c.Operations, 10)})
 	table.Append([]string{"Active Reconciliations", strconv.FormatInt(c.ActiveReconciliations, 10)})
-	table.Append([]string{"Inactive Reconciliations", strconv.FormatInt(c.InactiveReconciliations, 10)})
-	table.Append([]string{"Reconciliation Coverage", fmt.Sprintf("%f%%", c.ReconciliationCoverage*utils.OneHundred)})
+	table.Append(
+		[]string{"Inactive Reconciliations", strconv.FormatInt(c.InactiveReconciliations, 10)},
+	)
+	table.Append(
+		[]string{
+			"Reconciliation Coverage",
+			fmt.Sprintf("%f%%", c.ReconciliationCoverage*utils.OneHundred),
+		},
+	)
 
 	table.Render()
 }
 
-func ComputeCheckDataStats(ctx context.Context, counters *storage.CounterStorage, balances *storage.BalanceStorage) *CheckDataStats {
+// ComputeCheckDataStats returns a populated CheckDataStats.
+func ComputeCheckDataStats(
+	ctx context.Context,
+	counters *storage.CounterStorage,
+	balances *storage.BalanceStorage,
+) *CheckDataStats {
 	if counters == nil {
 		return nil
 	}
@@ -136,7 +157,7 @@ func ComputeCheckDataStats(ctx context.Context, counters *storage.CounterStorage
 	return stats
 }
 
-// CheckDataResults indicates which tests passed.
+// CheckDataTests indicates which tests passed.
 // If a test is nil, it did not apply to the run.
 //
 // TODO: add CoinTracking
@@ -148,6 +169,8 @@ type CheckDataTests struct {
 	Reconciliation    *bool `json:"reconciliation,omitempty"`
 }
 
+// convertBool converts a *bool
+// to a test result.
 func convertBool(v *bool) string {
 	if v == nil {
 		return "NOT TESTED"
@@ -160,6 +183,7 @@ func convertBool(v *bool) string {
 	return "FAILED"
 }
 
+// Print logs CheckDataTests to the console.
 func (c *CheckDataTests) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Tests", "Status"})
@@ -269,6 +293,7 @@ func ReconciliationTest(
 	return &reconciliationPass
 }
 
+// ComputeCheckDataTests returns a populated CheckDataTests.
 func ComputeCheckDataTests(
 	ctx context.Context,
 	cfg *configuration.Configuration,
@@ -312,6 +337,7 @@ func ComputeCheckDataTests(
 	}
 }
 
+// ComputeCheckDataResults returns a populated CheckDataResults.
 func ComputeCheckDataResults(
 	cfg *configuration.Configuration,
 	err error,
@@ -333,7 +359,8 @@ func ComputeCheckDataResults(
 	return results
 }
 
-// Exit exits the program and prints the test results to the console.
+// Exit exits the program, logs the test results to the console,
+// and to a provided output path.
 func Exit(
 	config *configuration.Configuration,
 	counterStorage *storage.CounterStorage,

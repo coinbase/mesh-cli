@@ -58,7 +58,12 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, no storage, fetch errors": {
 			cfg: configuration.DefaultConfiguration(),
-			err: []error{fetcher.ErrExhaustedRetries, fetcher.ErrRequestFailed, fetcher.ErrNoNetworks, utils.ErrNetworkNotSupported},
+			err: []error{
+				fetcher.ErrExhaustedRetries,
+				fetcher.ErrRequestFailed,
+				fetcher.ErrNoNetworks,
+				utils.ErrNetworkNotSupported,
+			},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   false,
@@ -78,7 +83,12 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, no storage, syncing errors": {
 			cfg: configuration.DefaultConfiguration(),
-			err: []error{syncer.ErrCannotRemoveGenesisBlock, syncer.ErrOutOfOrder, storage.ErrDuplicateKey, storage.ErrDuplicateTransactionHash},
+			err: []error{
+				syncer.ErrCannotRemoveGenesisBlock,
+				syncer.ErrOutOfOrder,
+				storage.ErrDuplicateKey,
+				storage.ErrDuplicateTransactionHash,
+			},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
@@ -279,16 +289,32 @@ func TestComputeCheckDataResults(t *testing.T) {
 				var counterStorage *storage.CounterStorage
 				if test.provideCounterStorage {
 					counterStorage = storage.NewCounterStorage(localStore)
-					_, err = counterStorage.Update(ctx, storage.BlockCounter, big.NewInt(test.blockCount))
+					_, err = counterStorage.Update(
+						ctx,
+						storage.BlockCounter,
+						big.NewInt(test.blockCount),
+					)
 					assert.NoError(t, err)
 
-					_, err = counterStorage.Update(ctx, storage.OperationCounter, big.NewInt(test.operationCount))
+					_, err = counterStorage.Update(
+						ctx,
+						storage.OperationCounter,
+						big.NewInt(test.operationCount),
+					)
 					assert.NoError(t, err)
 
-					_, err = counterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(test.activeReconciliations))
+					_, err = counterStorage.Update(
+						ctx,
+						storage.ActiveReconciliationCounter,
+						big.NewInt(test.activeReconciliations),
+					)
 					assert.NoError(t, err)
 
-					_, err = counterStorage.Update(ctx, storage.InactiveReconciliationCounter, big.NewInt(test.inactiveReconciliations))
+					_, err = counterStorage.Update(
+						ctx,
+						storage.InactiveReconciliationCounter,
+						big.NewInt(test.inactiveReconciliations),
+					)
 					assert.NoError(t, err)
 				}
 
@@ -326,11 +352,15 @@ func TestComputeCheckDataResults(t *testing.T) {
 
 						j++
 					}
-
 				}
 
 				t.Run(testName, func(t *testing.T) {
-					results := ComputeCheckDataResults(test.cfg, testErr, counterStorage, balanceStorage)
+					results := ComputeCheckDataResults(
+						test.cfg,
+						testErr,
+						counterStorage,
+						balanceStorage,
+					)
 					assert.Equal(t, test.result, results)
 					results.Print() // make sure doesn't panic
 					results.Output(logPath)
