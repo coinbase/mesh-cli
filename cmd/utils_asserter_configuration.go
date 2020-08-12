@@ -48,7 +48,7 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) {
 	// Create a new fetcher
 	newFetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithRetryElapsedTime(ExtendedRetryElapsedTime),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 

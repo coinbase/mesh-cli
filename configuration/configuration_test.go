@@ -38,6 +38,7 @@ var (
 		},
 		OnlineURL:              "http://hasudhasjkdk",
 		HTTPTimeout:            21,
+		RetryElapsedTime:       1000,
 		SyncConcurrency:        12,
 		TransactionConcurrency: 2,
 		TipDelay:               1231,
