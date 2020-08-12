@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tester
 
 import (
@@ -70,18 +84,39 @@ func (c *CheckDataStats) Print() {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"check:data Stats", "Value"})
-	table.Append([]string{"Blocks", strconv.FormatInt(c.Blocks, 10)})
-	table.Append([]string{"Orphans", strconv.FormatInt(c.Orphans, 10)})
-	table.Append([]string{"Transactions", strconv.FormatInt(c.Transactions, 10)})
-	table.Append([]string{"Operations", strconv.FormatInt(c.Operations, 10)})
-	table.Append([]string{"Active Reconciliations", strconv.FormatInt(c.ActiveReconciliations, 10)})
+	table.SetRowLine(true)
+	table.SetRowSeparator("-")
+	table.SetHeader([]string{"check:data Stats", "Description", "Value"})
+	table.Append([]string{"Blocks", "# of blocks synced", strconv.FormatInt(c.Blocks, 10)})
+	table.Append([]string{"Orphans", "# of blocks orphaned", strconv.FormatInt(c.Orphans, 10)})
 	table.Append(
-		[]string{"Inactive Reconciliations", strconv.FormatInt(c.InactiveReconciliations, 10)},
+		[]string{
+			"Transactions",
+			"# of transaction processed",
+			strconv.FormatInt(c.Transactions, 10),
+		},
+	)
+	table.Append(
+		[]string{"Operations", "# of operations processed", strconv.FormatInt(c.Operations, 10)},
+	)
+	table.Append(
+		[]string{
+			"Active Reconciliations",
+			"# of reconciliations performed after seeing an account in a block",
+			strconv.FormatInt(c.ActiveReconciliations, 10),
+		},
+	)
+	table.Append(
+		[]string{
+			"Inactive Reconciliations",
+			"# of reconciliation performed on randomly selected accounts",
+			strconv.FormatInt(c.InactiveReconciliations, 10),
+		},
 	)
 	table.Append(
 		[]string{
 			"Reconciliation Coverage",
+			"% of accounts that have been reconciled",
 			fmt.Sprintf("%f%%", c.ReconciliationCoverage*utils.OneHundred),
 		},
 	)
@@ -186,12 +221,44 @@ func convertBool(v *bool) string {
 // Print logs CheckDataTests to the console.
 func (c *CheckDataTests) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"check:data Tests", "Status"})
-	table.Append([]string{"Request/Response", convertBool(&c.RequestResponse)})
-	table.Append([]string{"Response Assertion", convertBool(&c.ResponseAssertion)})
-	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
-	table.Append([]string{"Balance Tracking", convertBool(c.BalanceTracking)})
-	table.Append([]string{"Reconciliation", convertBool(c.Reconciliation)})
+	table.SetRowLine(true)
+	table.SetRowSeparator("-")
+	table.SetHeader([]string{"check:data Tests", "Description", "Status"})
+	table.Append(
+		[]string{
+			"Request/Response",
+			"Rosetta implementation serviced all requests",
+			convertBool(&c.RequestResponse),
+		},
+	)
+	table.Append(
+		[]string{
+			"Response Assertion",
+			"All responses are correctly formatted",
+			convertBool(&c.ResponseAssertion),
+		},
+	)
+	table.Append(
+		[]string{
+			"Block Syncing",
+			"Blocks are connected into a single canonical chain",
+			convertBool(c.BlockSyncing),
+		},
+	)
+	table.Append(
+		[]string{
+			"Balance Tracking",
+			"Account balances did not go negative",
+			convertBool(c.BalanceTracking),
+		},
+	)
+	table.Append(
+		[]string{
+			"Reconciliation",
+			"No balance discrepencies were found between computed and live balances",
+			convertBool(c.Reconciliation),
+		},
+	)
 
 	table.Render()
 }
