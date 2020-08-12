@@ -458,7 +458,12 @@ func (t *DataTester) WatchEndConditions(
 }
 
 // Exit exits the program and prints the test results to the console.
-func Exit(config *configuration.Configuration, counterStorage *storage.CounterStorage, err error, status int) {
+func Exit(
+	config *configuration.Configuration,
+	counterStorage *storage.CounterStorage,
+	err error,
+	status int,
+) {
 	results := CheckDataResult(config, err, counterStorage)
 	results.Print()
 	os.Exit(status)
@@ -511,7 +516,11 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 // FindMissingOps logs the types.BlockIdentifier of a block
 // that is missing balance-changing operations for a
 // *reconciler.AccountCurrency.
-func (t *DataTester) FindMissingOps(ctx context.Context, originalErr error, sigListeners []context.CancelFunc) {
+func (t *DataTester) FindMissingOps(
+	ctx context.Context,
+	originalErr error,
+	sigListeners []context.CancelFunc,
+) {
 	color.Cyan("Searching for block with missing operations...hold tight")
 	badBlock, err := t.recursiveOpSearch(
 		ctx,
