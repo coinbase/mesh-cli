@@ -5,11 +5,18 @@ import (
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/storage"
 	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	t = true
+	f = false
 )
 
 func TestComputeCheckDataResults(t *testing.T) {
@@ -43,6 +50,49 @@ func TestComputeCheckDataResults(t *testing.T) {
 				Tests: &CheckDataTests{
 					RequestResponse:   false,
 					ResponseAssertion: true,
+				},
+			},
+		},
+		"default configuration, no storage, assertion errors": {
+			cfg: configuration.DefaultConfiguration(),
+			err: []error{fetcher.ErrAssertionFailed},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: false,
+				},
+			},
+		},
+		"default configuration, no storage, syncing errors": {
+			cfg: configuration.DefaultConfiguration(),
+			err: []error{syncer.ErrCannotRemoveGenesisBlock, syncer.ErrOutOfOrder, storage.ErrDuplicateKey, storage.ErrDuplicateTransactionHash},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BlockSyncing:      &f,
+				},
+			},
+		},
+		"default configuration, no storage, balance errors": {
+			cfg: configuration.DefaultConfiguration(),
+			err: []error{storage.ErrNegativeBalance},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					BalanceTracking:   &f,
+				},
+			},
+		},
+		"default configuration, no storage, reconciliation errors": {
+			cfg: configuration.DefaultConfiguration(),
+			err: []error{processor.ErrReconciliationFailure},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					Reconciliation:    &f,
 				},
 			},
 		},
