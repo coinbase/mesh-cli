@@ -457,28 +457,6 @@ func (t *DataTester) WatchEndConditions(
 	return nil
 }
 
-// Exit exits the program and prints the test results to the console.
-func Exit(
-	config *configuration.Configuration,
-	counterStorage *storage.CounterStorage,
-	balanceStorage *storage.BalanceStorage,
-	err error,
-	status int,
-) {
-	results := CheckDataResult(config, err, counterStorage, balanceStorage)
-	results.Print()
-
-	outputFile := config.Data.ResultsOutputFile
-	if len(outputFile) > 0 {
-		writeErr := utils.SerializeAndWrite(outputFile, results)
-		if writeErr != nil {
-			log.Printf("%s: unable to save results\n", writeErr.Error())
-		}
-	}
-
-	os.Exit(status)
-}
-
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
