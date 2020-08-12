@@ -82,14 +82,22 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	_, _, err := fetcher.InitializeAsserter(ctx)
 	if err != nil {
-		err = fmt.Errorf("%w: unable to initialize asserter", err)
-		tester.Exit(Config, nil, fmt.Errorf("%w: %s", tester.ErrResponseInvalid, err.Error()), 1)
+		tester.Exit(
+			Config,
+			nil,
+			fmt.Errorf("%w: unable to initialize asserter", err),
+			1,
+		)
 	}
 
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		err = fmt.Errorf("%w: unable to confirm network", err)
-		tester.Exit(Config, nil, fmt.Errorf("%w: %s", tester.ErrResponseInvalid, err.Error()), 1)
+		tester.Exit(
+			Config,
+			nil,
+			fmt.Errorf("%w: unable to confirm network", err),
+			1,
+		)
 	}
 
 	dataTester := tester.InitializeData(

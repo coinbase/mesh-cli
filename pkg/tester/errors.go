@@ -9,13 +9,9 @@ import (
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/storage"
 
+	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
-)
-
-// Root Causes
-var (
-	ErrResponseInvalid = errors.New("response invalid")
 )
 
 // CheckDataResults indicates which tests passed.
@@ -23,8 +19,8 @@ var (
 type CheckDataResults struct {
 	Error             error `json:"error"`
 	Endpoints         bool  `json:"endpoints"`
-	ResponseAssertion bool  `json:"response_assertion"`
-	BlockSyncing      bool  `json:"block_syncing"`
+	ResponseAssertion *bool `json:"response_assertion,omitempty"`
+	BlockSyncing      *bool `json:"block_syncing,omitempty"`
 	BalanceTracking   *bool `json:"balance_tracking,omitempty"`
 	Reconciliation    *bool `json:"reconciliation,omitempty"`
 
@@ -45,8 +41,13 @@ func (c *CheckDataResults) Print() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"check:data Tests", "Status"})
 	table.Append([]string{"Endpoints", convertBool(c.Endpoints)})
-	table.Append([]string{"Response Assertion", convertBool(c.ResponseAssertion)})
-	table.Append([]string{"Block Syncing", convertBool(c.BlockSyncing)})
+	if c.ResponseAssertion != nil {
+		table.Append([]string{"Response Assertion", convertBool(*c.ResponseAssertion)})
+	}
+
+	if c.BlockSyncing != nil {
+		table.Append([]string{"Block Syncing", convertBool(*c.BlockSyncing)})
+	}
 
 	if c.BalanceTracking != nil {
 		table.Append([]string{"Balance Tracking", convertBool(*c.BalanceTracking)})
@@ -67,29 +68,28 @@ func (c *CheckDataResults) Print() {
 // indicating if all endpoints received
 // a non-500 response.
 func EndpointsPassed(err error) bool {
-	return false
+	// TODO: parse non-retry client error
+	if errors.Is(err, fetcher.ErrExhaustedRetries) {
+		return false
+	}
+
+	return true
 }
 
 // ResponseAssertionPassed returns a boolean
 // indicating if all responses received from
 // the server were correctly formatted.
-func ResponseAssertionPassed(err error) bool {
-	if errors.Is(err, ErrResponseInvalid) { // nolint
-		return false
-	}
-
-	return true
+func ResponseAssertionPassed(err error) *bool {
+	// TODO: parse assertion error
+	return nil
 }
 
 // BlockSyncingPassed returns a boolean
 // indicating if it was possible to sync
 // blocks.
-func BlockSyncingPassed(err error) bool {
-	if !ResponseAssertionPassed(err) {
-		return false
-	}
-
-	return true
+func BlockSyncingPassed(err error) *bool {
+	// TODO: parse syncing error
+	return nil
 }
 
 // BalanceTrackingPassed returns a boolean
