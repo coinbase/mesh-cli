@@ -15,10 +15,10 @@
 package configuration
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
-	"strconv"
 
 	"github.com/coinbase/rosetta-cli/pkg/scenario"
 	"github.com/coinbase/rosetta-cli/pkg/utils"
@@ -204,8 +204,9 @@ type ConstructionConfiguration struct {
 }
 
 type PrefundedAccount struct {
-	PrivateKeyHex string `json:"privkey"`
-	Address       string `json:"address"`
+	PrivateKeyHex string          `json:"privkey"`
+	Address       string          `json:"address"`
+	CurveType     types.CurveType `json:"curve_type"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -537,7 +538,7 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	}
 
 	for _, account := range config.PrefundedAccounts {
-		_, err := strconv.ParseUint(account.PrivateKeyHex, 16, 64)
+		_, err := hex.DecodeString(account.PrivateKeyHex)
 		if err != nil {
 			return fmt.Errorf("%s is not hex encoded", account.PrivateKeyHex)
 		}
