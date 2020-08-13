@@ -53,6 +53,10 @@ func TestComputeCheckDataResults(t *testing.T) {
 		totalAccounts         int
 		reconciledAccounts    int
 
+		// end conditions
+		endCondition       configuration.CheckDataEndCondition
+		endConditionDetail string
+
 		// We use a slice of errors here because
 		// there typically a collection of errors
 		// that should return the same result.
@@ -238,8 +242,14 @@ func TestComputeCheckDataResults(t *testing.T) {
 			provideBalanceStorage:   true,
 			reconciledAccounts:      1,
 			totalAccounts:           4,
+			endCondition:            configuration.IndexEndCondition,
+			endConditionDetail:      "index 100",
 			err:                     []error{nil},
 			result: &CheckDataResults{
+				EndCondition: &EndCondition{
+					Type:   configuration.IndexEndCondition,
+					Detail: "index 100",
+				},
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
 					ResponseAssertion: true,
@@ -374,6 +384,8 @@ func TestComputeCheckDataResults(t *testing.T) {
 						testErr,
 						counterStorage,
 						balanceStorage,
+						test.endCondition,
+						test.endConditionDetail,
 					)
 					assert.Equal(t, test.result, results)
 					results.Print() // make sure doesn't panic

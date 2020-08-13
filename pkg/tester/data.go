@@ -78,7 +78,8 @@ type DataTester struct {
 	genesisBlock      *types.BlockIdentifier
 	cancel            context.CancelFunc
 
-	endConditionReached string
+	endCondition       configuration.CheckDataEndCondition
+	endConditionDetail string
 }
 
 func shouldReconcile(config *configuration.Configuration) bool {
@@ -366,9 +367,9 @@ func (t *DataTester) EndAtTipLoop(
 			// If minReconciliationCoverage is less than 0,
 			// we should just stop at tip.
 			if minReconciliationCoverage < 0 {
-				t.endConditionReached = fmt.Sprintf(
-					"%s [Tip: %d]",
-					configuration.TipEndCondition,
+				t.endCondition = configuration.TipEndCondition
+				t.endConditionDetail = fmt.Sprintf(
+					"Tip: %d",
 					blockIdentifier.Index,
 				)
 				t.cancel()
@@ -394,9 +395,9 @@ func (t *DataTester) EndAtTipLoop(
 			}
 
 			if coverage >= minReconciliationCoverage {
-				t.endConditionReached = fmt.Sprintf(
-					"%s [Coverage: %f%%]",
-					configuration.ReconciliationCoverageEndCondition,
+				t.endCondition = configuration.ReconciliationCoverageEndCondition
+				t.endConditionDetail = fmt.Sprintf(
+					"Coverage: %f%%",
 					coverage*utils.OneHundred,
 				)
 				t.cancel()
@@ -420,9 +421,9 @@ func (t *DataTester) EndDurationLoop(
 			return
 
 		case <-timer.C:
-			t.endConditionReached = fmt.Sprintf(
-				"%s [Seconds: %d]",
-				configuration.DurationEndCondition,
+			t.endCondition = configuration.DurationEndCondition
+			t.endConditionDetail = fmt.Sprintf(
+				"Seconds: %d",
 				int(duration.Seconds()),
 			)
 			t.cancel()
@@ -467,35 +468,34 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		return
 	}
 
-	if (err == nil || err == context.Canceled) && len(t.endConditionReached) == 0 && t.config.Data.EndConditions != nil &&
+	if (err == nil || err == context.Canceled) && len(t.endCondition) == 0 && t.config.Data.EndConditions != nil &&
 		t.config.Data.EndConditions.Index != nil { // occurs at syncer end
-		t.endConditionReached = fmt.Sprintf(
-			"%s [Index: %d]",
-			configuration.IndexEndCondition,
+		t.endCondition = configuration.IndexEndCondition
+		t.endConditionDetail = fmt.Sprintf(
+			"Index: %d",
 			*t.config.Data.EndConditions.Index,
 		)
 	}
 
-	if len(t.endConditionReached) != 0 {
-		color.Green(fmt.Sprintf("Check succeeded: %s", t.endConditionReached))
-		Exit(t.config, t.counterStorage, t.balanceStorage, nil, 0)
+	if len(t.endCondition) != 0 {
+		Exit(t.config, t.counterStorage, t.balanceStorage, nil, 0, t.endCondition, t.endConditionDetail)
 	}
 
-	color.Red("Check failed!")
+	fmt.Printf("\n")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.HistoricalBalanceDisabled {
 		color.Yellow(
 			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
 		)
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
 		color.Yellow("Search for inactive reconciliation discrepency is disabled")
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	t.FindMissingOps(ctx, err, sigListeners)
@@ -519,7 +519,7 @@ func (t *DataTester) FindMissingOps(
 	)
 	if err != nil {
 		color.Yellow("%s: could not find block with missing ops", err.Error())
-		Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1)
+		Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 	}
 
 	color.Yellow(
@@ -528,7 +528,8 @@ func (t *DataTester) FindMissingOps(
 		badBlock.Index,
 		badBlock.Hash,
 	)
-	Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1)
+
+	Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 }
 
 func (t *DataTester) recursiveOpSearch(
