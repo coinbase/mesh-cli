@@ -45,10 +45,10 @@ type EndCondition struct {
 // on a check:data run, the outcome of certain tests,
 // and a collection of interesting stats.
 type CheckDataResults struct {
-	Error        string          `json:"error,omitempty"`
+	Error        string          `json:"error"`
 	EndCondition *EndCondition   `json:"end_condition"`
-	Tests        *CheckDataTests `json:"tests,omitempty"`
-	Stats        *CheckDataStats `json:"stats,omitempty"`
+	Tests        *CheckDataTests `json:"tests"`
+	Stats        *CheckDataStats `json:"stats"`
 }
 
 // Print logs CheckDataResults to the console.
