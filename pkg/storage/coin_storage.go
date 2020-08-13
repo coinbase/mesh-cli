@@ -68,9 +68,9 @@ func NewCoinStorage(
 // Coin represents some spendable output (typically
 // referred to as a UTXO).
 type Coin struct {
-	Identifier  *types.CoinIdentifier `json:"identifier"`
-	Transaction *types.Transaction    `json:"transaction"`
-	Operation   *types.Operation      `json:"operation"`
+	Identifier            *types.CoinIdentifier        `json:"identifier"`
+	TransactionIdentifier *types.TransactionIdentifier `json:"transaction_identifier"`
+	Operation             *types.Operation             `json:"operation"`
 }
 
 func getCoinKey(identifier *types.CoinIdentifier) []byte {
@@ -121,9 +121,9 @@ func (c *CoinStorage) tryAddingCoin(
 	coinIdentifier := operation.CoinChange.CoinIdentifier
 
 	newCoin := &Coin{
-		Identifier:  coinIdentifier,
-		Transaction: blockTransaction,
-		Operation:   operation,
+		Identifier:            coinIdentifier,
+		TransactionIdentifier: blockTransaction.TransactionIdentifier,
+		Operation:             operation,
 	}
 
 	encodedResult, err := encode(newCoin)
