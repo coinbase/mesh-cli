@@ -464,7 +464,14 @@ func Exit(
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,
 ) {
-	results := ComputeCheckDataResults(config, err, counterStorage, balanceStorage, endCondition, endConditionDetail)
+	results := ComputeCheckDataResults(
+		config,
+		err,
+		counterStorage,
+		balanceStorage,
+		endCondition,
+		endConditionDetail,
+	)
 	results.Print()
 	results.Output(config.Data.ResultsOutputFile)
 

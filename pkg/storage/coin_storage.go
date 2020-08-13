@@ -103,13 +103,15 @@ func getAndDecodeCoin(
 	return true, &coin, nil
 }
 
+type wallets map[string]map[string]struct{}
+
 func (c *CoinStorage) tryAddingCoin(
 	ctx context.Context,
 	transaction DatabaseTransaction,
 	blockTransaction *types.Transaction,
 	operation *types.Operation,
 	action types.CoinAction,
-	cache map[string]map[string]struct{},
+	cache wallets,
 ) error {
 	if operation.CoinChange == nil {
 		return errors.New("coin change cannot be nil")
@@ -210,7 +212,7 @@ func (c *CoinStorage) tryRemovingCoin(
 	transaction DatabaseTransaction,
 	operation *types.Operation,
 	action types.CoinAction,
-	cache map[string]map[string]struct{},
+	cache wallets,
 ) error {
 	if operation.CoinChange == nil {
 		return errors.New("coin change cannot be nil")
@@ -264,13 +266,26 @@ func (c *CoinStorage) tryRemovingCoin(
 	return nil
 }
 
+// writeCache commits all changes stored in the cache to the database. This ensures
+// that any block only ever contains 1 write per account identifier to update
+// their persisted wallet.
+func writeCache(ctx context.Context, transaction DatabaseTransaction, cache wallets) error {
+	for account, coins := range cache {
+		if err := encodeAndSetCoins(ctx, transaction, []byte(account), coins); err != nil {
+			return fmt.Errorf("%w: unable to set coins", err)
+		}
+	}
+
+	return nil
+}
+
 // AddingBlock is called by BlockStorage when adding a block.
 func (c *CoinStorage) AddingBlock(
 	ctx context.Context,
 	block *types.Block,
 	transaction DatabaseTransaction,
 ) (CommitWorker, error) {
-	cache := map[string]map[string]struct{}{}
+	cache := wallets{}
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
 			if operation.CoinChange == nil {
@@ -300,10 +315,8 @@ func (c *CoinStorage) AddingBlock(
 		}
 	}
 
-	for account, coins := range cache {
-		if err := encodeAndSetCoins(ctx, transaction, []byte(account), coins); err != nil {
-			return nil, fmt.Errorf("%w: unable to set coins", err)
-		}
+	if err := writeCache(ctx, transaction, cache); err != nil {
+		return nil, fmt.Errorf("%w: unable to update wallets", err)
 	}
 
 	return nil, nil
@@ -315,7 +328,7 @@ func (c *CoinStorage) RemovingBlock(
 	block *types.Block,
 	transaction DatabaseTransaction,
 ) (CommitWorker, error) {
-	cache := map[string]map[string]struct{}{}
+	cache := wallets{}
 	for _, txn := range block.Transactions {
 		for _, operation := range txn.Operations {
 			if operation.CoinChange == nil {
@@ -347,10 +360,8 @@ func (c *CoinStorage) RemovingBlock(
 		}
 	}
 
-	for account, coins := range cache {
-		if err := encodeAndSetCoins(ctx, transaction, []byte(account), coins); err != nil {
-			return nil, fmt.Errorf("%w: unable to set coins", err)
-		}
+	if err := writeCache(ctx, transaction, cache); err != nil {
+		return nil, fmt.Errorf("%w: unable to update wallets", err)
 	}
 
 	return nil, nil
