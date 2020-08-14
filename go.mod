@@ -4,8 +4,7 @@ go 1.13
 
 require (
 	github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200812042923-73d638d69870
-	github.com/dgraph-io/badger/v2 v2.0.3
-	github.com/dgraph-io/ristretto v0.0.2 // indirect
+	github.com/dgraph-io/badger/v2 v2.0.1-rc1.0.20200811071800-b22eccb04321
 	github.com/ethereum/go-ethereum v1.9.18
 	github.com/fatih/color v1.9.0
 	github.com/golang/protobuf v1.4.2 // indirect

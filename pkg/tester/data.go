@@ -478,7 +478,15 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 	}
 
 	if len(t.endCondition) != 0 {
-		Exit(t.config, t.counterStorage, t.balanceStorage, nil, 0, t.endCondition, t.endConditionDetail)
+		Exit(
+			t.config,
+			t.counterStorage,
+			t.balanceStorage,
+			nil,
+			0,
+			t.endCondition,
+			t.endConditionDetail,
+		)
 	}
 
 	fmt.Printf("\n")

@@ -505,6 +505,8 @@ func (b *BalanceStorage) getAllBalanceEntries(ctx context.Context) ([]*balanceEn
 func (b *BalanceStorage) GetAllAccountCurrency(
 	ctx context.Context,
 ) ([]*reconciler.AccountCurrency, error) {
+	log.Println("Loading previously seen accounts (this could take a while)...")
+
 	balances, err := b.getAllBalanceEntries(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to get all balance entries", err)
