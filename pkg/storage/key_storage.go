@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -37,6 +36,10 @@ func init() {
 
 const (
 	keyNamespace = "key"
+)
+
+var (
+	ErrKeyExists = errors.New("Key already exists")
 )
 
 func getAddressKey(address string) []byte {
@@ -97,7 +100,7 @@ func (k *KeyStorage) Store(ctx context.Context, address string, keyPair *keys.Ke
 	}
 
 	if exists {
-		return fmt.Errorf("address %s already exists", address)
+		return fmt.Errorf("%w: address %s already exists", ErrKeyExists, address)
 	}
 
 	val, err := serializeKey(&Key{
@@ -218,14 +221,11 @@ func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []*configurati
 
 		// Skip if key already exists
 		err = k.Store(ctx, acc.Address, keyPair)
+		if errors.Is(err, ErrKeyExists) {
+			continue
+		}
 		if err != nil {
-			alreadyExists := strings.Contains(err.Error(), "already exists")
-
-			if alreadyExists {
-				continue
-			} else {
-				return fmt.Errorf("%w: unable to store prefunded account", err)
-			}
+			return fmt.Errorf("%w: unable to store prefunded account", err)
 		}
 	}
 	return nil
