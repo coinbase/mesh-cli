@@ -24,11 +24,11 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
-	"github.com/coinbase/rosetta-cli/pkg/storage"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 )

@@ -20,12 +20,12 @@ import (
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/constructor"
-	"github.com/coinbase/rosetta-cli/pkg/storage"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 )
 
 var _ constructor.Helper = (*ConstructorHelper)(nil)

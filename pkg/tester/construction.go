@@ -25,13 +25,13 @@ import (
 	"github.com/coinbase/rosetta-cli/pkg/constructor"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
-	"github.com/coinbase/rosetta-cli/pkg/statefulsyncer"
-	"github.com/coinbase/rosetta-cli/pkg/storage"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
+	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 )
 
@@ -247,9 +247,9 @@ func (t *ConstructionTester) StartSyncer(
 	if errors.Is(err, storage.ErrHeadBlockNotFound) {
 		// If a block has yet to be synced, start syncing from tip.
 		// TODO: make configurable
-		status, err := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
-		if err != nil {
-			return fmt.Errorf("%w: unable to fetch network status", err)
+		status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
+		if fetchErr != nil {
+			return fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
 		}
 
 		startIndex = status.CurrentBlockIdentifier.Index

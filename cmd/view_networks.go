@@ -49,9 +49,9 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// Attempt to fetch network list
-	networkList, err := f.NetworkListRetry(ctx, nil)
-	if err != nil {
-		log.Fatalf("%s: unable to fetch network list", err.Error())
+	networkList, fetchErr := f.NetworkListRetry(ctx, nil)
+	if fetchErr != nil {
+		log.Fatalf("%s: unable to fetch network list", fetchErr.Err.Error())
 	}
 
 	if len(networkList.NetworkIdentifiers) == 0 {
@@ -60,24 +60,24 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 
 	for _, network := range networkList.NetworkIdentifiers {
 		color.Cyan(types.PrettyPrintStruct(network))
-		networkOptions, err := f.NetworkOptions(
+		networkOptions, fetchErr := f.NetworkOptions(
 			ctx,
 			network,
 			nil,
 		)
-		if err != nil {
-			log.Fatalf("%s: unable to get network options", err.Error())
+		if fetchErr != nil {
+			log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 		}
 
 		log.Printf("Network options: %s\n", types.PrettyPrintStruct(networkOptions))
 
-		networkStatus, err := f.NetworkStatusRetry(
+		networkStatus, fetchErr := f.NetworkStatusRetry(
 			ctx,
 			network,
 			nil,
 		)
-		if err != nil {
-			log.Fatalf("%s: unable to get network status", err.Error())
+		if fetchErr != nil {
+			log.Fatalf("%s: unable to get network status", fetchErr.Err.Error())
 		}
 
 		log.Printf("Network status: %s\n", types.PrettyPrintStruct(networkStatus))

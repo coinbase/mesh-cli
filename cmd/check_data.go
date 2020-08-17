@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/tester"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -80,13 +80,13 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
-	_, _, err := fetcher.InitializeAsserter(ctx)
-	if err != nil {
+	_, _, fetchErr := fetcher.InitializeAsserter(ctx)
+	if fetchErr != nil {
 		tester.Exit(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to initialize asserter", err),
+			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
 			1,
 			"",
 			"",

@@ -23,8 +23,8 @@ import (
 	"syscall"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

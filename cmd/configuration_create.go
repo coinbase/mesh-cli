@@ -18,8 +18,8 @@ import (
 	"log"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 )
 
