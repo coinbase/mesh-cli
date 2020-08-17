@@ -19,9 +19,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/pkg/utils"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -53,9 +52,9 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// Initialize the fetcher's asserter
-	_, _, err := newFetcher.InitializeAsserter(ctx)
-	if err != nil {
-		log.Fatalf("%s: failed to initialize asserter", err.Error())
+	_, _, fetchErr := newFetcher.InitializeAsserter(ctx)
+	if fetchErr != nil {
+		log.Fatalf("%s: failed to initialize asserter", fetchErr.Err.Error())
 	}
 
 	configuration, err := newFetcher.Asserter.ClientConfiguration()

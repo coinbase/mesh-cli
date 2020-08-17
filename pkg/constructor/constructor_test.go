@@ -24,10 +24,10 @@ import (
 	"github.com/coinbase/rosetta-cli/configuration"
 	mocks "github.com/coinbase/rosetta-cli/mocks/constructor"
 	"github.com/coinbase/rosetta-cli/pkg/scenario"
-	"github.com/coinbase/rosetta-cli/pkg/storage"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/parser"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

@@ -19,9 +19,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/coinbase/rosetta-cli/pkg/utils"
-
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -108,8 +108,8 @@ var (
 
 	invalidPrefundedAccounts = &Configuration{
 		Construction: &ConstructionConfiguration{
-			PrefundedAccounts: []*PrefundedAccount{
-				&PrefundedAccount{
+			PrefundedAccounts: []*storage.PrefundedAccount{
+				{
 					PrivateKeyHex: "hello",
 				},
 			},

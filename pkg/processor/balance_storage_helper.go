@@ -18,14 +18,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coinbase/rosetta-cli/pkg/storage"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
-
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 )
 
 var _ storage.BalanceStorageHelper = (*BalanceStorageHelper)(nil)

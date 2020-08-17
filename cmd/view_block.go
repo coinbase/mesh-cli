@@ -21,11 +21,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/pkg/utils"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -66,9 +65,9 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// Behind the scenes this makes a call to get the
 	// network status and uses the response to inform
 	// the asserter what are valid responses.
-	_, _, err = newFetcher.InitializeAsserter(ctx)
-	if err != nil {
-		log.Fatal(err)
+	_, _, fetchErr := newFetcher.InitializeAsserter(ctx)
+	if fetchErr != nil {
+		log.Fatal(fetchErr.Err)
 	}
 
 	_, err = utils.CheckNetworkSupported(ctx, Config.Network, newFetcher)
@@ -85,15 +84,15 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// the client directly, you will need to implement a mechanism
 	// to fully populate the block by fetching all these
 	// transactions.
-	block, err := newFetcher.BlockRetry(
+	block, fetchErr := newFetcher.BlockRetry(
 		ctx,
 		Config.Network,
 		&types.PartialBlockIdentifier{
 			Index: &index,
 		},
 	)
-	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to fetch block", err))
+	if fetchErr != nil {
+		log.Fatal(fmt.Errorf("%w: unable to fetch block", fetchErr.Err))
 	}
 
 	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))

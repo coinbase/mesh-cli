@@ -22,10 +22,11 @@ import (
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/scenario"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
+	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 )
 
@@ -224,13 +225,7 @@ type ConstructionConfiguration struct {
 
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
-	PrefundedAccounts []*PrefundedAccount `json:"prefunded_accounts"`
-}
-
-type PrefundedAccount struct {
-	PrivateKeyHex string          `json:"privkey"`
-	Address       string          `json:"address"`
-	CurveType     types.CurveType `json:"curve_type"`
+	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration

@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/tester"
-	"github.com/coinbase/rosetta-cli/pkg/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -64,12 +64,12 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
-	_, _, err := fetcher.InitializeAsserter(ctx)
-	if err != nil {
-		log.Fatalf("%s: unable to initialize asserter", err.Error())
+	_, _, fetchErr := fetcher.InitializeAsserter(ctx)
+	if fetchErr != nil {
+		log.Fatalf("%s: unable to initialize asserter", fetchErr.Err.Error())
 	}
 
-	_, err = utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
+	_, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
 		log.Fatalf("%s: unable to confirm network is supported", err.Error())
 	}
