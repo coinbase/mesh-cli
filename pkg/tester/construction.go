@@ -137,6 +137,7 @@ func InitializeConstruction(
 	)
 
 	// Import prefunded account and save to database
+	// TODO: load balances of these imported addresses
 	err = keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
 	if err != nil {
 		return nil, err

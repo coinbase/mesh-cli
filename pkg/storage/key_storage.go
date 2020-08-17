@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -207,7 +208,7 @@ func (k *KeyStorage) RandomAddress(ctx context.Context) (string, error) {
 	return addresses[rand.Intn(len(addresses))], nil
 }
 
-func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []configuration.PrefundedAccount) error {
+func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []*configuration.PrefundedAccount) error {
 	// Import prefunded account and save to database
 	for _, acc := range accounts {
 		keyPair, err := keys.ImportPrivKey(acc.PrivateKeyHex, acc.CurveType)
@@ -215,9 +216,17 @@ func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []configuratio
 			return fmt.Errorf("%w: unable to import prefunded account", err)
 		}
 
+		// Will error if key already exists
 		err = k.Store(ctx, acc.Address, keyPair)
+
 		if err != nil {
-			return fmt.Errorf("%w: unable to store prefunded account", err)
+			alreadyExists := strings.Contains(err.Error(), "already exists")
+
+			if alreadyExists {
+				continue
+			} else {
+				return fmt.Errorf("%w: unable to store prefunded account", err)
+			}
 		}
 	}
 	return nil

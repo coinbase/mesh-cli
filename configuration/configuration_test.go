@@ -107,8 +107,8 @@ var (
 
 	invalidPrefundedAccounts = &Configuration{
 		Construction: &ConstructionConfiguration{
-			PrefundedAccounts: []PrefundedAccount{
-				PrefundedAccount{
+			PrefundedAccounts: []*PrefundedAccount{
+				&PrefundedAccount{
 					PrivateKeyHex: "hello",
 				},
 			},

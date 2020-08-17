@@ -217,7 +217,7 @@ type ConstructionConfiguration struct {
 
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
-	PrefundedAccounts []PrefundedAccount `json:"prefunded_accounts"`
+	PrefundedAccounts []*PrefundedAccount `json:"prefunded_accounts"`
 }
 
 type PrefundedAccount struct {
@@ -574,9 +574,21 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	}
 
 	for _, account := range config.PrefundedAccounts {
+		// Checks that privkey is hex encoded
 		_, err := hex.DecodeString(account.PrivateKeyHex)
 		if err != nil {
 			return fmt.Errorf("%s is not hex encoded", account.PrivateKeyHex)
+		}
+
+		// Checks if valid curvetype
+		err = asserter.CurveType(account.CurveType)
+		if err != nil {
+			return fmt.Errorf("invalid CurveType %s", err)
+		}
+
+		// Checks if address is not empty string
+		if account.Address == "" {
+			return fmt.Errorf("Account.Address is missing")
 		}
 	}
 
