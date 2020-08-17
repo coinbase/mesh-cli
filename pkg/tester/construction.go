@@ -136,6 +136,13 @@ func InitializeConstruction(
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
 	)
 
+	// Import prefunded account and save to database
+	// TODO: load balances of these imported addresses
+	err = keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load all accounts for network
 	addresses, err := keyStorage.GetAllAddresses(ctx)
 	if err != nil {

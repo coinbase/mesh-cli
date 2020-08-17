@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -35,6 +36,10 @@ func init() {
 
 const (
 	keyNamespace = "key"
+)
+
+var (
+	ErrAddrExists = errors.New("Address already exists")
 )
 
 func getAddressKey(address string) []byte {
@@ -58,13 +63,13 @@ func NewKeyStorage(
 	}
 }
 
-type key struct {
+type Key struct {
 	Address string        `json:"address"`
 	KeyPair *keys.KeyPair `json:"keypair"`
 }
 
-func parseKey(buf []byte) (*key, error) {
-	var k key
+func parseKey(buf []byte) (*Key, error) {
+	var k Key
 	err := getDecoder(bytes.NewReader(buf)).Decode(&k)
 	if err != nil {
 		return nil, err
@@ -73,7 +78,7 @@ func parseKey(buf []byte) (*key, error) {
 	return &k, nil
 }
 
-func serializeKey(k *key) ([]byte, error) {
+func serializeKey(k *Key) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := getEncoder(buf).Encode(k)
 	if err != nil {
@@ -95,10 +100,10 @@ func (k *KeyStorage) Store(ctx context.Context, address string, keyPair *keys.Ke
 	}
 
 	if exists {
-		return fmt.Errorf("address %s already exists", address)
+		return fmt.Errorf("%w: address %s already exists", ErrAddrExists, address)
 	}
 
-	val, err := serializeKey(&key{
+	val, err := serializeKey(&Key{
 		Address: address,
 		KeyPair: keyPair,
 	})
@@ -204,4 +209,24 @@ func (k *KeyStorage) RandomAddress(ctx context.Context) (string, error) {
 	}
 
 	return addresses[rand.Intn(len(addresses))], nil
+}
+
+func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []*configuration.PrefundedAccount) error {
+	// Import prefunded account and save to database
+	for _, acc := range accounts {
+		keyPair, err := keys.ImportPrivKey(acc.PrivateKeyHex, acc.CurveType)
+		if err != nil {
+			return fmt.Errorf("%w: unable to import prefunded account", err)
+		}
+
+		// Skip if key already exists
+		err = k.Store(ctx, acc.Address, keyPair)
+		if errors.Is(err, ErrAddrExists) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("%w: unable to store prefunded account", err)
+		}
+	}
+	return nil
 }

@@ -15,6 +15,7 @@
 package configuration
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -220,6 +221,16 @@ type ConstructionConfiguration struct {
 	// MaxAddresses is the maximum number of addresses
 	// to generate while testing.
 	MaxAddresses int `json:"max_addresses"`
+
+	// PrefundedAccounts is an array of prefunded accounts
+	// to use while testing.
+	PrefundedAccounts []*PrefundedAccount `json:"prefunded_accounts"`
+}
+
+type PrefundedAccount struct {
+	PrivateKeyHex string          `json:"privkey"`
+	Address       string          `json:"address"`
+	CurveType     types.CurveType `json:"curve_type"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
@@ -579,6 +590,25 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 
 	if err := checkStringUint(config.MaximumFee); err != nil {
 		return fmt.Errorf("%w: invalid value for MaximumFee", err)
+	}
+
+	for _, account := range config.PrefundedAccounts {
+		// Checks that privkey is hex encoded
+		_, err := hex.DecodeString(account.PrivateKeyHex)
+		if err != nil {
+			return fmt.Errorf("%s is not hex encoded", account.PrivateKeyHex)
+		}
+
+		// Checks if valid curvetype
+		err = asserter.CurveType(account.CurveType)
+		if err != nil {
+			return fmt.Errorf("invalid CurveType %s", err)
+		}
+
+		// Checks if address is not empty string
+		if account.Address == "" {
+			return fmt.Errorf("Account.Address is missing")
+		}
 	}
 
 	return nil

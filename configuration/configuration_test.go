@@ -105,6 +105,16 @@ var (
 			MaximumFee: "hello",
 		},
 	}
+
+	invalidPrefundedAccounts = &Configuration{
+		Construction: &ConstructionConfiguration{
+			PrefundedAccounts: []*PrefundedAccount{
+				&PrefundedAccount{
+					PrivateKeyHex: "hello",
+				},
+			},
+		},
+	}
 	invalidStartIndex = &Configuration{
 		Data: &DataConfiguration{
 			StartIndex: &badStartIndex,
@@ -178,6 +188,10 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"invalid maximum fee": {
 			provided: invalidMaximumFee,
+			err:      true,
+		},
+		"invalid prefunded accounts": {
+			provided: invalidPrefundedAccounts,
 			err:      true,
 		},
 		"invalid start index": {

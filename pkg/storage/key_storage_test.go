@@ -20,6 +20,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/pkg/utils"
 
+	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -141,5 +142,59 @@ func TestKeyStorage(t *testing.T) {
 		sigs, err := k.Sign(ctx, payloads)
 		assert.Error(t, err)
 		assert.Nil(t, sigs)
+	})
+
+	t.Run("imports accounts", func(t *testing.T) {
+		addresses, err := k.GetAllAddresses(ctx)
+		assert.NoError(t, err)
+		startingLen := len(addresses)
+
+		prefundedAccs := []*configuration.PrefundedAccount{
+			&configuration.PrefundedAccount{
+				PrivateKeyHex: "0e842a16b2d39a4dff5c63688513cb2109e30c3c30bc4eb502cc54f4614493f6",
+				Address:       "add1",
+				CurveType:     types.Edwards25519,
+			},
+			&configuration.PrefundedAccount{
+				PrivateKeyHex: "42efc44bdf7b2d4d45ddd6ddb727ed498c91e7070914c9ed0d80af680ff42b3e",
+				Address:       "add2",
+				CurveType:     types.Edwards25519,
+			},
+			&configuration.PrefundedAccount{
+				PrivateKeyHex: "01ea48249742650907004331e85536f868e2d3959434ba751d8aa230138a9707",
+				Address:       "add3",
+				CurveType:     types.Edwards25519,
+			},
+		}
+
+		err = k.ImportAccounts(ctx, prefundedAccs)
+		assert.NoError(t, err)
+		addresses, _ = k.GetAllAddresses(ctx)
+		endLen := len(addresses)
+		assert.Equal(t, endLen, startingLen+len(prefundedAccs))
+	})
+
+	t.Run("does not import same key twice", func(t *testing.T) {
+		prefundedAccs := []*configuration.PrefundedAccount{
+			&configuration.PrefundedAccount{
+				PrivateKeyHex: "17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55",
+				Address:       "badadd",
+				CurveType:     types.Edwards25519,
+			},
+		}
+
+		// No error when importing key for the first time
+		err = k.ImportAccounts(ctx, prefundedAccs)
+		assert.NoError(t, err)
+		addresses, _ := k.GetAllAddresses(ctx)
+		startingLen := len(addresses)
+
+		// No error when trying to import the key again
+		err = k.ImportAccounts(ctx, prefundedAccs)
+		assert.NoError(t, err)
+		addresses, _ = k.GetAllAddresses(ctx)
+		endLen := len(addresses)
+
+		assert.Equal(t, endLen, startingLen)
 	})
 }
