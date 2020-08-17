@@ -38,6 +38,7 @@ var (
 		},
 		OnlineURL:              "http://hasudhasjkdk",
 		HTTPTimeout:            21,
+		RetryElapsedTime:       1000,
 		SyncConcurrency:        12,
 		TransactionConcurrency: 2,
 		TipDelay:               1231,
@@ -240,7 +241,13 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"multiple end conditions": {
 			provided: multipleEndConditions,
-			err:      true,
+			expected: func() *Configuration {
+				def := DefaultConfiguration()
+				def.Data.EndConditions = multipleEndConditions.Data.EndConditions
+
+				return def
+			}(),
+			err: false,
 		},
 	}
 

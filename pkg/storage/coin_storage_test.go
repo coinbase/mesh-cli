@@ -48,30 +48,30 @@ var (
 
 	accountCoins = []*Coin{
 		{
-			Identifier:  &types.CoinIdentifier{Identifier: "coin1"},
-			Transaction: coinBlock.Transactions[0],
-			Operation:   coinBlock.Transactions[0].Operations[0],
+			Identifier:            &types.CoinIdentifier{Identifier: "coin1"},
+			TransactionIdentifier: coinBlock.Transactions[0].TransactionIdentifier,
+			Operation:             coinBlock.Transactions[0].Operations[0],
 		},
 	}
 
 	account2Coins = []*Coin{
 		{
-			Identifier:  &types.CoinIdentifier{Identifier: "coin2"},
-			Transaction: coinBlock.Transactions[0],
-			Operation:   coinBlock.Transactions[0].Operations[1],
+			Identifier:            &types.CoinIdentifier{Identifier: "coin2"},
+			TransactionIdentifier: coinBlock.Transactions[0].TransactionIdentifier,
+			Operation:             coinBlock.Transactions[0].Operations[1],
 		},
 	}
 
 	account3Coins = []*Coin{
 		{
-			Identifier:  &types.CoinIdentifier{Identifier: "coin3"},
-			Transaction: coinBlock3.Transactions[0],
-			Operation:   coinBlock3.Transactions[0].Operations[0],
+			Identifier:            &types.CoinIdentifier{Identifier: "coin3"},
+			TransactionIdentifier: coinBlock3.Transactions[0].TransactionIdentifier,
+			Operation:             coinBlock3.Transactions[0].Operations[0],
 		},
 		{
-			Identifier:  &types.CoinIdentifier{Identifier: "coin4"},
-			Transaction: coinBlock3.Transactions[1],
-			Operation:   coinBlock3.Transactions[1].Operations[0],
+			Identifier:            &types.CoinIdentifier{Identifier: "coin4"},
+			TransactionIdentifier: coinBlock3.Transactions[1].TransactionIdentifier,
+			Operation:             coinBlock3.Transactions[1].Operations[0],
 		},
 	}
 

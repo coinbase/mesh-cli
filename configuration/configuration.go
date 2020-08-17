@@ -41,6 +41,28 @@ const (
 	UtxoModel AccountingModel = "utxo"
 )
 
+// CheckDataEndCondition is a type of "successful" end
+// for the "check:data" method.
+type CheckDataEndCondition string
+
+const (
+	// IndexEndCondition is used to indicate that the index end condition
+	// has been met.
+	IndexEndCondition CheckDataEndCondition = "Index End Condition"
+
+	// DurationEndCondition is used to indicate that the duration
+	// end condition has been met.
+	DurationEndCondition CheckDataEndCondition = "Duration End Condition"
+
+	// TipEndCondition is used to indicate that the tip end condition
+	// has been met.
+	TipEndCondition CheckDataEndCondition = "Tip End Condition"
+
+	// ReconciliationCoverageEndCondition is used to indicate that the reconciliation
+	// coverage end condition has been met.
+	ReconciliationCoverageEndCondition CheckDataEndCondition = "Reconciliation Coverage End Condition"
+)
+
 // Default Configuration Values
 const (
 	DefaultURL                               = "http://localhost:8080"
@@ -50,6 +72,7 @@ const (
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
 	DefaultTimeout                           = 10
+	DefaultRetryElapsedTime                  = 60
 	DefaultConfirmationDepth                 = 10
 	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
@@ -68,22 +91,6 @@ const (
 	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
 	EthereumCurveType       = types.Secp256k1
 	EthereumAccountingModel = AccountModel
-
-	// IndexEndCondition is used to indicate that the index end condition
-	// has been met.
-	IndexEndCondition = "Index End Condition"
-
-	// DurationEndCondition is used to indicate that the duration
-	// end condition has been met.
-	DurationEndCondition = "Duration End Condition"
-
-	// TipEndCondition is used to indicate that the tip end condition
-	// has been met.
-	TipEndCondition = "Tip End Condition"
-
-	// ReconciliationCoverageEndCondition is used to indicate that the reconciliation
-	// coverage end condition has been met.
-	ReconciliationCoverageEndCondition = "Reconciliation Coverage End Condition"
 )
 
 // Default Configuration Values
@@ -264,6 +271,7 @@ func DefaultConfiguration() *Configuration {
 		Network:                EthereumNetwork,
 		OnlineURL:              DefaultURL,
 		HTTPTimeout:            DefaultTimeout,
+		RetryElapsedTime:       DefaultRetryElapsedTime,
 		SyncConcurrency:        DefaultSyncConcurrency,
 		TransactionConcurrency: DefaultTransactionConcurrency,
 		TipDelay:               DefaultTipDelay,
@@ -377,6 +385,10 @@ type DataConfiguration struct {
 
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
+
+	// ResultsOutputFile is the absolute filepath of where to save
+	// the results of a check:data run.
+	ResultsOutputFile string `json:"results_output_file"`
 }
 
 // Configuration contains all configuration settings for running
@@ -393,8 +405,11 @@ type Configuration struct {
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
 	DataDirectory string `json:"data_directory"`
 
-	// HTTPTimeout is the timeout for HTTP requests in seconds.
+	// HTTPTimeout is the timeout for a HTTP request in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
+
+	// RetryElapsedTime is the total time to spend retrying a HTTP request in seconds.
+	RetryElapsedTime uint64 `json:"retry_elapsed_time"`
 
 	// SyncConcurrency is the concurrency to use while syncing blocks.
 	SyncConcurrency uint64 `json:"sync_concurrency"`
@@ -518,6 +533,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.HTTPTimeout = DefaultTimeout
 	}
 
+	if config.RetryElapsedTime == 0 {
+		config.RetryElapsedTime = DefaultRetryElapsedTime
+	}
+
 	if config.SyncConcurrency == 0 {
 		config.SyncConcurrency = DefaultSyncConcurrency
 	}
@@ -604,24 +623,13 @@ func assertDataConfiguration(config *DataConfiguration) error {
 		return nil
 	}
 
-	foundConditions := 0
 	if config.EndConditions.Index != nil {
-		foundConditions++
 		if *config.EndConditions.Index < 0 {
 			return fmt.Errorf("end index %d cannot be negative", *config.EndConditions.Index)
 		}
 	}
 
-	if config.EndConditions.Tip != nil {
-		foundConditions++
-	}
-
-	if config.EndConditions.Duration != nil {
-		foundConditions++
-	}
-
 	if config.EndConditions.ReconciliationCoverage != nil {
-		foundConditions++
 		coverage := *config.EndConditions.ReconciliationCoverage
 		if coverage < 0 || coverage > 1 {
 			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
@@ -644,10 +652,6 @@ func assertDataConfiguration(config *DataConfiguration) error {
 				"reconciliation cannot be disabled for reconciliation coverage end condition",
 			)
 		}
-	}
-
-	if foundConditions != 1 {
-		return fmt.Errorf("found %d populated end conditions", foundConditions)
 	}
 
 	return nil

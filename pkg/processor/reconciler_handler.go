@@ -27,6 +27,11 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+var (
+	// ErrReconciliationFailure is returned if reconciliation fails.
+	ErrReconciliationFailure = errors.New("reconciliation failure")
+)
+
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
@@ -86,11 +91,30 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 				Currency: currency,
 			}
 			h.InactiveFailureBlock = block
-		} else {
-			// If we halt on an active reconciliation error, store in the handler.
-			h.ActiveFailureBlock = block
+			return fmt.Errorf(
+				"%w: inactive reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
+				ErrReconciliationFailure,
+				account.Address,
+				block.Index,
+				computedBalance,
+				currency.Symbol,
+				nodeBalance,
+				currency.Symbol,
+			)
 		}
-		return errors.New("reconciliation error")
+
+		// If we halt on an active reconciliation error, store in the handler.
+		h.ActiveFailureBlock = block
+		return fmt.Errorf(
+			"%w: active reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
+			ErrReconciliationFailure,
+			account.Address,
+			block.Index,
+			computedBalance,
+			currency.Symbol,
+			nodeBalance,
+			currency.Symbol,
+		)
 	}
 
 	return nil
