@@ -46,32 +46,28 @@ var (
 		},
 	}
 
-	accountCoins = []*Coin{
+	accountCoins = []*types.Coin{
 		{
-			Identifier:            &types.CoinIdentifier{Identifier: "coin1"},
-			TransactionIdentifier: coinBlock.Transactions[0].TransactionIdentifier,
-			Operation:             coinBlock.Transactions[0].Operations[0],
+			CoinIdentifier: &types.CoinIdentifier{Identifier: "coin1"},
+			Amount:         coinBlock.Transactions[0].Operations[0].Amount,
 		},
 	}
 
-	account2Coins = []*Coin{
+	account2Coins = []*types.Coin{
 		{
-			Identifier:            &types.CoinIdentifier{Identifier: "coin2"},
-			TransactionIdentifier: coinBlock.Transactions[0].TransactionIdentifier,
-			Operation:             coinBlock.Transactions[0].Operations[1],
+			CoinIdentifier: &types.CoinIdentifier{Identifier: "coin2"},
+			Amount:         coinBlock.Transactions[0].Operations[1].Amount,
 		},
 	}
 
-	account3Coins = []*Coin{
+	account3Coins = []*types.Coin{
 		{
-			Identifier:            &types.CoinIdentifier{Identifier: "coin3"},
-			TransactionIdentifier: coinBlock3.Transactions[0].TransactionIdentifier,
-			Operation:             coinBlock3.Transactions[0].Operations[0],
+			CoinIdentifier: &types.CoinIdentifier{Identifier: "coin3"},
+			Amount:         coinBlock3.Transactions[0].Operations[0].Amount,
 		},
 		{
-			Identifier:            &types.CoinIdentifier{Identifier: "coin4"},
-			TransactionIdentifier: coinBlock3.Transactions[1].TransactionIdentifier,
-			Operation:             coinBlock3.Transactions[1].Operations[0],
+			CoinIdentifier: &types.CoinIdentifier{Identifier: "coin4"},
+			Amount:         coinBlock3.Transactions[1].Operations[0].Amount,
 		},
 	}
 
@@ -265,7 +261,7 @@ func TestCoinStorage(t *testing.T) {
 	t.Run("get coins of unset account", func(t *testing.T) {
 		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
-		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, []*types.Coin{}, coins)
 		assert.Equal(t, blockIdentifier, block)
 
 		bal, coinIdentifier, block, err := c.GetLargestCoin(ctx, account, currency)
@@ -310,7 +306,7 @@ func TestCoinStorage(t *testing.T) {
 
 		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
-		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, []*types.Coin{}, coins)
 		assert.Equal(t, blockIdentifier, block)
 
 		coins, block, err = c.GetCoins(ctx, account2)
@@ -339,12 +335,12 @@ func TestCoinStorage(t *testing.T) {
 
 		coins, block, err = c.GetCoins(ctx, account)
 		assert.NoError(t, err)
-		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, []*types.Coin{}, coins)
 		assert.Equal(t, blockIdentifier, block)
 
 		coins, block, err = c.GetCoins(ctx, account2)
 		assert.NoError(t, err)
-		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, []*types.Coin{}, coins)
 		assert.Equal(t, blockIdentifier, block)
 	})
 
@@ -357,7 +353,7 @@ func TestCoinStorage(t *testing.T) {
 
 		coins, block, err := c.GetCoins(ctx, account)
 		assert.NoError(t, err)
-		assert.Equal(t, []*Coin{}, coins)
+		assert.Equal(t, []*types.Coin{}, coins)
 		assert.Equal(t, blockIdentifier, block)
 
 		coins, block, err = c.GetCoins(ctx, account3)
