@@ -216,9 +216,8 @@ func (k *KeyStorage) ImportAccounts(ctx context.Context, accounts []*configurati
 			return fmt.Errorf("%w: unable to import prefunded account", err)
 		}
 
-		// Will error if key already exists
+		// Skip if key already exists
 		err = k.Store(ctx, acc.Address, keyPair)
-
 		if err != nil {
 			alreadyExists := strings.Contains(err.Error(), "already exists")
 
