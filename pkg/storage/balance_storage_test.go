@@ -750,6 +750,78 @@ func TestBalanceReconciliation(t *testing.T) {
 	})
 }
 
+func TestSetBalanceImported(t *testing.T) {
+	var (
+		account = &types.AccountIdentifier{
+			Address: "hello",
+		}
+		account2 = &types.AccountIdentifier{
+			Address: "hello2",
+		}
+		account3 = &types.AccountIdentifier{
+			Address: "hello3",
+		}
+
+		accounts = []*types.AccountIdentifier{account, account2, account3}
+
+		currency = &types.Currency{
+			Symbol:   "BLAH",
+			Decimals: 2,
+		}
+
+		newBlock = &types.BlockIdentifier{
+			Hash:  "kdasdj",
+			Index: 123890,
+		}
+
+		mockBalances = map[string]string{
+			"hello":  "100",
+			"hello2": "200",
+			"hello3": "300",
+		}
+
+		mockHelper = &MockBalanceStorageHelper{
+			AccountBalances: mockBalances,
+		}
+	)
+
+	ctx := context.Background()
+
+	newDir, err := utils.CreateTempDir()
+	assert.NoError(t, err)
+	defer utils.RemoveTempDir(newDir)
+
+	database, err := NewBadgerStorage(ctx, newDir, false)
+	assert.NoError(t, err)
+	defer database.Close(ctx)
+
+	storage := NewBalanceStorage(database)
+	storage.Initialize(mockHelper, nil)
+
+	t.Run("set balance imported", func(t *testing.T) {
+		err := storage.SetBalanceImported(
+			ctx,
+			currency,
+			mockHelper,
+			newBlock,
+			[]string{"hello", "hello2", "hello3"},
+		)
+
+		assert.NoError(t, err)
+		for i, account := range accounts {
+			amount, _, err := storage.GetBalance(
+				ctx,
+				account,
+				currency,
+				newBlock,
+			)
+
+			assert.NoError(t, err)
+			assert.Equal(t, mockBalances[accounts[i].Address], amount.Value)
+		}
+	})
+}
+
 var _ BalanceStorageHelper = (*MockBalanceStorageHelper)(nil)
 
 type MockBalanceStorageHelper struct {

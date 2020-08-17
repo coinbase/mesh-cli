@@ -152,6 +152,18 @@ func InitializeConstruction(
 	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
 
 	// Track balances on all addresses
+	tipBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get blockchain tip", err)
+	}
+	balanceStorage.SetBalanceImported(
+		ctx,
+		config.Construction.Currency,
+		balanceStorageHelper,
+		tipBlock,
+		addresses,
+	)
+
 	for _, address := range addresses {
 		balanceStorageHelper.AddInterestingAddress(address)
 	}
