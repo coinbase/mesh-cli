@@ -65,14 +65,6 @@ func NewCoinStorage(
 	}
 }
 
-// Coin represents some spendable output (typically
-// referred to as a UTXO).
-type Coin struct {
-	Identifier            *types.CoinIdentifier        `json:"identifier"`
-	TransactionIdentifier *types.TransactionIdentifier `json:"transaction_identifier"`
-	Operation             *types.Operation             `json:"operation"`
-}
-
 func getCoinKey(identifier *types.CoinIdentifier) []byte {
 	return []byte(fmt.Sprintf("%s/%s", coinNamespace, identifier.Identifier))
 }
@@ -85,7 +77,7 @@ func getAndDecodeCoin(
 	ctx context.Context,
 	transaction DatabaseTransaction,
 	coinIdentifier *types.CoinIdentifier,
-) (bool, *Coin, error) {
+) (bool, *types.Coin, error) {
 	exists, val, err := transaction.Get(ctx, getCoinKey(coinIdentifier))
 	if err != nil {
 		return false, nil, fmt.Errorf("%w: unable to query for coin", err)
@@ -95,7 +87,7 @@ func getAndDecodeCoin(
 		return false, nil, nil
 	}
 
-	var coin Coin
+	var coin types.Coin
 	if err := decode(val, &coin); err != nil {
 		return false, nil, fmt.Errorf("%w: unable to decode coin", err)
 	}
@@ -108,7 +100,6 @@ type wallets map[string]map[string]struct{}
 func (c *CoinStorage) tryAddingCoin(
 	ctx context.Context,
 	transaction DatabaseTransaction,
-	blockTransaction *types.Transaction,
 	operation *types.Operation,
 	action types.CoinAction,
 	cache wallets,
@@ -123,10 +114,9 @@ func (c *CoinStorage) tryAddingCoin(
 
 	coinIdentifier := operation.CoinChange.CoinIdentifier
 
-	newCoin := &Coin{
-		Identifier:            coinIdentifier,
-		TransactionIdentifier: blockTransaction.TransactionIdentifier,
-		Operation:             operation,
+	newCoin := &types.Coin{
+		CoinIdentifier: coinIdentifier,
+		Amount:         operation.Amount,
 	}
 
 	encodedResult, err := encode(newCoin)
@@ -305,7 +295,7 @@ func (c *CoinStorage) AddingBlock(
 				continue
 			}
 
-			if err := c.tryAddingCoin(ctx, transaction, txn, operation, types.CoinCreated, cache); err != nil {
+			if err := c.tryAddingCoin(ctx, transaction, operation, types.CoinCreated, cache); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
@@ -350,7 +340,7 @@ func (c *CoinStorage) RemovingBlock(
 
 			// We add spent coins and remove created coins during a re-org (opposite of
 			// AddingBlock).
-			if err := c.tryAddingCoin(ctx, transaction, txn, operation, types.CoinSpent, cache); err != nil {
+			if err := c.tryAddingCoin(ctx, transaction, operation, types.CoinSpent, cache); err != nil {
 				return nil, fmt.Errorf("%w: unable to add coin", err)
 			}
 
@@ -371,7 +361,7 @@ func (c *CoinStorage) RemovingBlock(
 func (c *CoinStorage) GetCoins(
 	ctx context.Context,
 	accountIdentifier *types.AccountIdentifier,
-) ([]*Coin, *types.BlockIdentifier, error) {
+) ([]*types.Coin, *types.BlockIdentifier, error) {
 	transaction := c.db.NewDatabaseTransaction(ctx, false)
 	defer transaction.Discard(ctx)
 
@@ -386,10 +376,10 @@ func (c *CoinStorage) GetCoins(
 	}
 
 	if !accountExists {
-		return []*Coin{}, headBlockIdentifier, nil
+		return []*types.Coin{}, headBlockIdentifier, nil
 	}
 
-	coinArr := []*Coin{}
+	coinArr := []*types.Coin{}
 	for coinIdentifier := range coins {
 		exists, coin, err := getAndDecodeCoin(
 			ctx,
@@ -431,24 +421,24 @@ func (c *CoinStorage) GetLargestCoin(
 	var coinIdentifier *types.CoinIdentifier
 	for _, coin := range coins {
 		if types.Hash(
-			coin.Operation.Amount.Currency,
+			coin.Amount.Currency,
 		) != types.Hash(
 			currency,
 		) {
 			continue
 		}
 
-		val, ok := new(big.Int).SetString(coin.Operation.Amount.Value, 10)
+		val, ok := new(big.Int).SetString(coin.Amount.Value, 10)
 		if !ok {
 			return nil, nil, nil, fmt.Errorf(
 				"could not parse amount for coin %s",
-				coin.Identifier.Identifier,
+				coin.CoinIdentifier.Identifier,
 			)
 		}
 
 		if bal.Cmp(val) == -1 {
 			bal = val
-			coinIdentifier = coin.Identifier
+			coinIdentifier = coin.CoinIdentifier
 		}
 	}
 
