@@ -36,6 +36,7 @@ type ConstructorHelper struct {
 	offlineFetcher *fetcher.Fetcher
 	onlineFetcher  *fetcher.Fetcher
 
+	blockStorage     *storage.BlockStorage
 	keyStorage       *storage.KeyStorage
 	balanceStorage   *storage.BalanceStorage
 	coinStorage      *storage.CoinStorage
@@ -46,6 +47,7 @@ type ConstructorHelper struct {
 func NewConstructorHelper(
 	offlineFetcher *fetcher.Fetcher,
 	onlineFetcher *fetcher.Fetcher,
+	blockStorage *storage.BlockStorage,
 	keyStorage *storage.KeyStorage,
 	balanceStorage *storage.BalanceStorage,
 	coinStorage *storage.CoinStorage,
@@ -54,6 +56,7 @@ func NewConstructorHelper(
 	return &ConstructorHelper{
 		offlineFetcher:   offlineFetcher,
 		onlineFetcher:    onlineFetcher,
+		blockStorage:     blockStorage,
 		keyStorage:       keyStorage,
 		balanceStorage:   balanceStorage,
 		coinStorage:      coinStorage,
@@ -266,4 +269,12 @@ func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) 
 // RandomAmount returns some integer between min and max.
 func (c *ConstructorHelper) RandomAmount(min *big.Int, max *big.Int) *big.Int {
 	return utils.RandomNumber(min, max)
+}
+
+// HeadBlockExists returns a boolean indicating if a block has been
+// synced by BlockStorage.
+func (c *ConstructorHelper) HeadBlockExists(ctx context.Context) bool {
+	headBlock, _ := c.blockStorage.GetHeadBlockIdentifier(ctx)
+
+	return headBlock != nil
 }

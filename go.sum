@@ -57,8 +57,12 @@ github.com/cespare/xxhash/v2 v2.1.1 h1:6MnRN8NT7+YBpUIWxHtefFZOKTAPgGjpQSxqLNn0+
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9/go.mod h1:1MxXX1Ux4x6mqPmjkUgTP1CdXIBXKX7T+Jk9Gxrmx+U=
+github.com/coinbase/rosetta-sdk-go v0.3.4 h1:jWKgajozco/T0FNnZb2TqBsmsUoF6ZuCLnUJkEE+vNg=
+github.com/coinbase/rosetta-sdk-go v0.3.4/go.mod h1:Q6dAY0kdG2X3jNaIYnkxnZOb8XEZQar9Q1RcnBgm/wQ=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200819052137-5d2bf966818b h1:JSV23Q51pp5SEKEQ0ZspXevVz5xNdsCIpW786pVUf7g=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200819052137-5d2bf966818b/go.mod h1:7y6tIrUHdxBAS0kshqdHZXyi0CQ+O9s+Itmodzxs7IQ=
+github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200819181259-3eff56cab108 h1:mW8fci/qMy7Jl5QjvMf1dkm+UKqoJnciCbyiLXcJeQo=
+github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200819181259-3eff56cab108/go.mod h1:7y6tIrUHdxBAS0kshqdHZXyi0CQ+O9s+Itmodzxs7IQ=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
@@ -138,6 +142,11 @@ github.com/golang/protobuf v1.4.2/go.mod h1:oDoupMAO8OvCJWAcko0GGGIgR6R6ocIYbsSw
 github.com/golang/snappy v0.0.1/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
 github.com/golang/snappy v0.0.2-0.20200707131729-196ae77b8a26 h1:lMm2hD9Fy0ynom5+85/pbdkiYcBqM1JWmhpAXLmy0fw=
 github.com/golang/snappy v0.0.2-0.20200707131729-196ae77b8a26/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
+github.com/google/addlicense v0.0.0-20200622132530-df58acafd6d5 h1:m6Z1Cm53o4VecQFxKCnvULGfIT0Igo3MX131i+00IIo=
+github.com/google/addlicense v0.0.0-20200622132530-df58acafd6d5/go.mod h1:EMjYTRimagHs1FwlIqKyX3wAM0u3rA+McvlIIWmSamA=
+github.com/google/addlicense v0.0.0-20200815122332-4295bd52e3cf h1:YE2N9S5+KJNPjtA0uTxDgtfZ7U7/Ia0IkKI5bCUYcp8=
+github.com/google/addlicense v0.0.0-20200815122332-4295bd52e3cf/go.mod h1:EMjYTRimagHs1FwlIqKyX3wAM0u3rA+McvlIIWmSamA=
+github.com/google/addlicense v0.0.0-20200817051935-6f4cd4aacc89 h1:oTppmscIAQ2Y1tcsMDcTLR3z4MN/96/pvIsBSLGl7o8=
 github.com/google/addlicense v0.0.0-20200817051935-6f4cd4aacc89/go.mod h1:EMjYTRimagHs1FwlIqKyX3wAM0u3rA+McvlIIWmSamA=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
@@ -253,6 +262,7 @@ github.com/rs/cors v0.0.0-20160617231935-a62a804a8a00/go.mod h1:gFx+x8UowdsKA9Ac
 github.com/rs/xhandler v0.0.0-20160618193221-ed27b6fd6521/go.mod h1:RvLn4FgxWubrpZHtQLnOf6EwhN2hEMusxZOhcW9H3UQ=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
+github.com/segmentio/golines v0.0.0-20200306054842-869934f8da7b/go.mod h1:K7zjgP8yJ/U8nb8nxaSykalAKSvbqr6TNbd9B7zzBFU=
 github.com/segmentio/golines v0.0.0-20200808004416-0a9796b248e8/go.mod h1:bQSh5qdVR67XiCKbaVvYO41s50c5hQo+3cY/1CQQ3xQ=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/shirou/gopsutil v2.20.5+incompatible h1:tYH07UPoQt0OCQdgWWMgYHy3/a9bcxNpBIysykNIP7I=
@@ -360,6 +370,7 @@ golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 h1:qwRHBd0NqMbJxfbotnDhm2ByMI1Shq4Y6oRJo21SGJA=
 golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

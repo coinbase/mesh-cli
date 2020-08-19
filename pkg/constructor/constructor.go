@@ -188,6 +188,10 @@ type Helper interface {
 
 	// RandomAmount returns some integer between min and max.
 	RandomAmount(*big.Int, *big.Int) *big.Int
+
+	// HeadBlockExists returns a boolean indicating if a block
+	// has been synced by BlockStorage.
+	HeadBlockExists(context.Context) bool
 }
 
 // Handler is an interface called by the constructor whenever
@@ -914,6 +918,15 @@ func (c *Constructor) CreateTransactions(
 	}
 
 	for ctx.Err() == nil {
+		if !c.helper.HeadBlockExists(ctx) {
+			// We will sleep until at least one block has been synced.
+			// Many of the storage-based commands require a synced block
+			// to work correctly (i.e. when fetching a balance, a block
+			// must be returned).
+			time.Sleep(defaultSleepTime * time.Second)
+			continue
+		}
+
 		sender, balance, coinIdentifier, err := c.findSender(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: unable to find sender", err)
