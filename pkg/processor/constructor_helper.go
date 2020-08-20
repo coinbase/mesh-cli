@@ -82,12 +82,17 @@ func (c *ConstructorHelper) Preprocess(
 	intent []*types.Operation,
 	metadata map[string]interface{},
 ) (map[string]interface{}, error) {
-	return c.offlineFetcher.ConstructionPreprocess(
+	metadata, fetchErr := c.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		networkIdentifier,
 		intent,
 		metadata,
 	)
+	if fetchErr != nil {
+		return nil, fetchErr.Err
+	}
+
+	return metadata, nil
 }
 
 // Metadata calls the /construction/metadata endpoint
@@ -112,12 +117,17 @@ func (c *ConstructorHelper) Payloads(
 	intent []*types.Operation,
 	requiredMetadata map[string]interface{},
 ) (string, []*types.SigningPayload, error) {
-	return c.offlineFetcher.ConstructionPayloads(
+	unsignedTransaction, payloads, fetchErr := c.offlineFetcher.ConstructionPayloads(
 		ctx,
 		networkIdentifier,
 		intent,
 		requiredMetadata,
 	)
+	if fetchErr != nil {
+		return "", nil, fetchErr.Err
+	}
+
+	return unsignedTransaction, payloads, nil
 }
 
 // Parse calls the /construction/parse endpoint

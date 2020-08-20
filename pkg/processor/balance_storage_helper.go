@@ -128,6 +128,8 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 				log.Printf("skipping uninteresting address %s\n", op.Account.Address)
 				return true
 			}
+
+			log.Printf("found interesting address %s\n", op.Account.Address)
 		}
 
 		thisAcct := types.Hash(&reconciler.AccountCurrency{
