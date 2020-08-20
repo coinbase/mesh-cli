@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -124,6 +125,7 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
 		if h.interestingOnly {
 			if _, exists := h.interestingAddresses[op.Account.Address]; !exists {
+				log.Printf("skipping uninteresting address %s\n", op.Account.Address)
 				return true
 			}
 		}
