@@ -309,6 +309,12 @@ func (c *Constructor) createTransaction(
 	}
 
 	if err := c.parser.ExpectedOperations(intent, parsedOps, false, false); err != nil {
+		log.Printf(
+			"intent (expected): %s\nobserved (actual): %s\n",
+			types.PrettyPrintStruct(intent),
+			types.PrettyPrintStruct(parsedOps),
+		)
+
 		return nil, "", fmt.Errorf("%w: unsigned parsed ops do not match intent", err)
 	}
 
@@ -338,6 +344,12 @@ func (c *Constructor) createTransaction(
 	}
 
 	if err := c.parser.ExpectedOperations(intent, signedParsedOps, false, false); err != nil {
+		log.Printf(
+			"intent (expected): %s\nobserved (actual): %s\n",
+			types.PrettyPrintStruct(intent),
+			types.PrettyPrintStruct(parsedOps),
+		)
+
 		return nil, "", fmt.Errorf("%w: signed parsed ops do not match intent", err)
 	}
 
