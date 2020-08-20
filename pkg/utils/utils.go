@@ -310,3 +310,5 @@ func CurrencyBalance(
 
 	return liveAmount, liveBlock, nil
 }
+
+// Get balances for a bunch of addresses

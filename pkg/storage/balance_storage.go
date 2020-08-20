@@ -523,13 +523,15 @@ func (b *BalanceStorage) GetAllAccountCurrency(
 	return accounts, nil
 }
 
+// TODO: pass in balances and block heights of each address, this method just stores them.
+
 // SetBalanceImported sets the balances of an array of addresses by
 // getting their balances from the tip block, and populating the database.
 // This is used when importing prefunded addresses.
 func (b *BalanceStorage) SetBalanceImported(
 	ctx context.Context,
-	currency *types.Currency,
 	helper BalanceStorageHelper,
+	accountBalances []*utils.AccountBalance,
 	tipBlock *types.BlockIdentifier,
 	addresses []string,
 ) error {
