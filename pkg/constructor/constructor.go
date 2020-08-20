@@ -404,6 +404,8 @@ func (c *Constructor) requestFunds(
 			return nil, nil, err
 		}
 
+		log.Printf("address %s balance: %s largestCoin: %s\n", address, types.PrintStruct(balance), types.PrintStruct(coinIdentifier))
+
 		minBalance := c.minimumRequiredBalance(newAccountSend)
 		if c.accountingModel == configuration.UtxoModel {
 			minBalance = c.minimumRequiredBalance(changeSend)
