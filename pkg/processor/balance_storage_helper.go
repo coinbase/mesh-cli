@@ -124,6 +124,7 @@ func (h *BalanceStorageHelper) AddInterestingAddress(address string) {
 func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 	return func(op *types.Operation) bool {
 		if h.interestingOnly {
+			log.Printf("Examining operation: %s\n", types.PrettyPrintStruct(op))
 			if _, exists := h.interestingAddresses[op.Account.Address]; !exists {
 				log.Printf("skipping uninteresting address %s\n", op.Account.Address)
 				return true
