@@ -71,7 +71,12 @@ func (c *ConstructorHelper) Derive(
 	publicKey *types.PublicKey,
 	metadata map[string]interface{},
 ) (string, map[string]interface{}, error) {
-	return c.offlineFetcher.ConstructionDerive(ctx, networkIdentifier, publicKey, metadata)
+	add, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(ctx, networkIdentifier, publicKey, metadata)
+	if fetchErr != nil {
+		return "", nil, fetchErr.Err
+	}
+
+	return add, metadata, nil
 }
 
 // Preprocess calls the /construction/preprocess endpoint
@@ -82,12 +87,18 @@ func (c *ConstructorHelper) Preprocess(
 	intent []*types.Operation,
 	metadata map[string]interface{},
 ) (map[string]interface{}, error) {
-	return c.offlineFetcher.ConstructionPreprocess(
+	res, fetchErr := c.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		networkIdentifier,
 		intent,
 		metadata,
 	)
+
+	if fetchErr != nil {
+		return nil, fetchErr.Err
+	}
+
+	return res, nil
 }
 
 // Metadata calls the /construction/metadata endpoint
@@ -97,11 +108,17 @@ func (c *ConstructorHelper) Metadata(
 	networkIdentifier *types.NetworkIdentifier,
 	metadataRequest map[string]interface{},
 ) (map[string]interface{}, error) {
-	return c.onlineFetcher.ConstructionMetadata(
+	res, fetchErr := c.offlineFetcher.ConstructionMetadata(
 		ctx,
 		networkIdentifier,
 		metadataRequest,
 	)
+
+	if fetchErr != nil {
+		return nil, fetchErr.Err
+	}
+
+	return res, nil
 }
 
 // Payloads calls the /construction/payloads endpoint
@@ -112,12 +129,18 @@ func (c *ConstructorHelper) Payloads(
 	intent []*types.Operation,
 	requiredMetadata map[string]interface{},
 ) (string, []*types.SigningPayload, error) {
-	return c.offlineFetcher.ConstructionPayloads(
+	res, payloads, fetchErr := c.offlineFetcher.ConstructionPayloads(
 		ctx,
 		networkIdentifier,
 		intent,
 		requiredMetadata,
 	)
+
+	if fetchErr != nil {
+		return "", nil, fetchErr.Err
+	}
+
+	return res, payloads, nil
 }
 
 // Parse calls the /construction/parse endpoint
@@ -128,12 +151,18 @@ func (c *ConstructorHelper) Parse(
 	signed bool,
 	transaction string,
 ) ([]*types.Operation, []string, map[string]interface{}, error) {
-	return c.offlineFetcher.ConstructionParse(
+	ops, signers, metadata, fetchErr := c.offlineFetcher.ConstructionParse(
 		ctx,
 		networkIdentifier,
 		signed,
 		transaction,
 	)
+
+	if fetchErr != nil {
+		return nil, nil, nil, fetchErr.Err
+	}
+
+	return ops, signers, metadata, nil
 }
 
 // Combine calls the /construction/combine endpoint
@@ -144,12 +173,18 @@ func (c *ConstructorHelper) Combine(
 	unsignedTransaction string,
 	signatures []*types.Signature,
 ) (string, error) {
-	return c.offlineFetcher.ConstructionCombine(
+	res, fetchErr := c.offlineFetcher.ConstructionCombine(
 		ctx,
 		networkIdentifier,
 		unsignedTransaction,
 		signatures,
 	)
+
+	if fetchErr != nil {
+		return "", fetchErr.Err
+	}
+
+	return res, nil
 }
 
 // Hash calls the /construction/hash endpoint
@@ -159,11 +194,17 @@ func (c *ConstructorHelper) Hash(
 	networkIdentifier *types.NetworkIdentifier,
 	networkTransaction string,
 ) (*types.TransactionIdentifier, error) {
-	return c.offlineFetcher.ConstructionHash(
+	res, fetchErr := c.offlineFetcher.ConstructionHash(
 		ctx,
 		networkIdentifier,
 		networkTransaction,
 	)
+
+	if fetchErr != nil {
+		return nil, fetchErr.Err
+	}
+
+	return res, nil
 }
 
 // Sign invokes the KeyStorage backend

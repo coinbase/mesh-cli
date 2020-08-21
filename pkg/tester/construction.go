@@ -137,7 +137,6 @@ func InitializeConstruction(
 	)
 
 	// Import prefunded account and save to database
-	// TODO: load balances of these imported addresses
 	err = keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
 	if err != nil {
 		return nil, err
@@ -154,6 +153,36 @@ func InitializeConstruction(
 	// Track balances on all addresses
 	for _, address := range addresses {
 		balanceStorageHelper.AddInterestingAddress(address)
+	}
+
+	// Load prefunded accounts
+	var accountBalanceRequests []*utils.AccountBalanceRequest
+	for _, prefundedAcc := range config.Construction.PrefundedAccounts {
+		address := prefundedAcc.Address
+		accountBalance := &utils.AccountBalanceRequest{
+			Account: &types.AccountIdentifier{
+				Address: address,
+			},
+			Network:  network,
+			Currency: config.Construction.Currency,
+		}
+
+		accountBalanceRequests = append(accountBalanceRequests, accountBalance)
+	}
+
+	accBalances, err := utils.GetAccountBalances(ctx, onlineFetcher, accountBalanceRequests)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get account balances", err)
+	}
+
+	err = balanceStorage.SetBalanceImported(ctx, nil, accBalances)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to set balances", err)
+	}
+
+	err = coinStorage.SetCoinsImported(ctx, accBalances)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to set coin balances", err)
 	}
 
 	constructorHelper := processor.NewConstructorHelper(

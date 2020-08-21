@@ -94,13 +94,13 @@ func (h *BroadcastStorageHelper) BroadcastTransaction(
 	ctx context.Context,
 	networkTransaction string,
 ) (*types.TransactionIdentifier, error) {
-	transactionIdentifier, _, err := h.fetcher.ConstructionSubmit(
+	transactionIdentifier, _, fetchErr := h.fetcher.ConstructionSubmit(
 		ctx,
 		h.network,
 		networkTransaction,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to broadcast transaction", err)
+	if fetchErr != nil {
+		return nil, fmt.Errorf("%w: unable to broadcast transaction", fetchErr.Err)
 	}
 
 	return transactionIdentifier, nil
