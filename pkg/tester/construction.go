@@ -152,7 +152,8 @@ func InitializeConstruction(
 	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
 
 	var accountBalanceRequests []*utils.AccountBalanceRequest
-	for _, address := range addresses {
+	for _, prefundedAcc := range config.Construction.PrefundedAccounts {
+		address := prefundedAcc.Address
 		accountBalance := &utils.AccountBalanceRequest{
 			Account: &types.AccountIdentifier{
 				Address: address,
