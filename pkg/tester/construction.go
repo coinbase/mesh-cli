@@ -151,6 +151,12 @@ func InitializeConstruction(
 
 	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
 
+	// Track balances on all addresses
+	for _, address := range addresses {
+		balanceStorageHelper.AddInterestingAddress(address)
+	}
+
+	// Load prefunded accounts
 	var accountBalanceRequests []*utils.AccountBalanceRequest
 	for _, prefundedAcc := range config.Construction.PrefundedAccounts {
 		address := prefundedAcc.Address
@@ -163,9 +169,6 @@ func InitializeConstruction(
 		}
 
 		accountBalanceRequests = append(accountBalanceRequests, accountBalance)
-
-		// Track balances on all addresses
-		balanceStorageHelper.AddInterestingAddress(address)
 	}
 
 	accBalances, err := utils.GetAccountBalances(ctx, onlineFetcher, accountBalanceRequests)
