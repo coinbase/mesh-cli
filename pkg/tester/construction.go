@@ -151,9 +151,35 @@ func InitializeConstruction(
 
 	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
 
-	// Track balances on all addresses
+	var accountBalanceRequests []*utils.AccountBalanceRequest
 	for _, address := range addresses {
+		accountBalance := &utils.AccountBalanceRequest{
+			Account: &types.AccountIdentifier{
+				Address: address,
+			},
+			Network:  network,
+			Currency: config.Construction.Currency,
+		}
+
+		accountBalanceRequests = append(accountBalanceRequests, accountBalance)
+
+		// Track balances on all addresses
 		balanceStorageHelper.AddInterestingAddress(address)
+	}
+
+	accBalances, err := utils.GetAccountBalances(ctx, onlineFetcher, accountBalanceRequests)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get account balances", err)
+	}
+
+	err = balanceStorage.SetBalanceImported(ctx, nil, accBalances)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to set balances", err)
+	}
+
+	err = coinStorage.SetCoinsImported(ctx, accBalances)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to set coin balances", err)
 	}
 
 	constructorHelper := processor.NewConstructorHelper(
