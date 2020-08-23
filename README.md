@@ -47,6 +47,7 @@ Available Commands:
   configuration:validate       Ensure a configuration file at the provided path is formatted correctly
   help                         Help about any command
   utils:asserter-configuration Generate a static configuration file for the Asserter
+  utils:train-zstd             Generate a zstd dictionary for enhanced compression performance
   version                      Print rosetta-cli version
   view:account                 View an account balance
   view:block                   View a block
@@ -334,6 +335,34 @@ Usage:
 
 Flags:
   -h, --help   help for utils:asserter-configuration
+
+Global Flags:
+      --configuration-file string   Configuration file that provides connection and test settings.
+                                    If you would like to generate a starter configuration file (populated
+                                    with the defaults), run rosetta-cli configuration:create.
+
+                                    Any fields not populated in the configuration file will be populated with
+                                    default values.
+```
+
+#### utils:train-zstd
+```
+Zstandard (https://github.com/facebook/zstd) is used by
+rosetta-sdk-go/storage to compress data stored to disk. It is possible
+to improve compression performance by training a dictionary on a particular
+storage namespace. This command runs this training and outputs a dictionary
+that can be used with rosetta-sdk-go/storage.
+
+The arguments for this command are: <namespace> <database path> <dictionary path>
+
+You can learn more about dictionary compression on the Zstandard
+website: https://github.com/facebook/zstd#the-case-for-small-data-compression
+
+Usage:
+  rosetta-cli utils:train-zstd [flags]
+
+Flags:
+  -h, --help   help for utils:train-zstd
 
 Global Flags:
       --configuration-file string   Configuration file that provides connection and test settings.
