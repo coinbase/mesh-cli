@@ -18,13 +18,14 @@ import (
 	"context"
 	"log"
 	"path"
+	"strconv"
 
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/spf13/cobra"
 )
 
 const (
-	trainArgs = 3
+	trainArgs = 4
 )
 
 var (
@@ -37,7 +38,7 @@ to improve compression performance by training a dictionary on a particular
 storage namespace. This command runs this training and outputs a dictionary
 that can be used with rosetta-sdk-go/storage.
 
-The arguments for this command are: <namespace> <database path> <dictionary path>
+The arguments for this command are: <namespace> <database path> <dictionary path> <max items>
 
 You can learn more about dictionary compression on the Zstandard
 website: https://github.com/facebook/zstd#the-case-for-small-data-compression`,
@@ -52,10 +53,14 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) {
 	namespace := args[0]
 	databasePath := path.Clean(args[1])
 	dictionaryPath := path.Clean(args[2])
+	maxItems, err := strconv.Atoi(args[3])
+	if err != nil {
+		log.Fatalf("%s: unable to convert max items to integer", err.Error())
+	}
 
 	log.Printf("Running zstd training (this could take a while)...")
 
-	_, _, err := storage.BadgerTrain(ctx, namespace, databasePath, dictionaryPath)
+	_, _, err = storage.BadgerTrain(ctx, namespace, databasePath, dictionaryPath, maxItems)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -353,7 +353,7 @@ to improve compression performance by training a dictionary on a particular
 storage namespace. This command runs this training and outputs a dictionary
 that can be used with rosetta-sdk-go/storage.
 
-The arguments for this command are: <namespace> <database path> <dictionary path>
+The arguments for this command are: <namespace> <database path> <dictionary path> <max items>
 
 You can learn more about dictionary compression on the Zstandard
 website: https://github.com/facebook/zstd#the-case-for-small-data-compression
