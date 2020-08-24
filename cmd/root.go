@@ -84,6 +84,7 @@ default values.`,
 
 	// Utils
 	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
+	rootCmd.AddCommand(utilsTrainZstdCmd)
 }
 
 func initConfig() {

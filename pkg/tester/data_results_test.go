@@ -305,7 +305,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 				assert.NoError(t, err)
 
 				ctx := context.Background()
-				localStore, err := storage.NewBadgerStorage(ctx, dir, false)
+				localStore, err := storage.NewBadgerStorage(ctx, dir)
 				assert.NoError(t, err)
 
 				logPath := path.Join(dir, "results.json")
