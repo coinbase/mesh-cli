@@ -43,7 +43,7 @@ The arguments for this command are: <namespace> <database path> <dictionary path
 You can learn more about dictionary compression on the Zstandard
 website: https://github.com/facebook/zstd#the-case-for-small-data-compression`,
 		Run:  runTrainZstdCmd,
-		Args: cobra.ExactArgs(trainArgs),
+		Args: cobra.MinimumNArgs(trainArgs),
 	}
 )
 
@@ -58,9 +58,19 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) {
 		log.Fatalf("%s: unable to convert max items to integer", err.Error())
 	}
 
+	compressorEntries := []*storage.CompressorEntry{}
+	if len(args) > 4 {
+		compressorEntries = append(compressorEntries, &storage.CompressorEntry{
+			Namespace:      namespace,
+			DictionaryPath: args[4],
+		})
+
+		log.Printf("found dictionary path %s\n", args[4])
+	}
+
 	log.Printf("Running zstd training (this could take a while)...")
 
-	_, _, err = storage.BadgerTrain(ctx, namespace, databasePath, dictionaryPath, maxItems)
+	_, _, err = storage.BadgerTrain(ctx, namespace, databasePath, dictionaryPath, maxItems, compressorEntries)
 	if err != nil {
 		log.Fatal(err)
 	}
