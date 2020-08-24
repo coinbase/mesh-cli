@@ -59,7 +59,7 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) {
 	}
 
 	compressorEntries := []*storage.CompressorEntry{}
-	if len(args) > 4 {
+	if len(args) > trainArgs {
 		compressorEntries = append(compressorEntries, &storage.CompressorEntry{
 			Namespace:      namespace,
 			DictionaryPath: args[4],
