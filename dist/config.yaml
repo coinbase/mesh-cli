@@ -1,0 +1,84 @@
+project_name: rosetta-cli
+release:
+  github:
+    owner: coinbase
+    name: rosetta-cli
+  name_template: '{{.Tag}}'
+milestones:
+- repo:
+    owner: coinbase
+    name: rosetta-cli
+  name_template: '{{ .Tag }}'
+scoop:
+  name: rosetta-cli
+  commit_author:
+    name: goreleaserbot
+    email: goreleaser@carlosbecker.com
+  commit_msg_template: Scoop update for {{ .ProjectName }} version {{ .Tag }}
+builds:
+- id: rosetta-cli
+  goos:
+  - windows
+  goarch:
+  - amd64
+  goarm:
+  - "6"
+  ignore:
+  - goos: windows
+    goarch: amd64
+    goarm: ""
+    gomips: ""
+  dir: .
+  main: .
+  ldflags:
+  - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+  binary: rosetta-cli
+  env:
+  - CGO_ENABLED=0
+  lang: go
+archives:
+- id: default
+  builds:
+  - rosetta-cli
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}'
+  replacements:
+    "386": 32-bit
+    amd64: 64-bit
+    darwin: macOS
+  format: tar.gz
+  files:
+  - licence*
+  - LICENCE*
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+snapshot:
+  name_template: '{{ .Tag }}-next'
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+changelog:
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+  sort: asc
+dist: dist
+env_files:
+  github_token: ~/.config/goreleaser/github_token
+  gitlab_token: ~/.config/goreleaser/gitlab_token
+  gitea_token: ~/.config/goreleaser/gitea_token
+before:
+  hooks:
+  - go mod download
+  - go generate ./...
+source:
+  name_template: '{{ .ProjectName }}-{{ .Version }}'
+  format: tar.gz
+github_urls:
+  download: https://github.com
+gitlab_urls:
+  download: https://gitlab.com
