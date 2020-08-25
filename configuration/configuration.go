@@ -21,25 +21,12 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/pkg/scenario"
-
 	"github.com/coinbase/rosetta-sdk-go/asserter"
+	"github.com/coinbase/rosetta-sdk-go/constructor/job"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
-)
-
-// AccountingModel is a type representing possible accounting models
-// in the Construction API.
-type AccountingModel string
-
-const (
-	// AccountModel is for account-based blockchains.
-	AccountModel AccountingModel = "account"
-
-	// UtxoModel is for UTXO-based blockchains.
-	UtxoModel AccountingModel = "utxo"
 )
 
 // CheckDataEndCondition is a type of "successful" end
@@ -79,19 +66,10 @@ const (
 	DefaultBroadcastLimit                    = 3
 	DefaultTipDelay                          = 300
 	DefaultBlockBroadcastLimit               = 5
-	DefaultNewAccountProbability             = 0.5
-	DefaultMaxAddresses                      = 200
 
 	// ETH Defaults
-	EthereumIDBlockchain    = "Ethereum"
-	EthereumIDNetwork       = "Ropsten"
-	EthereumTransferType    = "transfer"
-	EthereumSymbol          = "ETH"
-	EthereumDecimals        = 18
-	EthereumMinimumBalance  = "0"
-	EthereumMaximumFee      = "5000000000000000" // 0.005 ETH
-	EthereumCurveType       = types.Secp256k1
-	EthereumAccountingModel = AccountModel
+	EthereumIDBlockchain = "Ethereum"
+	EthereumIDNetwork    = "Ropsten"
 )
 
 // Default Configuration Values
@@ -99,41 +77,6 @@ var (
 	EthereumNetwork = &types.NetworkIdentifier{
 		Blockchain: EthereumIDBlockchain,
 		Network:    EthereumIDNetwork,
-	}
-	EthereumCurrency = &types.Currency{
-		Symbol:   EthereumSymbol,
-		Decimals: EthereumDecimals,
-	}
-	EthereumTransfer = []*types.Operation{
-		{
-			OperationIdentifier: &types.OperationIdentifier{
-				Index: 0,
-			},
-			Account: &types.AccountIdentifier{
-				Address: scenario.Sender,
-			},
-			Type: EthereumTransferType,
-			Amount: &types.Amount{
-				Value: scenario.SenderValue,
-			},
-		},
-		{
-			OperationIdentifier: &types.OperationIdentifier{
-				Index: 1,
-			},
-			RelatedOperations: []*types.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Account: &types.AccountIdentifier{
-				Address: scenario.Recipient,
-			},
-			Type: EthereumTransferType,
-			Amount: &types.Amount{
-				Value: scenario.RecipientValue,
-			},
-		},
 	}
 )
 
@@ -146,39 +89,6 @@ type ConstructionConfiguration struct {
 	// OfflineURL is the URL of a Rosetta API implementation in "offline mode".
 	OfflineURL string `json:"offline_url"`
 
-	// Currency is the *types.Currency to track and use for transactions.
-	Currency *types.Currency `json:"currency"`
-
-	// MinimumBalance is balance at a particular address
-	// that is not considered spendable.
-	MinimumBalance string `json:"minimum_balance"`
-
-	// MaximumFee is the maximum fee that could be used
-	// to send a transaction. The sendable balance
-	// of any address is calculated as balance - minimum_balance - maximum_fee.
-	MaximumFee string `json:"maximum_fee"`
-
-	// CurveType is the curve to use when generating a *keys.KeyPair.
-	CurveType types.CurveType `json:"curve_type"`
-
-	// AccountingModel is the type of acccount model to use for
-	// testing (account vs UTXO).
-	AccountingModel AccountingModel `json:"accounting_model"`
-
-	// Scenario contains a slice of operations that
-	// indicate how to construct a transaction on a blockchain. In the future
-	// this will be expanded to support all kinds of construction scenarios (like
-	// staking or governance).
-	Scenario []*types.Operation `json:"scenario"`
-
-	// ConfirmationDepth is the number of blocks that must be synced
-	// after a transaction before a transaction is confirmed.
-	//
-	// Note: Rosetta uses Bitcoin's definition of depth, so
-	// a transaction has depth 1 if it is in the head block.
-	// Source: https://en.bitcoin.it/wiki/Confirmation
-	ConfirmationDepth int64 `json:"confirmation_depth"`
-
 	// StaleDepth is the number of blocks to wait before attempting
 	// to rebroadcast after not finding a transaction on-chain.
 	StaleDepth int64 `json:"stale_depth"`
@@ -190,13 +100,6 @@ type ConstructionConfiguration struct {
 	// IgnoreBroadcastFailures determines if we should exit when there
 	// are broadcast failures (that surpass the BroadcastLimit).
 	IgnoreBroadcastFailures bool `json:"ignore_broadcast_failures"`
-
-	// ChangeScenario is added to the scenario if it is possible to generate
-	// a change transaction where the recipient address is over
-	// the minimum balance. If this is left nil, no change
-	// will ever be created. This is ONLY used for UTXO-based
-	// testing.
-	ChangeScenario *types.Operation `json:"change_scenario"`
 
 	// ClearBroadcasts indicates if all pending broadcasts should
 	// be removed from BroadcastStorage on restart.
@@ -215,36 +118,24 @@ type ConstructionConfiguration struct {
 	// rebroadcast from BroadcastStorage on restart.
 	RebroadcastAll bool `json:"rebroadcast_all"`
 
-	// NewAccountProbability is the probability we create a new
-	// recipient address on any transaction creation loop.
-	NewAccountProbability float64 `json:"new_account_probability"`
-
-	// MaxAddresses is the maximum number of addresses
-	// to generate while testing.
-	MaxAddresses int `json:"max_addresses"`
-
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
 	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts"`
+
+	// Workflows are executed by the rosetta-cli to test
+	// certain construction flows. Make sure to define a
+	// "request_funds" and "create_account" workflow.
+	Workflows []*job.Workflow `json:"workflows"`
 }
 
 // DefaultConstructionConfiguration returns the *ConstructionConfiguration
 // used for testing Ethereum transfers on Ropsten.
 func DefaultConstructionConfiguration() *ConstructionConfiguration {
 	return &ConstructionConfiguration{
-		OfflineURL:            DefaultURL,
-		Currency:              EthereumCurrency,
-		MinimumBalance:        EthereumMinimumBalance,
-		MaximumFee:            EthereumMaximumFee,
-		CurveType:             EthereumCurveType,
-		AccountingModel:       EthereumAccountingModel,
-		Scenario:              EthereumTransfer,
-		ConfirmationDepth:     DefaultConfirmationDepth,
-		StaleDepth:            DefaultStaleDepth,
-		BroadcastLimit:        DefaultBroadcastLimit,
-		BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
-		NewAccountProbability: DefaultNewAccountProbability,
-		MaxAddresses:          DefaultMaxAddresses,
+		OfflineURL:          DefaultURL,
+		StaleDepth:          DefaultStaleDepth,
+		BroadcastLimit:      DefaultBroadcastLimit,
+		BlockBroadcastLimit: DefaultBlockBroadcastLimit,
 	}
 }
 
@@ -440,34 +331,6 @@ func populateConstructionMissingFields(
 		constructionConfig.OfflineURL = DefaultURL
 	}
 
-	if constructionConfig.Currency == nil {
-		constructionConfig.Currency = EthereumCurrency
-	}
-
-	if len(constructionConfig.MinimumBalance) == 0 {
-		constructionConfig.MinimumBalance = EthereumMinimumBalance
-	}
-
-	if len(constructionConfig.MaximumFee) == 0 {
-		constructionConfig.MaximumFee = EthereumMaximumFee
-	}
-
-	if len(constructionConfig.CurveType) == 0 {
-		constructionConfig.CurveType = EthereumCurveType
-	}
-
-	if len(constructionConfig.AccountingModel) == 0 {
-		constructionConfig.AccountingModel = EthereumAccountingModel
-	}
-
-	if len(constructionConfig.Scenario) == 0 {
-		constructionConfig.Scenario = EthereumTransfer
-	}
-
-	if constructionConfig.ConfirmationDepth == 0 {
-		constructionConfig.ConfirmationDepth = DefaultConfirmationDepth
-	}
-
 	if constructionConfig.StaleDepth == 0 {
 		constructionConfig.StaleDepth = DefaultStaleDepth
 	}
@@ -478,14 +341,6 @@ func populateConstructionMissingFields(
 
 	if constructionConfig.BlockBroadcastLimit == 0 {
 		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
-	}
-
-	if constructionConfig.NewAccountProbability == 0 {
-		constructionConfig.NewAccountProbability = DefaultNewAccountProbability
-	}
-
-	if constructionConfig.MaxAddresses == 0 {
-		constructionConfig.MaxAddresses = DefaultMaxAddresses
 	}
 
 	return constructionConfig
@@ -564,29 +419,6 @@ func checkStringUint(input string) error {
 }
 
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
-	// TODO: add asserter.Currency method
-	if err := asserter.Amount(&types.Amount{Value: "0", Currency: config.Currency}); err != nil {
-		return fmt.Errorf("%w: invalid currency", err)
-	}
-
-	switch config.AccountingModel {
-	case AccountModel, UtxoModel:
-	default:
-		return fmt.Errorf("accounting model %s not supported", config.AccountingModel)
-	}
-
-	if err := asserter.CurveType(config.CurveType); err != nil {
-		return fmt.Errorf("%w: invalid curve type", err)
-	}
-
-	if err := checkStringUint(config.MinimumBalance); err != nil {
-		return fmt.Errorf("%w: invalid value for MinimumBalance", err)
-	}
-
-	if err := checkStringUint(config.MaximumFee); err != nil {
-		return fmt.Errorf("%w: invalid value for MaximumFee", err)
-	}
-
 	for _, account := range config.PrefundedAccounts {
 		// Checks that privkey is hex encoded
 		_, err := hex.DecodeString(account.PrivateKeyHex)
