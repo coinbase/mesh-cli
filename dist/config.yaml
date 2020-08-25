@@ -18,23 +18,27 @@ scoop:
 builds:
 - id: rosetta-cli
   goos:
+  - linux
   - windows
+  - darwin
   goarch:
   - amd64
+  - "386"
   goarm:
   - "6"
-  ignore:
-  - goos: windows
-    goarch: amd64
-    goarm: ""
-    gomips: ""
+  targets:
+  - linux_amd64
+  - linux_386
+  - windows_amd64
+  - windows_386
+  - darwin_amd64
   dir: .
   main: .
   ldflags:
   - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
   binary: rosetta-cli
   env:
-  - CGO_ENABLED=0
+  - CGO_ENABLED=1
   lang: go
 archives:
 - id: default
@@ -42,9 +46,10 @@ archives:
   - rosetta-cli
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}'
   replacements:
-    "386": 32-bit
-    amd64: 64-bit
-    darwin: macOS
+    amd64: x86_64
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
   format: tar.gz
   files:
   - licence*

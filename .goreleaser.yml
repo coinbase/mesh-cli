@@ -10,17 +10,15 @@ builds:
   - env:
       - CGO_ENABLED=0
     goos:
+      - linux
       - windows
-    goarch:
-      - amd64
-    ignore:
-      - goos: windows
-        goarch: amd64
+      - darwin
 archives:
   - replacements:
-      amd64: 64-bit
-      386: 32-bit
-      darwin: macOS
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      amd64: x86_64
 checksum:
   name_template: 'checksums.txt'
 snapshot:
