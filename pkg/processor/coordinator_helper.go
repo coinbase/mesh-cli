@@ -17,25 +17,23 @@ package processor
 import (
 	"context"
 	"fmt"
-	"math/big"
 
-	"github.com/coinbase/rosetta-cli/pkg/constructor"
-
+	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/coinbase/rosetta-sdk-go/utils"
 )
 
-var _ constructor.Helper = (*ConstructorHelper)(nil)
+var _ coordinator.Helper = (*CoordinatorHelper)(nil)
 
-// ConstructorHelper implements the constructor.Helper
+// CoordinatorHelper implements the Coordinator.Helper
 // interface.
-type ConstructorHelper struct {
+type CoordinatorHelper struct {
 	offlineFetcher *fetcher.Fetcher
 	onlineFetcher  *fetcher.Fetcher
 
+	database         storage.Database
 	blockStorage     *storage.BlockStorage
 	keyStorage       *storage.KeyStorage
 	balanceStorage   *storage.BalanceStorage
@@ -43,19 +41,21 @@ type ConstructorHelper struct {
 	broadcastStorage *storage.BroadcastStorage
 }
 
-// NewConstructorHelper returns a new *ConstructorHelper.
-func NewConstructorHelper(
+// NewCoordinatorHelper returns a new *CoordinatorHelper.
+func NewCoordinatorHelper(
 	offlineFetcher *fetcher.Fetcher,
 	onlineFetcher *fetcher.Fetcher,
+	database storage.Database,
 	blockStorage *storage.BlockStorage,
 	keyStorage *storage.KeyStorage,
 	balanceStorage *storage.BalanceStorage,
 	coinStorage *storage.CoinStorage,
 	broadcastStorage *storage.BroadcastStorage,
-) *ConstructorHelper {
-	return &ConstructorHelper{
+) *CoordinatorHelper {
+	return &CoordinatorHelper{
 		offlineFetcher:   offlineFetcher,
 		onlineFetcher:    onlineFetcher,
+		database:         database,
 		blockStorage:     blockStorage,
 		keyStorage:       keyStorage,
 		balanceStorage:   balanceStorage,
@@ -64,8 +64,13 @@ func NewConstructorHelper(
 	}
 }
 
+// DatabaseTransaction returns a new write-ready storage.DatabaseTransaction.
+func (c *CoordinatorHelper) DatabaseTransaction(ctx context.Context) storage.DatabaseTransaction {
+	return c.database.NewDatabaseTransaction(ctx, true)
+}
+
 // Derive returns a new address for a provided publicKey.
-func (c *ConstructorHelper) Derive(
+func (c *CoordinatorHelper) Derive(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	publicKey *types.PublicKey,
@@ -81,7 +86,7 @@ func (c *ConstructorHelper) Derive(
 
 // Preprocess calls the /construction/preprocess endpoint
 // on an offline node.
-func (c *ConstructorHelper) Preprocess(
+func (c *CoordinatorHelper) Preprocess(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
@@ -103,7 +108,7 @@ func (c *ConstructorHelper) Preprocess(
 
 // Metadata calls the /construction/metadata endpoint
 // using the online node.
-func (c *ConstructorHelper) Metadata(
+func (c *CoordinatorHelper) Metadata(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	metadataRequest map[string]interface{},
@@ -123,7 +128,7 @@ func (c *ConstructorHelper) Metadata(
 
 // Payloads calls the /construction/payloads endpoint
 // using the offline node.
-func (c *ConstructorHelper) Payloads(
+func (c *CoordinatorHelper) Payloads(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
@@ -145,7 +150,7 @@ func (c *ConstructorHelper) Payloads(
 
 // Parse calls the /construction/parse endpoint
 // using the offline node.
-func (c *ConstructorHelper) Parse(
+func (c *CoordinatorHelper) Parse(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	signed bool,
@@ -167,7 +172,7 @@ func (c *ConstructorHelper) Parse(
 
 // Combine calls the /construction/combine endpoint
 // using the offline node.
-func (c *ConstructorHelper) Combine(
+func (c *CoordinatorHelper) Combine(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	unsignedTransaction string,
@@ -189,7 +194,7 @@ func (c *ConstructorHelper) Combine(
 
 // Hash calls the /construction/hash endpoint
 // using the offline node.
-func (c *ConstructorHelper) Hash(
+func (c *CoordinatorHelper) Hash(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	networkTransaction string,
@@ -209,7 +214,7 @@ func (c *ConstructorHelper) Hash(
 
 // Sign invokes the KeyStorage backend
 // to sign some payloads.
-func (c *ConstructorHelper) Sign(
+func (c *CoordinatorHelper) Sign(
 	ctx context.Context,
 	payloads []*types.SigningPayload,
 ) ([]*types.Signature, error) {
@@ -218,23 +223,25 @@ func (c *ConstructorHelper) Sign(
 
 // StoreKey stores a KeyPair and address
 // in KeyStorage.
-func (c *ConstructorHelper) StoreKey(
+func (c *CoordinatorHelper) StoreKey(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 	address string,
 	keyPair *keys.KeyPair,
 ) error {
-	return c.keyStorage.Store(ctx, address, keyPair)
+	return c.keyStorage.StoreTransactional(ctx, address, keyPair, dbTx)
 }
 
-// AccountBalance returns the balance
+// Balance returns the balance
 // for a provided address using BalanceStorage.
 // If the address balance does not exist,
 // 0 will be returned.
-func (c *ConstructorHelper) AccountBalance(
+func (c *CoordinatorHelper) Balance(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
-) (*big.Int, error) {
+) (*types.Amount, error) {
 	amount, _, err := c.balanceStorage.GetBalance(
 		ctx,
 		accountIdentifier,
@@ -242,79 +249,92 @@ func (c *ConstructorHelper) AccountBalance(
 		nil,
 	)
 
-	val, ok := new(big.Int).SetString(amount.Value, 10)
-	if !ok {
-		return nil, fmt.Errorf(
-			"could not parse amount for %s",
-			accountIdentifier.Address,
-		)
-	}
-
-	return val, err
+	return amount, err
 }
 
-// CoinBalance returns the balance of the largest
-// Coin owned by an address.
-func (c *ConstructorHelper) CoinBalance(
+// Coins returns all *types.Coin owned by
+// an account.
+func (c *CoordinatorHelper) Coins(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
-) (*big.Int, *types.CoinIdentifier, error) {
-	coinValue, coinIdentifier, _, err := c.coinStorage.GetLargestCoin(
+) ([]*types.Coin, error) {
+	coins, _, err := c.coinStorage.GetCoinsTransactional(
 		ctx,
+		dbTx,
 		accountIdentifier,
-		currency,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to get coins", err)
+	}
 
-	return coinValue, coinIdentifier, err
+	coinsToReturn := []*types.Coin{}
+	for _, coin := range coins {
+		if types.Hash(coin.Amount.Currency) != types.Hash(currency) {
+			continue
+		}
+
+		coinsToReturn = append(coinsToReturn, coin)
+	}
+
+	return coinsToReturn, nil
 }
 
 // LockedAddresses returns a slice of all addresses currently sending or receiving
 // funds.
-func (c *ConstructorHelper) LockedAddresses(ctx context.Context) ([]string, error) {
-	return c.broadcastStorage.LockedAddresses(ctx)
+func (c *CoordinatorHelper) LockedAddresses(ctx context.Context, dbTx storage.DatabaseTransaction) ([]string, error) {
+	return c.broadcastStorage.LockedAddresses(ctx, dbTx)
 }
 
 // AllBroadcasts returns a slice of all in-progress broadcasts in BroadcastStorage.
-func (c *ConstructorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+func (c *CoordinatorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
 	return c.broadcastStorage.GetAllBroadcasts(ctx)
 }
 
 // ClearBroadcasts deletes all pending broadcasts.
-func (c *ConstructorHelper) ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+func (c *CoordinatorHelper) ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
 	return c.broadcastStorage.ClearBroadcasts(ctx)
 }
 
 // Broadcast enqueues a particular intent for broadcast.
-func (c *ConstructorHelper) Broadcast(
+func (c *CoordinatorHelper) Broadcast(
 	ctx context.Context,
-	sender string,
+	dbTx storage.DatabaseTransaction,
+	identifier string,
+	network *types.NetworkIdentifier,
 	intent []*types.Operation,
 	transactionIdentifier *types.TransactionIdentifier,
 	payload string,
+	confirmationDepth int64,
 ) error {
 	return c.broadcastStorage.Broadcast(
 		ctx,
-		sender,
+		dbTx,
+		identifier,
+		network,
 		intent,
 		transactionIdentifier,
 		payload,
+		confirmationDepth,
 	)
 }
 
-// AllAddresses returns a slice of all known addresses.
-func (c *ConstructorHelper) AllAddresses(ctx context.Context) ([]string, error) {
-	return c.keyStorage.GetAllAddresses(ctx)
+// BroadcastAll attempts to broadcast all ready transactions.
+func (c *CoordinatorHelper) BroadcastAll(
+	ctx context.Context,
+) error {
+	return c.broadcastStorage.BroadcastAll(ctx, true)
 }
 
-// RandomAmount returns some integer between min and max.
-func (c *ConstructorHelper) RandomAmount(min *big.Int, max *big.Int) *big.Int {
-	return utils.RandomNumber(min, max)
+// AllAddresses returns a slice of all known addresses.
+func (c *CoordinatorHelper) AllAddresses(ctx context.Context, dbTx storage.DatabaseTransaction) ([]string, error) {
+	return c.keyStorage.GetAllAddressesTransactional(ctx, dbTx)
 }
 
 // HeadBlockExists returns a boolean indicating if a block has been
 // synced by BlockStorage.
-func (c *ConstructorHelper) HeadBlockExists(ctx context.Context) bool {
+func (c *CoordinatorHelper) HeadBlockExists(ctx context.Context) bool {
 	headBlock, _ := c.blockStorage.GetHeadBlockIdentifier(ctx)
 
 	return headBlock != nil

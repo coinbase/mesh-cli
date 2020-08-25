@@ -18,36 +18,35 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/pkg/constructor"
-
+	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var _ constructor.Handler = (*ConstructorHandler)(nil)
+var _ coordinator.Handler = (*CoordinatorHandler)(nil)
 
-// ConstructorHandler is invoked by the Constructor
+// CoordinatorHandler is invoked by the Coordinator
 // when addresses are created or transactions are created.
-type ConstructorHandler struct {
+type CoordinatorHandler struct {
 	balanceStorageHelper *BalanceStorageHelper
 
 	counterStorage *storage.CounterStorage
 }
 
-// NewConstructorHandler returns a new
-// *ConstructorHandler.
-func NewConstructorHandler(
+// NewCoordinatorHandler returns a new
+// *CoordinatorHandler.
+func NewCoordinatorHandler(
 	balanceStorageHelper *BalanceStorageHelper,
 	counterStorage *storage.CounterStorage,
-) *ConstructorHandler {
-	return &ConstructorHandler{
+) *CoordinatorHandler {
+	return &CoordinatorHandler{
 		balanceStorageHelper: balanceStorageHelper,
 		counterStorage:       counterStorage,
 	}
 }
 
 // AddressCreated adds an address to balance tracking.
-func (h *ConstructorHandler) AddressCreated(ctx context.Context, address string) error {
+func (h *CoordinatorHandler) AddressCreated(ctx context.Context, address string) error {
 	h.balanceStorageHelper.AddInterestingAddress(address)
 
 	_, _ = h.counterStorage.Update(ctx, storage.AddressesCreatedCounter, big.NewInt(1))
@@ -57,7 +56,7 @@ func (h *ConstructorHandler) AddressCreated(ctx context.Context, address string)
 
 // TransactionCreated increments the TransactionsCreatedCounter in
 // CounterStorage.
-func (h *ConstructorHandler) TransactionCreated(
+func (h *CoordinatorHandler) TransactionCreated(
 	ctx context.Context,
 	sender string,
 	transactionIdentifier *types.TransactionIdentifier,

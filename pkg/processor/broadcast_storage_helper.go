@@ -35,12 +35,10 @@ type BroadcastStorageHelper struct {
 
 // NewBroadcastStorageHelper returns a new BroadcastStorageHelper.
 func NewBroadcastStorageHelper(
-	network *types.NetworkIdentifier,
 	blockStorage *storage.BlockStorage,
 	fetcher *fetcher.Fetcher,
 ) *BroadcastStorageHelper {
 	return &BroadcastStorageHelper{
-		network:      network,
 		blockStorage: blockStorage,
 		fetcher:      fetcher,
 	}
@@ -92,11 +90,12 @@ func (h *BroadcastStorageHelper) FindTransaction(
 // and returns the *types.TransactionIdentifier returned by the implementation.
 func (h *BroadcastStorageHelper) BroadcastTransaction(
 	ctx context.Context,
+	networkIdentifier *types.NetworkIdentifier,
 	networkTransaction string,
 ) (*types.TransactionIdentifier, error) {
 	transactionIdentifier, _, fetchErr := h.fetcher.ConstructionSubmit(
 		ctx,
-		h.network,
+		networkIdentifier,
 		networkTransaction,
 	)
 	if fetchErr != nil {
