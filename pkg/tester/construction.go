@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/constructor"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 
+	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
@@ -49,9 +49,9 @@ type ConstructionTester struct {
 	syncer           *statefulsyncer.StatefulSyncer
 	logger           *logger.Logger
 	onlineFetcher    *fetcher.Fetcher
-	constructor      *constructor.Constructor
 	broadcastStorage *storage.BroadcastStorage
 	blockStorage     *storage.BlockStorage
+	coordinator      *coordinator.Coordinator
 }
 
 // InitializeConstruction initiates the construction API tester.
@@ -62,6 +62,10 @@ func InitializeConstruction(
 	onlineFetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
 ) (*ConstructionTester, error) {
+	if len(config.Construction.Workflows) == 0 {
+		log.Fatal("construction workflows cannot be empty")
+	}
+
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, constructionCmdName, network)
 	if err != nil {
 		log.Fatalf("%s: cannot create command path", err.Error())
@@ -112,7 +116,6 @@ func InitializeConstruction(
 
 	broadcastStorage := storage.NewBroadcastStorage(
 		localStore,
-		config.Construction.ConfirmationDepth,
 		config.Construction.StaleDepth,
 		config.Construction.BroadcastLimit,
 		config.TipDelay,
@@ -120,20 +123,11 @@ func InitializeConstruction(
 		config.Construction.BlockBroadcastLimit,
 	)
 
+	parser := parser.New(onlineFetcher.Asserter, nil)
 	broadcastHelper := processor.NewBroadcastStorageHelper(
-		network,
 		blockStorage,
 		onlineFetcher,
 	)
-	parser := parser.New(onlineFetcher.Asserter, nil)
-	broadcastHandler := processor.NewBroadcastStorageHandler(
-		config,
-		counterStorage,
-		parser,
-	)
-
-	broadcastStorage.Initialize(broadcastHelper, broadcastHandler)
-
 	offlineFetcher := fetcher.New(
 		config.Construction.OfflineURL,
 		fetcher.WithAsserter(onlineFetcher.Asserter),
@@ -168,7 +162,7 @@ func InitializeConstruction(
 				Address: address,
 			},
 			Network:  network,
-			Currency: config.Construction.Currency,
+			Currency: prefundedAcc.Currency,
 		}
 
 		accountBalanceRequests = append(accountBalanceRequests, accountBalance)
@@ -189,9 +183,11 @@ func InitializeConstruction(
 		return nil, fmt.Errorf("%w: unable to set coin balances", err)
 	}
 
-	constructorHelper := processor.NewConstructorHelper(
+	jobStorage := storage.NewJobStorage(localStore)
+	coordinatorHelper := processor.NewCoordinatorHelper(
 		offlineFetcher,
 		onlineFetcher,
+		localStore,
 		blockStorage,
 		keyStorage,
 		balanceStorage,
@@ -199,20 +195,29 @@ func InitializeConstruction(
 		broadcastStorage,
 	)
 
-	constructorHandler := processor.NewConstructorHandler(
+	coordinatorHandler := processor.NewCoordinatorHandler(
 		balanceStorageHelper,
 		counterStorage,
 	)
-
-	constructor, err := constructor.New(
-		config,
+	coordinator, err := coordinator.New(
+		jobStorage,
+		coordinatorHelper,
+		coordinatorHandler,
 		parser,
-		constructorHelper,
-		constructorHandler,
+		config.Construction.Workflows,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to create constructor", err)
+		log.Fatalf("%s: unable to create coordinator", err.Error())
 	}
+
+	broadcastHandler := processor.NewBroadcastStorageHandler(
+		config,
+		counterStorage,
+		coordinator,
+		parser,
+	)
+
+	broadcastStorage.Initialize(broadcastHelper, broadcastHandler)
 
 	syncer := statefulsyncer.New(
 		ctx,
@@ -232,7 +237,7 @@ func InitializeConstruction(
 		config:           config,
 		syncer:           syncer,
 		logger:           logger,
-		constructor:      constructor,
+		coordinator:      coordinator,
 		broadcastStorage: broadcastStorage,
 		blockStorage:     blockStorage,
 		onlineFetcher:    onlineFetcher,
@@ -300,10 +305,16 @@ func (t *ConstructionTester) StartSyncer(
 func (t *ConstructionTester) StartConstructor(
 	ctx context.Context,
 ) error {
-	return t.constructor.CreateTransactions(
-		ctx,
-		t.config.Construction.ClearBroadcasts,
-	)
+	if t.config.Construction.ClearBroadcasts {
+		broadcasts, err := t.broadcastStorage.ClearBroadcasts(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to clear broadcasts", err)
+		}
+
+		log.Printf("cleared %d broadcasts\n", len(broadcasts))
+	}
+
+	return t.coordinator.Process(ctx)
 }
 
 // PerformBroadcasts attempts to rebroadcast all pending transactions

@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -405,36 +404,33 @@ func populateMissingFields(config *Configuration) *Configuration {
 	return config
 }
 
-func checkStringUint(input string) error {
-	val, ok := new(big.Int).SetString(input, 10)
-	if !ok {
-		return fmt.Errorf("%s is not an integer", input)
-	}
-
-	if val.Sign() == -1 {
-		return fmt.Errorf("%s must not be negative", input)
-	}
-
-	return nil
-}
-
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 	for _, account := range config.PrefundedAccounts {
 		// Checks that privkey is hex encoded
 		_, err := hex.DecodeString(account.PrivateKeyHex)
 		if err != nil {
-			return fmt.Errorf("%s is not hex encoded", account.PrivateKeyHex)
+			return fmt.Errorf(
+				"%w: private key %s is not hex encoded for prefunded account",
+				err,
+				account.PrivateKeyHex,
+			)
 		}
 
 		// Checks if valid curvetype
 		err = asserter.CurveType(account.CurveType)
 		if err != nil {
-			return fmt.Errorf("invalid CurveType %s", err)
+			return fmt.Errorf("%w: invalid CurveType for prefunded account", err)
 		}
 
 		// Checks if address is not empty string
 		if account.Address == "" {
-			return fmt.Errorf("Account.Address is missing")
+			return fmt.Errorf("Account.Address is missing for prefunded account")
+		}
+
+		// Check if currency is valid
+		err = asserter.Amount(&types.Amount{Value: "0", Currency: account.Currency})
+		if err != nil {
+			return fmt.Errorf("%w: invalid currency for prefunded account", err)
 		}
 	}
 

@@ -28,7 +28,6 @@ var _ storage.BroadcastStorageHelper = (*BroadcastStorageHelper)(nil)
 // BroadcastStorageHelper implements the storage.Helper
 // interface.
 type BroadcastStorageHelper struct {
-	network      *types.NetworkIdentifier
 	blockStorage *storage.BlockStorage
 	fetcher      *fetcher.Fetcher
 }
