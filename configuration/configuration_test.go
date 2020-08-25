@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/coinbase/rosetta-sdk-go/constructor/job"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -31,7 +32,17 @@ var (
 	goodCoverage  = float64(0.33)
 	badCoverage   = float64(-2)
 	endTip        = false
-	whackyConfig  = &Configuration{
+	fakeWorkflows = []*job.Workflow{
+		{
+			Name:        string(job.CreateAccount),
+			Concurrency: job.ReservedWorkflowConcurrency,
+		},
+		{
+			Name:        string(job.RequestFunds),
+			Concurrency: job.ReservedWorkflowConcurrency,
+		},
+	}
+	whackyConfig = &Configuration{
 		Network: &types.NetworkIdentifier{
 			Blockchain: "sweet",
 			Network:    "sweeter",
@@ -47,6 +58,13 @@ var (
 			StaleDepth:          12,
 			BroadcastLimit:      200,
 			BlockBroadcastLimit: 992,
+			Workflows: append(
+				fakeWorkflows,
+				&job.Workflow{
+					Name:        "transfer",
+					Concurrency: 100,
+				},
+			),
 		},
 		Data: &DataConfiguration{
 			ActiveReconciliationConcurrency:   100,
@@ -120,10 +138,23 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"overwrite missing": {
 			provided: &Configuration{
-				Construction: &ConstructionConfiguration{},
-				Data:         &DataConfiguration{},
+				Construction: &ConstructionConfiguration{
+					Workflows: fakeWorkflows,
+				},
+				Data: &DataConfiguration{},
 			},
-			expected: DefaultConfiguration(),
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:          DefaultURL,
+					StaleDepth:          DefaultStaleDepth,
+					BroadcastLimit:      DefaultBroadcastLimit,
+					BlockBroadcastLimit: DefaultBlockBroadcastLimit,
+					Workflows:           fakeWorkflows,
+				}
+
+				return cfg
+			}(),
 		},
 		"invalid network": {
 			provided: invalidNetwork,
@@ -174,6 +205,14 @@ func TestLoadConfiguration(t *testing.T) {
 					EndConditions: &DataEndConditions{
 						ReconciliationCoverage: &goodCoverage,
 					},
+				},
+			},
+			err: true,
+		},
+		"missing reserved workflows": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					Workflows: []*job.Workflow{},
 				},
 			},
 			err: true,

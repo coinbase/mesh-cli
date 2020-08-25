@@ -54,6 +54,10 @@ arbitrary scenarios (i.e. staking, governance).`,
 )
 
 func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
+	if Config.Construction == nil {
+		log.Fatal("construction configuration is missing!")
+	}
+
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -127,17 +127,6 @@ type ConstructionConfiguration struct {
 	Workflows []*job.Workflow `json:"workflows"`
 }
 
-// DefaultConstructionConfiguration returns the *ConstructionConfiguration
-// used for testing Ethereum transfers on Ropsten.
-func DefaultConstructionConfiguration() *ConstructionConfiguration {
-	return &ConstructionConfiguration{
-		OfflineURL:          DefaultURL,
-		StaleDepth:          DefaultStaleDepth,
-		BroadcastLimit:      DefaultBroadcastLimit,
-		BlockBroadcastLimit: DefaultBlockBroadcastLimit,
-	}
-}
-
 // DefaultDataConfiguration returns the default *DataConfiguration
 // for running `check:data`.
 func DefaultDataConfiguration() *DataConfiguration {
@@ -160,7 +149,6 @@ func DefaultConfiguration() *Configuration {
 		SyncConcurrency:        DefaultSyncConcurrency,
 		TransactionConcurrency: DefaultTransactionConcurrency,
 		TipDelay:               DefaultTipDelay,
-		Construction:           DefaultConstructionConfiguration(),
 		Data:                   DefaultDataConfiguration(),
 	}
 }
@@ -323,7 +311,7 @@ func populateConstructionMissingFields(
 	constructionConfig *ConstructionConfiguration,
 ) *ConstructionConfiguration {
 	if constructionConfig == nil {
-		return DefaultConstructionConfiguration()
+		return nil
 	}
 
 	if len(constructionConfig.OfflineURL) == 0 {
@@ -405,6 +393,37 @@ func populateMissingFields(config *Configuration) *Configuration {
 }
 
 func assertConstructionConfiguration(config *ConstructionConfiguration) error {
+	if config == nil {
+		return nil
+	}
+
+	seenCreateAccount := false
+	seenRequestFunds := false
+	for _, workflow := range config.Workflows {
+		sawReserved := false
+		if workflow.Name == string(job.CreateAccount) {
+			sawReserved = true
+			seenCreateAccount = true
+		}
+
+		if workflow.Name == string(job.RequestFunds) {
+			seenRequestFunds = true
+			sawReserved = true
+		}
+
+		if sawReserved && workflow.Concurrency != job.ReservedWorkflowConcurrency {
+			return errors.New("reserved workflow must have concurrency 1")
+		}
+	}
+
+	if !seenCreateAccount {
+		return errors.New("missing create_account workflow")
+	}
+
+	if !seenRequestFunds {
+		return errors.New("missing request_funds workflow")
+	}
+
 	for _, account := range config.PrefundedAccounts {
 		// Checks that privkey is hex encoded
 		_, err := hex.DecodeString(account.PrivateKeyHex)

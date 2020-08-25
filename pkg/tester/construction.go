@@ -62,10 +62,6 @@ func InitializeConstruction(
 	onlineFetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
 ) (*ConstructionTester, error) {
-	if len(config.Construction.Workflows) == 0 {
-		log.Fatal("construction workflows cannot be empty")
-	}
-
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, constructionCmdName, network)
 	if err != nil {
 		log.Fatalf("%s: cannot create command path", err.Error())
