@@ -71,7 +71,14 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) {
 
 	log.Printf("Running zstd training (this could take a while)...")
 
-	_, _, err = storage.BadgerTrain(ctx, namespace, databasePath, dictionaryPath, maxItems, compressorEntries)
+	_, _, err = storage.BadgerTrain(
+		ctx,
+		namespace,
+		databasePath,
+		dictionaryPath,
+		maxItems,
+		compressorEntries,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

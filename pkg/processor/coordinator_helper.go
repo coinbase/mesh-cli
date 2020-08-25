@@ -76,7 +76,12 @@ func (c *CoordinatorHelper) Derive(
 	publicKey *types.PublicKey,
 	metadata map[string]interface{},
 ) (string, map[string]interface{}, error) {
-	add, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(ctx, networkIdentifier, publicKey, metadata)
+	add, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(
+		ctx,
+		networkIdentifier,
+		publicKey,
+		metadata,
+	)
 	if fetchErr != nil {
 		return "", nil, fetchErr.Err
 	}
@@ -283,7 +288,10 @@ func (c *CoordinatorHelper) Coins(
 
 // LockedAddresses returns a slice of all addresses currently sending or receiving
 // funds.
-func (c *CoordinatorHelper) LockedAddresses(ctx context.Context, dbTx storage.DatabaseTransaction) ([]string, error) {
+func (c *CoordinatorHelper) LockedAddresses(
+	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
+) ([]string, error) {
 	return c.broadcastStorage.LockedAddresses(ctx, dbTx)
 }
 
@@ -328,7 +336,10 @@ func (c *CoordinatorHelper) BroadcastAll(
 }
 
 // AllAddresses returns a slice of all known addresses.
-func (c *CoordinatorHelper) AllAddresses(ctx context.Context, dbTx storage.DatabaseTransaction) ([]string, error) {
+func (c *CoordinatorHelper) AllAddresses(
+	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
+) ([]string, error) {
 	return c.keyStorage.GetAllAddressesTransactional(ctx, dbTx)
 }
 

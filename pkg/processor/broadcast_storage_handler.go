@@ -68,7 +68,12 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 		return fmt.Errorf("%w: confirmed transaction did not match intent", err)
 	}
 
-	_, _ = h.counterStorage.UpdateTransactional(ctx, dbTx, storage.TransactionsConfirmedCounter, big.NewInt(1))
+	_, _ = h.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		storage.TransactionsConfirmedCounter,
+		big.NewInt(1),
+	)
 
 	if err := h.coordinator.BroadcastComplete(
 		ctx,
@@ -91,7 +96,12 @@ func (h *BroadcastStorageHandler) TransactionStale(
 	identifier string,
 	transactionIdentifier *types.TransactionIdentifier,
 ) error {
-	_, _ = h.counterStorage.UpdateTransactional(ctx, dbTx, storage.StaleBroadcastsCounter, big.NewInt(1))
+	_, _ = h.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		storage.StaleBroadcastsCounter,
+		big.NewInt(1),
+	)
 
 	return nil
 }
@@ -105,7 +115,12 @@ func (h *BroadcastStorageHandler) BroadcastFailed(
 	transactionIdentifier *types.TransactionIdentifier,
 	intent []*types.Operation,
 ) error {
-	_, _ = h.counterStorage.UpdateTransactional(ctx, dbTx, storage.FailedBroadcastsCounter, big.NewInt(1))
+	_, _ = h.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		storage.FailedBroadcastsCounter,
+		big.NewInt(1),
+	)
 
 	if err := h.coordinator.BroadcastComplete(
 		ctx,
