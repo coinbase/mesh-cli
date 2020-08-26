@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -39,6 +40,9 @@ type CoordinatorHelper struct {
 	balanceStorage   *storage.BalanceStorage
 	coinStorage      *storage.CoinStorage
 	broadcastStorage *storage.BroadcastStorage
+	counterStorage   *storage.CounterStorage
+
+	balanceStorageHelper *BalanceStorageHelper
 }
 
 // NewCoordinatorHelper returns a new *CoordinatorHelper.
@@ -51,16 +55,20 @@ func NewCoordinatorHelper(
 	balanceStorage *storage.BalanceStorage,
 	coinStorage *storage.CoinStorage,
 	broadcastStorage *storage.BroadcastStorage,
+	balanceStorageHelper *BalanceStorageHelper,
+	counterStorage *storage.CounterStorage,
 ) *CoordinatorHelper {
 	return &CoordinatorHelper{
-		offlineFetcher:   offlineFetcher,
-		onlineFetcher:    onlineFetcher,
-		database:         database,
-		blockStorage:     blockStorage,
-		keyStorage:       keyStorage,
-		balanceStorage:   balanceStorage,
-		coinStorage:      coinStorage,
-		broadcastStorage: broadcastStorage,
+		offlineFetcher:       offlineFetcher,
+		onlineFetcher:        onlineFetcher,
+		database:             database,
+		blockStorage:         blockStorage,
+		keyStorage:           keyStorage,
+		balanceStorage:       balanceStorage,
+		coinStorage:          coinStorage,
+		broadcastStorage:     broadcastStorage,
+		counterStorage:       counterStorage,
+		balanceStorageHelper: balanceStorageHelper,
 	}
 }
 
@@ -234,6 +242,10 @@ func (c *CoordinatorHelper) StoreKey(
 	address string,
 	keyPair *keys.KeyPair,
 ) error {
+	// We optimisically add the interesting address although the dbTx could be reverted.
+	c.balanceStorageHelper.AddInterestingAddress(address)
+
+	_, _ = c.counterStorage.UpdateTransactional(ctx, dbTx, storage.AddressesCreatedCounter, big.NewInt(1))
 	return c.keyStorage.StoreTransactional(ctx, address, keyPair, dbTx)
 }
 
@@ -247,8 +259,9 @@ func (c *CoordinatorHelper) Balance(
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) (*types.Amount, error) {
-	amount, _, err := c.balanceStorage.GetBalance(
+	amount, _, err := c.balanceStorage.GetBalanceTransactional(
 		ctx,
+		dbTx,
 		accountIdentifier,
 		currency,
 		nil,

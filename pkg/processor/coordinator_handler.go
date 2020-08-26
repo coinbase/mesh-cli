@@ -36,29 +36,18 @@ type CoordinatorHandler struct {
 // NewCoordinatorHandler returns a new
 // *CoordinatorHandler.
 func NewCoordinatorHandler(
-	balanceStorageHelper *BalanceStorageHelper,
 	counterStorage *storage.CounterStorage,
 ) *CoordinatorHandler {
 	return &CoordinatorHandler{
-		balanceStorageHelper: balanceStorageHelper,
-		counterStorage:       counterStorage,
+		counterStorage: counterStorage,
 	}
-}
-
-// AddressCreated adds an address to balance tracking.
-func (h *CoordinatorHandler) AddressCreated(ctx context.Context, address string) error {
-	h.balanceStorageHelper.AddInterestingAddress(address)
-
-	_, _ = h.counterStorage.Update(ctx, storage.AddressesCreatedCounter, big.NewInt(1))
-
-	return nil
 }
 
 // TransactionCreated increments the TransactionsCreatedCounter in
 // CounterStorage.
 func (h *CoordinatorHandler) TransactionCreated(
 	ctx context.Context,
-	sender string,
+	jobIdentifier string,
 	transactionIdentifier *types.TransactionIdentifier,
 ) error {
 	_, _ = h.counterStorage.Update(

@@ -189,10 +189,11 @@ func InitializeConstruction(
 		balanceStorage,
 		coinStorage,
 		broadcastStorage,
+		balanceStorageHelper,
+		counterStorage,
 	)
 
 	coordinatorHandler := processor.NewCoordinatorHandler(
-		balanceStorageHelper,
 		counterStorage,
 	)
 	coordinator, err := coordinator.New(
