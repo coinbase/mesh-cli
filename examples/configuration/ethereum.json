@@ -36,7 +36,7 @@
         "output_path": "currency"
        },
        {
-        "input": "{\"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create\":1}",
+        "input": "{\"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create_limit\":1}",
         "type": "find_balance",
         "output_path": "random_address"
        }
@@ -86,7 +86,7 @@
    },
    {
     "name": "transfer",
-    "concurrency": 1,
+    "concurrency": 10,
     "scenarios": [
      {
       "name": "transfer",
@@ -102,7 +102,7 @@
         "output_path": "currency"
        },
        {
-        "input": "{\"minimum_balance\":{\"value\": \"10000000000000000\", \"currency\": {{currency}}}, \"create\": 100}",
+        "input": "{\"minimum_balance\":{\"value\": \"10000000000000000\", \"currency\": {{currency}}}}",
         "type": "find_balance",
         "output_path": "sender"
        },
@@ -112,17 +112,26 @@
         "output_path": "max_fee"
        },
        {
-        "input": "{\"operation\":\"subtraction\", \"left_value\": {{max_fee}}, \"right_value\":{{sender.balance.value}}}",
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{max_fee}}}",
+        "type": "math",
+        "output_path": "available_amount"
+       },
+       {
+        "input": "{\"minimum\": \"1\", \"maximum\": {{available_amount}}}",
+        "type": "random_number",
+        "output_path": "recipient_amount"
+       },
+       {
+        "input": "{\"recipient_amount\":{{recipient_amount}}}",
+        "type": "print_message"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": \"0\", \"right_value\":{{recipient_amount}}}",
         "type": "math",
         "output_path": "sender_amount"
        },
        {
-        "input": "{\"operation\":\"subtraction\", \"left_value\": \"0\", \"right_value\":{{sender_amount}}}",
-        "type": "math",
-        "output_path": "recipient_amount"
-       },
-       {
-        "input": "{\"not_address\":[{{sender.account.address}}], \"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create\": 100}",
+        "input": "{\"not_address\":[{{sender.account.address}}], \"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create_limit\": 100, \"create_probability\": 50}",
         "type": "find_balance",
         "output_path": "recipient"
        },
@@ -135,15 +144,6 @@
         "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"transfer\",\"account\":{\"address\":{{sender.account.address}}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"transfer\",\"account\":{\"address\":{{recipient.account.address}}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
         "type": "set_variable",
         "output_path": "transfer.operations"
-       }
-      ]
-     },
-     {
-      "name": "print_transaction",
-      "actions": [
-       {
-        "input": "{{transfer.transaction}}",
-        "type": "print_message"
        }
       ]
      }
