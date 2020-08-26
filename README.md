@@ -34,11 +34,12 @@ To install `rosetta-cli` from source, run:
 go get github.com/coinbase/rosetta-cli
 ```
 
-To download a binary directly for MacOS, run:
+To download a binary directly for MacOS and the latest release, run:
 ```
-curl -L https://github.com/coinbase/rosetta-cli/releases/download/v{YOUR REQUIRED VERSION HERE}/rosetta-cli-{YOUR REQUIRED VERSION HERE}-darwin-10.6-amd64 -o rosetta-cli; chmod +x rosetta-cli;
+curl -L https://github.com/coinbase/rosetta-cli/releases/download/v0.4.1/rosetta-cli-0.4.1-darwin-10.6-amd64 -o rosetta-cli; chmod +x rosetta-cli;
 ```
 
+Otherwise, binaries for other operating systems can be found [here](https://github.com/coinbase/rosetta-cli/releases). 
 _Downloading binaries from the Github UI will cause permission errors on Mac._
 
 ## Usage
