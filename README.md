@@ -379,6 +379,7 @@ Global Flags:
 * `make test` to run tests
 * `make lint` to lint the source code (included generated code)
 * `make release` to run one last check before opening a PR
+* `make compile version=RELEASE_TAG` to generate binaries
 
 ### Helper/Handler
 Many of the packages use a `Helper/Handler` interface pattern to acquire
