@@ -40,6 +40,7 @@ curl -L https://github.com/coinbase/rosetta-cli/releases/download/v0.4.1/rosetta
 ```
 
 Otherwise, binaries for other operating systems can be found [here](https://github.com/coinbase/rosetta-cli/releases). 
+
 _Downloading binaries from the Github UI will cause permission errors on Mac._
 
 ## Usage
