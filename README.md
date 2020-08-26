@@ -39,6 +39,8 @@ To download the binary directly, run:
 curl -L https://github.com/coinbase/rosetta-cli/releases/download/v0.4.1/rosetta-cli-0.4.1-darwin-10.6-amd64 -o rosetta-cli; chmod +x rosetta-cli;
 ```
 
+_Downloading binaries from the Github UI will cause permission errors on Mac._
+
 ## Usage
 ```
 CLI for the Rosetta API
