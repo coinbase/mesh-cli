@@ -29,7 +29,7 @@ Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 * [Construction API](https://www.rosetta-api.org/docs/construction_api_introduction.html)
 
 ## Install
-To install `rosetta-cli` and compile directly, run:
+To install `rosetta-cli` by compiling directly, run:
 ```
 go get github.com/coinbase/rosetta-cli
 ```
