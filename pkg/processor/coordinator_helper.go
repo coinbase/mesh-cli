@@ -231,7 +231,6 @@ func (c *CoordinatorHelper) Sign(
 	ctx context.Context,
 	payloads []*types.SigningPayload,
 ) ([]*types.Signature, error) {
-	fmt.Printf("signing payloads %s\n", types.PrintStruct(payloads))
 	return c.keyStorage.Sign(ctx, payloads)
 }
 
