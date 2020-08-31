@@ -28,8 +28,6 @@ var _ coordinator.Handler = (*CoordinatorHandler)(nil)
 // CoordinatorHandler is invoked by the Coordinator
 // when addresses are created or transactions are created.
 type CoordinatorHandler struct {
-	balanceStorageHelper *BalanceStorageHelper
-
 	counterStorage *storage.CounterStorage
 }
 
