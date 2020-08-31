@@ -29,9 +29,19 @@ Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 * [Construction API](https://www.rosetta-api.org/docs/construction_api_introduction.html)
 
 ## Install
+To install `rosetta-cli` from source, run:
 ```
 go get github.com/coinbase/rosetta-cli
 ```
+
+To download a binary directly for MacOS and the latest release, run:
+```
+curl -L https://github.com/coinbase/rosetta-cli/releases/download/v0.4.1/rosetta-cli-0.4.1-darwin-10.6-amd64 -o rosetta-cli; chmod +x rosetta-cli;
+```
+
+Otherwise, binaries for other operating systems can be found [here](https://github.com/coinbase/rosetta-cli/releases). 
+
+_Downloading binaries from the Github UI will cause permission errors on Mac._
 
 ## Usage
 ```
@@ -379,6 +389,7 @@ Global Flags:
 * `make test` to run tests
 * `make lint` to lint the source code (included generated code)
 * `make release` to run one last check before opening a PR
+* `make compile version=RELEASE_TAG` to generate binaries
 
 ### Helper/Handler
 Many of the packages use a `Helper/Handler` interface pattern to acquire
