@@ -45,10 +45,10 @@ func (c *CheckConstructionResults) Print() {
 	if len(c.Error) > 0 {
 		fmt.Printf("\n")
 		color.Red("Error: %s", c.Error)
+	} else {
+		fmt.Printf("\n")
+		color.Green("Success: %s", types.PrintStruct(c.EndConditions))
 	}
-
-	fmt.Printf("\n")
-	color.Green("Success: %s", types.PrintStruct(c.EndConditions))
 
 	fmt.Printf("\n")
 	c.Stats.Print()
