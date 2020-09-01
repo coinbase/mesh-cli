@@ -67,7 +67,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
 	)
 
-	_, _, fetchErr := fetcher.InitializeAsserter(ctx)
+	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
 		tester.ExitConstruction(
 			Config,

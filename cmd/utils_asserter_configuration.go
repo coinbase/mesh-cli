@@ -52,7 +52,7 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// Initialize the fetcher's asserter
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx)
+	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
 		log.Fatalf("%s: failed to initialize asserter", fetchErr.Err.Error())
 	}

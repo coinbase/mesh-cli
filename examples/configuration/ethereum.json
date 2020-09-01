@@ -10,7 +10,7 @@
  "sync_concurrency": 0,
  "transaction_concurrency": 0,
  "tip_delay": 60,
- "disable_memory_limit": false,
+ "disable_memory_limit": true,
  "log_configuration": false,
  "construction": {
   "offline_url": "",
