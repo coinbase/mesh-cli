@@ -16,11 +16,11 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-// TODO: add test output (like check data)
 type CheckConstructionResults struct {
 	Error         string                  `json:"error"`
 	EndConditions map[string]int          `json:"end_conditions"`
 	Stats         *CheckConstructionStats `json:"stats"`
+	// TODO: add test output (like check data)
 }
 
 func (c *CheckConstructionResults) Print() {
@@ -212,7 +212,7 @@ func ExitConstruction(
 		jobStorage,
 	)
 	results.Print()
-	results.Output(config.Data.ResultsOutputFile)
+	results.Output(config.Construction.ResultsOutputFile)
 
 	os.Exit(status)
 }

@@ -53,6 +53,7 @@ type ConstructionTester struct {
 	broadcastStorage *storage.BroadcastStorage
 	blockStorage     *storage.BlockStorage
 	jobStorage       *storage.JobStorage
+	counterStorage   *storage.CounterStorage
 	coordinator      *coordinator.Coordinator
 	cancel           context.CancelFunc
 	signalReceived   *bool
@@ -245,6 +246,7 @@ func InitializeConstruction(
 		broadcastStorage: broadcastStorage,
 		blockStorage:     blockStorage,
 		jobStorage:       jobStorage,
+		counterStorage:   counterStorage,
 		onlineFetcher:    onlineFetcher,
 		cancel:           cancel,
 		signalReceived:   signalReceived,
@@ -385,4 +387,10 @@ func (t *ConstructionTester) HandleErr(err error) {
 		os.Exit(1)
 		return
 	}
+
+	if t.reachedEndConditions {
+		ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	}
+
+	ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 }
