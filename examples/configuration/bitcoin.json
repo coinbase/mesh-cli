@@ -3,7 +3,7 @@
   "blockchain": "Bitcoin",
   "network": "Testnet3"
  },
- "online_url": "http://3.227.211.154:8080",
+ "online_url": "",
  "data_directory": "bitcoin-data",
  "http_timeout": 300,
  "retry_elapsed_time": 0,
@@ -13,7 +13,7 @@
  "disable_memory_limit": false,
  "log_configuration": false,
  "construction": {
-  "offline_url": "http://3.227.211.154:8080",
+  "offline_url": "",
   "stale_depth": 0,
   "broadcast_limit": 0,
   "ignore_broadcast_failures": false,
