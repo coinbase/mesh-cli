@@ -66,7 +66,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) {
 	)
 
 	// Initialize the fetcher's asserter
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx)
+	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
 		log.Fatal(fetchErr.Err)
 	}

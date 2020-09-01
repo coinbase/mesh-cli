@@ -65,7 +65,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// Behind the scenes this makes a call to get the
 	// network status and uses the response to inform
 	// the asserter what are valid responses.
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx)
+	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
 		log.Fatal(fetchErr.Err)
 	}
