@@ -7,7 +7,7 @@
  "data_directory": "bitcoin-data",
  "http_timeout": 300,
  "retry_elapsed_time": 0,
- "sync_concurrency": 128,
+ "sync_concurrency": 0,
  "transaction_concurrency": 0,
  "tip_delay": 1800,
  "disable_memory_limit": false,
@@ -101,27 +101,56 @@
         "output_path": "currency"
        },
        {
-        "input": "{\"require_coin\":true, \"minimum_balance\":{\"value\": \"1200\", \"currency\": {{currency}}}}",
-        "type": "find_balance",
-        "output_path": "sender"
+        "input": "\"600\"",
+        "type": "set_variable",
+        "output_path": "dust_amount"
        },
        {
         "input": "\"600\"",
         "type": "set_variable",
-        "output_path": "max_fee"
+        "output_path": "fee_amount"
        },
        {
-        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{max_fee}}}",
+        "input": "{\"operation\":\"addition\", \"left_value\": {{dust_amount}}, \"right_value\": {{fee_amount}}}",
+        "type": "math",
+        "output_path": "send_buffer"
+       },
+       {
+        "input": "\"1800\"",
+        "type": "set_variable",
+        "output_path": "reserved_amount"
+       },
+       {
+        "input": "{\"require_coin\":true, \"minimum_balance\":{\"value\": {{reserved_amount}}, \"currency\": {{currency}}}}",
+        "type": "find_balance",
+        "output_path": "sender"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{send_buffer}}}",
         "type": "math",
         "output_path": "available_amount"
        },
        {
-        "input": "{\"minimum\": \"600\", \"maximum\": {{available_amount}}}",
+        "input": "{\"minimum\": {{dust_amount}}, \"maximum\": {{available_amount}}}",
         "type": "random_number",
         "output_path": "recipient_amount"
        },
        {
         "input": "{\"recipient_amount\":{{recipient_amount}}}",
+        "type": "print_message"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{recipient_amount}}}",
+        "type": "math",
+        "output_path": "change_amount"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{change_amount}}, \"right_value\": {{fee_amount}}}",
+        "type": "math",
+        "output_path": "change_amount"
+       },
+       {
+        "input": "{\"change_amount\":{{change_amount}}}",
         "type": "print_message"
        },
        {
@@ -140,7 +169,7 @@
         "output_path": "transfer.confirmation_depth"
        },
        {
-        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{\"address\":{{sender.account.address}}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{\"address\":{{recipient.account.address}}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{\"address\":{{sender.account.address}}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{\"address\":{{recipient.account.address}}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}, {\"operation_identifier\":{\"index\":2},\"type\":\"OUTPUT\",\"account\":{\"address\":{{sender.account.address}}},\"amount\":{\"value\":{{change_amount}},\"currency\":{{currency}}}}]",
         "type": "set_variable",
         "output_path": "transfer.operations"
        },

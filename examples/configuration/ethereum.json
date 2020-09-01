@@ -4,7 +4,7 @@
   "network": "Ropsten"
  },
  "online_url": "",
- "data_directory": "",
+ "data_directory": "ethereum-data",
  "http_timeout": 300,
  "retry_elapsed_time": 0,
  "sync_concurrency": 0,
