@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tester
 
 import (
@@ -16,6 +30,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+// CheckConstructionResults contains any error that
+// occurred on a check:construction run and a collection
+// of interesting stats.
 type CheckConstructionResults struct {
 	Error         string                  `json:"error"`
 	EndConditions map[string]int          `json:"end_conditions"`
@@ -23,6 +40,7 @@ type CheckConstructionResults struct {
 	// TODO: add test output (like check data)
 }
 
+// Print logs CheckConstructionResults to the console.
 func (c *CheckConstructionResults) Print() {
 	if len(c.Error) > 0 {
 		fmt.Printf("\n")
@@ -37,6 +55,8 @@ func (c *CheckConstructionResults) Print() {
 	fmt.Printf("\n")
 }
 
+// Output writes CheckConstructionResults to the provided
+// path.
 func (c *CheckConstructionResults) Output(path string) {
 	if len(path) > 0 {
 		writeErr := utils.SerializeAndWrite(path, c)
@@ -46,6 +66,8 @@ func (c *CheckConstructionResults) Output(path string) {
 	}
 }
 
+// ComputeCheckConstructionResults returns a populated
+// CheckConstructionResults.
 func ComputeCheckConstructionResults(
 	cfg *configuration.Configuration,
 	err error,
@@ -71,6 +93,8 @@ func ComputeCheckConstructionResults(
 	return results
 }
 
+// CheckConstructionStats contains interesting stats
+// that are tracked while running check:construction.
 type CheckConstructionStats struct {
 	TransactionsConfirmed int64 `json:"transactions_confirmed"`
 	TransactionsCreated   int64 `json:"transactions_created"`
@@ -81,6 +105,7 @@ type CheckConstructionStats struct {
 	WorkflowsCompleted map[string]int64 `json:"workflows_completed"`
 }
 
+// PrintCounts logs counter-related stats to the console.
 func (c *CheckConstructionStats) PrintCounts() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetRowLine(true)
@@ -115,6 +140,7 @@ func (c *CheckConstructionStats) PrintCounts() {
 	table.Render()
 }
 
+// PrintWorkflows logs workflow counts to the console.
 func (c *CheckConstructionStats) PrintWorkflows() {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetRowLine(true)
@@ -130,18 +156,21 @@ func (c *CheckConstructionStats) PrintWorkflows() {
 	table.Render()
 }
 
+// Print calls PrintCounts and PrintWorkflows.
 func (c *CheckConstructionStats) Print() {
 	c.PrintCounts()
 	c.PrintWorkflows()
 }
 
+// ComputeCheckConstructionStats returns a populated
+// CheckConstructionStats.
 func ComputeCheckConstructionStats(
 	ctx context.Context,
 	config *configuration.Configuration,
 	counters *storage.CounterStorage,
 	jobs *storage.JobStorage,
 ) *CheckConstructionStats {
-	if counters == nil {
+	if counters == nil || jobs == nil {
 		return nil
 	}
 

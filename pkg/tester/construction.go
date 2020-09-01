@@ -40,6 +40,8 @@ const (
 	// constructionCmdName is used as the prefix on the data directory
 	// for all data saved using this command.
 	constructionCmdName = "check-construction"
+
+	endConditionsCheckInterval = 10 * time.Second
 )
 
 // ConstructionTester coordinates the `check:construction` test.
@@ -342,6 +344,9 @@ func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
 	return nil
 }
 
+// WatchEndConditions cancels check:construction once
+// all end conditions are met (provided workflows
+// are executed at least minOccurences).
 func (t *ConstructionTester) WatchEndConditions(
 	ctx context.Context,
 ) error {
@@ -350,7 +355,7 @@ func (t *ConstructionTester) WatchEndConditions(
 		return nil
 	}
 
-	tc := time.NewTicker(EndAtTipCheckInterval)
+	tc := time.NewTicker(endConditionsCheckInterval)
 	defer tc.Stop()
 
 	for {

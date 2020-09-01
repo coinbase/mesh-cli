@@ -472,7 +472,8 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		return
 	}
 
-	if (err == nil || errors.Is(err, context.Canceled)) && len(t.endCondition) == 0 && t.config.Data.EndConditions != nil &&
+	if (err == nil || errors.Is(err, context.Canceled)) &&
+		len(t.endCondition) == 0 && t.config.Data.EndConditions != nil &&
 		t.config.Data.EndConditions.Index != nil { // occurs at syncer end
 		t.endCondition = configuration.IndexEndCondition
 		t.endConditionDetail = fmt.Sprintf(
