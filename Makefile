@@ -30,6 +30,7 @@ check-format:
 	! gofmt -s -l . | read;
 
 validate-configuration-files:
+	go run main.go configuration:validate examples/configuration/bitcoin.json;
 	go run main.go configuration:validate examples/configuration/ethereum.json;
 	go run main.go configuration:validate examples/configuration/simple.json;
 	go run main.go configuration:create examples/configuration/default.json;

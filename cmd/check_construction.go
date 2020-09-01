@@ -16,15 +16,14 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/utils"
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -70,12 +69,24 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx)
 	if fetchErr != nil {
-		log.Fatalf("%s: unable to initialize asserter", fetchErr.Err.Error())
+		tester.ExitConstruction(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
+			1,
+		)
 	}
 
 	_, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		log.Fatalf("%s: unable to confirm network is supported", err.Error())
+		tester.ExitConstruction(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("%w: unable to confirm network is supported", err),
+			1,
+		)
 	}
 
 	constructionTester, err := tester.InitializeConstruction(
@@ -84,9 +95,16 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		Config.Network,
 		fetcher,
 		cancel,
+		&SignalReceived,
 	)
 	if err != nil {
-		log.Fatalf("%s: unable to initialize construction tester", err.Error())
+		tester.ExitConstruction(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("%w: unable to initialize construction tester", err),
+			1,
+		)
 	}
 
 	defer constructionTester.CloseDatabase(ctx)
@@ -108,21 +126,13 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		return constructionTester.StartConstructor(ctx)
 	})
 
+	g.Go(func() error {
+		return constructionTester.WatchEndConditions(ctx)
+	})
+
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(sigListeners)
 
 	err = g.Wait()
-	if SignalReceived {
-		color.Red("Check halted")
-		os.Exit(1)
-		return
-	}
-
-	if err != nil {
-		color.Red("Check failed: %s", err.Error())
-		os.Exit(1)
-	}
-
-	// Will only hit this once exit conditions are added
-	color.Green("Check succeeded")
+	constructionTester.HandleErr(err)
 }

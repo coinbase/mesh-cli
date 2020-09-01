@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -39,6 +40,8 @@ const (
 	// constructionCmdName is used as the prefix on the data directory
 	// for all data saved using this command.
 	constructionCmdName = "check-construction"
+
+	endConditionsCheckInterval = 10 * time.Second
 )
 
 // ConstructionTester coordinates the `check:construction` test.
@@ -51,7 +54,13 @@ type ConstructionTester struct {
 	onlineFetcher    *fetcher.Fetcher
 	broadcastStorage *storage.BroadcastStorage
 	blockStorage     *storage.BlockStorage
+	jobStorage       *storage.JobStorage
+	counterStorage   *storage.CounterStorage
 	coordinator      *coordinator.Coordinator
+	cancel           context.CancelFunc
+	signalReceived   *bool
+
+	reachedEndConditions bool
 }
 
 // InitializeConstruction initiates the construction API tester.
@@ -61,6 +70,7 @@ func InitializeConstruction(
 	network *types.NetworkIdentifier,
 	onlineFetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
+	signalReceived *bool,
 ) (*ConstructionTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, constructionCmdName, network)
 	if err != nil {
@@ -237,7 +247,11 @@ func InitializeConstruction(
 		coordinator:      coordinator,
 		broadcastStorage: broadcastStorage,
 		blockStorage:     blockStorage,
+		jobStorage:       jobStorage,
+		counterStorage:   counterStorage,
 		onlineFetcher:    onlineFetcher,
+		cancel:           cancel,
+		signalReceived:   signalReceived,
 	}, nil
 }
 
@@ -328,4 +342,60 @@ func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// WatchEndConditions cancels check:construction once
+// all end conditions are met (provided workflows
+// are executed at least minOccurences).
+func (t *ConstructionTester) WatchEndConditions(
+	ctx context.Context,
+) error {
+	endConditions := t.config.Construction.EndConditions
+	if endConditions == nil {
+		return nil
+	}
+
+	tc := time.NewTicker(endConditionsCheckInterval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tc.C:
+			conditionsMet := true
+			for workflow, minOccurences := range endConditions {
+				completed, err := t.jobStorage.Completed(ctx, workflow)
+				if err != nil {
+					return fmt.Errorf("%w: unable to fetch completed %s", err, workflow)
+				}
+
+				if len(completed) < minOccurences {
+					conditionsMet = false
+					break
+				}
+			}
+
+			if conditionsMet {
+				t.reachedEndConditions = true
+				t.cancel()
+				return nil
+			}
+		}
+	}
+}
+
+// HandleErr is called when `check:construction` returns an error.
+func (t *ConstructionTester) HandleErr(err error) {
+	if *t.signalReceived {
+		color.Red("Check halted")
+		os.Exit(1)
+		return
+	}
+
+	if t.reachedEndConditions {
+		ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	}
+
+	ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 }

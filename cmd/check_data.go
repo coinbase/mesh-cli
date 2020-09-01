@@ -82,7 +82,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx)
 	if fetchErr != nil {
-		tester.Exit(
+		tester.ExitData(
 			Config,
 			nil,
 			nil,
@@ -95,7 +95,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		tester.Exit(
+		tester.ExitData(
 			Config,
 			nil,
 			nil,
