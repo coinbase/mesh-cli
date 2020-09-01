@@ -79,9 +79,6 @@ var (
 	}
 )
 
-// TODO: Add support for sophisticated end conditions
-// (https://github.com/coinbase/rosetta-cli/issues/66)
-
 // ConstructionConfiguration contains all configurations
 // to run check:construction.
 type ConstructionConfiguration struct {
@@ -119,12 +116,23 @@ type ConstructionConfiguration struct {
 
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
-	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts"`
+	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts,omitempty"`
 
 	// Workflows are executed by the rosetta-cli to test
 	// certain construction flows. Make sure to define a
 	// "request_funds" and "create_account" workflow.
 	Workflows []*job.Workflow `json:"workflows"`
+
+	// EndConditions is a map of workflow:count that
+	// indicates how many of each workflow should be performed
+	// before check:construction should stop. For example,
+	// {"create_account": 5} indicates that 5 "create_account"
+	// workflows should be performed before stopping.
+	EndConditions map[string]int `json:"end_conditions,omitempty"`
+
+	// ResultsOutputFile is the absolute filepath of where to save
+	// the results of a check:construction run.
+	ResultsOutputFile string `json:"results_output_file,omitempty"`
 }
 
 // DefaultDataConfiguration returns the default *DataConfiguration
@@ -155,7 +163,6 @@ func DefaultConfiguration() *Configuration {
 
 // DataEndConditions contains all the conditions for the syncer to stop
 // when running check:data.
-// Only 1 end condition can be populated at once!
 type DataEndConditions struct {
 	// Index configures the syncer to stop once reaching a particular block height.
 	Index *int64 `json:"index,omitempty"`

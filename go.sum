@@ -57,6 +57,7 @@ github.com/cespare/xxhash/v2 v2.1.1 h1:6MnRN8NT7+YBpUIWxHtefFZOKTAPgGjpQSxqLNn0+
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9/go.mod h1:1MxXX1Ux4x6mqPmjkUgTP1CdXIBXKX7T+Jk9Gxrmx+U=
+github.com/coinbase/rosetta-sdk-go v0.3.4 h1:jWKgajozco/T0FNnZb2TqBsmsUoF6ZuCLnUJkEE+vNg=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200824221853-d7b1fe2f9239 h1:eP88DoIkcbMG5zHja3lUh4F2c+9am1T0zk/AChy1Vpo=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200824221853-d7b1fe2f9239/go.mod h1:/dKD5dZJ0bzDXrd/M3XMQmpXRk0bru3s9EMIeyBJfy4=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200825180137-4b6b8c12e59e h1:gPomoE/+wkTz6/eFWdugcOvWlH/FjiKjNgsIrHrrhZ0=
@@ -109,6 +110,8 @@ github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200831200955-3c1868507a81 h1:6R/X/
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200831200955-3c1868507a81/go.mod h1:ERvHFmf3+JUQB/6ZysASs8CCEcWJMAhN+y/ioqnBsLQ=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200901005342-2c16b7a9ff30 h1:beBdN7OZ0OO/wjADaievjIE0OAuk0qb4zBd2wNn9NfQ=
 github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200901005342-2c16b7a9ff30/go.mod h1:ERvHFmf3+JUQB/6ZysASs8CCEcWJMAhN+y/ioqnBsLQ=
+github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200901051936-be1d05c3bec0 h1:KIjma/2YyrC7S0UJoRO0Zdqneixkbks2uwe1lK5KfqU=
+github.com/coinbase/rosetta-sdk-go v0.3.5-0.20200901051936-be1d05c3bec0/go.mod h1:ERvHFmf3+JUQB/6ZysASs8CCEcWJMAhN+y/ioqnBsLQ=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=

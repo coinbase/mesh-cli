@@ -482,7 +482,7 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 	}
 
 	if len(t.endCondition) != 0 {
-		Exit(
+		ExitData(
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
@@ -495,19 +495,19 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 
 	fmt.Printf("\n")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.HistoricalBalanceDisabled {
 		color.Yellow(
 			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
 		)
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
 		color.Yellow("Search for inactive reconciliation discrepency is disabled")
-		Exit(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	t.FindMissingOps(ctx, err, sigListeners)
@@ -531,7 +531,7 @@ func (t *DataTester) FindMissingOps(
 	)
 	if err != nil {
 		color.Yellow("%s: could not find block with missing ops", err.Error())
-		Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+		ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 	}
 
 	color.Yellow(
@@ -541,7 +541,7 @@ func (t *DataTester) FindMissingOps(
 		badBlock.Hash,
 	)
 
-	Exit(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+	ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 }
 
 func (t *DataTester) recursiveOpSearch(

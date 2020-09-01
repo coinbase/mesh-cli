@@ -453,9 +453,9 @@ func ComputeCheckDataResults(
 	return results
 }
 
-// Exit exits the program, logs the test results to the console,
+// ExitData exits check:data, logs the test results to the console,
 // and to a provided output path.
-func Exit(
+func ExitData(
 	config *configuration.Configuration,
 	counterStorage *storage.CounterStorage,
 	balanceStorage *storage.BalanceStorage,
