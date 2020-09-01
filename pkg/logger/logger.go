@@ -22,8 +22,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/coinbase/rosetta-cli/pkg/scenario"
-
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
@@ -511,30 +509,13 @@ func closeFile(f *os.File) {
 	}
 }
 
-// LogScenario logs what a scenario is perfoming
-// to the console.
-func LogScenario(
-	scenarioCtx *scenario.Context,
+// LogTransactionCreated logs the hash of created
+// transactions.
+func LogTransactionCreated(
 	transactionIdentifier *types.TransactionIdentifier,
-	currency *types.Currency,
 ) {
-	if len(scenarioCtx.ChangeAddress) == 0 {
-		color.Magenta(
-			"Transaction Created: %s\n  %s -- %s --> %s",
-			transactionIdentifier.Hash,
-			scenarioCtx.Sender,
-			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
-			scenarioCtx.Recipient,
-		)
-	} else {
-		color.Magenta(
-			"Transaction Created: %s\n  %s\n    -- %s --> %s\n    -- %s --> %s",
-			transactionIdentifier.Hash,
-			scenarioCtx.Sender,
-			utils.PrettyAmount(scenarioCtx.RecipientValue, currency),
-			scenarioCtx.Recipient,
-			utils.PrettyAmount(scenarioCtx.ChangeValue, currency),
-			scenarioCtx.ChangeAddress,
-		)
-	}
+	color.Magenta(
+		"Transaction Created: %s\n",
+		transactionIdentifier.Hash,
+	)
 }

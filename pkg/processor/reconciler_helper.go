@@ -97,7 +97,14 @@ func (h *ReconcilerHelper) LiveBalance(
 	currency *types.Currency,
 	headBlock *types.BlockIdentifier,
 ) (*types.Amount, *types.BlockIdentifier, error) {
-	amt, block, _, err := utils.CurrencyBalance(ctx, h.network, h.fetcher, account, currency, headBlock)
+	amt, block, _, err := utils.CurrencyBalance(
+		ctx,
+		h.network,
+		h.fetcher,
+		account,
+		currency,
+		headBlock,
+	)
 	if err != nil {
 		return nil, nil, err
 	}

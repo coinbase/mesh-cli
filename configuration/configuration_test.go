@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/coinbase/rosetta-sdk-go/constructor/job"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -31,7 +32,17 @@ var (
 	goodCoverage  = float64(0.33)
 	badCoverage   = float64(-2)
 	endTip        = false
-	whackyConfig  = &Configuration{
+	fakeWorkflows = []*job.Workflow{
+		{
+			Name:        string(job.CreateAccount),
+			Concurrency: job.ReservedWorkflowConcurrency,
+		},
+		{
+			Name:        string(job.RequestFunds),
+			Concurrency: job.ReservedWorkflowConcurrency,
+		},
+	}
+	whackyConfig = &Configuration{
 		Network: &types.NetworkIdentifier{
 			Blockchain: "sweet",
 			Network:    "sweeter",
@@ -43,23 +54,17 @@ var (
 		TransactionConcurrency: 2,
 		TipDelay:               1231,
 		Construction: &ConstructionConfiguration{
-			OfflineURL: "https://ashdjaksdkjshdk",
-			Currency: &types.Currency{
-				Symbol:   "FIRE",
-				Decimals: 100,
-			},
-			MinimumBalance:        "1002",
-			MaximumFee:            "1",
-			CurveType:             types.Edwards25519,
-			AccountingModel:       UtxoModel,
-			Scenario:              EthereumTransfer,
-			ChangeScenario:        EthereumTransfer[0],
-			ConfirmationDepth:     100,
-			StaleDepth:            12,
-			BroadcastLimit:        200,
-			BlockBroadcastLimit:   992,
-			NewAccountProbability: 0.1,
-			MaxAddresses:          12,
+			OfflineURL:          "https://ashdjaksdkjshdk",
+			StaleDepth:          12,
+			BroadcastLimit:      200,
+			BlockBroadcastLimit: 992,
+			Workflows: append(
+				fakeWorkflows,
+				&job.Workflow{
+					Name:        "transfer",
+					Concurrency: 100,
+				},
+			),
 		},
 		Data: &DataConfiguration{
 			ActiveReconciliationConcurrency:   100,
@@ -78,34 +83,6 @@ var (
 			Blockchain: "?",
 		},
 	}
-	invalidCurrency = &Configuration{
-		Construction: &ConstructionConfiguration{
-			Currency: &types.Currency{
-				Decimals: 12,
-			},
-		},
-	}
-	invalidCurve = &Configuration{
-		Construction: &ConstructionConfiguration{
-			CurveType: "hello",
-		},
-	}
-	invalidAccountingModel = &Configuration{
-		Construction: &ConstructionConfiguration{
-			AccountingModel: "hello",
-		},
-	}
-	invalidMinimumBalance = &Configuration{
-		Construction: &ConstructionConfiguration{
-			MinimumBalance: "-1000",
-		},
-	}
-	invalidMaximumFee = &Configuration{
-		Construction: &ConstructionConfiguration{
-			MaximumFee: "hello",
-		},
-	}
-
 	invalidPrefundedAccounts = &Configuration{
 		Construction: &ConstructionConfiguration{
 			PrefundedAccounts: []*storage.PrefundedAccount{
@@ -161,33 +138,26 @@ func TestLoadConfiguration(t *testing.T) {
 		},
 		"overwrite missing": {
 			provided: &Configuration{
-				Construction: &ConstructionConfiguration{},
-				Data:         &DataConfiguration{},
+				Construction: &ConstructionConfiguration{
+					Workflows: fakeWorkflows,
+				},
+				Data: &DataConfiguration{},
 			},
-			expected: DefaultConfiguration(),
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:          DefaultURL,
+					StaleDepth:          DefaultStaleDepth,
+					BroadcastLimit:      DefaultBroadcastLimit,
+					BlockBroadcastLimit: DefaultBlockBroadcastLimit,
+					Workflows:           fakeWorkflows,
+				}
+
+				return cfg
+			}(),
 		},
 		"invalid network": {
 			provided: invalidNetwork,
-			err:      true,
-		},
-		"invalid currency": {
-			provided: invalidCurrency,
-			err:      true,
-		},
-		"invalid curve type": {
-			provided: invalidCurve,
-			err:      true,
-		},
-		"invalid accounting model": {
-			provided: invalidAccountingModel,
-			err:      true,
-		},
-		"invalid minimum balance": {
-			provided: invalidMinimumBalance,
-			err:      true,
-		},
-		"invalid maximum fee": {
-			provided: invalidMaximumFee,
 			err:      true,
 		},
 		"invalid prefunded accounts": {
@@ -235,6 +205,14 @@ func TestLoadConfiguration(t *testing.T) {
 					EndConditions: &DataEndConditions{
 						ReconciliationCoverage: &goodCoverage,
 					},
+				},
+			},
+			err: true,
+		},
+		"missing reserved workflows": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					Workflows: []*job.Workflow{},
 				},
 			},
 			err: true,
