@@ -21,7 +21,6 @@
   "broadcast_behind_tip": false,
   "block_broadcast_limit": 0,
   "rebroadcast_all": false,
-  "prefunded_accounts": null,
   "workflows": [
    {
     "name": "request_funds",
@@ -149,7 +148,11 @@
      }
     ]
    }
-  ]
+  ],
+  "end_conditions": {
+   "create_account": 10,
+   "transfer": 10
+  }
  },
  "data": null
 }
