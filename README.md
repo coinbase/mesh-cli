@@ -29,12 +29,12 @@ Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 * [Construction API](https://www.rosetta-api.org/docs/construction_api_introduction.html)
 
 ## Install
-To download a binary directly for the latest release, run:
+To download a binary for the latest release, run:
 ```
 curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s
 ```
 
-The binary will be installed inside the`./bin` directory from where the install command was run.
+The binary will be installed inside the `./bin` directory (relative to where the install command was run).
 
 _Downloading binaries from the Github UI will cause permission errors on Mac._
 
