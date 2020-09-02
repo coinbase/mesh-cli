@@ -1,4 +1,18 @@
 #!/bin/sh
+# Copyright 2020 Coinbase, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -e
 
 # Inspired by: https://github.com/golangci/golangci-lint/blob/master/install.sh
@@ -45,21 +59,21 @@ execute() {
   http_download "${tmpdir}/${TARBALL}" "${TARBALL_URL}"
   (cd "${tmpdir}" && untar "${TARBALL}")
   test ! -d "${BINDIR}" && install -d "${BINDIR}"
-  mv "${tmpdir}/${NAME}" "${tmpdir}/${BINARIES}"
-  install "${tmpdir}/${BINARIES}" "${BINDIR}/"
-  log_info "installed ${BINDIR}/${BINARIES}"
+  mv "${tmpdir}/${NAME}" "${tmpdir}/${BINARY}"
+  install "${tmpdir}/${BINARY}" "${BINDIR}/"
+  log_info "installed ${BINDIR}/${BINARY}"
   rm -rf "${tmpdir}"
 }
 get_binaries() {
   case "$PLATFORM" in
-    darwin/amd64) BINARIES="rosetta-cli" ;;
-    linux/amd64) BINARIES="rosetta-cli" ;;
-    linux/arm64) BINARIES="rosetta-cli" ;;
-    linux/mips64) BINARIES="rosetta-cli" ;;
-    linux/mips64le) BINARIES="rosetta-cli" ;;
-    linux/ppc64le) BINARIES="rosetta-cli" ;;
-    linux/s390x) BINARIES="rosetta-cli" ;;
-    windows/amd64) BINARIES="rosetta-cli.exe" ;;
+    darwin/amd64) BINARY="rosetta-cli" ;;
+    linux/amd64) BINARY="rosetta-cli" ;;
+    linux/arm64) BINARY="rosetta-cli" ;;
+    linux/mips64) BINARY="rosetta-cli" ;;
+    linux/mips64le) BINARY="rosetta-cli" ;;
+    linux/ppc64le) BINARY="rosetta-cli" ;;
+    linux/s390x) BINARY="rosetta-cli" ;;
+    windows/amd64) BINARY="rosetta-cli.exe" ;;
     *)
       log_crit "platform $PLATFORM is not supported.  Make sure this script is up-to-date and file request at https://github.com/${PREFIX}/issues/new"
       exit 1
