@@ -58,7 +58,7 @@ salus:
 release: add-license shorten-lines format test lint salus
 
 compile:
-	xgo --targets=darwin/*,windows/*,linux/* -out bin/rosetta-cli-$(version) .
+	./scripts/compile.sh $(version)
 
 build:
 	go build ./...
