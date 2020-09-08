@@ -31,6 +31,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
 	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -235,6 +236,7 @@ func InitializeConstruction(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
+		syncer.DefaultCacheSize,
 		config.SyncConcurrency,
 	)
 

@@ -75,9 +75,9 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	fetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithTransactionConcurrency(Config.TransactionConcurrency),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxConnections(500),
 	)
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)

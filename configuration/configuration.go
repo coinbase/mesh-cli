@@ -54,7 +54,6 @@ const (
 const (
 	DefaultURL                               = "http://localhost:8080"
 	DefaultSyncConcurrency                   = 8
-	DefaultTransactionConcurrency            = 16
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
@@ -150,14 +149,13 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:                EthereumNetwork,
-		OnlineURL:              DefaultURL,
-		HTTPTimeout:            DefaultTimeout,
-		RetryElapsedTime:       DefaultRetryElapsedTime,
-		SyncConcurrency:        DefaultSyncConcurrency,
-		TransactionConcurrency: DefaultTransactionConcurrency,
-		TipDelay:               DefaultTipDelay,
-		Data:                   DefaultDataConfiguration(),
+		Network:          EthereumNetwork,
+		OnlineURL:        DefaultURL,
+		HTTPTimeout:      DefaultTimeout,
+		RetryElapsedTime: DefaultRetryElapsedTime,
+		SyncConcurrency:  DefaultSyncConcurrency,
+		TipDelay:         DefaultTipDelay,
+		Data:             DefaultDataConfiguration(),
 	}
 }
 
@@ -292,10 +290,7 @@ type Configuration struct {
 	RetryElapsedTime uint64 `json:"retry_elapsed_time"`
 
 	// SyncConcurrency is the concurrency to use while syncing blocks.
-	SyncConcurrency uint64 `json:"sync_concurrency"`
-
-	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
-	TransactionConcurrency uint64 `json:"transaction_concurrency"`
+	SyncConcurrency int64 `json:"sync_concurrency"`
 
 	// TipDelay dictates how many seconds behind the current time is considered
 	// tip. If we are > TipDelay seconds from the last processed block,
@@ -383,10 +378,6 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.SyncConcurrency == 0 {
 		config.SyncConcurrency = DefaultSyncConcurrency
-	}
-
-	if config.TransactionConcurrency == 0 {
-		config.TransactionConcurrency = DefaultTransactionConcurrency
 	}
 
 	if config.TipDelay == 0 {

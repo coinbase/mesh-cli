@@ -16,6 +16,7 @@ package processor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -104,8 +105,8 @@ func (c *CoordinatorHelper) Preprocess(
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
 	metadata map[string]interface{},
-) (map[string]interface{}, error) {
-	res, fetchErr := c.offlineFetcher.ConstructionPreprocess(
+) (map[string]interface{}, []*types.AccountIdentifier, error) {
+	res, requiredPublicKeys, fetchErr := c.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		networkIdentifier,
 		intent,
@@ -113,10 +114,10 @@ func (c *CoordinatorHelper) Preprocess(
 	)
 
 	if fetchErr != nil {
-		return nil, fetchErr.Err
+		return nil, nil, fetchErr.Err
 	}
 
-	return res, nil
+	return res, requiredPublicKeys, nil
 }
 
 // Metadata calls the /construction/metadata endpoint
@@ -125,11 +126,13 @@ func (c *CoordinatorHelper) Metadata(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	metadataRequest map[string]interface{},
+	publicKeys []*types.PublicKey,
 ) (map[string]interface{}, error) {
 	res, fetchErr := c.offlineFetcher.ConstructionMetadata(
 		ctx,
 		networkIdentifier,
 		metadataRequest,
+		publicKeys,
 	)
 
 	if fetchErr != nil {
@@ -146,12 +149,14 @@ func (c *CoordinatorHelper) Payloads(
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
 	requiredMetadata map[string]interface{},
+	publicKeys []*types.PublicKey,
 ) (string, []*types.SigningPayload, error) {
 	res, payloads, fetchErr := c.offlineFetcher.ConstructionPayloads(
 		ctx,
 		networkIdentifier,
 		intent,
 		requiredMetadata,
+		publicKeys,
 	)
 
 	if fetchErr != nil {
@@ -247,6 +252,16 @@ func (c *CoordinatorHelper) StoreKey(
 
 	_, _ = c.counterStorage.UpdateTransactional(ctx, dbTx, storage.AddressesCreatedCounter, big.NewInt(1))
 	return c.keyStorage.StoreTransactional(ctx, address, keyPair, dbTx)
+}
+
+// GetKey is called to get the *types.KeyPair
+// associated with an address.
+func (c *CoordinatorHelper) GetKey(
+	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
+	address string,
+) (*keys.KeyPair, error) {
+	return nil, errors.New("not implemented")
 }
 
 // Balance returns the balance

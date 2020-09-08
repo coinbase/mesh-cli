@@ -1,0 +1,19 @@
+{
+ "network": {
+  "blockchain": "Bitcoin",
+  "network": "Testnet3"
+ },
+ "online_url": "http://34.204.194.187:8080",
+ "data_directory": "bitcoin-data-testnet",
+ "http_timeout": 300,
+ "tip_delay": 1800,
+ "disable_memory_limit": true,
+ "log_configuration": false,
+ "sync_concurrency": 256,
+ "data": {
+  "historical_balance_disabled": true,
+  "end_conditions": {
+   "reconciliation_coverage": 0.95
+  }
+ }
+}
