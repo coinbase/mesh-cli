@@ -31,6 +31,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
 	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -148,26 +149,23 @@ func InitializeConstruction(
 	}
 
 	// Load all accounts for network
-	addresses, err := keyStorage.GetAllAddresses(ctx)
+	accounts, err := keyStorage.GetAllAccounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load addresses", err)
 	}
 
-	log.Printf("construction tester initialized with %d addresses\n", len(addresses))
-
 	// Track balances on all addresses
-	for _, address := range addresses {
-		balanceStorageHelper.AddInterestingAddress(address)
+	for _, account := range accounts {
+		balanceStorageHelper.AddInterestingAddress(account.Address)
 	}
+
+	log.Printf("construction tester initialized with %d accounts\n", len(accounts))
 
 	// Load prefunded accounts
 	var accountBalanceRequests []*utils.AccountBalanceRequest
 	for _, prefundedAcc := range config.Construction.PrefundedAccounts {
-		address := prefundedAcc.Address
 		accountBalance := &utils.AccountBalanceRequest{
-			Account: &types.AccountIdentifier{
-				Address: address,
-			},
+			Account:  prefundedAcc.AccountIdentifier,
 			Network:  network,
 			Currency: prefundedAcc.Currency,
 		}
@@ -236,6 +234,7 @@ func InitializeConstruction(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
+		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
 	)
 

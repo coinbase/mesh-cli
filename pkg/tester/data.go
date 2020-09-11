@@ -30,6 +30,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
 	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -263,6 +264,7 @@ func InitializeData(
 		logger,
 		cancel,
 		blockWorkers,
+		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
 	)
 
@@ -641,7 +643,8 @@ func (t *DataTester) recursiveOpSearch(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage},
-		t.config.SyncConcurrency,
+		syncer.DefaultCacheSize,
+		t.config.MaxSyncConcurrency,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

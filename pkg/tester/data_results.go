@@ -25,6 +25,7 @@ import (
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
@@ -281,23 +282,15 @@ func (c *CheckDataTests) Print() {
 // indicating if all endpoints received
 // a non-500 response.
 func RequestResponseTest(err error) bool {
-	if errors.Is(err, fetcher.ErrExhaustedRetries) || errors.Is(err, fetcher.ErrRequestFailed) ||
-		errors.Is(err, fetcher.ErrNoNetworks) || errors.Is(err, utils.ErrNetworkNotSupported) {
-		return false
-	}
-
-	return true
+	return !(fetcher.Err(err) || errors.Is(err, utils.ErrNetworkNotSupported))
 }
 
 // ResponseAssertionTest returns a boolean
 // indicating if all responses received from
 // the server were correctly formatted.
 func ResponseAssertionTest(err error) bool {
-	if errors.Is(err, fetcher.ErrAssertionFailed) { // nolint
-		return false
-	}
-
-	return true
+	is, _ := asserter.Err(err)
+	return !is
 }
 
 // BlockSyncingTest returns a boolean
