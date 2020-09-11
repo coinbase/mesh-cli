@@ -47,17 +47,18 @@ var (
 			Blockchain: "sweet",
 			Network:    "sweeter",
 		},
-		OnlineURL:              "http://hasudhasjkdk",
-		HTTPTimeout:            21,
-		RetryElapsedTime:       1000,
-		SyncConcurrency:        12,
-		TransactionConcurrency: 2,
-		TipDelay:               1231,
+		OnlineURL:            "http://hasudhasjkdk",
+		MaxOnlineConnections: 10,
+		HTTPTimeout:          21,
+		RetryElapsedTime:     1000,
+		MaxSyncConcurrency:   12,
+		TipDelay:             1231,
 		Construction: &ConstructionConfiguration{
-			OfflineURL:          "https://ashdjaksdkjshdk",
-			StaleDepth:          12,
-			BroadcastLimit:      200,
-			BlockBroadcastLimit: 992,
+			OfflineURL:            "https://ashdjaksdkjshdk",
+			MaxOfflineConnections: 21,
+			StaleDepth:            12,
+			BroadcastLimit:        200,
+			BlockBroadcastLimit:   992,
 			Workflows: append(
 				fakeWorkflows,
 				&job.Workflow{
@@ -146,11 +147,12 @@ func TestLoadConfiguration(t *testing.T) {
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
 				cfg.Construction = &ConstructionConfiguration{
-					OfflineURL:          DefaultURL,
-					StaleDepth:          DefaultStaleDepth,
-					BroadcastLimit:      DefaultBroadcastLimit,
-					BlockBroadcastLimit: DefaultBlockBroadcastLimit,
-					Workflows:           fakeWorkflows,
+					OfflineURL:            DefaultURL,
+					MaxOfflineConnections: DefaultMaxOfflineConnections,
+					StaleDepth:            DefaultStaleDepth,
+					BroadcastLimit:        DefaultBroadcastLimit,
+					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					Workflows:             fakeWorkflows,
 				}
 
 				return cfg
