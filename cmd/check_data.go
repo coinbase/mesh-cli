@@ -39,10 +39,10 @@ computed balance changes are equal to balance changes reported by the node.
 When re-running this command, it will start where it left off if you specify
 some data directory. Otherwise, it will create a new temporary directory and start
 again from the genesis block. If you want to discard some number of blocks
-populate the --start flag with some block index. Starting from a given index
-can be useful to debug a small range of blocks for issues but it is highly
-recommended you sync from start to finish to ensure all correctness checks
-are performed.
+populate the start_index filed in the configuration file with some block index.
+Starting from a given index can be useful to debug a small range of blocks for
+issues but it is highly recommended you sync from start to finish to ensure
+all correctness checks are performed.
 
 By default, account balances are looked up at specific heights (instead of
 only at the current block). If your node does not support this functionality
