@@ -53,13 +53,14 @@ const (
 // Default Configuration Values
 const (
 	DefaultURL                               = "http://localhost:8080"
-	DefaultSyncConcurrency                   = 8
-	DefaultTransactionConcurrency            = 16
+	DefaultTimeout                           = 10
+	DefaultRetryElapsedTime                  = 60
+	DefaultMaxOnlineConnections              = 120 // most OS have a default limit of 128
+	DefaultMaxOfflineConnections             = 4   // we shouldn't need many connections for construction
+	DefaultMaxSyncConcurrency                = 64
 	DefaultActiveReconciliationConcurrency   = 16
 	DefaultInactiveReconciliationConcurrency = 4
 	DefaultInactiveReconciliationFrequency   = 250
-	DefaultTimeout                           = 10
-	DefaultRetryElapsedTime                  = 60
 	DefaultConfirmationDepth                 = 10
 	DefaultStaleDepth                        = 30
 	DefaultBroadcastLimit                    = 3
@@ -84,6 +85,10 @@ var (
 type ConstructionConfiguration struct {
 	// OfflineURL is the URL of a Rosetta API implementation in "offline mode".
 	OfflineURL string `json:"offline_url"`
+
+	// MaxOffineConnections is the maximum number of open connections that the offline
+	// fetcher will open.
+	MaxOfflineConnections int `json:"max_offline_connections"`
 
 	// StaleDepth is the number of blocks to wait before attempting
 	// to rebroadcast after not finding a transaction on-chain.
@@ -150,14 +155,14 @@ func DefaultDataConfiguration() *DataConfiguration {
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:                EthereumNetwork,
-		OnlineURL:              DefaultURL,
-		HTTPTimeout:            DefaultTimeout,
-		RetryElapsedTime:       DefaultRetryElapsedTime,
-		SyncConcurrency:        DefaultSyncConcurrency,
-		TransactionConcurrency: DefaultTransactionConcurrency,
-		TipDelay:               DefaultTipDelay,
-		Data:                   DefaultDataConfiguration(),
+		Network:              EthereumNetwork,
+		OnlineURL:            DefaultURL,
+		MaxOnlineConnections: DefaultMaxOnlineConnections,
+		HTTPTimeout:          DefaultTimeout,
+		RetryElapsedTime:     DefaultRetryElapsedTime,
+		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
+		TipDelay:             DefaultTipDelay,
+		Data:                 DefaultDataConfiguration(),
 	}
 }
 
@@ -291,11 +296,13 @@ type Configuration struct {
 	// RetryElapsedTime is the total time to spend retrying a HTTP request in seconds.
 	RetryElapsedTime uint64 `json:"retry_elapsed_time"`
 
-	// SyncConcurrency is the concurrency to use while syncing blocks.
-	SyncConcurrency uint64 `json:"sync_concurrency"`
+	// MaxOnlineConnections is the maximum number of open connections that the online
+	// fetcher will open.
+	MaxOnlineConnections int `json:"max_online_connections"`
 
-	// TransactionConcurrency is the concurrency to use while fetching transactions (if required).
-	TransactionConcurrency uint64 `json:"transaction_concurrency"`
+	// MaxSyncConcurrency is the maximum sync concurrency to use while syncing blocks.
+	// Sync concurrency is managed automatically by the `syncer` package.
+	MaxSyncConcurrency int64 `json:"max_sync_concurrency"`
 
 	// TipDelay dictates how many seconds behind the current time is considered
 	// tip. If we are > TipDelay seconds from the last processed block,
@@ -323,6 +330,10 @@ func populateConstructionMissingFields(
 
 	if len(constructionConfig.OfflineURL) == 0 {
 		constructionConfig.OfflineURL = DefaultURL
+	}
+
+	if constructionConfig.MaxOfflineConnections == 0 {
+		constructionConfig.MaxOfflineConnections = DefaultMaxOfflineConnections
 	}
 
 	if constructionConfig.StaleDepth == 0 {
@@ -381,12 +392,12 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.RetryElapsedTime = DefaultRetryElapsedTime
 	}
 
-	if config.SyncConcurrency == 0 {
-		config.SyncConcurrency = DefaultSyncConcurrency
+	if config.MaxOnlineConnections == 0 {
+		config.MaxOnlineConnections = DefaultMaxOnlineConnections
 	}
 
-	if config.TransactionConcurrency == 0 {
-		config.TransactionConcurrency = DefaultTransactionConcurrency
+	if config.MaxSyncConcurrency == 0 {
+		config.MaxSyncConcurrency = DefaultMaxSyncConcurrency
 	}
 
 	if config.TipDelay == 0 {
@@ -442,19 +453,18 @@ func assertConstructionConfiguration(config *ConstructionConfiguration) error {
 			)
 		}
 
-		// Checks if valid curvetype
-		err = asserter.CurveType(account.CurveType)
-		if err != nil {
+		// Checks if valid CurveType
+		if err := asserter.CurveType(account.CurveType); err != nil {
 			return fmt.Errorf("%w: invalid CurveType for prefunded account", err)
 		}
 
-		// Checks if address is not empty string
-		if account.Address == "" {
+		// Checks if valid AccountIdentifier
+		if err := asserter.AccountIdentifier(account.AccountIdentifier); err != nil {
 			return fmt.Errorf("Account.Address is missing for prefunded account")
 		}
 
-		// Check if currency is valid
-		err = asserter.Amount(&types.Amount{Value: "0", Currency: account.Currency})
+		// Check if valid Currency
+		err = asserter.Currency(account.Currency)
 		if err != nil {
 			return fmt.Errorf("%w: invalid currency for prefunded account", err)
 		}
