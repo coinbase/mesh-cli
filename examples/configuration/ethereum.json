@@ -7,13 +7,14 @@
  "data_directory": "ethereum-data",
  "http_timeout": 300,
  "retry_elapsed_time": 0,
- "sync_concurrency": 0,
- "transaction_concurrency": 0,
+ "max_online_connections": 0,
+ "max_sync_concurrency": 0,
  "tip_delay": 60,
  "disable_memory_limit": true,
  "log_configuration": false,
  "construction": {
   "offline_url": "",
+  "max_offline_connections": 0,
   "stale_depth": 0,
   "broadcast_limit": 0,
   "ignore_broadcast_failures": false,
@@ -27,7 +28,7 @@
     "concurrency": 1,
     "scenarios": [
      {
-      "name": "find_address",
+      "name": "find_account",
       "actions": [
        {
         "input": "{\"symbol\":\"ETH\", \"decimals\":18}",
@@ -37,7 +38,7 @@
        {
         "input": "{\"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create_limit\":1}",
         "type": "find_balance",
-        "output_path": "random_address"
+        "output_path": "random_account"
        }
       ]
      },
@@ -45,9 +46,9 @@
       "name": "request",
       "actions": [
        {
-        "input": "{\"address\": {{random_address.account.address}}, \"minimum_balance\":{\"value\": \"10000000000000000\", \"currency\": {{currency}}}}",
+        "input": "{\"account_identifier\": {{random_account.account_identifier}}, \"minimum_balance\":{\"value\": \"10000000000000000\", \"currency\": {{currency}}}}",
         "type": "find_balance",
-        "output_path": "loaded_address"
+        "output_path": "loaded_account"
        }
       ]
      }
@@ -73,11 +74,11 @@
        {
         "input": "{\"network_identifier\": {{network}}, \"public_key\": {{key.public_key}}}",
         "type": "derive",
-        "output_path": "address"
+        "output_path": "account"
        },
        {
-        "input": "{\"address\": {{address.address}}, \"keypair\": {{key}}}",
-        "type": "save_address"
+        "input": "{\"account_identifier\": {{account.account_identifier}}, \"keypair\": {{key}}}",
+        "type": "save_account"
        }
       ]
      }
@@ -130,7 +131,7 @@
         "output_path": "sender_amount"
        },
        {
-        "input": "{\"not_address\":[{{sender.account.address}}], \"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create_limit\": 100, \"create_probability\": 50}",
+        "input": "{\"not_account_identifier\":[{{sender.account_identifier}}], \"minimum_balance\":{\"value\": \"0\", \"currency\": {{currency}}}, \"create_limit\": 100, \"create_probability\": 50}",
         "type": "find_balance",
         "output_path": "recipient"
        },
@@ -140,7 +141,7 @@
         "output_path": "transfer.confirmation_depth"
        },
        {
-        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"transfer\",\"account\":{\"address\":{{sender.account.address}}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"transfer\",\"account\":{\"address\":{{recipient.account.address}}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"transfer\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"transfer\",\"account\":{{recipient.account_identifier}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
         "type": "set_variable",
         "output_path": "transfer.operations"
        }
