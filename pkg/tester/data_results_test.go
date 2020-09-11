@@ -306,7 +306,11 @@ func TestComputeCheckDataResults(t *testing.T) {
 				assert.NoError(t, err)
 
 				ctx := context.Background()
-				localStore, err := storage.NewBadgerStorage(ctx, dir)
+				localStore, err := storage.NewBadgerStorage(
+					ctx,
+					dir,
+					storage.WithIndexCacheSize(storage.TinyIndexCacheSize),
+				)
 				assert.NoError(t, err)
 
 				logPath := path.Join(dir, "results.json")
