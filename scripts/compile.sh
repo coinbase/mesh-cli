@@ -16,7 +16,7 @@
 
 VERSION=$1;
 
-xgo --targets=darwin/*,windows/*,linux/* -out "bin/rosetta-cli-${VERSION}" .;
+xgo -go go-1.15.2 --targets=darwin/*,windows/*,linux/* -out "bin/rosetta-cli-${VERSION}" .;
 
 # Rename some files
 mv "bin/rosetta-cli-${VERSION}-darwin-10.6-amd64" "bin/rosetta-cli-${VERSION}-darwin-amd64" 
