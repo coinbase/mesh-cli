@@ -83,18 +83,18 @@ func (c *CoordinatorHelper) Derive(
 	networkIdentifier *types.NetworkIdentifier,
 	publicKey *types.PublicKey,
 	metadata map[string]interface{},
-) (string, map[string]interface{}, error) {
-	add, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(
+) (*types.AccountIdentifier, map[string]interface{}, error) {
+	account, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(
 		ctx,
 		networkIdentifier,
 		publicKey,
 		metadata,
 	)
 	if fetchErr != nil {
-		return "", nil, fetchErr.Err
+		return nil, nil, fetchErr.Err
 	}
 
-	return add, metadata, nil
+	return account, metadata, nil
 }
 
 // Preprocess calls the /construction/preprocess endpoint
@@ -104,8 +104,8 @@ func (c *CoordinatorHelper) Preprocess(
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
 	metadata map[string]interface{},
-) (map[string]interface{}, error) {
-	res, fetchErr := c.offlineFetcher.ConstructionPreprocess(
+) (map[string]interface{}, []*types.AccountIdentifier, error) {
+	options, requiredPublicKeys, fetchErr := c.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		networkIdentifier,
 		intent,
@@ -113,10 +113,10 @@ func (c *CoordinatorHelper) Preprocess(
 	)
 
 	if fetchErr != nil {
-		return nil, fetchErr.Err
+		return nil, nil, fetchErr.Err
 	}
 
-	return res, nil
+	return options, requiredPublicKeys, nil
 }
 
 // Metadata calls the /construction/metadata endpoint
@@ -125,18 +125,20 @@ func (c *CoordinatorHelper) Metadata(
 	ctx context.Context,
 	networkIdentifier *types.NetworkIdentifier,
 	metadataRequest map[string]interface{},
-) (map[string]interface{}, error) {
-	res, fetchErr := c.offlineFetcher.ConstructionMetadata(
+	publicKeys []*types.PublicKey,
+) (map[string]interface{}, []*types.Amount, error) {
+	metadata, suggestedFee, fetchErr := c.offlineFetcher.ConstructionMetadata(
 		ctx,
 		networkIdentifier,
 		metadataRequest,
+		publicKeys,
 	)
 
 	if fetchErr != nil {
-		return nil, fetchErr.Err
+		return nil, nil, fetchErr.Err
 	}
 
-	return res, nil
+	return metadata, suggestedFee, nil
 }
 
 // Payloads calls the /construction/payloads endpoint
@@ -146,12 +148,14 @@ func (c *CoordinatorHelper) Payloads(
 	networkIdentifier *types.NetworkIdentifier,
 	intent []*types.Operation,
 	requiredMetadata map[string]interface{},
+	publicKeys []*types.PublicKey,
 ) (string, []*types.SigningPayload, error) {
 	res, payloads, fetchErr := c.offlineFetcher.ConstructionPayloads(
 		ctx,
 		networkIdentifier,
 		intent,
 		requiredMetadata,
+		publicKeys,
 	)
 
 	if fetchErr != nil {
@@ -168,7 +172,7 @@ func (c *CoordinatorHelper) Parse(
 	networkIdentifier *types.NetworkIdentifier,
 	signed bool,
 	transaction string,
-) ([]*types.Operation, []string, map[string]interface{}, error) {
+) ([]*types.Operation, []*types.AccountIdentifier, map[string]interface{}, error) {
 	ops, signers, metadata, fetchErr := c.offlineFetcher.ConstructionParse(
 		ctx,
 		networkIdentifier,
@@ -234,19 +238,29 @@ func (c *CoordinatorHelper) Sign(
 	return c.keyStorage.Sign(ctx, payloads)
 }
 
+// GetKey is called to get the *types.KeyPair
+// associated with an address.
+func (c *CoordinatorHelper) GetKey(
+	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
+	account *types.AccountIdentifier,
+) (*keys.KeyPair, error) {
+	return c.keyStorage.GetTransactional(ctx, dbTx, account)
+}
+
 // StoreKey stores a KeyPair and address
 // in KeyStorage.
 func (c *CoordinatorHelper) StoreKey(
 	ctx context.Context,
 	dbTx storage.DatabaseTransaction,
-	address string,
+	account *types.AccountIdentifier,
 	keyPair *keys.KeyPair,
 ) error {
 	// We optimisically add the interesting address although the dbTx could be reverted.
-	c.balanceStorageHelper.AddInterestingAddress(address)
+	c.balanceStorageHelper.AddInterestingAddress(account.Address)
 
 	_, _ = c.counterStorage.UpdateTransactional(ctx, dbTx, storage.AddressesCreatedCounter, big.NewInt(1))
-	return c.keyStorage.StoreTransactional(ctx, address, keyPair, dbTx)
+	return c.keyStorage.StoreTransactional(ctx, account, keyPair, dbTx)
 }
 
 // Balance returns the balance
@@ -299,13 +313,13 @@ func (c *CoordinatorHelper) Coins(
 	return coinsToReturn, nil
 }
 
-// LockedAddresses returns a slice of all addresses currently sending or receiving
+// LockedAccounts returns a slice of all accounts currently sending or receiving
 // funds.
-func (c *CoordinatorHelper) LockedAddresses(
+func (c *CoordinatorHelper) LockedAccounts(
 	ctx context.Context,
 	dbTx storage.DatabaseTransaction,
-) ([]string, error) {
-	return c.broadcastStorage.LockedAddresses(ctx, dbTx)
+) ([]*types.AccountIdentifier, error) {
+	return c.broadcastStorage.LockedAccounts(ctx, dbTx)
 }
 
 // AllBroadcasts returns a slice of all in-progress broadcasts in BroadcastStorage.
@@ -348,12 +362,12 @@ func (c *CoordinatorHelper) BroadcastAll(
 	return c.broadcastStorage.BroadcastAll(ctx, true)
 }
 
-// AllAddresses returns a slice of all known addresses.
-func (c *CoordinatorHelper) AllAddresses(
+// AllAccounts returns a slice of all known accounts.
+func (c *CoordinatorHelper) AllAccounts(
 	ctx context.Context,
 	dbTx storage.DatabaseTransaction,
-) ([]string, error) {
-	return c.keyStorage.GetAllAddressesTransactional(ctx, dbTx)
+) ([]*types.AccountIdentifier, error) {
+	return c.keyStorage.GetAllAccountsTransactional(ctx, dbTx)
 }
 
 // HeadBlockExists returns a boolean indicating if a block has been

@@ -88,7 +88,7 @@ type ConstructionConfiguration struct {
 
 	// MaxOffineConnections is the maximum number of open connections that the offline
 	// fetcher will open.
-	MaxOfflineConnections uint64 `json:"max_offline_connections"`
+	MaxOfflineConnections int `json:"max_offline_connections"`
 
 	// StaleDepth is the number of blocks to wait before attempting
 	// to rebroadcast after not finding a transaction on-chain.
@@ -298,11 +298,11 @@ type Configuration struct {
 
 	// MaxOnlineConnections is the maximum number of open connections that the online
 	// fetcher will open.
-	MaxOnlineConnections uint64 `json:"max_online_connections"`
+	MaxOnlineConnections int `json:"max_online_connections"`
 
 	// MaxSyncConcurrency is the maximum sync concurrency to use while syncing blocks.
 	// Sync concurrency is managed automatically by the `syncer` package.
-	MaxSyncConcurrency uint64 `json:"max_sync_concurrency"`
+	MaxSyncConcurrency int64 `json:"max_sync_concurrency"`
 
 	// TipDelay dictates how many seconds behind the current time is considered
 	// tip. If we are > TipDelay seconds from the last processed block,

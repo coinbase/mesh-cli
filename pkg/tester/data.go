@@ -263,7 +263,7 @@ func InitializeData(
 		logger,
 		cancel,
 		blockWorkers,
-		config.SyncConcurrency,
+		config.MaxSyncConcurrency,
 	)
 
 	return &DataTester{

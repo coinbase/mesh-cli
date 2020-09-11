@@ -136,6 +136,7 @@ func InitializeConstruction(
 	)
 	offlineFetcher := fetcher.New(
 		config.Construction.OfflineURL,
+		fetcher.WithMaxConnections(config.Construction.MaxOfflineConnections),
 		fetcher.WithAsserter(onlineFetcher.Asserter),
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
 	)
@@ -235,7 +236,7 @@ func InitializeConstruction(
 		logger,
 		cancel,
 		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
-		config.SyncConcurrency,
+		config.MaxSyncConcurrency,
 	)
 
 	return &ConstructionTester{
