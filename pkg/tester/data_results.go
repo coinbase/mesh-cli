@@ -65,8 +65,10 @@ func (c *CheckDataResults) Print() {
 	}
 
 	fmt.Printf("\n")
-	c.Tests.Print()
-	fmt.Printf("\n")
+	if c.Tests != nil {
+		c.Tests.Print()
+		fmt.Printf("\n")
+	}
 	if c.Stats != nil {
 		c.Stats.Print()
 		fmt.Printf("\n")
@@ -297,18 +299,11 @@ func ResponseAssertionTest(err error) bool {
 // indicating if it was possible to sync
 // blocks.
 func BlockSyncingTest(err error, blocksSynced bool) *bool {
-	relatedErrors := []error{
-		syncer.ErrCannotRemoveGenesisBlock,
-		syncer.ErrOutOfOrder,
-		storage.ErrDuplicateKey,
-		storage.ErrDuplicateTransactionHash,
-	}
 	syncPass := true
-	for _, relatedError := range relatedErrors {
-		if errors.Is(err, relatedError) {
-			syncPass = false
-			break
-		}
+	storageFailed, _ := storage.Err(err)
+	if syncer.Err(err) ||
+		(storageFailed && !errors.Is(err, storage.ErrNegativeBalance)) {
+		syncPass = false
 	}
 
 	if !blocksSynced && syncPass {
@@ -322,12 +317,9 @@ func BlockSyncingTest(err error, blocksSynced bool) *bool {
 // indicating if any balances went negative
 // while syncing.
 func BalanceTrackingTest(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
-	relatedErrors := []error{
-		storage.ErrNegativeBalance,
-	}
 	balancePass := true
-	for _, relatedError := range relatedErrors {
-		if errors.Is(err, relatedError) {
+	for _, balanceStorageErr := range storage.BalanceStorageErrs {
+		if errors.Is(err, balanceStorageErr) {
 			balancePass = false
 			break
 		}
@@ -430,6 +422,17 @@ func ComputeCheckDataResults(
 
 	if err != nil {
 		results.Error = err.Error()
+
+		// If all tests pass, but we still encountered an error,
+		// then we hard exit without showing check:data results
+		// because the error falls beyond our test coverage.
+		if tests.RequestResponse &&
+			tests.ResponseAssertion &&
+			(tests.BlockSyncing == nil || *tests.BlockSyncing) &&
+			(tests.BalanceTracking == nil || *tests.BalanceTracking) &&
+			(tests.Reconciliation == nil || *tests.Reconciliation) {
+			results.Tests = nil
+		}
 
 		// We never want to populate an end condition
 		// if there was an error!

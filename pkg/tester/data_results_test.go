@@ -16,6 +16,7 @@ package tester
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"path"
@@ -286,6 +287,30 @@ func TestComputeCheckDataResults(t *testing.T) {
 					RequestResponse:   true,
 					ResponseAssertion: true,
 					Reconciliation:    &f,
+				},
+			},
+		},
+		"default configuration, no storage, unknown errors": {
+			cfg:    configuration.DefaultConfiguration(),
+			err:    []error{errors.New("unsure how to handle this error")},
+			result: &CheckDataResults{},
+		},
+		"default configuration, counter storage no blocks, unknown errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			err:                   []error{errors.New("unsure how to handle this error")},
+			result: &CheckDataResults{
+				Stats: &CheckDataStats{},
+			},
+		},
+		"default configuration, counter storage with blocks, unknown errors": {
+			cfg:                   configuration.DefaultConfiguration(),
+			provideCounterStorage: true,
+			blockCount:            100,
+			err:                   []error{errors.New("unsure how to handle this error")},
+			result: &CheckDataResults{
+				Stats: &CheckDataStats{
+					Blocks: 100,
 				},
 			},
 		},
