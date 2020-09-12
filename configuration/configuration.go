@@ -234,7 +234,7 @@ type DataConfiguration struct {
 	// When set to true, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
 	// historical balance lookup should set this to false.
-	HistoricalBalanceEnabled *bool `json:"historical_balance_enabled"`
+	HistoricalBalanceEnabled *bool `json:"historical_balance_enabled,omitempty"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.

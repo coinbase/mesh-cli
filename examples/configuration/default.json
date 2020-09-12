@@ -24,7 +24,6 @@
   "ignore_reconciliation_error": false,
   "exempt_accounts": "",
   "bootstrap_balances": "",
-  "historical_balance_disabled": false,
   "interesting_accounts": "",
   "reconciliation_disabled": false,
   "inactive_discrepency_search_disabled": false,
