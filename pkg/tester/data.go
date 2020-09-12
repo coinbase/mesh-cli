@@ -64,20 +64,21 @@ const (
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
-	network           *types.NetworkIdentifier
-	database          storage.Database
-	config            *configuration.Configuration
-	syncer            *statefulsyncer.StatefulSyncer
-	reconciler        *reconciler.Reconciler
-	logger            *logger.Logger
-	balanceStorage    *storage.BalanceStorage
-	blockStorage      *storage.BlockStorage
-	counterStorage    *storage.CounterStorage
-	reconcilerHandler *processor.ReconcilerHandler
-	fetcher           *fetcher.Fetcher
-	signalReceived    *bool
-	genesisBlock      *types.BlockIdentifier
-	cancel            context.CancelFunc
+	network                  *types.NetworkIdentifier
+	database                 storage.Database
+	config                   *configuration.Configuration
+	syncer                   *statefulsyncer.StatefulSyncer
+	reconciler               *reconciler.Reconciler
+	logger                   *logger.Logger
+	balanceStorage           *storage.BalanceStorage
+	blockStorage             *storage.BlockStorage
+	counterStorage           *storage.CounterStorage
+	reconcilerHandler        *processor.ReconcilerHandler
+	fetcher                  *fetcher.Fetcher
+	signalReceived           *bool
+	genesisBlock             *types.BlockIdentifier
+	cancel                   context.CancelFunc
+	historicalBalanceEnabled bool
 
 	endCondition       configuration.CheckDataEndCondition
 	endConditionDetail string
@@ -197,12 +198,25 @@ func InitializeData(
 		log.Fatalf("%s: unable to get previously seen accounts", err.Error())
 	}
 
+	// Determine if we should perform historical balance lookups
+	var historicalBalanceEnabled bool
+	if config.Data.HistoricalBalanceEnabled != nil {
+		historicalBalanceEnabled = *config.Data.HistoricalBalanceEnabled
+	} else { // we must look it up
+		networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
+		if err != nil {
+			log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+		}
+
+		historicalBalanceEnabled = networkOptions.Allow.HistoricalBalanceLookup
+	}
+
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
 		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
 		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
-		reconciler.WithLookupBalanceByBlock(!config.Data.HistoricalBalanceDisabled),
+		reconciler.WithLookupBalanceByBlock(historicalBalanceEnabled),
 		reconciler.WithInterestingAccounts(interestingAccounts),
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithDebugLogging(config.Data.LogReconciliations),
@@ -214,7 +228,7 @@ func InitializeData(
 		balanceStorageHelper := processor.NewBalanceStorageHelper(
 			network,
 			fetcher,
-			!config.Data.HistoricalBalanceDisabled,
+			historicalBalanceEnabled,
 			exemptAccounts,
 			false,
 		)
@@ -269,20 +283,21 @@ func InitializeData(
 	)
 
 	return &DataTester{
-		network:           network,
-		database:          localStore,
-		config:            config,
-		syncer:            syncer,
-		cancel:            cancel,
-		reconciler:        r,
-		logger:            logger,
-		balanceStorage:    balanceStorage,
-		blockStorage:      blockStorage,
-		counterStorage:    counterStorage,
-		reconcilerHandler: reconcilerHandler,
-		fetcher:           fetcher,
-		signalReceived:    signalReceived,
-		genesisBlock:      genesisBlock,
+		network:                  network,
+		database:                 localStore,
+		config:                   config,
+		syncer:                   syncer,
+		cancel:                   cancel,
+		reconciler:               r,
+		logger:                   logger,
+		balanceStorage:           balanceStorage,
+		blockStorage:             blockStorage,
+		counterStorage:           counterStorage,
+		reconcilerHandler:        reconcilerHandler,
+		fetcher:                  fetcher,
+		signalReceived:           signalReceived,
+		genesisBlock:             genesisBlock,
+		historicalBalanceEnabled: historicalBalanceEnabled,
 	}
 }
 
@@ -501,9 +516,9 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
-	if t.config.Data.HistoricalBalanceDisabled {
+	if !t.historicalBalanceEnabled {
 		color.Yellow(
-			"Can't find the block missing operations automatically, please enable --lookup-balance-by-block",
+			"Can't find the block missing operations automatically, please enable historical balance lookup",
 		)
 		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
@@ -613,14 +628,14 @@ func (t *DataTester) recursiveOpSearch(
 		// Do not do any inactive lookups when looking for the block with missing
 		// operations.
 		reconciler.WithInactiveConcurrency(0),
-		reconciler.WithLookupBalanceByBlock(!t.config.Data.HistoricalBalanceDisabled),
+		reconciler.WithLookupBalanceByBlock(t.historicalBalanceEnabled),
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
 	)
 
 	balanceStorageHelper := processor.NewBalanceStorageHelper(
 		t.network,
 		t.fetcher,
-		!t.config.Data.HistoricalBalanceDisabled,
+		t.historicalBalanceEnabled,
 		nil,
 		false,
 	)

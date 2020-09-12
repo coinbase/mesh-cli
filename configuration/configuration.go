@@ -230,11 +230,11 @@ type DataConfiguration struct {
 	// it will be ignored.
 	BootstrapBalances string `json:"bootstrap_balances"`
 
-	// HistoricalBalanceDisabled is a boolean that dictates how balance lookup is performed.
+	// HistoricalBalanceEnabled is a boolean that dictates how balance lookup is performed.
 	// When set to true, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
 	// historical balance lookup should set this to false.
-	HistoricalBalanceDisabled bool `json:"historical_balance_disabled"`
+	HistoricalBalanceEnabled *bool `json:"historical_balance_enabled"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.
