@@ -38,6 +38,12 @@ The binary will be installed inside the `./bin` directory (relative to where the
 
 _Downloading binaries from the Github UI will cause permission errors on Mac._
 
+### Installing in Custom Location
+To download the binary into a specific directory, run:
+```
+curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s -- -b <relative directory>
+```
+
 ## Usage
 ```
 CLI for the Rosetta API
