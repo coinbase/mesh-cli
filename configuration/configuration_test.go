@@ -27,12 +27,13 @@ import (
 )
 
 var (
-	startIndex    = int64(89)
-	badStartIndex = int64(-10)
-	goodCoverage  = float64(0.33)
-	badCoverage   = float64(-2)
-	endTip        = false
-	fakeWorkflows = []*job.Workflow{
+	startIndex        = int64(89)
+	badStartIndex     = int64(-10)
+	goodCoverage      = float64(0.33)
+	badCoverage       = float64(-2)
+	endTip            = false
+	historicalEnabled = true
+	fakeWorkflows     = []*job.Workflow{
 		{
 			Name:        string(job.CreateAccount),
 			Concurrency: job.ReservedWorkflowConcurrency,
@@ -72,7 +73,7 @@ var (
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
 			ReconciliationDisabled:            false,
-			HistoricalBalanceDisabled:         true,
+			HistoricalBalanceEnabled:          &historicalEnabled,
 			StartIndex:                        &startIndex,
 			EndConditions: &DataEndConditions{
 				ReconciliationCoverage: &goodCoverage,
