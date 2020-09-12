@@ -259,7 +259,12 @@ func (c *CoordinatorHelper) StoreKey(
 	// We optimisically add the interesting address although the dbTx could be reverted.
 	c.balanceStorageHelper.AddInterestingAddress(account.Address)
 
-	_, _ = c.counterStorage.UpdateTransactional(ctx, dbTx, storage.AddressesCreatedCounter, big.NewInt(1))
+	_, _ = c.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		storage.AddressesCreatedCounter,
+		big.NewInt(1),
+	)
 	return c.keyStorage.StoreTransactional(ctx, account, keyPair, dbTx)
 }
 
