@@ -318,8 +318,8 @@ func BlockSyncingTest(err error, blocksSynced bool) *bool {
 // while syncing.
 func BalanceTrackingTest(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
 	balancePass := true
-	for _, balangeStorageErr := range storage.BalanceStorageErrs {
-		if errors.Is(err, balangeStorageErr) {
+	for _, balanceStorageErr := range storage.BalanceStorageErrs {
+		if errors.Is(err, balanceStorageErr) {
 			balancePass = false
 			break
 		}
