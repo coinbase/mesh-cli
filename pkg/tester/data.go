@@ -141,11 +141,7 @@ func InitializeData(
 		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
-	opts := []storage.BadgerOption{}
-	if !config.DisableMemoryLimit {
-		opts = append(opts, storage.WithMemoryLimit())
-	}
-	localStore, err := storage.NewBadgerStorage(ctx, dataPath, opts...)
+	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
@@ -580,11 +576,7 @@ func (t *DataTester) recursiveOpSearch(
 	}
 	defer utils.RemoveTempDir(tmpDir)
 
-	opts := []storage.BadgerOption{}
-	if !t.config.DisableMemoryLimit {
-		opts = append(opts, storage.WithMemoryLimit())
-	}
-	localStore, err := storage.NewBadgerStorage(ctx, tmpDir, opts...)
+	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to initialize database", err)
 	}

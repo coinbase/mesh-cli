@@ -45,9 +45,9 @@ issues but it is highly recommended you sync from start to finish to ensure
 all correctness checks are performed.
 
 By default, account balances are looked up at specific heights (instead of
-only at the current block). If your node does not support this functionality
-set historical balance disabled to true. This will make reconciliation much
-less efficient but it will still work.
+only at the current block). If your node does not support this functionality,
+you can disable historical balance lookups in your configuration file. This will
+make reconciliation much less efficient but it will still work.
 
 If check fails due to an INACTIVE reconciliation error (balance changed without
 any corresponding operation), the cli will automatically try to find the block

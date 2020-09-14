@@ -284,7 +284,10 @@ func (c *CheckDataTests) Print() {
 // indicating if all endpoints received
 // a non-500 response.
 func RequestResponseTest(err error) bool {
-	return !(fetcher.Err(err) || errors.Is(err, utils.ErrNetworkNotSupported))
+	return !(fetcher.Err(err) ||
+		errors.Is(err, utils.ErrNetworkNotSupported) ||
+		errors.Is(err, syncer.ErrGetNetworkStatusFailed) ||
+		errors.Is(err, syncer.ErrFetchBlockFailed))
 }
 
 // ResponseAssertionTest returns a boolean

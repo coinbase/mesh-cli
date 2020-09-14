@@ -10,7 +10,6 @@
  "max_online_connections": 120,
  "max_sync_concurrency": 64,
  "tip_delay": 300,
- "disable_memory_limit": false,
  "log_configuration": false,
  "construction": null,
  "data": {
