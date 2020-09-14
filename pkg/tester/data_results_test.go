@@ -91,6 +91,20 @@ func TestComputeCheckDataResults(t *testing.T) {
 				},
 			},
 		},
+		"default configuration, no storage, syncer and fetch errors": {
+			cfg: configuration.DefaultConfiguration(),
+			err: []error{
+				syncer.ErrGetNetworkStatusFailed,
+				syncer.ErrFetchBlockFailed,
+			},
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   false,
+					ResponseAssertion: true,
+					BlockSyncing:      &f,
+				},
+			},
+		},
 		"default configuration, no storage, assertion errors": {
 			cfg: configuration.DefaultConfiguration(),
 			err: []error{asserter.ErrAmountValueMissing},
