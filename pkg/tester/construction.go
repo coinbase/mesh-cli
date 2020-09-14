@@ -78,11 +78,7 @@ func InitializeConstruction(
 		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
-	opts := []storage.BadgerOption{}
-	if !config.DisableMemoryLimit {
-		opts = append(opts, storage.WithMemoryLimit())
-	}
-	localStore, err := storage.NewBadgerStorage(ctx, dataPath, opts...)
+	localStore, err := storage.NewBadgerStorage(ctx, dataPath)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
