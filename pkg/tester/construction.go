@@ -390,9 +390,17 @@ func (t *ConstructionTester) HandleErr(err error) {
 		return
 	}
 
-	if t.reachedEndConditions {
-		ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	if !t.reachedEndConditions {
+		ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 	}
 
-	ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
+	// We optimistically run the ReturnFunds function on the coordinator
+	// and only log if it fails. If there is no ReturnFunds workflow defined,
+	// this will just return nil.
+	returnCtx := context.Background()
+	if err := t.coordinator.ReturnFunds(returnCtx); err != nil {
+		log.Printf("return funds failed: %v\n", err)
+	}
+
+	ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
 }
