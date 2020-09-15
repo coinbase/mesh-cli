@@ -54,7 +54,7 @@ const (
 const (
 	DefaultURL                               = "http://localhost:8080"
 	DefaultTimeout                           = 10
-	DefaultRetryElapsedTime                  = 60
+	DefaultMaxRetries                        = 5
 	DefaultMaxOnlineConnections              = 120 // most OS have a default limit of 128
 	DefaultMaxOfflineConnections             = 4   // we shouldn't need many connections for construction
 	DefaultMaxSyncConcurrency                = 64
@@ -159,7 +159,7 @@ func DefaultConfiguration() *Configuration {
 		OnlineURL:            DefaultURL,
 		MaxOnlineConnections: DefaultMaxOnlineConnections,
 		HTTPTimeout:          DefaultTimeout,
-		RetryElapsedTime:     DefaultRetryElapsedTime,
+		MaxRetries:           DefaultMaxRetries,
 		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
 		TipDelay:             DefaultTipDelay,
 		Data:                 DefaultDataConfiguration(),
@@ -293,6 +293,10 @@ type Configuration struct {
 	// HTTPTimeout is the timeout for a HTTP request in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
 
+	// MaxRetries is the number of times we will retry an HTTP request. If retry_elapsed_time
+	// is also populated, we may stop attempting retries early.
+	MaxRetries uint64 `json:"max_retries"`
+
 	// RetryElapsedTime is the total time to spend retrying a HTTP request in seconds.
 	RetryElapsedTime uint64 `json:"retry_elapsed_time"`
 
@@ -384,8 +388,8 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.HTTPTimeout = DefaultTimeout
 	}
 
-	if config.RetryElapsedTime == 0 {
-		config.RetryElapsedTime = DefaultRetryElapsedTime
+	if config.MaxRetries == 0 {
+		config.MaxRetries = DefaultMaxRetries
 	}
 
 	if config.MaxOnlineConnections == 0 {

@@ -51,7 +51,7 @@ var (
 		OnlineURL:            "http://hasudhasjkdk",
 		MaxOnlineConnections: 10,
 		HTTPTimeout:          21,
-		RetryElapsedTime:     1000,
+		MaxRetries:           1000,
 		MaxSyncConcurrency:   12,
 		TipDelay:             1231,
 		Construction: &ConstructionConfiguration{
