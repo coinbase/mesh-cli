@@ -65,6 +65,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
 	)
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
