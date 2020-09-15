@@ -136,6 +136,7 @@ func InitializeConstruction(
 		fetcher.WithMaxConnections(config.Construction.MaxOfflineConnections),
 		fetcher.WithAsserter(onlineFetcher.Asserter),
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxRetries(config.MaxRetries),
 	)
 
 	// Import prefunded account and save to database

@@ -58,6 +58,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 		Config.OnlineURL,
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
 	)
 
 	// Initialize the fetcher's asserter
