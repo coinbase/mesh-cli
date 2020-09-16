@@ -20,7 +20,7 @@ deps:
 	go get ./...
 
 lint:
-	golangci-lint run -v \
+	golangci-lint run --timeout 2m0s -v \
 		-E golint,misspell,gocyclo,whitespace,goconst,gocritic,gocognit,bodyclose,unconvert,lll,unparam,gomnd;
 
 format:
