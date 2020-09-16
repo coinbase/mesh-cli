@@ -80,12 +80,122 @@ Use "rosetta-cli [command] --help" for more information about a command.
 All `rosetta-cli` parameters are populated from a configuration file (`--configuration-file`)
 provided at runtime. If a configuration file is not provided, the default
 configuration is used. This default configuration can be viewed
-[here](examples/configuration/default.json).
+[here](examples/configuration/default.json). Note, there is no default
+configuration for running `check:construction` as this is very network-specific.
+You can view a full list of all configuration options [here](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration).
 
 In the `examples/configuration` directory, you can find examples configuration
 files for running tests against a Bitcoin Rosetta implementation
 ([config](examples/configuration/bitcoin.json)) and an Ethereum Rosetta
 implementation ([config](examples/configuration/ethereum.json)).
+
+#### Writing check:construction Tests
+The new Construction API testing framework (first released in `rosetta-cli@v0.5.0`) uses
+a new design pattern to allow for complex transaction construction orchestration.
+You can read more about the design goals [here](https://community.rosetta-api.org/t/feedback-request-automated-construction-api-testing-improvements/146).
+
+##### Terminology
+When first learning about a new topic, it is often useful to understand the
+hierarchy of concerns. In the automated Construction API tester, this
+"hierarchy" is as follows:
+```text
+Workflows -> Jobs
+  Scenarios
+    Actions
+```
+
+`Workflows` contain collections of `Scenarios` to execute. `Scenarios` are
+executed atomically in database transactions (rolled back if execution fails)
+and culminate in an optional broadcast. This means that a single `Workflow`
+could contain multiple broadcasts (which can be useful for orchestrating
+staking-related transactions that affect a single account).
+
+To perform a `Workflow`, we create a `Job`. This `Job` has a unique identifier
+and stores state for all `Scenarios` in the `Workflow`. State is shared across
+an entire `Job` so `Actions` in a `Scenario` can access the output of `Actions`
+in other `Scenarios`. The syntax for accessing this shared state can be found
+[here](https://github.com/tidwall/gjson/blob/master/SYNTAX.md).
+
+`Actions` are discrete operations that can be performed in the context of a
+`Scenario`.  A full list of all `Actions` that can be performed can be found
+[here](https://pkg.go.dev/github.com/coinbase/rosetta-sdk-go/constructor/job#ActionType).
+
+If you have suggestions for more actions, please
+[open an issue in `rosetta-sdk-go`](https://github.com/coinbase/rosetta-sdk-go/issues)!
+
+##### Workflows
+To use the automated Construction API tester, you must implement 2 required `Workflows`:
+* `create_account`
+* `request_funds`
+
+Please note that `create_account` can contain a transaction broadcast if
+on-chain origination is required for new accounts on your blockchain.
+
+If you plan to run the automated Construction API tester in CI, you may wish to
+provide [`prefunded accounts`](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration#ConstructionConfiguration)
+when running the tester (otherwise you would need to manually fund generated
+accounts).
+
+Optionally, you can also provide a `return_funds` workflow that will be invoked
+when exiting `check:construction`. This can be useful in CI when you want to return
+all funds to a single accout or faucet (instead of black-holing them in all the addresses
+created during testing).
+
+##### Broadcast Invocation
+If you'd like to broadcast a transaction at the end of a `Scenario`,
+you must populate the following fields:
+* `<scenario>.network`
+* `<scenario>.operations`
+* `<scenario>.confirmation_depth` (allows for stake-related transactions to complete before marking as a success)
+
+Optionally, you can populate the following field:
+* `<scenario>.preprocess_metadata`
+
+Once a transaction is confirmed on-chain (after the provided
+`<scenario>.confirmation_depth`, it is stored by the tester at
+`<scenario>.transaction` for access by other `Scenarios` in the same `Job`.
+
+##### Dry Runs
+In UTXO-based blockchains, it may be necessary to amend the `operations` stored
+in `<scenario>.operations` based on the `suggested_fee` returned in
+`/construction/metadata`. The automated Construction API tester supports
+running a "dry run" of a transaction broadcast if you set the follow field:
+* `<scenario>.dry_run = true`
+
+The suggested fee will then be stored as `<scenario>.suggested_fee` for use by
+other `Scenarios` in the same `Job`. You can find an example of this in the
+Bitcoin [config](examples/configuration/bitcoin.json).
+
+*If this field is not populated or set to `false`, the transaction
+will be constructed, signed, and broadcast.*
+
+##### Future Work
+* DSL for writing `Workflows` (if anyone in the community has ideas for
+this, we are all ears!)
+* `Workflow` testing tool (to mock `Workflow` before running on network)
+* Re-usable components (pre-defined logic that can be used in any `Workflow` -
+both user-defined and provided by `rosetta-cli`
+
+#### End Conditions
+When running the `rosetta-cli` in a CI job, it is usually desired to exit
+when certain conditions are met (or before then with an exit code of 1). We
+provide this functionality through the use of "end conditions" which can be
+specified in your configuration file.
+
+##### check:data
+A full list of `check:data` end conditions can be found [here](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration#DataEndConditions).
+If any end condition is satisifed, we will exit and output the
+results in `results_output_file` (if it is populated).
+
+##### check:construction
+The `check:construction` end condition is a map of
+workflow:count that indicates how many of each workflow
+should be performed before `check:construction` should stop.
+For example, `{"create_account": 5}` indicates that 5 `create_account`
+workflows should be performed before stopping.
+
+Unlike `check:data`, all `check:construction` end conditions
+must be satisifed before the `rosetta-cli` will exit.
 
 #### Disable Complex Checks
 If you are just getting started with your implementation, you may want
@@ -94,15 +204,6 @@ reconciliation (does the balance I calculated match the balance returned
 by the `/account/balance` endpoint?). Take a look at the
 [simple configuration](examples/configuration/simple.json) for an example of
 how to do this.
-
-#### Future Work
-In the near future, we will add support for providing complex exit conditions
-(i.e. did we reach tip? did we reconcile every account?) for both
-`check:construction` and `check:data` so that the `rosetta-cli`
-can be integrated into a CI flow. Currently, the only way to exit with a
-successful status in the `rosetta-cli` is to provide an `--end` flag
-when running `check:data` (returns 0 if no errors up to a block index
-are observed).
 
 ### Commands
 #### version
@@ -385,31 +486,6 @@ Global Flags:
                                     default values.
 ```
 
-## Development
-* `make deps` to install dependencies
-* `make test` to run tests
-* `make lint` to lint the source code (included generated code)
-* `make release` to run one last check before opening a PR
-* `make compile version=RELEASE_TAG` to generate binaries
-
-### Helper/Handler
-Many of the packages use a `Helper/Handler` interface pattern to acquire
-required information or to send events to some client implementation. An example
-of this is in the `reconciler` package where a `Helper` is used to get
-the account balance and the `Handler` is called to incidate whether the
-reconciliation of an account was successful.
-
-### Repo Structure
-```
-cmd
-examples // examples of different config files
-internal
-  logger // logic to write syncing information to stdout/files
-  processor // Helper/Handler implementations for reconciler, storage, and syncer
-  storage // persists block to temporary storage and allows for querying balances
-  utils // useful functions
-```
-
 ## Correctness Checks
 This tool performs a variety of correctness checks using the Rosetta Server. If
 any correctness check fails, the CLI will exit and print out a detailed
@@ -441,6 +517,30 @@ involved in any transactions. The balances of accounts could change
 on the blockchain node without being included in an operation
 returned by the Rosetta Data API. Recall that all balance-changing
 operations should be returned by the Rosetta Data API.
+
+## Development
+* `make deps` to install dependencies
+* `make test` to run tests
+* `make lint` to lint the source code (included generated code)
+* `make release` to run one last check before opening a PR
+* `make compile version=RELEASE_TAG` to generate binaries
+
+### Helper/Handler
+Many of the packages use a `Helper/Handler` interface pattern to acquire
+required information or to send events to some client implementation. An example
+of this is in the `reconciler` package where a `Helper` is used to get
+the account balance and the `Handler` is called to incidate whether the
+reconciliation of an account was successful.
+
+### Repo Structure
+```
+cmd
+examples // examples of different config files
+pkg
+  logger // logic to write syncing information to stdout/files
+  processor // Helper/Handler implementations for reconciler, storage, and syncer
+  tester // test orchestrators
+```
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
