@@ -676,10 +676,14 @@ func (t *DataTester) recursiveOpSearch(
 	}
 
 	if *t.signalReceived {
-		return nil, errors.New("Search for block with missing ops halted")
+		return nil, errors.New("search for block with missing ops halted")
 	}
 
 	if err == nil || errors.Is(err, context.Canceled) {
+		if startIndex <= t.genesisBlock.Index {
+			return nil, errors.New("unable to find missing ops")
+		}
+
 		newStart := startIndex - InactiveFailureLookbackWindow
 		if newStart < t.genesisBlock.Index {
 			newStart = t.genesisBlock.Index
