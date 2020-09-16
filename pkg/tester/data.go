@@ -478,7 +478,7 @@ func (t *DataTester) WatchEndConditions(
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
-func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []context.CancelFunc) {
+func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]context.CancelFunc) {
 	if *t.signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
@@ -533,12 +533,12 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners []co
 func (t *DataTester) FindMissingOps(
 	ctx context.Context,
 	originalErr error,
-	sigListeners []context.CancelFunc,
+	sigListeners *[]context.CancelFunc,
 ) {
 	color.Cyan("Searching for block with missing operations...hold tight")
 	badBlock, err := t.recursiveOpSearch(
 		ctx,
-		&sigListeners,
+		sigListeners,
 		t.reconcilerHandler.InactiveFailure,
 		t.reconcilerHandler.InactiveFailureBlock.Index-InactiveFailureLookbackWindow,
 		t.reconcilerHandler.InactiveFailureBlock.Index,
@@ -676,10 +676,14 @@ func (t *DataTester) recursiveOpSearch(
 	}
 
 	if *t.signalReceived {
-		return nil, errors.New("Search for block with missing ops halted")
+		return nil, errors.New("search for block with missing ops halted")
 	}
 
-	if err == nil || err == context.Canceled {
+	if err == nil || errors.Is(err, context.Canceled) {
+		if startIndex <= t.genesisBlock.Index {
+			return nil, errors.New("unable to find missing ops")
+		}
+
 		newStart := startIndex - InactiveFailureLookbackWindow
 		if newStart < t.genesisBlock.Index {
 			newStart = t.genesisBlock.Index

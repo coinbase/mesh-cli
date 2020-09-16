@@ -3,16 +3,15 @@
   "blockchain": "Bitcoin",
   "network": "Testnet3"
  },
- "online_url": "",
  "data_directory": "bitcoin-data",
  "http_timeout": 300,
+ "max_retries": 5,
  "retry_elapsed_time": 0,
  "max_online_connections": 0,
  "max_sync_concurrency": 0,
  "tip_delay": 1800,
  "log_configuration": false,
  "construction": {
-  "offline_url": "",
   "max_offline_connections": 0,
   "stale_depth": 0,
   "broadcast_limit": 0,
@@ -88,12 +87,12 @@
     "concurrency": 10,
     "scenarios": [
      {
-      "name": "transfer",
+      "name": "transfer_dry_run",
       "actions": [
        {
         "input": "{\"network\":\"Testnet3\", \"blockchain\":\"Bitcoin\"}",
         "type": "set_variable",
-        "output_path": "transfer.network"
+        "output_path": "transfer_dry_run.network"
        },
        {
         "input": "{\"symbol\":\"tBTC\", \"decimals\":8}",
@@ -106,17 +105,17 @@
         "output_path": "dust_amount"
        },
        {
-        "input": "\"600\"",
+        "input": "\"1200\"",
         "type": "set_variable",
-        "output_path": "fee_amount"
+        "output_path": "max_fee_amount"
        },
        {
-        "input": "{\"operation\":\"addition\", \"left_value\": {{dust_amount}}, \"right_value\": {{fee_amount}}}",
+        "input": "{\"operation\":\"addition\", \"left_value\": {{dust_amount}}, \"right_value\": {{max_fee_amount}}}",
         "type": "math",
         "output_path": "send_buffer"
        },
        {
-        "input": "\"1800\"",
+        "input": "\"2400\"",
         "type": "set_variable",
         "output_path": "reserved_amount"
        },
@@ -142,10 +141,10 @@
        {
         "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{recipient_amount}}}",
         "type": "math",
-        "output_path": "change_amount"
+        "output_path": "total_change_amount"
        },
        {
-        "input": "{\"operation\":\"subtraction\", \"left_value\": {{change_amount}}, \"right_value\": {{fee_amount}}}",
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{total_change_amount}}, \"right_value\": {{max_fee_amount}}}",
         "type": "math",
         "output_path": "change_amount"
        },
@@ -166,10 +165,180 @@
        {
         "input": "\"1\"",
         "type": "set_variable",
+        "output_path": "transfer_dry_run.confirmation_depth"
+       },
+       {
+        "input": "\"true\"",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.dry_run"
+       },
+       {
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{{recipient.account_identifier}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}, {\"operation_identifier\":{\"index\":2},\"type\":\"OUTPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{change_amount}},\"currency\":{{currency}}}}]",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.operations"
+       },
+       {
+        "input": "{{transfer_dry_run.operations}}",
+        "type": "print_message"
+       }
+      ]
+     },
+     {
+      "name": "transfer",
+      "actions": [
+       {
+        "input": "{\"currency\":{{currency}}, \"amounts\":{{transfer_dry_run.suggested_fee}}}",
+        "type": "find_currency_amount",
+        "output_path": "suggested_fee"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{total_change_amount}}, \"right_value\": {{suggested_fee.value}}}",
+        "type": "math",
+        "output_path": "change_amount"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{change_amount}}, \"right_value\": {{dust_amount}}}",
+        "type": "math",
+        "output_path": "change_minus_dust"
+       },
+       {
+        "input": "{{change_minus_dust}}",
+        "type": "assert"
+       },
+       {
+        "input": "{\"network\":\"Testnet3\", \"blockchain\":\"Bitcoin\"}",
+        "type": "set_variable",
+        "output_path": "transfer.network"
+       },
+       {
+        "input": "\"1\"",
+        "type": "set_variable",
         "output_path": "transfer.confirmation_depth"
        },
        {
         "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{{recipient.account_identifier}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}, {\"operation_identifier\":{\"index\":2},\"type\":\"OUTPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{change_amount}},\"currency\":{{currency}}}}]",
+        "type": "set_variable",
+        "output_path": "transfer.operations"
+       },
+       {
+        "input": "{{transfer.operations}}",
+        "type": "print_message"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "return_funds",
+    "concurrency": 10,
+    "scenarios": [
+     {
+      "name": "transfer_dry_run",
+      "actions": [
+       {
+        "input": "{\"network\":\"Testnet3\", \"blockchain\":\"Bitcoin\"}",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.network"
+       },
+       {
+        "input": "{\"symbol\":\"tBTC\", \"decimals\":8}",
+        "type": "set_variable",
+        "output_path": "currency"
+       },
+       {
+        "input": "\"1200\"",
+        "type": "set_variable",
+        "output_path": "max_fee_amount"
+       },
+       {
+        "input": "\"1800\"",
+        "type": "set_variable",
+        "output_path": "reserved_amount"
+       },
+       {
+        "input": "{\"require_coin\":true, \"minimum_balance\":{\"value\": {{reserved_amount}}, \"currency\": {{currency}}}}",
+        "type": "find_balance",
+        "output_path": "sender"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{max_fee_amount}}}",
+        "type": "math",
+        "output_path": "recipient_amount"
+       },
+       {
+        "input": "{\"recipient_amount\":{{recipient_amount}}}",
+        "type": "print_message"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": \"0\", \"right_value\":{{sender.balance.value}}}",
+        "type": "math",
+        "output_path": "sender_amount"
+       },
+       {
+        "input": "\"1\"",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.confirmation_depth"
+       },
+       {
+        "input": "\"true\"",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.dry_run"
+       },
+       {
+        "input": "{\"address\": \"mkHS9ne12qx9pS9VojpwU5xtRd4T7X7ZUt\"}",
+        "type": "set_variable",
+        "output_path": "recipient"
+       },
+       {
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{{recipient}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
+        "type": "set_variable",
+        "output_path": "transfer_dry_run.operations"
+       },
+       {
+        "input": "{{transfer_dry_run.operations}}",
+        "type": "print_message"
+       }
+      ]
+     },
+     {
+      "name": "transfer",
+      "actions": [
+       {
+        "input": "{\"currency\":{{currency}}, \"amounts\":{{transfer_dry_run.suggested_fee}}}",
+        "type": "find_currency_amount",
+        "output_path": "suggested_fee"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{suggested_fee.value}}}",
+        "type": "math",
+        "output_path": "recipient_amount"
+       },
+       {
+        "input": "\"600\"",
+        "type": "set_variable",
+        "output_path": "dust_amount"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{recipient_amount}}, \"right_value\": {{dust_amount}}}",
+        "type": "math",
+        "output_path": "recipient_minus_dust"
+       },
+       {
+        "input": "{{recipient_minus_dust}}",
+        "type": "assert"
+       },
+       {
+        "input": "{\"network\":\"Testnet3\", \"blockchain\":\"Bitcoin\"}",
+        "type": "set_variable",
+        "output_path": "transfer.network"
+       },
+       {
+        "input": "\"1\"",
+        "type": "set_variable",
+        "output_path": "transfer.confirmation_depth"
+       },
+       {
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"INPUT\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}, \"coin_change\":{\"coin_action\":\"coin_spent\", \"coin_identifier\":{{sender.coin}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"OUTPUT\",\"account\":{{recipient}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
         "type": "set_variable",
         "output_path": "transfer.operations"
        },

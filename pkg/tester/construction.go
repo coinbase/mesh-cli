@@ -35,6 +35,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -382,17 +383,69 @@ func (t *ConstructionTester) WatchEndConditions(
 	}
 }
 
+func (t *ConstructionTester) returnFunds(
+	ctx context.Context,
+	sigListeners *[]context.CancelFunc,
+) {
+	// To cancel all execution, need to call multiple cancel functions.
+	ctx, cancel := context.WithCancel(ctx)
+	*sigListeners = append(*sigListeners, cancel)
+
+	var returnFundsSuccess bool
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return t.StartSyncer(ctx, cancel)
+	})
+	g.Go(func() error {
+		return t.StartPeriodicLogger(ctx)
+	})
+	g.Go(func() error {
+		err := t.coordinator.ReturnFunds(ctx)
+
+		// If the error is nil, we need to cancel the syncer
+		// or we will sync forever.
+		if err == nil {
+			returnFundsSuccess = true // makes error parsing much easier
+			cancel()
+			return nil
+		}
+
+		return err
+	})
+
+	err := g.Wait()
+	if *t.signalReceived {
+		color.Red("Fund return halted")
+		return
+	}
+
+	if !returnFundsSuccess {
+		log.Printf("unable to return funds %v\n", err)
+	}
+}
+
 // HandleErr is called when `check:construction` returns an error.
-func (t *ConstructionTester) HandleErr(err error) {
+func (t *ConstructionTester) HandleErr(
+	err error,
+	sigListeners *[]context.CancelFunc,
+) {
 	if *t.signalReceived {
 		color.Red("Check halted")
 		os.Exit(1)
 		return
 	}
 
-	if t.reachedEndConditions {
-		ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	if !t.reachedEndConditions {
+		ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 	}
 
-	ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
+	// We optimistically run the ReturnFunds function on the coordinator
+	// and only log if it fails. If there is no ReturnFunds workflow defined,
+	// this will just return nil.
+	t.returnFunds(
+		context.Background(),
+		sigListeners,
+	)
+
+	ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
 }
