@@ -115,14 +115,14 @@ func ensureDataDirectoryExists() {
 // handleSignals handles OS signals so we can ensure we close database
 // correctly. We call multiple sigListeners because we
 // may need to cancel more than 1 context.
-func handleSignals(listeners []context.CancelFunc) {
+func handleSignals(listeners *[]context.CancelFunc) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
 		color.Red("Received signal: %s", sig)
 		SignalReceived = true
-		for _, listener := range listeners {
+		for _, listener := range *listeners {
 			listener()
 		}
 	}()

@@ -6,6 +6,7 @@
  "online_url": "",
  "data_directory": "ethereum-data",
  "http_timeout": 300,
+ "max_retries": 5,
  "retry_elapsed_time": 0,
  "max_online_connections": 0,
  "max_sync_concurrency": 0,
@@ -141,6 +142,66 @@
        },
        {
         "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"transfer\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"transfer\",\"account\":{{recipient.account_identifier}},\"amount\":{\"value\":{{recipient_amount}},\"currency\":{{currency}}}}]",
+        "type": "set_variable",
+        "output_path": "transfer.operations"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "return_funds",
+    "concurrency": 10,
+    "scenarios": [
+     {
+      "name": "transfer",
+      "actions": [
+       {
+        "input": "{\"network\":\"Ropsten\", \"blockchain\":\"Ethereum\"}",
+        "type": "set_variable",
+        "output_path": "transfer.network"
+       },
+       {
+        "input": "{\"symbol\":\"ETH\", \"decimals\":18}",
+        "type": "set_variable",
+        "output_path": "currency"
+       },
+       {
+        "input": "\"42000000000000\"",
+        "type": "set_variable",
+        "output_path": "max_fee"
+       },
+       {
+        "input": "{\"minimum_balance\":{\"value\": {{max_fee}}, \"currency\": {{currency}}}}",
+        "type": "find_balance",
+        "output_path": "sender"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": {{sender.balance.value}}, \"right_value\": {{max_fee}}}",
+        "type": "math",
+        "output_path": "available_amount"
+       },
+       {
+        "input": "{\"return_amount\":{{available_amount}}}",
+        "type": "print_message"
+       },
+       {
+        "input": "{\"operation\":\"subtraction\", \"left_value\": \"0\", \"right_value\":{{available_amount}}}",
+        "type": "math",
+        "output_path": "sender_amount"
+       },
+       {
+        "input": "{\"address\":\"0xb41B39479a525AB69e38c701A713D98E3074252c\"}",
+        "type": "set_variable",
+        "output_path": "faucet"
+       },
+       {
+        "input": "\"1\"",
+        "type": "set_variable",
+        "output_path": "transfer.confirmation_depth"
+       },
+       {
+        "input": "[{\"operation_identifier\":{\"index\":0},\"type\":\"transfer\",\"account\":{{sender.account_identifier}},\"amount\":{\"value\":{{sender_amount}},\"currency\":{{currency}}}},{\"operation_identifier\":{\"index\":1},\"type\":\"transfer\",\"account\":{{faucet}},\"amount\":{\"value\":{{available_amount}},\"currency\":{{currency}}}}]",
         "type": "set_variable",
         "output_path": "transfer.operations"
        }
