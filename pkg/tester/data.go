@@ -317,6 +317,15 @@ func (t *DataTester) StartSyncing(
 	return t.syncer.Sync(ctx, startIndex, endIndex)
 }
 
+// StartPruning attempts to prune block storage
+// every 10 seconds.
+func (t *DataTester) StartPruning(
+	ctx context.Context,
+) error {
+	log.Println("starting pruning")
+	return t.syncer.Prune(ctx, statefulsyncer.DefaultPruningDepth)
+}
+
 // StartReconciler starts the reconciler if
 // reconciliation is enabled.
 func (t *DataTester) StartReconciler(

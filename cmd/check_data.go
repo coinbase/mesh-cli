@@ -134,6 +134,11 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
+		// TODO: make optional
+		return dataTester.StartPruning(ctx)
+	})
+
+	g.Go(func() error {
 		return dataTester.WatchEndConditions(ctx)
 	})
 
