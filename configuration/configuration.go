@@ -274,6 +274,12 @@ type DataConfiguration struct {
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:data run.
 	ResultsOutputFile string `json:"results_output_file"`
+
+	// PruningDisabled is a bolean that indicates storage pruning should
+	// not be attempted. This should really only ever be set to true if you
+	// wish to use `start_index` at a later point to restart from some
+	// previously synced block.
+	PruningDisabled bool `json:"pruning_disabled"`
 }
 
 // Configuration contains all configuration settings for running
