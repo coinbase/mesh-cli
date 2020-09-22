@@ -134,7 +134,10 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
-		// TODO: make optional
+		if Config.Data.PruningDisabled {
+			return nil
+		}
+
 		return dataTester.StartPruning(ctx)
 	})
 
