@@ -322,7 +322,10 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartPruning(
 	ctx context.Context,
 ) error {
-	log.Println("starting pruning")
+	if t.config.Data.PruningDisabled {
+		return nil
+	}
+
 	return t.syncer.Prune(ctx, statefulsyncer.DefaultPruningDepth)
 }
 
