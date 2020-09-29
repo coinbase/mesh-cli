@@ -300,33 +300,27 @@ func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
 
 // waitForTip loops until the Rosetta implementation is at tip.
 func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
-	// Don't wait any time before first tick if at tip.
-	tipIndex, err := t.checkTip(ctx)
-	if err != nil {
-		return -1, err
-	}
-	if tipIndex != -1 {
-		return tipIndex, nil
-	}
-
 	tc := time.NewTicker(tipWaitInterval)
 	defer tc.Stop()
 
 	for {
+		// Don't wait any time before first tick if at tip.
+		tipIndex, err := t.checkTip(ctx)
+		if err != nil {
+			return -1, err
+		}
+
+		if tipIndex != -1 {
+			return tipIndex, nil
+		}
+
+		log.Println("waiting for implementation to reach tip before testing...")
+
 		select {
 		case <-ctx.Done():
 			return -1, ctx.Err()
 		case <-tc.C:
-			tipIndex, err := t.checkTip(ctx)
-			if err != nil {
-				return -1, err
-			}
-
-			if tipIndex != -1 {
-				return tipIndex, nil
-			}
-
-			log.Println("waiting for implementation to reach tip before testing...")
+			continue
 		}
 	}
 }
