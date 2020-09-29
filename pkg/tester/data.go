@@ -62,6 +62,23 @@ const (
 	EndAtTipCheckInterval = 10 * time.Second
 )
 
+type ConstructionStatus struct {
+	Stats *CheckConstructionStats `json:"stats"`
+}
+
+type CheckDataProgress struct {
+	Blocks        int64   `json:"blocks"`
+	Tip           int64   `json:"tip"`
+	Completed     float64 `json:"completed"`
+	Rate          float64 `json:"rate"`
+	TimeRemaining string  `json:"time_remaining"`
+}
+
+type DataStatus struct {
+	Stats    *CheckDataStats    `json:"stats"`
+	Progress *CheckDataProgress `json:"progress"`
+}
+
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
 	network                  *types.NetworkIdentifier

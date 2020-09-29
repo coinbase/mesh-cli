@@ -135,6 +135,11 @@ type ConstructionConfiguration struct {
 	// workflows should be performed before stopping.
 	EndConditions map[string]int `json:"end_conditions,omitempty"`
 
+	// StatusPort allows the caller to query a running check:construction
+	// test to get stats about progress. This can be used instead
+	// of parsing logs to populate some sort of status dashboard.
+	StatusPort uint `json:"status_port,omitempty"`
+
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:construction run.
 	ResultsOutputFile string `json:"results_output_file,omitempty"`
@@ -270,6 +275,11 @@ type DataConfiguration struct {
 
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
+
+	// StatusPort allows the caller to query a running check:data
+	// test to get stats about progress. This can be used instead
+	// of parsing logs to populate some sort of status dashboard.
+	StatusPort uint `json:"status_port,omitempty"`
 
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:data run.
