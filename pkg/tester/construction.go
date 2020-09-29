@@ -44,6 +44,7 @@ const (
 	constructionCmdName = "check-construction"
 
 	endConditionsCheckInterval = 10 * time.Second
+	tipWaitInterval            = 10 * time.Second
 )
 
 // ConstructionTester coordinates the `check:construction` test.
@@ -283,6 +284,31 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	}
 }
 
+// waitForTip loops until the Rosetta implementation is at tip.
+func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
+	tc := time.NewTicker(tipWaitInterval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return -1, ctx.Err()
+		case <-tc.C:
+			status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
+			if fetchErr != nil {
+				return -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+			}
+
+			// If a block has yet to be synced, start syncing from tip.
+			if utils.AtTip(t.config.TipDelay, status.CurrentBlockTimestamp) {
+				return status.CurrentBlockIdentifier.Index, nil
+			}
+
+			log.Println("waiting for implementation to reach tip...")
+		}
+	}
+}
+
 // StartSyncer uses the tester's stateful syncer
 // to compute balance changes and track transactions
 // for confirmation on-chain.
@@ -293,14 +319,12 @@ func (t *ConstructionTester) StartSyncer(
 	startIndex := int64(-1)
 	_, err := t.blockStorage.GetHeadBlockIdentifier(ctx)
 	if errors.Is(err, storage.ErrHeadBlockNotFound) {
-		// If a block has yet to be synced, start syncing from tip.
-		// TODO: make configurable
-		status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
-		if fetchErr != nil {
-			return fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+		// If no head block exists, ensure we are at tip before starting. Otherwise,
+		// we will unnecessarily sync tons of blocks before reaching any that matter.
+		startIndex, err = t.waitForTip(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: unable to wait for tip", err)
 		}
-
-		startIndex = status.CurrentBlockIdentifier.Index
 	} else if err != nil {
 		return fmt.Errorf("%w: unable to get last block synced", err)
 	}
