@@ -284,8 +284,31 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	}
 }
 
+func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
+	status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
+	if fetchErr != nil {
+		return -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+	}
+
+	// If a block has yet to be synced, start syncing from tip.
+	if utils.AtTip(t.config.TipDelay, status.CurrentBlockTimestamp) {
+		return status.CurrentBlockIdentifier.Index, nil
+	}
+
+	return -1, nil
+}
+
 // waitForTip loops until the Rosetta implementation is at tip.
 func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
+	// Don't wait any time before first tick if at tip.
+	tipIndex, err := t.checkTip(ctx)
+	if err != nil {
+		return -1, err
+	}
+	if tipIndex != -1 {
+		return tipIndex, nil
+	}
+
 	tc := time.NewTicker(tipWaitInterval)
 	defer tc.Stop()
 
@@ -294,17 +317,16 @@ func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
 		case <-ctx.Done():
 			return -1, ctx.Err()
 		case <-tc.C:
-			status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
-			if fetchErr != nil {
-				return -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+			tipIndex, err := t.checkTip(ctx)
+			if err != nil {
+				return -1, err
 			}
 
-			// If a block has yet to be synced, start syncing from tip.
-			if utils.AtTip(t.config.TipDelay, status.CurrentBlockTimestamp) {
-				return status.CurrentBlockIdentifier.Index, nil
+			if tipIndex != -1 {
+				return tipIndex, nil
 			}
 
-			log.Println("waiting for implementation to reach tip...")
+			log.Println("waiting for implementation to reach tip before testing...")
 		}
 	}
 }
