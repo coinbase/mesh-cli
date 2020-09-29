@@ -227,6 +227,20 @@ func (l *Logger) LogConstructionStats(ctx context.Context, inflightTransactions 
 	return nil
 }
 
+// LogMemoryStats logs memory usage information.
+func LogMemoryStats(ctx context.Context) {
+	memUsage := utils.MonitorMemoryUsage(ctx, -1)
+	statsMessage := fmt.Sprintf(
+		"[MEMORY] Heap: %fMB Stack: %fMB System: %fMB GCs: %d",
+		memUsage.Heap,
+		memUsage.Stack,
+		memUsage.System,
+		memUsage.GarbageCollections,
+	)
+
+	color.Cyan(statsMessage)
+}
+
 // AddBlockStream writes the next processed block to the end of the
 // blockStreamFile output file.
 func (l *Logger) AddBlockStream(
