@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"time"
 
@@ -49,16 +50,15 @@ const (
 	// until the client halts the search or the block is found).
 	InactiveFailureLookbackWindow = 250
 
+	// periodicLoggingSeconds is the frequency to print stats in seconds.
+	periodicLoggingSeconds = 10
+
 	// PeriodicLoggingFrequency is the frequency that stats are printed
 	// to the terminal.
-	//
-	// TODO: make configurable
-	PeriodicLoggingFrequency = 10 * time.Second
+	PeriodicLoggingFrequency = periodicLoggingSeconds * time.Second
 
 	// EndAtTipCheckInterval is the frequency that EndAtTip condition
 	// is evaludated
-	//
-	// TODO: make configurable
 	EndAtTipCheckInterval = 10 * time.Second
 )
 
@@ -357,6 +357,13 @@ func (t *DataTester) StartPeriodicLogger(
 
 			return ctx.Err()
 		case <-tc.C:
+			// Update the elapsed time in counter storage so that
+			// we can log metrics about the current check:data run.
+			_, _ = t.counterStorage.Update(
+				ctx,
+				logger.TimeElapsedCounter,
+				big.NewInt(periodicLoggingSeconds),
+			)
 			_ = t.logger.LogDataStats(ctx)
 		}
 	}
