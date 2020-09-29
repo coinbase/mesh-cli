@@ -357,6 +357,24 @@ func (t *DataTester) StartPeriodicLogger(
 
 			return ctx.Err()
 		case <-tc.C:
+			_ = t.logger.LogDataStats(ctx)
+		}
+	}
+}
+
+// StartProgressLogger priunts out periodic
+// estimates of sync duration if we are behind tip.
+func (t *DataTester) StartProgressLogger(
+	ctx context.Context,
+) error {
+	tc := time.NewTicker(PeriodicLoggingFrequency)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tc.C:
 			// Update the elapsed time in counter storage so that
 			// we can log metrics about the current check:data run.
 			_, _ = t.counterStorage.Update(
@@ -364,7 +382,14 @@ func (t *DataTester) StartPeriodicLogger(
 				logger.TimeElapsedCounter,
 				big.NewInt(periodicLoggingSeconds),
 			)
-			_ = t.logger.LogDataStats(ctx)
+
+			status, fetchErr := t.fetcher.NetworkStatusRetry(ctx, t.network, nil)
+			if fetchErr != nil {
+				log.Printf("%v: unable to get network status\n", fetchErr.Err)
+				continue
+			}
+
+			_ = t.logger.LogTipEstimate(ctx, status.CurrentBlockIdentifier.Index)
 		}
 	}
 }

@@ -110,17 +110,6 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 		return nil
 	}
 
-	elapsedTime, err := l.CounterStorage.Get(ctx, TimeElapsedCounter)
-	if err != nil {
-		return fmt.Errorf("%w cannot get elapsed time", err)
-	}
-
-	if elapsedTime.Sign() == 0 { // wait for at least some elapsed time
-		return nil
-	}
-
-	blocksPerSecond := new(big.Int).Div(blocks, elapsedTime)
-
 	orphans, err := l.CounterStorage.Get(ctx, storage.OrphanCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get orphan counter", err)
@@ -147,10 +136,9 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Blocks: %s (Orphaned: %s, Rate: %s/sec) Transactions: %s Operations: %s",
+		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s",
 		blocks.String(),
 		orphans.String(),
-		blocksPerSecond.String(),
 		txs.String(),
 		ops.String(),
 	)
@@ -178,6 +166,54 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
 
+	return nil
+}
+
+// LogTipEstimate logs information about the remaining blocks to sync.
+func (l *Logger) LogTipEstimate(ctx context.Context, tipIndex int64) error {
+	blocks, err := l.CounterStorage.Get(ctx, storage.BlockCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get block counter", err)
+	}
+
+	if blocks.Sign() == 0 { // wait for at least 1 block to be processed
+		return nil
+	}
+
+	orphans, err := l.CounterStorage.Get(ctx, storage.OrphanCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get orphan counter", err)
+	}
+
+	adjustedBlocks := blocks.Int64() - orphans.Int64()
+	if tipIndex-adjustedBlocks <= 0 { // return if no blocks to sync
+		return nil
+	}
+
+	elapsedTime, err := l.CounterStorage.Get(ctx, TimeElapsedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get elapsed time", err)
+	}
+
+	if elapsedTime.Sign() == 0 { // wait for at least some elapsed time
+		return nil
+	}
+
+	blocksPerSecond := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt(elapsedTime))
+	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
+	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt64(tipIndex))
+	blocksSyncedFloat, _ := blocksSynced.Float64()
+
+	statsMessage := fmt.Sprintf(
+		"[PROGRESS] Blocks Synced: %d/%d (Completed: %f%%, Rate: %f/second) Time Remaining: %s",
+		adjustedBlocks,
+		tipIndex,
+		blocksSyncedFloat*utils.OneHundred,
+		blocksPerSecondFloat,
+		utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex),
+	)
+
+	color.Cyan(statsMessage)
 	return nil
 }
 
