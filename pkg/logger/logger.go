@@ -147,10 +147,10 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Blocks: %s (Blocks/Second: %s, Orphaned: %s) Transactions: %s Operations: %s",
+		"[STATS] Blocks: %s (Orphaned: %s, Rate: %s/sec) Transactions: %s Operations: %s",
 		blocks.String(),
-		blocksPerSecond.String(),
 		orphans.String(),
+		blocksPerSecond.String(),
 		txs.String(),
 		ops.String(),
 	)
