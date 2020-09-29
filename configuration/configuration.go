@@ -66,6 +66,7 @@ const (
 	DefaultBroadcastLimit                    = 3
 	DefaultTipDelay                          = 300
 	DefaultBlockBroadcastLimit               = 5
+	DefaultStatusPort                        = 9090
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
@@ -152,6 +153,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
+		StatusPort:                        DefaultStatusPort,
 	}
 }
 
@@ -364,6 +366,10 @@ func populateConstructionMissingFields(
 		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
 	}
 
+	if constructionConfig.StatusPort == 0 {
+		constructionConfig.StatusPort = DefaultStatusPort
+	}
+
 	return constructionConfig
 }
 
@@ -382,6 +388,10 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 
 	if dataConfig.InactiveReconciliationFrequency == 0 {
 		dataConfig.InactiveReconciliationFrequency = DefaultInactiveReconciliationFrequency
+	}
+
+	if dataConfig.StatusPort == 0 {
+		dataConfig.StatusPort = DefaultStatusPort
 	}
 
 	return dataConfig
