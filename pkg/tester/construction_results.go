@@ -240,8 +240,10 @@ func ExitConstruction(
 		counterStorage,
 		jobStorage,
 	)
-	results.Print()
-	results.Output(config.Construction.ResultsOutputFile)
+	if results != nil {
+		results.Print()
+		results.Output(config.Construction.ResultsOutputFile)
+	}
 
 	os.Exit(status)
 }

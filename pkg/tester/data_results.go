@@ -471,8 +471,10 @@ func ExitData(
 		endCondition,
 		endConditionDetail,
 	)
-	results.Print()
-	results.Output(config.Data.ResultsOutputFile)
+	if results != nil {
+		results.Print()
+		results.Output(config.Data.ResultsOutputFile)
+	}
 
 	os.Exit(status)
 }

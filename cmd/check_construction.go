@@ -131,6 +131,10 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		return constructionTester.WatchEndConditions(ctx)
 	})
 
+	g.Go(func() error {
+		return tester.LogMemoryLoop(ctx)
+	})
+
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(&sigListeners)
 
