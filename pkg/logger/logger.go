@@ -34,6 +34,9 @@ import (
 var _ statefulsyncer.Logger = (*Logger)(nil)
 
 const (
+	// TimeElapsedCounter tracks the total time elapsed in seconds.
+	TimeElapsedCounter = "time_elapsed"
+
 	// blockStreamFile contains the stream of processed
 	// blocks and whether they were added or removed.
 	blockStreamFile = "blocks.txt"
@@ -107,6 +110,17 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 		return nil
 	}
 
+	elapsedTime, err := l.CounterStorage.Get(ctx, TimeElapsedCounter)
+	if err != nil {
+		return fmt.Errorf("%w cannot get elapsed time", err)
+	}
+
+	if elapsedTime.Sign() == 0 { // wait for at least some elapsed time
+		return nil
+	}
+
+	blocksPerSecond := new(big.Int).Div(blocks, elapsedTime)
+
 	orphans, err := l.CounterStorage.Get(ctx, storage.OrphanCounter)
 	if err != nil {
 		return fmt.Errorf("%w cannot get orphan counter", err)
@@ -133,9 +147,10 @@ func (l *Logger) LogDataStats(ctx context.Context) error {
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Blocks: %s (Orphaned: %s) Transactions: %s Operations: %s",
+		"[STATS] Blocks: %s (Orphaned: %s, Rate: %s/sec) Transactions: %s Operations: %s",
 		blocks.String(),
 		orphans.String(),
+		blocksPerSecond.String(),
 		txs.String(),
 		ops.String(),
 	)
