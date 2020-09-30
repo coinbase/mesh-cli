@@ -311,6 +311,16 @@ func ComputeCheckDataStatus(
 	}
 }
 
+// FetchCheckDataStatus fetches *CheckDataStatus.
+func FetchCheckDataStatus(url string) (*CheckDataStatus, error) {
+	var status CheckDataStatus
+	if err := JSONFetch(url, &status); err != nil {
+		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+	}
+
+	return &status, nil
+}
+
 // CheckDataTests indicates which tests passed.
 // If a test is nil, it did not apply to the run.
 //

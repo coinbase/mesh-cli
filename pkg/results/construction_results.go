@@ -279,6 +279,16 @@ func ComputeCheckConstructionStatus(
 	}
 }
 
+// FetchCheckConstructionStatus fetches *CheckConstructionStatus.
+func FetchCheckConstructionStatus(url string) (*CheckConstructionStatus, error) {
+	var status CheckConstructionStatus
+	if err := JSONFetch(url, &status); err != nil {
+		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+	}
+
+	return &status, nil
+}
+
 // ExitConstruction exits check:data, logs the test results to the console,
 // and to a provided output path.
 func ExitConstruction(
