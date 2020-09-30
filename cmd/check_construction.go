@@ -20,6 +20,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -70,7 +71,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
-		tester.ExitConstruction(
+		results.ExitConstruction(
 			Config,
 			nil,
 			nil,
@@ -81,7 +82,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	_, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		tester.ExitConstruction(
+		results.ExitConstruction(
 			Config,
 			nil,
 			nil,
@@ -99,7 +100,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		&SignalReceived,
 	)
 	if err != nil {
-		tester.ExitConstruction(
+		results.ExitConstruction(
 			Config,
 			nil,
 			nil,

@@ -28,6 +28,7 @@ import (
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -63,6 +64,8 @@ const (
 	// is evaludated
 	EndAtTipCheckInterval = 10 * time.Second
 )
+
+var _ http.Handler = (*ConstructionTester)(nil)
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
@@ -401,7 +404,7 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
-	status := ComputeCheckDataStatus(
+	status := results.ComputeCheckDataStatus(
 		r.Context(),
 		t.counterStorage,
 		t.balanceStorage,
@@ -560,7 +563,7 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 	}
 
 	if len(t.endCondition) != 0 {
-		ExitData(
+		results.ExitData(
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
@@ -573,19 +576,19 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 
 	fmt.Printf("\n")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if !t.historicalBalanceEnabled {
 		color.Yellow(
 			"Can't find the block missing operations automatically, please enable historical balance lookup",
 		)
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
 		color.Yellow("Search for inactive reconciliation discrepency is disabled")
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	t.FindMissingOps(ctx, err, sigListeners)
@@ -609,7 +612,7 @@ func (t *DataTester) FindMissingOps(
 	)
 	if err != nil {
 		color.Yellow("%s: could not find block with missing ops", err.Error())
-		ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 	}
 
 	color.Yellow(
@@ -619,7 +622,7 @@ func (t *DataTester) FindMissingOps(
 		badBlock.Hash,
 	)
 
-	ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+	results.ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 }
 
 func (t *DataTester) recursiveOpSearch(

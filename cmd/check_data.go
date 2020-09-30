@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -83,7 +84,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
-		tester.ExitData(
+		results.ExitData(
 			Config,
 			nil,
 			nil,
@@ -96,7 +97,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		tester.ExitData(
+		results.ExitData(
 			Config,
 			nil,
 			nil,

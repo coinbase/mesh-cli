@@ -63,7 +63,7 @@ func StartServer(
 
 	go func() {
 		log.Printf("%s server running on port %d\n", name, port)
-		server.ListenAndServe()
+		_ = server.ListenAndServe()
 	}()
 
 	go func() {
@@ -73,7 +73,7 @@ func StartServer(
 		<-ctx.Done()
 		log.Printf("%s server shutting down", name)
 
-		server.Shutdown(ctx)
+		_ = server.Shutdown(ctx)
 	}()
 
 	return ctx.Err()

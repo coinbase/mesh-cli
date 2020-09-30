@@ -27,6 +27,7 @@ import (
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -48,6 +49,8 @@ const (
 	endConditionsCheckInterval = 10 * time.Second
 	tipWaitInterval            = 10 * time.Second
 )
+
+var _ http.Handler = (*ConstructionTester)(nil)
 
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
@@ -373,7 +376,7 @@ func (t *ConstructionTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
-	status := ComputeCheckConstructionStatus(
+	status := results.ComputeCheckConstructionStatus(
 		r.Context(),
 		t.config,
 		t.counterStorage,
@@ -495,7 +498,7 @@ func (t *ConstructionTester) HandleErr(
 	}
 
 	if !t.reachedEndConditions {
-		ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
+		results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 	}
 
 	// We optimistically run the ReturnFunds function on the coordinator
@@ -506,5 +509,5 @@ func (t *ConstructionTester) HandleErr(
 		sigListeners,
 	)
 
-	ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
 }
