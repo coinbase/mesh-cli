@@ -445,7 +445,7 @@ func ReconciliationTest(
 	reconciliationsPerformed bool,
 ) *bool {
 	relatedErrors := []error{
-		//processor.ErrReconciliationFailure,
+		ErrReconciliationFailure,
 	}
 	reconciliationPass := true
 	for _, relatedError := range relatedErrors {

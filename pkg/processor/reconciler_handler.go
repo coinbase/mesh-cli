@@ -16,20 +16,15 @@ package processor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
-)
-
-var (
-	// ErrReconciliationFailure is returned if reconciliation fails.
-	ErrReconciliationFailure = errors.New("reconciliation failure")
 )
 
 // ReconcilerHandler implements the Reconciler.Handler interface.
@@ -96,7 +91,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			h.InactiveFailureBlock = block
 			return fmt.Errorf(
 				"%w: inactive reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-				ErrReconciliationFailure,
+				results.ErrReconciliationFailure,
 				account.Address,
 				block.Index,
 				computedBalance,
@@ -110,7 +105,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		h.ActiveFailureBlock = block
 		return fmt.Errorf(
 			"%w: active reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-			ErrReconciliationFailure,
+			results.ErrReconciliationFailure,
 			account.Address,
 			block.Index,
 			computedBalance,
