@@ -23,10 +23,10 @@ import (
 
 // JSONFetch makes a GET request to the URL and marshals
 // the response into output.
-func JSONFetch(URL string, output interface{}) error {
-	resp, err := http.Get(URL)
+func JSONFetch(url string, output interface{}) error {
+	resp, err := http.Get(url) // #nosec
 	if err != nil {
-		return fmt.Errorf("%w: unable to fetch GET %s", err, URL)
+		return fmt.Errorf("%w: unable to fetch GET %s", err, url)
 	}
 	defer resp.Body.Close()
 
