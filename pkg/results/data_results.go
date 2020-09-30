@@ -312,9 +312,9 @@ func ComputeCheckDataStatus(
 }
 
 // FetchCheckDataStatus fetches *CheckDataStatus.
-func FetchCheckDataStatus(url string) (*CheckDataStatus, error) {
+func FetchCheckDataStatus(URL string) (*CheckDataStatus, error) {
 	var status CheckDataStatus
-	if err := JSONFetch(url, &status); err != nil {
+	if err := JSONFetch(URL, &status); err != nil {
 		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
 	}
 

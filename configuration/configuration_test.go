@@ -60,6 +60,7 @@ var (
 			StaleDepth:            12,
 			BroadcastLimit:        200,
 			BlockBroadcastLimit:   992,
+			StatusPort:            21,
 			Workflows: append(
 				fakeWorkflows,
 				&job.Workflow{
@@ -75,6 +76,7 @@ var (
 			ReconciliationDisabled:            false,
 			HistoricalBalanceEnabled:          &historicalEnabled,
 			StartIndex:                        &startIndex,
+			StatusPort:                        123,
 			EndConditions: &DataEndConditions{
 				ReconciliationCoverage: &goodCoverage,
 			},
@@ -153,6 +155,7 @@ func TestLoadConfiguration(t *testing.T) {
 					StaleDepth:            DefaultStaleDepth,
 					BroadcastLimit:        DefaultBroadcastLimit,
 					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					StatusPort:            DefaultStatusPort,
 					Workflows:             fakeWorkflows,
 				}
 
