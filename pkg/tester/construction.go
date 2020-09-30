@@ -202,6 +202,7 @@ func InitializeConstruction(
 		broadcastStorage,
 		balanceStorageHelper,
 		counterStorage,
+		config.Construction.Quiet,
 	)
 
 	coordinatorHandler := processor.NewCoordinatorHandler(

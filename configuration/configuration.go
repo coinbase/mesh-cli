@@ -144,6 +144,10 @@ type ConstructionConfiguration struct {
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:construction run.
 	ResultsOutputFile string `json:"results_output_file,omitempty"`
+
+	// Quiet is a boolean indicating if all request and response
+	// logging should be silenced.
+	Quiet bool `json:"quiet,omitempty"`
 }
 
 // DefaultDataConfiguration returns the default *DataConfiguration

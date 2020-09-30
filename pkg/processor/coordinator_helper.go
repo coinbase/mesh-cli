@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
@@ -24,6 +25,22 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
+)
+
+const (
+	request  = "REQUEST"
+	response = "RESPONSE"
+	reqerror = "ERROR"
+	queue    = "QUEUE"
+
+	constructionDerive     = "/construction/derive"
+	constructionPreprocess = "/construction/preprocess"
+	constructionMetadata   = "/construction/metadata"
+	constructionPayloads   = "/construction/payloads"
+	constructionParse      = "/construction/parse"
+	constructionCombine    = "/construction/combine"
+	constructionHash       = "/construction/hash"
+	constructionSubmit     = "/construction/submit"
 )
 
 var _ coordinator.Helper = (*CoordinatorHelper)(nil)
@@ -43,6 +60,10 @@ type CoordinatorHelper struct {
 	counterStorage   *storage.CounterStorage
 
 	balanceStorageHelper *BalanceStorageHelper
+
+	// quiet determines if requests/responses logging
+	// should be silenced.
+	quiet bool
 }
 
 // NewCoordinatorHelper returns a new *CoordinatorHelper.
@@ -57,6 +78,7 @@ func NewCoordinatorHelper(
 	broadcastStorage *storage.BroadcastStorage,
 	balanceStorageHelper *BalanceStorageHelper,
 	counterStorage *storage.CounterStorage,
+	quiet bool,
 ) *CoordinatorHelper {
 	return &CoordinatorHelper{
 		offlineFetcher:       offlineFetcher,
@@ -69,12 +91,27 @@ func NewCoordinatorHelper(
 		broadcastStorage:     broadcastStorage,
 		counterStorage:       counterStorage,
 		balanceStorageHelper: balanceStorageHelper,
+		quiet:                quiet,
 	}
 }
 
 // DatabaseTransaction returns a new write-ready storage.DatabaseTransaction.
 func (c *CoordinatorHelper) DatabaseTransaction(ctx context.Context) storage.DatabaseTransaction {
 	return c.database.NewDatabaseTransaction(ctx, true)
+}
+
+// verboseLog logs a request or response if c.verbose is true.
+func (c *CoordinatorHelper) verboseLog(reqres string, endpoint string, structs ...interface{}) {
+	if c.quiet {
+		return
+	}
+
+	l := fmt.Sprintf("%s %s", reqres, endpoint)
+	for _, s := range structs {
+		l = fmt.Sprintf("%s %s", l, types.PrintStruct(s))
+	}
+
+	log.Println(l)
 }
 
 // Derive returns a new address for a provided publicKey.
@@ -84,6 +121,7 @@ func (c *CoordinatorHelper) Derive(
 	publicKey *types.PublicKey,
 	metadata map[string]interface{},
 ) (*types.AccountIdentifier, map[string]interface{}, error) {
+	c.verboseLog(request, constructionDerive, networkIdentifier, publicKey, metadata)
 	account, metadata, fetchErr := c.offlineFetcher.ConstructionDerive(
 		ctx,
 		networkIdentifier,
@@ -91,9 +129,11 @@ func (c *CoordinatorHelper) Derive(
 		metadata,
 	)
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionDerive, fetchErr)
 		return nil, nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionDerive, account, metadata)
 	return account, metadata, nil
 }
 
@@ -105,6 +145,7 @@ func (c *CoordinatorHelper) Preprocess(
 	intent []*types.Operation,
 	metadata map[string]interface{},
 ) (map[string]interface{}, []*types.AccountIdentifier, error) {
+	c.verboseLog(request, constructionPreprocess, networkIdentifier, intent, metadata)
 	options, requiredPublicKeys, fetchErr := c.offlineFetcher.ConstructionPreprocess(
 		ctx,
 		networkIdentifier,
@@ -113,9 +154,11 @@ func (c *CoordinatorHelper) Preprocess(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionPreprocess, fetchErr)
 		return nil, nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionPreprocess, options, requiredPublicKeys)
 	return options, requiredPublicKeys, nil
 }
 
@@ -127,6 +170,7 @@ func (c *CoordinatorHelper) Metadata(
 	metadataRequest map[string]interface{},
 	publicKeys []*types.PublicKey,
 ) (map[string]interface{}, []*types.Amount, error) {
+	c.verboseLog(request, constructionMetadata, networkIdentifier, metadataRequest, publicKeys)
 	metadata, suggestedFee, fetchErr := c.offlineFetcher.ConstructionMetadata(
 		ctx,
 		networkIdentifier,
@@ -135,9 +179,11 @@ func (c *CoordinatorHelper) Metadata(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionMetadata, fetchErr)
 		return nil, nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionMetadata, metadata, suggestedFee)
 	return metadata, suggestedFee, nil
 }
 
@@ -150,6 +196,7 @@ func (c *CoordinatorHelper) Payloads(
 	requiredMetadata map[string]interface{},
 	publicKeys []*types.PublicKey,
 ) (string, []*types.SigningPayload, error) {
+	c.verboseLog(request, constructionPayloads, networkIdentifier, intent, publicKeys)
 	res, payloads, fetchErr := c.offlineFetcher.ConstructionPayloads(
 		ctx,
 		networkIdentifier,
@@ -159,9 +206,11 @@ func (c *CoordinatorHelper) Payloads(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionPayloads, fetchErr)
 		return "", nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionPayloads, res, payloads)
 	return res, payloads, nil
 }
 
@@ -173,6 +222,7 @@ func (c *CoordinatorHelper) Parse(
 	signed bool,
 	transaction string,
 ) ([]*types.Operation, []*types.AccountIdentifier, map[string]interface{}, error) {
+	c.verboseLog(request, constructionParse, networkIdentifier, signed, transaction)
 	ops, signers, metadata, fetchErr := c.offlineFetcher.ConstructionParse(
 		ctx,
 		networkIdentifier,
@@ -181,9 +231,11 @@ func (c *CoordinatorHelper) Parse(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionParse, fetchErr)
 		return nil, nil, nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionParse, ops, signers, metadata)
 	return ops, signers, metadata, nil
 }
 
@@ -195,6 +247,7 @@ func (c *CoordinatorHelper) Combine(
 	unsignedTransaction string,
 	signatures []*types.Signature,
 ) (string, error) {
+	c.verboseLog(request, constructionCombine, networkIdentifier, unsignedTransaction, signatures)
 	res, fetchErr := c.offlineFetcher.ConstructionCombine(
 		ctx,
 		networkIdentifier,
@@ -203,9 +256,11 @@ func (c *CoordinatorHelper) Combine(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionCombine, fetchErr)
 		return "", fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionCombine, res)
 	return res, nil
 }
 
@@ -216,6 +271,7 @@ func (c *CoordinatorHelper) Hash(
 	networkIdentifier *types.NetworkIdentifier,
 	networkTransaction string,
 ) (*types.TransactionIdentifier, error) {
+	c.verboseLog(request, constructionHash, networkIdentifier, networkTransaction)
 	res, fetchErr := c.offlineFetcher.ConstructionHash(
 		ctx,
 		networkIdentifier,
@@ -223,9 +279,11 @@ func (c *CoordinatorHelper) Hash(
 	)
 
 	if fetchErr != nil {
+		c.verboseLog(reqerror, constructionHash, fetchErr)
 		return nil, fetchErr.Err
 	}
 
+	c.verboseLog(response, constructionHash, res)
 	return res, nil
 }
 
@@ -348,6 +406,7 @@ func (c *CoordinatorHelper) Broadcast(
 	payload string,
 	confirmationDepth int64,
 ) error {
+	c.verboseLog(queue, constructionSubmit, network, intent, transactionIdentifier, payload)
 	return c.broadcastStorage.Broadcast(
 		ctx,
 		dbTx,
