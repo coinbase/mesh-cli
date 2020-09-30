@@ -31,6 +31,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -211,6 +212,8 @@ func ComputeCheckDataStats(
 	return stats
 }
 
+// CheckDataProgress contains information
+// about check:data's syncing progress.
 type CheckDataProgress struct {
 	Blocks        int64   `json:"blocks"`
 	Tip           int64   `json:"tip"`
@@ -219,11 +222,21 @@ type CheckDataProgress struct {
 	TimeRemaining string  `json:"time_remaining"`
 }
 
+// ComputeCheckDataProgress returns
+// a populated *CheckDataProgress.
 func ComputeCheckDataProgress(
 	ctx context.Context,
-	tipIndex int64,
+	fetcher *fetcher.Fetcher,
+	network *types.NetworkIdentifier,
 	counters *storage.CounterStorage,
 ) *CheckDataProgress {
+	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
+	if fetchErr != nil {
+		fmt.Printf("%s: cannot get network status", fetchErr.Err.Error())
+		return nil
+	}
+	tipIndex := networkStatus.CurrentBlockIdentifier.Index
+
 	blocks, err := counters.Get(ctx, storage.BlockCounter)
 	if err != nil {
 		fmt.Printf("%s: cannot get block counter", err.Error())
@@ -266,6 +279,37 @@ func ComputeCheckDataProgress(
 		Completed:     blocksSyncedFloat * utils.OneHundred,
 		Rate:          blocksPerSecondFloat,
 		TimeRemaining: utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+	}
+}
+
+// CheckDataStatus contains both CheckDataStats
+// and CheckDataProgress.
+type CheckDataStatus struct {
+	Stats    *CheckDataStats    `json:"stats"`
+	Progress *CheckDataProgress `json:"progress"`
+}
+
+// ComputeCheckDataStatus returns a populated
+// *CheckDataStatus.
+func ComputeCheckDataStatus(
+	ctx context.Context,
+	counters *storage.CounterStorage,
+	balances *storage.BalanceStorage,
+	fetcher *fetcher.Fetcher,
+	network *types.NetworkIdentifier,
+) *CheckDataStatus {
+	return &CheckDataStatus{
+		Stats: ComputeCheckDataStats(
+			ctx,
+			counters,
+			balances,
+		),
+		Progress: ComputeCheckDataProgress(
+			ctx,
+			fetcher,
+			network,
+			counters,
+		),
 	}
 }
 

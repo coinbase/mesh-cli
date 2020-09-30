@@ -68,11 +68,6 @@ type ConstructionStatus struct {
 	Stats *CheckConstructionStats `json:"stats"`
 }
 
-type DataStatus struct {
-	Stats    *CheckDataStats    `json:"stats"`
-	Progress *CheckDataProgress `json:"progress"`
-}
-
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
 	network                  *types.NetworkIdentifier
@@ -405,61 +400,22 @@ func (t *DataTester) StartProgressLogger(
 	}
 }
 
-type StatusHandler struct {
-	Tester *DataTester
-}
-
-func (h *StatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP serves a CheckDataStatus response on all paths.
+func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
-	networkStatus, fetchErr := h.Tester.fetcher.NetworkStatusRetry(r.Context(), h.Tester.network, nil)
-	if fetchErr != nil {
-		http.Error(w, fetchErr.Err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	status := &DataStatus{
-		Stats: ComputeCheckDataStats(
-			r.Context(),
-			h.Tester.counterStorage,
-			h.Tester.balanceStorage,
-		),
-		Progress: ComputeCheckDataProgress(
-			r.Context(),
-			networkStatus.CurrentBlockIdentifier.Index,
-			h.Tester.counterStorage,
-		),
-	}
+	status := ComputeCheckDataStatus(
+		r.Context(),
+		t.counterStorage,
+		t.balanceStorage,
+		t.fetcher,
+		t.network,
+	)
 
 	if err := json.NewEncoder(w).Encode(status); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func (t *DataTester) StartStatusEndpoint(
-	ctx context.Context,
-) error {
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", t.config.Data.StatusPort),
-		Handler: &StatusHandler{Tester: t},
-	}
-
-	go func() {
-		log.Printf("status server running on port %d\n", t.config.Data.StatusPort)
-		server.ListenAndServe()
-	}()
-
-	go func() {
-		// If we don't shutdown server, it will
-		// never stop because server.ListenAndServe doesn't
-		// take any context.
-		<-ctx.Done()
-
-		server.Shutdown(ctx)
-	}()
-
-	return ctx.Err()
 }
 
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip

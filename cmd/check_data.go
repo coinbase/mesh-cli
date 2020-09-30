@@ -150,7 +150,12 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
-		return dataTester.StartStatusEndpoint(ctx)
+		return tester.StartServer(
+			ctx,
+			"check:data status",
+			dataTester,
+			Config.Data.StatusPort,
+		)
 	})
 
 	sigListeners := []context.CancelFunc{cancel}

@@ -16,6 +16,9 @@ package tester
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"net/http"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
@@ -43,4 +46,35 @@ func LogMemoryLoop(
 			logger.LogMemoryStats(ctx)
 		}
 	}
+}
+
+// StartServer stats a server at a port with a particular handler.
+// This is often used to support a status endpoint for a particular test.
+func StartServer(
+	ctx context.Context,
+	name string,
+	handler http.Handler,
+	port uint,
+) error {
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: handler,
+	}
+
+	go func() {
+		log.Printf("%s server running on port %d\n", name, port)
+		server.ListenAndServe()
+	}()
+
+	go func() {
+		// If we don't shutdown server, it will
+		// never stop because server.ListenAndServe doesn't
+		// take any context.
+		<-ctx.Done()
+		log.Printf("%s server shutting down", name)
+
+		server.Shutdown(ctx)
+	}()
+
+	return ctx.Err()
 }
