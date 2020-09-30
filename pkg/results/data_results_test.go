@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tester
+package results
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -295,7 +294,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, no storage, reconciliation errors": {
 			cfg: configuration.DefaultConfiguration(),
-			err: []error{processor.ErrReconciliationFailure},
+			err: []error{ErrReconciliationFailure},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,

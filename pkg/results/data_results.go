@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tester
+package results
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"strconv"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -209,6 +210,117 @@ func ComputeCheckDataStats(
 	return stats
 }
 
+// CheckDataProgress contains information
+// about check:data's syncing progress.
+type CheckDataProgress struct {
+	Blocks        int64   `json:"blocks"`
+	Tip           int64   `json:"tip"`
+	Completed     float64 `json:"completed"`
+	Rate          float64 `json:"rate"`
+	TimeRemaining string  `json:"time_remaining"`
+}
+
+// ComputeCheckDataProgress returns
+// a populated *CheckDataProgress.
+func ComputeCheckDataProgress(
+	ctx context.Context,
+	fetcher *fetcher.Fetcher,
+	network *types.NetworkIdentifier,
+	counters *storage.CounterStorage,
+) *CheckDataProgress {
+	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
+	if fetchErr != nil {
+		fmt.Printf("%s: cannot get network status", fetchErr.Err.Error())
+		return nil
+	}
+	tipIndex := networkStatus.CurrentBlockIdentifier.Index
+
+	blocks, err := counters.Get(ctx, storage.BlockCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get block counter", err.Error())
+		return nil
+	}
+
+	if blocks.Sign() == 0 { // wait for at least 1 block to be processed
+		return nil
+	}
+
+	orphans, err := counters.Get(ctx, storage.OrphanCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get orphan counter", err.Error())
+		return nil
+	}
+
+	adjustedBlocks := blocks.Int64() - orphans.Int64()
+	if tipIndex-adjustedBlocks <= 0 { // return if no blocks to sync
+		return nil
+	}
+
+	elapsedTime, err := counters.Get(ctx, TimeElapsedCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get elapsed time", err.Error())
+		return nil
+	}
+
+	if elapsedTime.Sign() == 0 { // wait for at least some elapsed time
+		return nil
+	}
+
+	blocksPerSecond := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt(elapsedTime))
+	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
+	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt64(tipIndex))
+	blocksSyncedFloat, _ := blocksSynced.Float64()
+
+	return &CheckDataProgress{
+		Blocks:        adjustedBlocks,
+		Tip:           tipIndex,
+		Completed:     blocksSyncedFloat * utils.OneHundred,
+		Rate:          blocksPerSecondFloat,
+		TimeRemaining: utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+	}
+}
+
+// CheckDataStatus contains both CheckDataStats
+// and CheckDataProgress.
+type CheckDataStatus struct {
+	Stats    *CheckDataStats    `json:"stats"`
+	Progress *CheckDataProgress `json:"progress"`
+}
+
+// ComputeCheckDataStatus returns a populated
+// *CheckDataStatus.
+func ComputeCheckDataStatus(
+	ctx context.Context,
+	counters *storage.CounterStorage,
+	balances *storage.BalanceStorage,
+	fetcher *fetcher.Fetcher,
+	network *types.NetworkIdentifier,
+) *CheckDataStatus {
+	return &CheckDataStatus{
+		Stats: ComputeCheckDataStats(
+			ctx,
+			counters,
+			balances,
+		),
+		Progress: ComputeCheckDataProgress(
+			ctx,
+			fetcher,
+			network,
+			counters,
+		),
+	}
+}
+
+// FetchCheckDataStatus fetches *CheckDataStatus.
+func FetchCheckDataStatus(url string) (*CheckDataStatus, error) {
+	var status CheckDataStatus
+	if err := JSONFetch(url, &status); err != nil {
+		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+	}
+
+	return &status, nil
+}
+
 // CheckDataTests indicates which tests passed.
 // If a test is nil, it did not apply to the run.
 //
@@ -343,7 +455,7 @@ func ReconciliationTest(
 	reconciliationsPerformed bool,
 ) *bool {
 	relatedErrors := []error{
-		processor.ErrReconciliationFailure,
+		ErrReconciliationFailure,
 	}
 	reconciliationPass := true
 	for _, relatedError := range relatedErrors {

@@ -16,16 +16,19 @@ package tester
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -61,6 +64,8 @@ const (
 	// is evaludated
 	EndAtTipCheckInterval = 10 * time.Second
 )
+
+var _ http.Handler = (*ConstructionTester)(nil)
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
@@ -160,14 +165,7 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
-	loggerBalanceStorage := balanceStorage
-	if !shouldReconcile(config) {
-		loggerBalanceStorage = nil
-	}
-
 	logger := logger.NewLogger(
-		counterStorage,
-		loggerBalanceStorage,
 		dataPath,
 		config.Data.LogBlocks,
 		config.Data.LogTransactions,
@@ -184,6 +182,7 @@ func InitializeData(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		counterStorage,
 		balanceStorage,
 		!config.Data.IgnoreReconciliationError,
 	)
@@ -352,45 +351,37 @@ func (t *DataTester) StartPeriodicLogger(
 	for {
 		select {
 		case <-ctx.Done():
-			// Print stats one last time before exiting
-			_ = t.logger.LogDataStats(ctx)
-
-			return ctx.Err()
-		case <-tc.C:
-			_ = t.logger.LogDataStats(ctx)
-		}
-	}
-}
-
-// StartProgressLogger priunts out periodic
-// estimates of sync duration if we are behind tip.
-func (t *DataTester) StartProgressLogger(
-	ctx context.Context,
-) error {
-	tc := time.NewTicker(PeriodicLoggingFrequency)
-	defer tc.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
 			return ctx.Err()
 		case <-tc.C:
 			// Update the elapsed time in counter storage so that
 			// we can log metrics about the current check:data run.
 			_, _ = t.counterStorage.Update(
 				ctx,
-				logger.TimeElapsedCounter,
+				results.TimeElapsedCounter,
 				big.NewInt(periodicLoggingSeconds),
 			)
 
-			status, fetchErr := t.fetcher.NetworkStatusRetry(ctx, t.network, nil)
-			if fetchErr != nil {
-				log.Printf("%v: unable to get network status\n", fetchErr.Err)
-				continue
-			}
-
-			_ = t.logger.LogTipEstimate(ctx, status.CurrentBlockIdentifier.Index)
+			status := results.ComputeCheckDataStatus(ctx, t.counterStorage, t.balanceStorage, t.fetcher, t.config.Network)
+			t.logger.LogDataStatus(ctx, status)
 		}
+	}
+}
+
+// ServeHTTP serves a CheckDataStatus response on all paths.
+func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+
+	status := results.ComputeCheckDataStatus(
+		r.Context(),
+		t.counterStorage,
+		t.balanceStorage,
+		t.fetcher,
+		t.network,
+	)
+
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -540,7 +531,7 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 	}
 
 	if len(t.endCondition) != 0 {
-		ExitData(
+		results.ExitData(
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
@@ -553,19 +544,19 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 
 	fmt.Printf("\n")
 	if t.reconcilerHandler.InactiveFailure == nil {
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if !t.historicalBalanceEnabled {
 		color.Yellow(
 			"Can't find the block missing operations automatically, please enable historical balance lookup",
 		)
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
 		color.Yellow("Search for inactive reconciliation discrepency is disabled")
-		ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, err, 1, "", "")
 	}
 
 	t.FindMissingOps(ctx, err, sigListeners)
@@ -589,7 +580,7 @@ func (t *DataTester) FindMissingOps(
 	)
 	if err != nil {
 		color.Yellow("%s: could not find block with missing ops", err.Error())
-		ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+		results.ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 	}
 
 	color.Yellow(
@@ -599,7 +590,7 @@ func (t *DataTester) FindMissingOps(
 		badBlock.Hash,
 	)
 
-	ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
+	results.ExitData(t.config, t.counterStorage, t.balanceStorage, originalErr, 1, "", "")
 }
 
 func (t *DataTester) recursiveOpSearch(
@@ -630,8 +621,6 @@ func (t *DataTester) recursiveOpSearch(
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
 	logger := logger.NewLogger(
-		counterStorage,
-		nil,
 		tmpDir,
 		false,
 		false,
@@ -648,6 +637,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		counterStorage,
 		balanceStorage,
 		true, // halt on reconciliation error
 	)

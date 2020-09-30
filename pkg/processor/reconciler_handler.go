@@ -16,25 +16,21 @@ package processor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var (
-	// ErrReconciliationFailure is returned if reconciliation fails.
-	ErrReconciliationFailure = errors.New("reconciliation failure")
-)
-
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
+	counterStorage            *storage.CounterStorage
 	balanceStorage            *storage.BalanceStorage
 	haltOnReconciliationError bool
 
@@ -47,11 +43,13 @@ type ReconcilerHandler struct {
 // NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
 	logger *logger.Logger,
+	counterStorage *storage.CounterStorage,
 	balanceStorage *storage.BalanceStorage,
 	haltOnReconciliationError bool,
 ) *ReconcilerHandler {
 	return &ReconcilerHandler{
 		logger:                    logger,
+		counterStorage:            counterStorage,
 		balanceStorage:            balanceStorage,
 		haltOnReconciliationError: haltOnReconciliationError,
 	}
@@ -93,7 +91,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			h.InactiveFailureBlock = block
 			return fmt.Errorf(
 				"%w: inactive reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-				ErrReconciliationFailure,
+				results.ErrReconciliationFailure,
 				account.Address,
 				block.Index,
 				computedBalance,
@@ -107,7 +105,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		h.ActiveFailureBlock = block
 		return fmt.Errorf(
 			"%w: active reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-			ErrReconciliationFailure,
+			results.ErrReconciliationFailure,
 			account.Address,
 			block.Index,
 			computedBalance,
@@ -131,13 +129,13 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 ) error {
 	// Update counters
 	if reconciliationType == reconciler.InactiveReconciliation {
-		_, _ = h.logger.CounterStorage.Update(
+		_, _ = h.counterStorage.Update(
 			ctx,
 			storage.InactiveReconciliationCounter,
 			big.NewInt(1),
 		)
 	} else {
-		_, _ = h.logger.CounterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
+		_, _ = h.counterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
 	}
 
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {

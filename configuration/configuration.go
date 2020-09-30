@@ -66,6 +66,7 @@ const (
 	DefaultBroadcastLimit                    = 3
 	DefaultTipDelay                          = 300
 	DefaultBlockBroadcastLimit               = 5
+	DefaultStatusPort                        = 9090
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
@@ -135,6 +136,11 @@ type ConstructionConfiguration struct {
 	// workflows should be performed before stopping.
 	EndConditions map[string]int `json:"end_conditions,omitempty"`
 
+	// StatusPort allows the caller to query a running check:construction
+	// test to get stats about progress. This can be used instead
+	// of parsing logs to populate some sort of status dashboard.
+	StatusPort uint `json:"status_port,omitempty"`
+
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:construction run.
 	ResultsOutputFile string `json:"results_output_file,omitempty"`
@@ -147,6 +153,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 		ActiveReconciliationConcurrency:   DefaultActiveReconciliationConcurrency,
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
+		StatusPort:                        DefaultStatusPort,
 	}
 }
 
@@ -271,6 +278,11 @@ type DataConfiguration struct {
 	// EndCondition contains the conditions for the syncer to stop
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
 
+	// StatusPort allows the caller to query a running check:data
+	// test to get stats about progress. This can be used instead
+	// of parsing logs to populate some sort of status dashboard.
+	StatusPort uint `json:"status_port,omitempty"`
+
 	// ResultsOutputFile is the absolute filepath of where to save
 	// the results of a check:data run.
 	ResultsOutputFile string `json:"results_output_file"`
@@ -354,6 +366,10 @@ func populateConstructionMissingFields(
 		constructionConfig.BlockBroadcastLimit = DefaultBlockBroadcastLimit
 	}
 
+	if constructionConfig.StatusPort == 0 {
+		constructionConfig.StatusPort = DefaultStatusPort
+	}
+
 	return constructionConfig
 }
 
@@ -372,6 +388,10 @@ func populateDataMissingFields(dataConfig *DataConfiguration) *DataConfiguration
 
 	if dataConfig.InactiveReconciliationFrequency == 0 {
 		dataConfig.InactiveReconciliationFrequency = DefaultInactiveReconciliationFrequency
+	}
+
+	if dataConfig.StatusPort == 0 {
+		dataConfig.StatusPort = DefaultStatusPort
 	}
 
 	return dataConfig

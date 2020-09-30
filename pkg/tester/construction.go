@@ -16,15 +16,18 @@ package tester
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -46,6 +49,8 @@ const (
 	endConditionsCheckInterval = 10 * time.Second
 	tipWaitInterval            = 10 * time.Second
 )
+
+var _ http.Handler = (*ConstructionTester)(nil)
 
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
@@ -87,8 +92,6 @@ func InitializeConstruction(
 
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
-		counterStorage,
-		nil,
 		dataPath,
 		false,
 		false,
@@ -272,14 +275,10 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	for {
 		select {
 		case <-ctx.Done():
-			// Print stats one last time before exiting
-			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-			_ = t.logger.LogConstructionStats(ctx, len(inflight))
-
 			return ctx.Err()
 		case <-tc.C:
-			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-			_ = t.logger.LogConstructionStats(ctx, len(inflight))
+			status := results.ComputeCheckConstructionStatus(ctx, t.config, t.counterStorage, t.broadcastStorage, t.jobStorage)
+			t.logger.LogConstructionStatus(ctx, status)
 		}
 	}
 }
@@ -364,6 +363,24 @@ func (t *ConstructionTester) StartConstructor(
 	}
 
 	return t.coordinator.Process(ctx)
+}
+
+// ServeHTTP serves a CheckDataStatus response on all paths.
+func (t *ConstructionTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+
+	status := results.ComputeCheckConstructionStatus(
+		r.Context(),
+		t.config,
+		t.counterStorage,
+		t.broadcastStorage,
+		t.jobStorage,
+	)
+
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // PerformBroadcasts attempts to rebroadcast all pending transactions
@@ -476,7 +493,7 @@ func (t *ConstructionTester) HandleErr(
 	}
 
 	if !t.reachedEndConditions {
-		ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
+		results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
 	}
 
 	// We optimistically run the ReturnFunds function on the coordinator
@@ -487,5 +504,5 @@ func (t *ConstructionTester) HandleErr(
 		sigListeners,
 	)
 
-	ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
 }

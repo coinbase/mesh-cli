@@ -29,6 +29,7 @@
   "inactive_discrepency_search_disabled": false,
   "balance_tracking_disabled": false,
   "coin_tracking_disabled": false,
+  "status_port": 9090,
   "results_output_file": "",
   "pruning_disabled": false
  }

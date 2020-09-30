@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tester
+package results
 
 import (
 	"context"
@@ -223,6 +223,70 @@ func ComputeCheckConstructionStats(
 		AddressesCreated:      addressesCreated.Int64(),
 		WorkflowsCompleted:    workflowsCompleted,
 	}
+}
+
+// CheckConstructionProgress contains the number of
+// currently broadcasting transactions and processing
+// jobs.
+type CheckConstructionProgress struct {
+	Broadcasting int `json:"broadcasting"`
+	Processing   int `json:"processing"`
+}
+
+// ComputeCheckConstructionProgress computes
+// *CheckConstructionProgress.
+func ComputeCheckConstructionProgress(
+	ctx context.Context,
+	broadcasts *storage.BroadcastStorage,
+	jobs *storage.JobStorage,
+) *CheckConstructionProgress {
+	inflight, err := broadcasts.GetAllBroadcasts(ctx)
+	if err != nil {
+		log.Printf("%s cannot get all broadcasts\n", err.Error())
+		return nil
+	}
+
+	processing, err := jobs.AllProcessing(ctx)
+	if err != nil {
+		log.Printf("%s cannot get all jobs\n", err.Error())
+		return nil
+	}
+
+	return &CheckConstructionProgress{
+		Broadcasting: len(inflight),
+		Processing:   len(processing),
+	}
+}
+
+// CheckConstructionStatus contains CheckConstructionStats.
+type CheckConstructionStatus struct {
+	Stats    *CheckConstructionStats    `json:"stats"`
+	Progress *CheckConstructionProgress `json:"progress"`
+}
+
+// ComputeCheckConstructionStatus returns a populated
+// *CheckConstructionStatus.
+func ComputeCheckConstructionStatus(
+	ctx context.Context,
+	config *configuration.Configuration,
+	counters *storage.CounterStorage,
+	broadcasts *storage.BroadcastStorage,
+	jobs *storage.JobStorage,
+) *CheckConstructionStatus {
+	return &CheckConstructionStatus{
+		Stats:    ComputeCheckConstructionStats(ctx, config, counters, jobs),
+		Progress: ComputeCheckConstructionProgress(ctx, broadcasts, jobs),
+	}
+}
+
+// FetchCheckConstructionStatus fetches *CheckConstructionStatus.
+func FetchCheckConstructionStatus(url string) (*CheckConstructionStatus, error) {
+	var status CheckConstructionStatus
+	if err := JSONFetch(url, &status); err != nil {
+		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+	}
+
+	return &status, nil
 }
 
 // ExitConstruction exits check:data, logs the test results to the console,
