@@ -225,6 +225,24 @@ func ComputeCheckConstructionStats(
 	}
 }
 
+// CheckConstructionStatus contains CheckConstructionStats.
+type CheckConstructionStatus struct {
+	Stats *CheckConstructionStats `json:"stats"`
+}
+
+// ComputeCheckConstructionStatus returns a populated
+// *CheckConstructionStatus.
+func ComputeCheckConstructionStatus(
+	ctx context.Context,
+	config *configuration.Configuration,
+	counters *storage.CounterStorage,
+	jobs *storage.JobStorage,
+) *CheckConstructionStatus {
+	return &CheckConstructionStatus{
+		Stats: ComputeCheckConstructionStats(ctx, config, counters, jobs),
+	}
+}
+
 // ExitConstruction exits check:data, logs the test results to the console,
 // and to a provided output path.
 func ExitConstruction(

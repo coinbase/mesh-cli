@@ -16,9 +16,11 @@ package tester
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -364,6 +366,23 @@ func (t *ConstructionTester) StartConstructor(
 	}
 
 	return t.coordinator.Process(ctx)
+}
+
+// ServeHTTP serves a CheckDataStatus response on all paths.
+func (t *ConstructionTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+
+	status := ComputeCheckConstructionStatus(
+		r.Context(),
+		t.config,
+		t.counterStorage,
+		t.jobStorage,
+	)
+
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // PerformBroadcasts attempts to rebroadcast all pending transactions

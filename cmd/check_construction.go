@@ -135,6 +135,15 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		return tester.LogMemoryLoop(ctx)
 	})
 
+	g.Go(func() error {
+		return tester.StartServer(
+			ctx,
+			"check:construction status",
+			constructionTester,
+			Config.Construction.StatusPort,
+		)
+	})
+
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(&sigListeners)
 
