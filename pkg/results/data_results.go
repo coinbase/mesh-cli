@@ -24,8 +24,6 @@ import (
 	"strconv"
 
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -258,7 +256,7 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 
-	elapsedTime, err := counters.Get(ctx, logger.TimeElapsedCounter)
+	elapsedTime, err := counters.Get(ctx, TimeElapsedCounter)
 	if err != nil {
 		fmt.Printf("%s: cannot get elapsed time", err.Error())
 		return nil
@@ -447,7 +445,7 @@ func ReconciliationTest(
 	reconciliationsPerformed bool,
 ) *bool {
 	relatedErrors := []error{
-		processor.ErrReconciliationFailure,
+		//processor.ErrReconciliationFailure,
 	}
 	reconciliationPass := true
 	for _, relatedError := range relatedErrors {
