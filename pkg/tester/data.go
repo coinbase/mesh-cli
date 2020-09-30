@@ -165,14 +165,7 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
-	loggerBalanceStorage := balanceStorage
-	if !shouldReconcile(config) {
-		loggerBalanceStorage = nil
-	}
-
 	logger := logger.NewLogger(
-		counterStorage,
-		loggerBalanceStorage,
 		dataPath,
 		config.Data.LogBlocks,
 		config.Data.LogTransactions,
@@ -189,6 +182,7 @@ func InitializeData(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		counterStorage,
 		balanceStorage,
 		!config.Data.IgnoreReconciliationError,
 	)
@@ -357,44 +351,18 @@ func (t *DataTester) StartPeriodicLogger(
 	for {
 		select {
 		case <-ctx.Done():
-			// Print stats one last time before exiting
-			_ = t.logger.LogDataStats(ctx)
-
-			return ctx.Err()
-		case <-tc.C:
-			_ = t.logger.LogDataStats(ctx)
-		}
-	}
-}
-
-// StartProgressLogger priunts out periodic
-// estimates of sync duration if we are behind tip.
-func (t *DataTester) StartProgressLogger(
-	ctx context.Context,
-) error {
-	tc := time.NewTicker(PeriodicLoggingFrequency)
-	defer tc.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
 			return ctx.Err()
 		case <-tc.C:
 			// Update the elapsed time in counter storage so that
 			// we can log metrics about the current check:data run.
 			_, _ = t.counterStorage.Update(
 				ctx,
-				logger.TimeElapsedCounter,
+				results.TimeElapsedCounter,
 				big.NewInt(periodicLoggingSeconds),
 			)
 
-			status, fetchErr := t.fetcher.NetworkStatusRetry(ctx, t.network, nil)
-			if fetchErr != nil {
-				log.Printf("%v: unable to get network status\n", fetchErr.Err)
-				continue
-			}
-
-			_ = t.logger.LogTipEstimate(ctx, status.CurrentBlockIdentifier.Index)
+			status := results.ComputeCheckDataStatus(ctx, t.counterStorage, t.balanceStorage, t.fetcher, t.config.Network)
+			t.logger.LogDataStatus(ctx, status)
 		}
 	}
 }
@@ -653,8 +621,6 @@ func (t *DataTester) recursiveOpSearch(
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
 	logger := logger.NewLogger(
-		counterStorage,
-		nil,
 		tmpDir,
 		false,
 		false,
@@ -671,6 +637,7 @@ func (t *DataTester) recursiveOpSearch(
 
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
+		counterStorage,
 		balanceStorage,
 		true, // halt on reconciliation error
 	)

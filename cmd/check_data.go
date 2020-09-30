@@ -147,10 +147,6 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 	})
 
 	g.Go(func() error {
-		return dataTester.StartProgressLogger(ctx)
-	})
-
-	g.Go(func() error {
 		return tester.StartServer(
 			ctx,
 			"check:data status",

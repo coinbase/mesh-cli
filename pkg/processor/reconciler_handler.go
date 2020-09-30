@@ -35,6 +35,7 @@ var (
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
+	counterStorage            *storage.CounterStorage
 	balanceStorage            *storage.BalanceStorage
 	haltOnReconciliationError bool
 
@@ -47,11 +48,13 @@ type ReconcilerHandler struct {
 // NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
 	logger *logger.Logger,
+	counterStorage *storage.CounterStorage,
 	balanceStorage *storage.BalanceStorage,
 	haltOnReconciliationError bool,
 ) *ReconcilerHandler {
 	return &ReconcilerHandler{
 		logger:                    logger,
+		counterStorage:            counterStorage,
 		balanceStorage:            balanceStorage,
 		haltOnReconciliationError: haltOnReconciliationError,
 	}
@@ -131,13 +134,13 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 ) error {
 	// Update counters
 	if reconciliationType == reconciler.InactiveReconciliation {
-		_, _ = h.logger.CounterStorage.Update(
+		_, _ = h.counterStorage.Update(
 			ctx,
 			storage.InactiveReconciliationCounter,
 			big.NewInt(1),
 		)
 	} else {
-		_, _ = h.logger.CounterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
+		_, _ = h.counterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
 	}
 
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {

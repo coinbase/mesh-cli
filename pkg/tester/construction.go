@@ -92,8 +92,6 @@ func InitializeConstruction(
 
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
-		counterStorage,
-		nil,
 		dataPath,
 		false,
 		false,
@@ -277,14 +275,10 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	for {
 		select {
 		case <-ctx.Done():
-			// Print stats one last time before exiting
-			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-			_ = t.logger.LogConstructionStats(ctx, len(inflight))
-
 			return ctx.Err()
 		case <-tc.C:
-			inflight, _ := t.broadcastStorage.GetAllBroadcasts(ctx)
-			_ = t.logger.LogConstructionStats(ctx, len(inflight))
+			status := results.ComputeCheckConstructionStatus(ctx, t.config, t.counterStorage, t.broadcastStorage, t.jobStorage)
+			t.logger.LogConstructionStatus(ctx, status)
 		}
 	}
 }
@@ -380,6 +374,7 @@ func (t *ConstructionTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		t.config,
 		t.counterStorage,
+		t.broadcastStorage,
 		t.jobStorage,
 	)
 
