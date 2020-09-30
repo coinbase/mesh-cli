@@ -19,10 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"strconv"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -207,6 +209,64 @@ func ComputeCheckDataStats(
 	}
 
 	return stats
+}
+
+type CheckDataProgress struct {
+	Blocks        int64   `json:"blocks"`
+	Tip           int64   `json:"tip"`
+	Completed     float64 `json:"completed"`
+	Rate          float64 `json:"rate"`
+	TimeRemaining string  `json:"time_remaining"`
+}
+
+func ComputeCheckDataProgress(
+	ctx context.Context,
+	tipIndex int64,
+	counters *storage.CounterStorage,
+) *CheckDataProgress {
+	blocks, err := counters.Get(ctx, storage.BlockCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get block counter", err.Error())
+		return nil
+	}
+
+	if blocks.Sign() == 0 { // wait for at least 1 block to be processed
+		return nil
+	}
+
+	orphans, err := counters.Get(ctx, storage.OrphanCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get orphan counter", err.Error())
+		return nil
+	}
+
+	adjustedBlocks := blocks.Int64() - orphans.Int64()
+	if tipIndex-adjustedBlocks <= 0 { // return if no blocks to sync
+		return nil
+	}
+
+	elapsedTime, err := counters.Get(ctx, logger.TimeElapsedCounter)
+	if err != nil {
+		fmt.Printf("%s: cannot get elapsed time", err.Error())
+		return nil
+	}
+
+	if elapsedTime.Sign() == 0 { // wait for at least some elapsed time
+		return nil
+	}
+
+	blocksPerSecond := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt(elapsedTime))
+	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
+	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt64(tipIndex))
+	blocksSyncedFloat, _ := blocksSynced.Float64()
+
+	return &CheckDataProgress{
+		Blocks:        adjustedBlocks,
+		Tip:           tipIndex,
+		Completed:     blocksSyncedFloat * utils.OneHundred,
+		Rate:          blocksPerSecondFloat,
+		TimeRemaining: utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+	}
 }
 
 // CheckDataTests indicates which tests passed.
