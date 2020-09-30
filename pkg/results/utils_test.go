@@ -15,7 +15,7 @@ func TestJSONFetch(t *testing.T) {
 		body   string
 
 		expectedResult map[string]interface{}
-		expectedError  error
+		expectedError  string
 	}{
 		"simple 200": {
 			status: http.StatusOK,
@@ -23,6 +23,16 @@ func TestJSONFetch(t *testing.T) {
 			expectedResult: map[string]interface{}{
 				"test": "123",
 			},
+		},
+		"not 200": {
+			status:        http.StatusUnsupportedMediaType,
+			body:          `hello`,
+			expectedError: "received 415 status with body hello\n",
+		},
+		"not JSON": {
+			status:        http.StatusOK,
+			body:          `hello`,
+			expectedError: "invalid character 'h' looking for beginning of value: unable to unmarshal JSON",
 		},
 	}
 
@@ -32,15 +42,15 @@ func TestJSONFetch(t *testing.T) {
 				assert.Equal(t, "GET", r.Method)
 
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(test.status)
 				fmt.Fprintln(w, test.body)
 			}))
 			defer ts.Close()
 
 			var obj map[string]interface{}
 			err := JSONFetch(ts.URL, &obj)
-			if test.expectedError != nil {
-				assert.EqualError(t, test.expectedError, err.Error())
+			if len(test.expectedError) > 0 {
+				assert.EqualError(t, err, test.expectedError)
 				assert.Len(t, obj, 0)
 			} else {
 				assert.NoError(t, err)
