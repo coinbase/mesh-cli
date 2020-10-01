@@ -67,7 +67,7 @@ func rootPreRun(*cobra.Command, []string) error {
 
 	f, err := os.Create(cpuProfile)
 	if err != nil {
-		return fmt.Errorf("unable to create CPU profile file: %v", err)
+		return fmt.Errorf("%w: unable to create CPU profile file", err)
 	}
 	if err := pprof.StartCPUProfile(f); err != nil {
 		if err := f.Close(); err != nil {
@@ -101,6 +101,7 @@ func rootPostRun() {
 		log.Printf("error while creating mem-profile file: %v", err)
 		return
 	}
+
 	defer func() {
 		if err := f.Close(); err != nil {
 			log.Printf("error while closing mem-profile file: %v", err)
@@ -212,6 +213,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.5.6")
+		fmt.Println("v0.5.7")
 	},
 }
