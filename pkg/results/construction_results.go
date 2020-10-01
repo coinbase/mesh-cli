@@ -296,8 +296,7 @@ func ExitConstruction(
 	counterStorage *storage.CounterStorage,
 	jobStorage *storage.JobStorage,
 	err error,
-	status int,
-) {
+) error {
 	results := ComputeCheckConstructionResults(
 		config,
 		err,
@@ -309,5 +308,5 @@ func ExitConstruction(
 		results.Output(config.Construction.ResultsOutputFile)
 	}
 
-	os.Exit(status)
+	return err
 }

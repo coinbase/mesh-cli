@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -486,15 +485,18 @@ func (t *ConstructionTester) returnFunds(
 func (t *ConstructionTester) HandleErr(
 	err error,
 	sigListeners *[]context.CancelFunc,
-) {
+) error {
 	if *t.signalReceived {
-		color.Red("Check halted")
-		os.Exit(1)
-		return
+		return results.ExitConstruction(
+			t.config,
+			t.counterStorage,
+			t.jobStorage,
+			errors.New("check halted"),
+		)
 	}
 
 	if !t.reachedEndConditions {
-		results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, err, 1)
+		return results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, err)
 	}
 
 	// We optimistically run the ReturnFunds function on the coordinator
@@ -505,5 +507,5 @@ func (t *ConstructionTester) HandleErr(
 		sigListeners,
 	)
 
-	results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil, 0)
+	return results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, nil)
 }

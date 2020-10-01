@@ -15,13 +15,17 @@
 package main
 
 import (
-	"log"
+	"os"
 
 	"github.com/coinbase/rosetta-cli/cmd"
+
+	"github.com/fatih/color"
 )
 
 func main() {
-	if err := cmd.Execute(); err != nil {
-		log.Fatal(err)
+	err := cmd.Execute()
+	if err != nil {
+		color.Red("Command Failed: %s", err.Error())
+		os.Exit(1)
 	}
 }
