@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
@@ -27,13 +27,15 @@ var (
 	configurationCreateCmd = &cobra.Command{
 		Use:   "configuration:create",
 		Short: "Create a default configuration file at the provided path",
-		Run:   runConfigurationCreateCmd,
+		RunE:  runConfigurationCreateCmd,
 		Args:  cobra.ExactArgs(1),
 	}
 )
 
-func runConfigurationCreateCmd(cmd *cobra.Command, args []string) {
+func runConfigurationCreateCmd(cmd *cobra.Command, args []string) error {
 	if err := utils.SerializeAndWrite(args[0], configuration.DefaultConfiguration()); err != nil {
-		log.Fatalf("%s: unable to save configuration file to %s", err.Error(), args[0])
+		return fmt.Errorf("%w: unable to save configuration file to %s", err, args[0])
 	}
+
+	return nil
 }

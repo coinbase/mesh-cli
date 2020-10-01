@@ -571,10 +571,9 @@ func ExitData(
 	counterStorage *storage.CounterStorage,
 	balanceStorage *storage.BalanceStorage,
 	err error,
-	status int,
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,
-) {
+) error {
 	results := ComputeCheckDataResults(
 		config,
 		err,
@@ -588,5 +587,5 @@ func ExitData(
 		results.Output(config.Data.ResultsOutputFile)
 	}
 
-	os.Exit(status)
+	return err
 }

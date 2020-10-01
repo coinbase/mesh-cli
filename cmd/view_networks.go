@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -35,11 +37,11 @@ status from all available networks and prints it to the terminal.
 
 If this command errors, it is likely because the /network/* endpoints are
 not formatted correctly.`,
-		Run: runViewNetworksCmd,
+		RunE: runViewNetworksCmd,
 	}
 )
 
-func runViewNetworksCmd(cmd *cobra.Command, args []string) {
+func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	f := fetcher.New(
@@ -52,11 +54,11 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 	// Attempt to fetch network list
 	networkList, fetchErr := f.NetworkListRetry(ctx, nil)
 	if fetchErr != nil {
-		log.Fatalf("%s: unable to fetch network list", fetchErr.Err.Error())
+		return fmt.Errorf("%w: unable to fetch network list", fetchErr.Err)
 	}
 
 	if len(networkList.NetworkIdentifiers) == 0 {
-		log.Fatal("no networks available")
+		return errors.New("no networks available")
 	}
 
 	for _, network := range networkList.NetworkIdentifiers {
@@ -67,7 +69,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 			nil,
 		)
 		if fetchErr != nil {
-			log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+			return fmt.Errorf("%w: unable to get network options", fetchErr.Err)
 		}
 
 		log.Printf("Network options: %s\n", types.PrettyPrintStruct(networkOptions))
@@ -78,9 +80,11 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) {
 			nil,
 		)
 		if fetchErr != nil {
-			log.Fatalf("%s: unable to get network status", fetchErr.Err.Error())
+			return fmt.Errorf("%w: unable to get network status", fetchErr.Err)
 		}
 
 		log.Printf("Network status: %s\n", types.PrettyPrintStruct(networkStatus))
 	}
+
+	return nil
 }

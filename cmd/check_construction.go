@@ -16,8 +16,8 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
@@ -49,13 +49,18 @@ Ethereum.
 Right now, this tool only supports transfer testing (for both account-based
 and UTXO-based blockchains). However, we plan to add support for testing
 arbitrary scenarios (i.e. staking, governance).`,
-		Run: runCheckConstructionCmd,
+		RunE: runCheckConstructionCmd,
 	}
 )
 
-func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
+func runCheckConstructionCmd(cmd *cobra.Command, args []string) error {
 	if Config.Construction == nil {
-		log.Fatal("construction configuration is missing!")
+		return results.ExitConstruction(
+			Config,
+			nil,
+			nil,
+			errors.New("construction configuration is missing"),
+		)
 	}
 
 	ensureDataDirectoryExists()
@@ -71,23 +76,23 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
-		results.ExitConstruction(
+		cancel()
+		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
 			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
-			1,
 		)
 	}
 
 	_, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		results.ExitConstruction(
+		cancel()
+		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
 			fmt.Errorf("%w: unable to confirm network is supported", err),
-			1,
 		)
 	}
 
@@ -100,19 +105,23 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 		&SignalReceived,
 	)
 	if err != nil {
-		results.ExitConstruction(
+		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
 			fmt.Errorf("%w: unable to initialize construction tester", err),
-			1,
 		)
 	}
 
 	defer constructionTester.CloseDatabase(ctx)
 
 	if err := constructionTester.PerformBroadcasts(ctx); err != nil {
-		log.Fatalf("%s: unable to perform broadcasts", err.Error())
+		return results.ExitConstruction(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("%w: unable to perform broadcasts", err),
+		)
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -149,5 +158,5 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) {
 	go handleSignals(&sigListeners)
 
 	err = g.Wait()
-	constructionTester.HandleErr(err, &sigListeners)
+	return constructionTester.HandleErr(err, &sigListeners)
 }
