@@ -20,6 +20,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/coinbase/rosetta-cli/configuration"
@@ -31,11 +33,14 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "rosetta-cli",
-		Short: "CLI for the Rosetta API",
+		Use:               "rosetta-cli",
+		Short:             "CLI for the Rosetta API",
+		PersistentPreRunE: rootPreRun,
 	}
 
 	configurationFile string
+	cpuProfile        string
+	memProfile        string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -45,18 +50,81 @@ var (
 	// SignalReceived is set to true when a signal causes us to exit. This makes
 	// determining the error message to show on exit much more easy.
 	SignalReceived = false
+
+	// profileCleanup is called after the root command is executed to
+	// cleanup a running cpu profile.
+	profileCleanup func()
 )
+
+// rootPreRun is executed before the root command runs and sets up cpu
+// profiling.
+//
+// Bassed on https://golang.org/pkg/runtime/pprof/#hdr-Profiling_a_Go_program
+func rootPreRun(*cobra.Command, []string) error {
+	if cpuProfile == "" {
+		return nil
+	}
+
+	f, err := os.Create(cpuProfile)
+	if err != nil {
+		return fmt.Errorf("unable to create CPU profile file: %v", err)
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		if err := f.Close(); err != nil {
+			log.Printf("error while closing cpu profile file: %v\n", err)
+		}
+		return err
+	}
+
+	profileCleanup = func() {
+		pprof.StopCPUProfile()
+		if err := f.Close(); err != nil {
+			log.Printf("error while closing cpu profile file: %v\n", err)
+		}
+	}
+	return nil
+}
+
+// rootPostRun is executed after the root command runs and performs memory
+// profiling.
+func rootPostRun() {
+	if profileCleanup != nil {
+		profileCleanup()
+	}
+
+	if memProfile == "" {
+		return
+	}
+
+	f, err := os.Create(memProfile)
+	if err != nil {
+		log.Printf("error while creating mem-profile file: %v", err)
+		return
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("error while closing mem-profile file: %v", err)
+		}
+	}()
+
+	runtime.GC()
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		log.Printf("error while writing heap profile: %v", err)
+	}
+}
 
 // Execute handles all invocations of the
 // rosetta-cli cmd.
 func Execute() error {
+	defer rootPostRun()
 	return rootCmd.Execute()
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(
+	rootFlags := rootCmd.PersistentFlags()
+	rootFlags.StringVar(
 		&configurationFile,
 		"configuration-file",
 		"",
@@ -66,6 +134,18 @@ with the defaults), run rosetta-cli configuration:create.
 
 Any fields not populated in the configuration file will be populated with
 default values.`,
+	)
+	rootFlags.StringVar(
+		&cpuProfile,
+		"cpu-profile",
+		"",
+		`Save the pprof cpu profile in the specified file`,
+	)
+	rootFlags.StringVar(
+		&memProfile,
+		"mem-profile",
+		"",
+		`Save the pprof mem profile in the specified file`,
 	)
 	rootCmd.AddCommand(versionCmd)
 
