@@ -15,10 +15,11 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -26,16 +27,17 @@ var (
 	configurationValidateCmd = &cobra.Command{
 		Use:   "configuration:validate",
 		Short: "Ensure a configuration file at the provided path is formatted correctly",
-		Run:   runConfigurationValidateCmd,
+		RunE:  runConfigurationValidateCmd,
 		Args:  cobra.ExactArgs(1),
 	}
 )
 
-func runConfigurationValidateCmd(cmd *cobra.Command, args []string) {
+func runConfigurationValidateCmd(cmd *cobra.Command, args []string) error {
 	_, err := configuration.LoadConfiguration(args[0])
 	if err != nil {
-		log.Fatalf("%s: unable to save configuration file to %s", err.Error(), args[0])
+		return fmt.Errorf("%w: unable to save configuration file to %s", err, args[0])
 	}
 
-	log.Println("Configuration file validated!")
+	color.Green("Configuration file validated!")
+	return nil
 }

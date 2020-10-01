@@ -41,16 +41,16 @@ of the block is correct before printing.
 
 If this command errors, it is likely because the block you are trying to
 fetch is formatted incorrectly.`,
-		Run:  runViewBlockCmd,
+		RunE: runViewBlockCmd,
 		Args: cobra.ExactArgs(1),
 	}
 )
 
-func runViewBlockCmd(cmd *cobra.Command, args []string) {
+func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	index, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to parse index %s", err, args[0]))
+		return fmt.Errorf("%w: unable to parse index %s", err, args[0])
 	}
 
 	// Create a new fetcher
@@ -68,12 +68,12 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	// the asserter what are valid responses.
 	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
-		log.Fatal(fetchErr.Err)
+		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
 	}
 
 	_, err = utils.CheckNetworkSupported(ctx, Config.Network, newFetcher)
 	if err != nil {
-		log.Fatalf("%s: unable to confirm network is supported", err.Error())
+		return fmt.Errorf("%w: unable to confirm network is supported", err)
 	}
 
 	// Fetch the specified block with retries (automatically
@@ -93,7 +93,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 		},
 	)
 	if fetchErr != nil {
-		log.Fatal(fmt.Errorf("%w: unable to fetch block", fetchErr.Err))
+		return fmt.Errorf("%w: unable to fetch block", fetchErr.Err)
 	}
 
 	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
@@ -103,7 +103,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
 	changes, err := p.BalanceChanges(ctx, block, false)
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to calculate balance changes", err))
+		return fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
 	log.Printf("Balance Changes: %s\n", types.PrettyPrintStruct(changes))
@@ -116,4 +116,6 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) {
 			types.PrettyPrintStruct(parser.GroupOperations(tx)),
 		)
 	}
+
+	return nil
 }
