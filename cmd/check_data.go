@@ -66,11 +66,11 @@ historical balance disabled to true, you must provide an
 absolute path to a JSON file containing initial balances with the
 bootstrap balance config. You can look at the examples folder for an example
 of what one of these files looks like.`,
-		Run: runCheckDataCmd,
+		RunE: runCheckDataCmd,
 	}
 )
 
-func runCheckDataCmd(cmd *cobra.Command, args []string) {
+func runCheckDataCmd(cmd *cobra.Command, args []string) error {
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -84,12 +84,12 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)
 	if fetchErr != nil {
-		results.ExitData(
+		cancel()
+		return results.ExitData(
 			Config,
 			nil,
 			nil,
 			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
-			1,
 			"",
 			"",
 		)
@@ -97,12 +97,12 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
-		results.ExitData(
+		cancel()
+		return results.ExitData(
 			Config,
 			nil,
 			nil,
 			fmt.Errorf("%w: unable to confirm network", err),
-			1,
 			"",
 			"",
 		)
@@ -166,5 +166,5 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) {
 
 	// HandleErr will exit if we should not attempt
 	// to find missing operations.
-	dataTester.HandleErr(ctx, err, &sigListeners)
+	return dataTester.HandleErr(ctx, err, &sigListeners)
 }
