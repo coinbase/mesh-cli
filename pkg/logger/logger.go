@@ -115,6 +115,11 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
 
+	// If Progress is nil, it means we're already done.
+	if status.Progress == nil {
+		return
+	}
+
 	progressMessage := fmt.Sprintf(
 		"[PROGRESS] Blocks Synced: %d/%d (Completed: %f%%, Rate: %f/second) Time Remaining: %s",
 		status.Progress.Blocks,
