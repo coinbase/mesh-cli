@@ -104,7 +104,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 		status.Stats.Operations,
 		status.Stats.ActiveReconciliations+status.Stats.InactiveReconciliations,
 		status.Stats.InactiveReconciliations,
-		status.Stats.ReconciliationCoverage,
+		status.Stats.ReconciliationCoverage*utils.OneHundred,
 	)
 
 	// Don't print out the same stats message twice.
