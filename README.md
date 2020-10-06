@@ -94,6 +94,11 @@ The new Construction API testing framework (first released in `rosetta-cli@v0.5.
 a new design pattern to allow for complex transaction construction orchestration.
 You can read more about the design goals [here](https://community.rosetta-api.org/t/feedback-request-automated-construction-api-testing-improvements/146).
 
+Most teams write their Construction API tests using the
+[Rosetta Constructor DSL](https://github.com/coinbase/rosetta-sdk-go/tree/master/constructor/dsl).
+You can find an example of a file written in this DSL in the examples
+folder ([here](https://github.com/coinbase/rosetta-cli/blob/master/examples/configuration/ethereum.ros)).
+
 ##### Terminology
 When first learning about a new topic, it is often useful to understand the
 hierarchy of concerns. In the automated Construction API tester, this

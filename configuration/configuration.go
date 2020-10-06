@@ -238,9 +238,19 @@ func assertDataConfiguration(config *DataConfiguration) error {
 	}
 
 	if config.EndConditions.ReconciliationCoverage != nil {
-		coverage := *config.EndConditions.ReconciliationCoverage
+		coverage := config.EndConditions.ReconciliationCoverage.Coverage
 		if coverage < 0 || coverage > 1 {
 			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
+		}
+
+		index := config.EndConditions.ReconciliationCoverage.Index
+		if index != nil && *index < 0 {
+			return fmt.Errorf("reconciliation coverage height %d must be >= 0", *index)
+		}
+
+		accountCount := config.EndConditions.ReconciliationCoverage.AccountCount
+		if accountCount != nil && *accountCount < 0 {
+			return fmt.Errorf("reconciliation coverage account count %d must be >= 0", *accountCount)
 		}
 
 		if config.BalanceTrackingDisabled {
