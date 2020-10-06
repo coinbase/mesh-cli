@@ -124,9 +124,12 @@ If you have suggestions for more actions, please
 [open an issue in `rosetta-sdk-go`](https://github.com/coinbase/rosetta-sdk-go/issues)!
 
 ##### Workflows
-To use the automated Construction API tester, you must implement 2 required `Workflows`:
+To use the automated Construction API tester (without prefunded accounts),
+you must implement 2 required `Workflows`:
 * `create_account`
 * `request_funds`
+
+_If you don't implement these 2 `Workflows`, processing could stall._
 
 Please note that `create_account` can contain a transaction broadcast if
 on-chain origination is required for new accounts on your blockchain.
@@ -168,13 +171,6 @@ Bitcoin [config](examples/configuration/bitcoin.json).
 
 *If this field is not populated or set to `false`, the transaction
 will be constructed, signed, and broadcast.*
-
-##### Future Work
-* DSL for writing `Workflows` (if anyone in the community has ideas for
-this, we are all ears!)
-* `Workflow` testing tool (to mock `Workflow` before running on network)
-* Re-usable components (pre-defined logic that can be used in any `Workflow` -
-both user-defined and provided by `rosetta-cli`
 
 #### End Conditions
 When running the `rosetta-cli` in a CI job, it is usually desired to exit
