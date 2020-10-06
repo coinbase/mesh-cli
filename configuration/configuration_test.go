@@ -198,6 +198,38 @@ func TestLoadConfiguration(t *testing.T) {
 				return cfg
 			}(),
 		},
+		"transfer workflow": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					Workflows: []*job.Workflow{
+						{
+							Name:        "transfer",
+							Concurrency: 10,
+						},
+					},
+				},
+				Data: &DataConfiguration{},
+			},
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:            DefaultURL,
+					MaxOfflineConnections: DefaultMaxOfflineConnections,
+					StaleDepth:            DefaultStaleDepth,
+					BroadcastLimit:        DefaultBroadcastLimit,
+					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					StatusPort:            DefaultStatusPort,
+					Workflows: []*job.Workflow{
+						{
+							Name:        "transfer",
+							Concurrency: 10,
+						},
+					},
+				}
+
+				return cfg
+			}(),
+		},
 		"invalid network": {
 			provided: invalidNetwork,
 			err:      true,

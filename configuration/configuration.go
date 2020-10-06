@@ -460,6 +460,16 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		return errors.New("both workflows and DSL file path are empty")
 	}
 
+	// Compile ConstructorDSLFile and save to Workflows
+	if len(config.ConstructorDSLFile) > 0 {
+		compiledWorkflows, err := dsl.Parse(ctx, config.ConstructorDSLFile)
+		if err != nil {
+			return fmt.Errorf("%s: compilation failed", types.PrintStruct(err))
+		}
+
+		config.Workflows = compiledWorkflows
+	}
+
 	// Parse provided Workflows
 	for _, workflow := range config.Workflows {
 		if workflow.Name == string(job.CreateAccount) || workflow.Name == string(job.RequestFunds) {
@@ -471,16 +481,6 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 				)
 			}
 		}
-	}
-
-	// Compile ConstructorDSLFile and save to Workflows
-	if len(config.ConstructorDSLFile) > 0 {
-		compiledWorkflows, err := dsl.Parse(ctx, config.ConstructorDSLFile)
-		if err != nil {
-			return fmt.Errorf("%s: compilation failed", types.PrintStruct(err))
-		}
-
-		config.Workflows = compiledWorkflows
 	}
 
 	for _, account := range config.PrefundedAccounts {
