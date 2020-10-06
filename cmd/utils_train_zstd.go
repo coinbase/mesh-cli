@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"path"
@@ -51,8 +50,6 @@ website: https://github.com/facebook/zstd#the-case-for-small-data-compression`,
 )
 
 func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
 	namespace := args[0]
 	databasePath := path.Clean(args[1])
 	dictionaryPath := path.Clean(args[2])
@@ -74,7 +71,7 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
 	log.Printf("Running zstd training (this could take a while)...")
 
 	_, _, err = storage.BadgerTrain(
-		ctx,
+		Context,
 		namespace,
 		databasePath,
 		dictionaryPath,

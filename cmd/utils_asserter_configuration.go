@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -43,8 +42,6 @@ the configuration file should be saved (in JSON).`,
 )
 
 func runCreateConfigurationCmd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
 	// Create a new fetcher
 	newFetcher := fetcher.New(
 		Config.OnlineURL,
@@ -54,7 +51,7 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) error {
 	)
 
 	// Initialize the fetcher's asserter
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
+	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: failed to initialize asserter", fetchErr.Err)
 	}

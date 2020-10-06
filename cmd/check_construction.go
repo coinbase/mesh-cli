@@ -64,7 +64,7 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ensureDataDirectoryExists()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(Context)
 
 	fetcher := fetcher.New(
 		Config.OnlineURL,

@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -47,8 +46,6 @@ address to specified as JSON allows for querying by SubAccountIdentifier.`,
 )
 
 func runViewAccountCmd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
 	account := &types.AccountIdentifier{}
 	if err := json.Unmarshal([]byte(args[0]), account); err != nil {
 		return fmt.Errorf("%w: unable to unmarshal account %s", err, args[0])
@@ -67,12 +64,12 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) error {
 	)
 
 	// Initialize the fetcher's asserter
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
+	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
 	}
 
-	_, err := utils.CheckNetworkSupported(ctx, Config.Network, newFetcher)
+	_, err := utils.CheckNetworkSupported(Context, Config.Network, newFetcher)
 	if err != nil {
 		return fmt.Errorf("%w: unable to confirm network is supported", err)
 	}
@@ -88,7 +85,7 @@ func runViewAccountCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	block, amounts, coins, metadata, fetchErr := newFetcher.AccountBalanceRetry(
-		ctx,
+		Context,
 		Config.Network,
 		account,
 		lookupBlock,

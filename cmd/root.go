@@ -47,6 +47,9 @@ var (
 	// to the default settings.
 	Config *configuration.Configuration
 
+	// Context is the context to use for this invocation of the cli.
+	Context context.Context
+
 	// SignalReceived is set to true when a signal causes us to exit. This makes
 	// determining the error message to show on exit much more easy.
 	SignalReceived = false
@@ -169,11 +172,12 @@ default values.`,
 }
 
 func initConfig() {
+	Context = context.Background()
 	var err error
 	if len(configurationFile) == 0 {
 		Config = configuration.DefaultConfiguration()
 	} else {
-		Config, err = configuration.LoadConfiguration(configurationFile)
+		Config, err = configuration.LoadConfiguration(Context, configurationFile)
 	}
 	if err != nil {
 		log.Fatalf("%s: unable to load configuration", err.Error())

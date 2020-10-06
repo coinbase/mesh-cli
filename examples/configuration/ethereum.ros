@@ -21,16 +21,18 @@ request_funds(1){
 }
 
 create_account(1){
-  network = {"network":"Ropsten", "blockchain":"Ethereum"};
-  key = generate_key({"curve_type": "secp256k1"});
-  account = derive({
-    "network_identifier": {{network}},
-    "public_key": {{key.public_key}}
-  });
-  save_account({
-    "account_identifier": {{account.account_identifier}},
-    "keypair": {{key}}
-  });
+  create{
+    network = {"network":"Ropsten", "blockchain":"Ethereum"};
+    key = generate_key({"curve_type": "secp256k1"});
+    account = derive({
+      "network_identifier": {{network}},
+      "public_key": {{key.public_key}}
+    });
+    save_account({
+      "account_identifier": {{account.account_identifier}},
+      "keypair": {{key}}
+    });
+  }
 }
 
 transfer(10){
@@ -43,7 +45,7 @@ transfer(10){
         "currency": {{currency}}
       }
     });
-    max_fee = "42000000000000";
+    max_fee = set_variable("42000000000000");
     available_amount = {{sender.balance.value}} - {{max_fee}};
     recipient_amount = random_number({"minimum": "1", "maximum": {{available_amount}}});
     print_message({"recipient_amount":{{recipient_amount}}});
