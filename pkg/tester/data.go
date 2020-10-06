@@ -388,12 +388,9 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
 func (t *DataTester) EndAtTipLoop(
 	ctx context.Context,
-	minReconciliationCoverage float64,
 ) {
 	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
-
-	firstTipIndex := int64(-1)
 
 	for {
 		select {
@@ -410,15 +407,7 @@ func (t *DataTester) EndAtTipLoop(
 				continue
 			}
 
-			// If we fall behind tip, we must reset the firstTipIndex.
-			if !atTip {
-				firstTipIndex = int64(-1)
-				continue
-			}
-
-			// If minReconciliationCoverage is less than 0,
-			// we should just stop at tip.
-			if minReconciliationCoverage < 0 {
+			if atTip {
 				t.endCondition = configuration.TipEndCondition
 				t.endConditionDetail = fmt.Sprintf(
 					"Tip: %d",
@@ -427,26 +416,89 @@ func (t *DataTester) EndAtTipLoop(
 				t.cancel()
 				return
 			}
+		}
+	}
+}
 
-			// Once at tip, we want to consider
-			// coverage. It is not feasible that we could
-			// get high reconciliation coverage at the tip
-			// block, so we take the range from when first
-			// at tip to the current block.
-			if firstTipIndex < 0 {
-				firstTipIndex = blockIdentifier.Index
-			}
+// EndReconciliationCoverage runs a loop that evaluates ReconciliationEndCondition
+func (t *DataTester) EndReconciliationCoverage(
+	ctx context.Context,
+	reconciliationCoverage *configuration.ReconciliationCoverage,
+) {
+	tc := time.NewTicker(EndAtTipCheckInterval)
+	defer tc.Stop()
 
-			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, firstTipIndex)
+	firstTipIndex := int64(-1)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-tc.C:
+			atTip, blockIdentifier, err := t.blockStorage.AtTip(ctx, t.config.TipDelay)
 			if err != nil {
 				log.Printf(
-					"%s: unable to get reconciliations coverage",
+					"%s: unable to evaluate syncer height or if at tip",
 					err.Error(),
 				)
 				continue
 			}
 
-			if coverage >= minReconciliationCoverage {
+			// Only check coverage if we are at tip.
+			if reconciliationCoverage.Tip || reconciliationCoverage.FromTip {
+				// If we fall behind tip, we must reset the firstTipIndex.
+				if !atTip {
+					firstTipIndex = int64(-1)
+					continue
+				}
+
+				// Once at tip, we want to consider
+				// coverage. It is not feasible that we could
+				// get high reconciliation coverage at the tip
+				// block, so we take the range from when first
+				// at tip to the current block.
+				if firstTipIndex < 0 {
+					firstTipIndex = blockIdentifier.Index
+				}
+			}
+
+			// Check if at required minimum index
+			if reconciliationCoverage.Index != nil && *reconciliationCoverage.Index < blockIdentifier.Index {
+				continue
+			}
+
+			// Check if account count is above minimum index
+			if reconciliationCoverage.AccountCount != nil {
+				allAccounts, err := t.balanceStorage.GetAllAccountCurrency(ctx)
+				if err != nil {
+					log.Printf(
+						"%s: unable to get account count",
+						err.Error(),
+					)
+					continue
+				}
+
+				if int64(len(allAccounts)) < *reconciliationCoverage.AccountCount {
+					continue
+				}
+			}
+
+			coverageIndex := int64(0)
+			if reconciliationCoverage.FromTip {
+				coverageIndex = firstTipIndex
+			}
+
+			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, coverageIndex)
+			if err != nil {
+				log.Printf(
+					"%s: unable to get reconciliation coverage",
+					err.Error(),
+				)
+				continue
+			}
+
+			if coverage >= reconciliationCoverage.Coverage {
 				t.endCondition = configuration.ReconciliationCoverageEndCondition
 				t.endConditionDetail = fmt.Sprintf(
 					"Coverage: %f%%",
@@ -495,7 +547,7 @@ func (t *DataTester) WatchEndConditions(
 
 	if endConds.Tip != nil && *endConds.Tip {
 		// runs a go routine that ends when reaching tip
-		go t.EndAtTipLoop(ctx, -1)
+		go t.EndAtTipLoop(ctx)
 	}
 
 	if endConds.Duration != nil && *endConds.Duration != 0 {
@@ -504,7 +556,7 @@ func (t *DataTester) WatchEndConditions(
 	}
 
 	if endConds.ReconciliationCoverage != nil {
-		go t.EndAtTipLoop(ctx, *endConds.ReconciliationCoverage)
+		go t.EndReconciliationCoverage(ctx, endConds.ReconciliationCoverage)
 	}
 
 	return nil

@@ -150,6 +150,8 @@ type ConstructionConfiguration struct {
 
 // ReconciliationCoverage is used to add conditions
 // to reconciliation coverage for exiting `check:data`.
+// All provided conditions must be satisfied before
+// the end condition is considered satisfied.
 //
 // If FromTip, Tip, Height, and AccountCount are not provided,
 // `check:data` will halt as soon as coverage surpasses
@@ -162,11 +164,11 @@ type ReconciliationCoverage struct {
 	// FromTip is a boolean indicating if reconciliation coverage
 	// should only be measured from tip (i.e. reconciliations
 	// performed at or after tip was reached).
-	FromTip *bool `json:"from_tip,omitempty"`
+	FromTip bool `json:"from_tip,omitempty"`
 
 	// Tip is a boolean indicating that tip must be reached
 	// before reconciliation coverage is considered valid.
-	Tip *bool `json:"tip,omitempty"`
+	Tip bool `json:"tip,omitempty"`
 
 	// Index is an int64 indicating the height that must be
 	// reached before reconciliation coverage is considered valid.
