@@ -33,9 +33,9 @@ var (
 )
 
 func runConfigurationValidateCmd(cmd *cobra.Command, args []string) error {
-	_, err := configuration.LoadConfiguration(args[0])
+	_, err := configuration.LoadConfiguration(Context, args[0])
 	if err != nil {
-		return fmt.Errorf("%w: unable to save configuration file to %s", err, args[0])
+		return fmt.Errorf("%w: configuration validation failed %s", err, args[0])
 	}
 
 	color.Green("Configuration file validated!")

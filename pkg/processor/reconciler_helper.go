@@ -19,10 +19,13 @@ import (
 	"errors"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 )
+
+var _ reconciler.Helper = (*ReconcilerHelper)(nil)
 
 // ReconcilerHelper implements the Reconciler.Helper
 // interface.

@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -47,7 +46,6 @@ fetch is formatted incorrectly.`,
 )
 
 func runViewBlockCmd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
 	index, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
 		return fmt.Errorf("%w: unable to parse index %s", err, args[0])
@@ -66,12 +64,12 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	// Behind the scenes this makes a call to get the
 	// network status and uses the response to inform
 	// the asserter what are valid responses.
-	_, _, fetchErr := newFetcher.InitializeAsserter(ctx, Config.Network)
+	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
 	}
 
-	_, err = utils.CheckNetworkSupported(ctx, Config.Network, newFetcher)
+	_, err = utils.CheckNetworkSupported(Context, Config.Network, newFetcher)
 	if err != nil {
 		return fmt.Errorf("%w: unable to confirm network is supported", err)
 	}
@@ -86,7 +84,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	// to fully populate the block by fetching all these
 	// transactions.
 	block, fetchErr := newFetcher.BlockRetry(
-		ctx,
+		Context,
 		Config.Network,
 		&types.PartialBlockIdentifier{
 			Index: &index,
@@ -101,7 +99,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	// Print out all balance changes in a given block. This does NOT exempt
 	// any operations/accounts from parsing.
 	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
-	changes, err := p.BalanceChanges(ctx, block, false)
+	changes, err := p.BalanceChanges(Context, block, false)
 	if err != nil {
 		return fmt.Errorf("%w: unable to calculate balance changes", err)
 	}

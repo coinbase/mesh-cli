@@ -15,8 +15,9 @@
 package configuration
 
 import (
-	"io/ioutil"
-	"os"
+	"context"
+	"os/exec"
+	"path"
 	"testing"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -37,10 +38,22 @@ var (
 		{
 			Name:        string(job.CreateAccount),
 			Concurrency: job.ReservedWorkflowConcurrency,
+			Scenarios: []*job.Scenario{
+				{
+					Name:    "blah",
+					Actions: []*job.Action{},
+				},
+			},
 		},
 		{
 			Name:        string(job.RequestFunds),
 			Concurrency: job.ReservedWorkflowConcurrency,
+			Scenarios: []*job.Scenario{
+				{
+					Name:    "blah",
+					Actions: []*job.Action{},
+				},
+			},
 		},
 	}
 	whackyConfig = &Configuration{
@@ -162,6 +175,61 @@ func TestLoadConfiguration(t *testing.T) {
 				return cfg
 			}(),
 		},
+		"overwrite missing with DSL": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					ConstructorDSLFile: "test.ros",
+				},
+				Data: &DataConfiguration{},
+			},
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:            DefaultURL,
+					MaxOfflineConnections: DefaultMaxOfflineConnections,
+					StaleDepth:            DefaultStaleDepth,
+					BroadcastLimit:        DefaultBroadcastLimit,
+					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					StatusPort:            DefaultStatusPort,
+					Workflows:             fakeWorkflows,
+					ConstructorDSLFile:    "test.ros",
+				}
+
+				return cfg
+			}(),
+		},
+		"transfer workflow": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					Workflows: []*job.Workflow{
+						{
+							Name:        "transfer",
+							Concurrency: 10,
+						},
+					},
+				},
+				Data: &DataConfiguration{},
+			},
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:            DefaultURL,
+					MaxOfflineConnections: DefaultMaxOfflineConnections,
+					StaleDepth:            DefaultStaleDepth,
+					BroadcastLimit:        DefaultBroadcastLimit,
+					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					StatusPort:            DefaultStatusPort,
+					Workflows: []*job.Workflow{
+						{
+							Name:        "transfer",
+							Concurrency: 10,
+						},
+					},
+				}
+
+				return cfg
+			}(),
+		},
 		"invalid network": {
 			provided: invalidNetwork,
 			err:      true,
@@ -215,10 +283,18 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			err: true,
 		},
-		"missing reserved workflows": {
+		"empty workflows": {
 			provided: &Configuration{
 				Construction: &ConstructionConfiguration{
 					Workflows: []*job.Workflow{},
+				},
+			},
+			err: true,
+		},
+		"non-existent dsl file": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					ConstructorDSLFile: "blah.ros",
 				},
 			},
 			err: true,
@@ -237,24 +313,32 @@ func TestLoadConfiguration(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Write configuration file to tempdir
-			tmpfile, err := ioutil.TempFile("", "test.json")
+			dir, err := utils.CreateTempDir()
 			assert.NoError(t, err)
-			defer os.Remove(tmpfile.Name())
+			defer utils.RemoveTempDir(dir)
 
-			err = utils.SerializeAndWrite(tmpfile.Name(), test.provided)
+			filePath := path.Join(dir, "test.json")
+			err = utils.SerializeAndWrite(filePath, test.provided)
 			assert.NoError(t, err)
+
+			// Copy test.ros to temp dir
+			cmd := exec.Command("cp", "testdata/test.ros", path.Join(dir, "test.ros"))
+			assert.NoError(t, cmd.Run())
 
 			// Check if expected fields populated
-			config, err := LoadConfiguration(tmpfile.Name())
+			config, err := LoadConfiguration(context.Background(), filePath)
 			if test.err {
 				assert.Error(t, err)
 				assert.Nil(t, config)
 			} else {
 				assert.NoError(t, err)
+
+				// Ensure test.ros expected file path is right
+				if test.expected.Construction != nil && len(test.expected.Construction.ConstructorDSLFile) > 0 {
+					test.expected.Construction.ConstructorDSLFile = path.Join(dir, test.expected.Construction.ConstructorDSLFile)
+				}
 				assert.Equal(t, test.expected, config)
 			}
-			assert.NoError(t, tmpfile.Close())
 		})
 	}
 }

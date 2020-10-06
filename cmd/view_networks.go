@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -42,8 +41,6 @@ not formatted correctly.`,
 )
 
 func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
 	f := fetcher.New(
 		Config.OnlineURL,
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
@@ -52,7 +49,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
 	)
 
 	// Attempt to fetch network list
-	networkList, fetchErr := f.NetworkListRetry(ctx, nil)
+	networkList, fetchErr := f.NetworkListRetry(Context, nil)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: unable to fetch network list", fetchErr.Err)
 	}
@@ -64,7 +61,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
 	for _, network := range networkList.NetworkIdentifiers {
 		color.Cyan(types.PrettyPrintStruct(network))
 		networkOptions, fetchErr := f.NetworkOptions(
-			ctx,
+			Context,
 			network,
 			nil,
 		)
@@ -75,7 +72,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
 		log.Printf("Network options: %s\n", types.PrettyPrintStruct(networkOptions))
 
 		networkStatus, fetchErr := f.NetworkStatusRetry(
-			ctx,
+			Context,
 			network,
 			nil,
 		)

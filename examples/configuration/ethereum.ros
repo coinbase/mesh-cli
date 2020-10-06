@@ -1,0 +1,123 @@
+request_funds(1){
+  find_account{
+    currency = {"symbol":"ETH", "decimals":18};
+    random_account = find_balance({
+      "minimum_balance":{
+        "value": "0",
+        "currency": {{currency}}
+      },
+      "create_limit":1
+    });
+  },
+  request{
+    loaded_account = find_balance({
+      "account_identifier": {{random_account.account_identifier}},
+      "minimum_balance":{
+        "value": "10000000000000000",
+        "currency": {{currency}}
+      }
+    });
+  }
+}
+
+create_account(1){
+  create{
+    network = {"network":"Ropsten", "blockchain":"Ethereum"};
+    key = generate_key({"curve_type": "secp256k1"});
+    account = derive({
+      "network_identifier": {{network}},
+      "public_key": {{key.public_key}}
+    });
+    save_account({
+      "account_identifier": {{account.account_identifier}},
+      "keypair": {{key}}
+    });
+  }
+}
+
+transfer(10){
+  transfer{
+    transfer.network = {"network":"Ropsten", "blockchain":"Ethereum"};
+    currency = {"symbol":"ETH", "decimals":18};
+    sender = find_balance({
+      "minimum_balance":{
+        "value": "10000000000000000",
+        "currency": {{currency}}
+      }
+    });
+    max_fee = set_variable("42000000000000");
+    available_amount = {{sender.balance.value}} - {{max_fee}};
+    recipient_amount = random_number({"minimum": "1", "maximum": {{available_amount}}});
+    print_message({"recipient_amount":{{recipient_amount}}});
+    sender_amount = 0 - {{recipient_amount}};
+    recipient = find_balance({
+      "not_account_identifier":[{{sender.account_identifier}}],
+      "minimum_balance":{
+        "value": "0",
+        "currency": {{currency}}
+      },
+      "create_limit": 100,
+      "create_probability": 50
+    });
+    transfer.confirmation_depth = "1";
+    transfer.operations = [
+      {
+        "operation_identifier":{"index":0},
+        "type":"transfer",
+        "account":{{sender.account_identifier}},
+        "amount":{
+          "value":{{sender_amount}},
+          "currency":{{currency}}
+        }
+      },
+      {
+        "operation_identifier":{"index":1},
+        "type":"transfer",
+        "account":{{recipient.account_identifier}},
+        "amount":{
+          "value":{{recipient_amount}},
+          "currency":{{currency}}
+        }
+      }
+    ];
+  }
+}
+
+return_funds(10){
+  transfer{
+    transfer.network = {"network":"Ropsten", "blockchain":"Ethereum"};
+    currency = {"symbol":"ETH", "decimals":18};
+    max_fee = "42000000000000";
+    sender = find_balance({
+      "minimum_balance":{
+        "value": {{max_fee}},
+        "currency": {{currency}}
+      }
+    });
+    available_amount = {{sender.balance.value}} - {{max_fee}};
+    print_message({"available_amount":{{available_amount}}});
+    sender_amount = 0 - {{available_amount}};
+    faucet = {"address":"0xb41B39479a525AB69e38c701A713D98E3074252c"};
+    transfer.confirmation_depth = "1";
+    transfer.operations = [
+      {
+        "operation_identifier":{"index":0},
+        "type":"transfer",
+        "account":{{sender.account_identifier}},
+        "amount":{
+          "value":{{sender_amount}},
+          "currency":{{currency}}
+        }
+      },
+      {
+        "operation_identifier":{"index":1},
+        "type":"transfer",
+        "account":{{faucet}},
+        "amount":{
+          "value":{{available_amount}},
+          "currency":{{currency}}
+        }
+      }
+    ];
+  }
+}
