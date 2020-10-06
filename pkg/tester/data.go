@@ -421,7 +421,7 @@ func (t *DataTester) EndAtTipLoop(
 }
 
 // EndReconciliationCoverage runs a loop that evaluates ReconciliationEndCondition
-func (t *DataTester) EndReconciliationCoverage(
+func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 	ctx context.Context,
 	reconciliationCoverage *configuration.ReconciliationCoverage,
 ) {

@@ -45,7 +45,10 @@
   "balance_tracking_disabled": false,
   "coin_tracking_disabled": false,
   "end_conditions": {
-   "reconciliation_coverage": 0.95
+   "reconciliation_coverage": {
+     "coverage":0.95,
+     "from_tip": true
+   }
   },
   "results_output_file": ""
  }
