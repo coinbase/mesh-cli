@@ -38,10 +38,22 @@ var (
 		{
 			Name:        string(job.CreateAccount),
 			Concurrency: job.ReservedWorkflowConcurrency,
+			Scenarios: []*job.Scenario{
+				{
+					Name:    "blah",
+					Actions: []*job.Action{},
+				},
+			},
 		},
 		{
 			Name:        string(job.RequestFunds),
 			Concurrency: job.ReservedWorkflowConcurrency,
+			Scenarios: []*job.Scenario{
+				{
+					Name:    "blah",
+					Actions: []*job.Action{},
+				},
+			},
 		},
 	}
 	whackyConfig = &Configuration{
@@ -163,6 +175,29 @@ func TestLoadConfiguration(t *testing.T) {
 				return cfg
 			}(),
 		},
+		"overwrite missing with DSL": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					ConstructorDSLFile: "testdata/test.ros",
+				},
+				Data: &DataConfiguration{},
+			},
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Construction = &ConstructionConfiguration{
+					OfflineURL:            DefaultURL,
+					MaxOfflineConnections: DefaultMaxOfflineConnections,
+					StaleDepth:            DefaultStaleDepth,
+					BroadcastLimit:        DefaultBroadcastLimit,
+					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
+					StatusPort:            DefaultStatusPort,
+					Workflows:             fakeWorkflows,
+					ConstructorDSLFile:    "testdata/test.ros",
+				}
+
+				return cfg
+			}(),
+		},
 		"invalid network": {
 			provided: invalidNetwork,
 			err:      true,
@@ -216,10 +251,18 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			err: true,
 		},
-		"missing reserved workflows": {
+		"empty workflows": {
 			provided: &Configuration{
 				Construction: &ConstructionConfiguration{
 					Workflows: []*job.Workflow{},
+				},
+			},
+			err: true,
+		},
+		"non-existent dsl file": {
+			provided: &Configuration{
+				Construction: &ConstructionConfiguration{
+					ConstructorDSLFile: "test.ros",
 				},
 			},
 			err: true,
