@@ -91,7 +91,9 @@ var (
 			StartIndex:                        &startIndex,
 			StatusPort:                        123,
 			EndConditions: &DataEndConditions{
-				ReconciliationCoverage: &goodCoverage,
+				ReconciliationCoverage: &ReconciliationCoverage{
+					Coverage: goodCoverage,
+				},
 			},
 		},
 	}
@@ -132,13 +134,19 @@ var (
 	invalidReconciliationCoverage = &Configuration{
 		Data: &DataConfiguration{
 			EndConditions: &DataEndConditions{
-				ReconciliationCoverage: &badCoverage,
+				ReconciliationCoverage: &ReconciliationCoverage{
+					Coverage: badCoverage,
+				},
 			},
 		},
 	}
 )
 
 func TestLoadConfiguration(t *testing.T) {
+	var (
+		goodAccountCount = int64(10)
+		badAccountCount  = int64(-10)
+	)
 	var tests = map[string]struct {
 		provided *Configuration
 		expected *Configuration
@@ -255,7 +263,9 @@ func TestLoadConfiguration(t *testing.T) {
 				Data: &DataConfiguration{
 					ReconciliationDisabled: true,
 					EndConditions: &DataEndConditions{
-						ReconciliationCoverage: &goodCoverage,
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage: goodCoverage,
+						},
 					},
 				},
 			},
@@ -266,7 +276,9 @@ func TestLoadConfiguration(t *testing.T) {
 				Data: &DataConfiguration{
 					BalanceTrackingDisabled: true,
 					EndConditions: &DataEndConditions{
-						ReconciliationCoverage: &goodCoverage,
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage: goodCoverage,
+						},
 					},
 				},
 			},
@@ -277,7 +289,60 @@ func TestLoadConfiguration(t *testing.T) {
 				Data: &DataConfiguration{
 					IgnoreReconciliationError: true,
 					EndConditions: &DataEndConditions{
-						ReconciliationCoverage: &goodCoverage,
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage: goodCoverage,
+						},
+					},
+				},
+			},
+			err: true,
+		},
+		"valid reconciliation coverage (with account count)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage:     goodCoverage,
+							AccountCount: &goodAccountCount,
+							Index:        &goodAccountCount,
+						},
+					},
+				},
+			},
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.Data.EndConditions = &DataEndConditions{
+					ReconciliationCoverage: &ReconciliationCoverage{
+						Coverage:     goodCoverage,
+						AccountCount: &goodAccountCount,
+						Index:        &goodAccountCount,
+					},
+				}
+
+				return cfg
+			}(),
+		},
+		"invalid reconciliation coverage (with account count)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage:     goodCoverage,
+							AccountCount: &badAccountCount,
+						},
+					},
+				},
+			},
+			err: true,
+		},
+		"invalid reconciliation coverage (with index)": {
+			provided: &Configuration{
+				Data: &DataConfiguration{
+					EndConditions: &DataEndConditions{
+						ReconciliationCoverage: &ReconciliationCoverage{
+							Coverage: goodCoverage,
+							Index:    &badAccountCount,
+						},
 					},
 				},
 			},

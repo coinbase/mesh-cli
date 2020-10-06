@@ -148,13 +148,13 @@ type ConstructionConfiguration struct {
 	Quiet bool `json:"quiet,omitempty"`
 }
 
-// ReconciliationEndCondition is used to add conditions
+// ReconciliationCoverage is used to add conditions
 // to reconciliation coverage for exiting `check:data`.
 //
 // If FromTip, Tip, Height, and AccountCount are not provided,
 // `check:data` will halt as soon as coverage surpasses
 // Coverage.
-type ReconciliationEndCondition struct {
+type ReconciliationCoverage struct {
 	// Coverage is some value [0.0, 1.0] that represents
 	// the % of accounts reconciled.
 	Coverage float64 `json:"coverage"`
@@ -168,9 +168,9 @@ type ReconciliationEndCondition struct {
 	// before reconciliation coverage is considered valid.
 	Tip *bool `json:"tip,omitempty"`
 
-	// Height is an int64 indicating the height that must be
+	// Index is an int64 indicating the height that must be
 	// reached before reconciliation coverage is considered valid.
-	Height *int64 `json:"height,omitempty"`
+	Index *int64 `json:"height,omitempty"`
 
 	// AccountCount is an int64 indicating the number of accounts
 	// that must be observed before reconciliation coverage is considered
@@ -194,9 +194,9 @@ type DataEndConditions struct {
 	// for Duration seconds.
 	Duration *uint64 `json:"duration,omitempty"`
 
-	// Reconciliation configures the syncer to stop once it reaches
+	// ReconciliationCoverage configures the syncer to stop once it reaches
 	// some level of reconciliation coverage.
-	Reconciliation *ReconciliationEndCondition `json:"reconciliation,omitempty"`
+	ReconciliationCoverage *ReconciliationCoverage `json:"reconciliation_coverage,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
