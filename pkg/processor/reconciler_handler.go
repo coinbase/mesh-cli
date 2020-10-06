@@ -27,6 +27,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
+var _ reconciler.Handler = (*ReconcilerHandler)(nil)
+
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
@@ -113,6 +115,30 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			nodeBalance,
 			currency.Symbol,
 		)
+	}
+
+	return nil
+}
+
+// ReconciliationExempt is called each time a reconciliation fails
+// but is considered exempt because of provided []*types.BalanceExemption.
+func (h *ReconcilerHandler) ReconciliationExempt(
+	ctx context.Context,
+	reconciliationType string,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	computedBalance string,
+	nodeBalance string,
+	block *types.BlockIdentifier,
+	exemption *types.BalanceExemption,
+) error {
+	_, _ = h.counterStorage.Update(ctx, storage.ExemptReconciliationCounter, big.NewInt(1))
+
+	// Although the reconciliation was exempt (non-zero difference that was ignored),
+	// we still mark the account as being reconciled because the balance was in the range
+	// specified by exemption.
+	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
+		return fmt.Errorf("%w: unable to store updated reconciliation", err)
 	}
 
 	return nil
