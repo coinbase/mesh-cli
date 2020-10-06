@@ -16,8 +16,8 @@ package configuration
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
+	"os/exec"
+	"path"
 	"testing"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -178,7 +178,7 @@ func TestLoadConfiguration(t *testing.T) {
 		"overwrite missing with DSL": {
 			provided: &Configuration{
 				Construction: &ConstructionConfiguration{
-					ConstructorDSLFile: "testdata/test.ros",
+					ConstructorDSLFile: "test.ros",
 				},
 				Data: &DataConfiguration{},
 			},
@@ -192,7 +192,7 @@ func TestLoadConfiguration(t *testing.T) {
 					BlockBroadcastLimit:   DefaultBlockBroadcastLimit,
 					StatusPort:            DefaultStatusPort,
 					Workflows:             fakeWorkflows,
-					ConstructorDSLFile:    "testdata/test.ros",
+					ConstructorDSLFile:    "test.ros",
 				}
 
 				return cfg
@@ -294,7 +294,7 @@ func TestLoadConfiguration(t *testing.T) {
 		"non-existent dsl file": {
 			provided: &Configuration{
 				Construction: &ConstructionConfiguration{
-					ConstructorDSLFile: "test.ros",
+					ConstructorDSLFile: "blah.ros",
 				},
 			},
 			err: true,
@@ -313,24 +313,32 @@ func TestLoadConfiguration(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Write configuration file to tempdir
-			tmpfile, err := ioutil.TempFile("", "test.json")
+			dir, err := utils.CreateTempDir()
 			assert.NoError(t, err)
-			defer os.Remove(tmpfile.Name())
+			defer utils.RemoveTempDir(dir)
 
-			err = utils.SerializeAndWrite(tmpfile.Name(), test.provided)
+			filePath := path.Join(dir, "test.json")
+			err = utils.SerializeAndWrite(filePath, test.provided)
 			assert.NoError(t, err)
+
+			// Copy test.ros to temp dir
+			cmd := exec.Command("cp", "testdata/test.ros", path.Join(dir, "test.ros"))
+			assert.NoError(t, cmd.Run())
 
 			// Check if expected fields populated
-			config, err := LoadConfiguration(context.Background(), tmpfile.Name())
+			config, err := LoadConfiguration(context.Background(), filePath)
 			if test.err {
 				assert.Error(t, err)
 				assert.Nil(t, config)
 			} else {
 				assert.NoError(t, err)
+
+				// Ensure test.ros expected file path is right
+				if test.expected.Construction != nil && len(test.expected.Construction.ConstructorDSLFile) > 0 {
+					test.expected.Construction.ConstructorDSLFile = path.Join(dir, test.expected.Construction.ConstructorDSLFile)
+				}
 				assert.Equal(t, test.expected, config)
 			}
-			assert.NoError(t, tmpfile.Close())
 		})
 	}
 }

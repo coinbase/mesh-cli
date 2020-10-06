@@ -22,7 +22,7 @@
   "broadcast_behind_tip": false,
   "block_broadcast_limit": 0,
   "rebroadcast_all": false,
-  "constructor_dsl_file": "examples/configuration/ethereum.ros",
+  "constructor_dsl_file": "ethereum.ros",
   "end_conditions": {
    "create_account": 10,
    "transfer": 10
