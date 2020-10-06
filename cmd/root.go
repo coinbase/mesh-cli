@@ -213,6 +213,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.5.7")
+		fmt.Println("v0.5.8")
 	},
 }
