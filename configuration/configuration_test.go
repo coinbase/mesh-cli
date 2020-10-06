@@ -15,6 +15,7 @@
 package configuration
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -246,7 +247,7 @@ func TestLoadConfiguration(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Check if expected fields populated
-			config, err := LoadConfiguration(tmpfile.Name())
+			config, err := LoadConfiguration(context.Background(), tmpfile.Name())
 			if test.err {
 				assert.Error(t, err)
 				assert.Nil(t, config)

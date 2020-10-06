@@ -15,12 +15,14 @@
 package configuration
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
+	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -125,9 +127,14 @@ type ConstructionConfiguration struct {
 	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts,omitempty"`
 
 	// Workflows are executed by the rosetta-cli to test
-	// certain construction flows. Make sure to define a
-	// "request_funds" and "create_account" workflow.
+	// certain construction flows.
 	Workflows []*job.Workflow `json:"workflows"`
+
+	// ConstructorDSLFile is the path of a Rosetta Constructor
+	// DSL file (*.ros) that describes which Workflows to test.
+	//
+	// DSL Spec: https://github.com/coinbase/rosetta-sdk-go/tree/master/constructor/dsl
+	ConstructorDSLFile string `json:"constructor_dsl_file"`
 
 	// EndConditions is a map of workflow:count that
 	// indicates how many of each workflow should be performed
@@ -440,36 +447,40 @@ func populateMissingFields(config *Configuration) *Configuration {
 	return config
 }
 
-func assertConstructionConfiguration(config *ConstructionConfiguration) error {
+func assertConstructionConfiguration(ctx context.Context, config *ConstructionConfiguration) error {
 	if config == nil {
 		return nil
 	}
 
-	seenCreateAccount := false
-	seenRequestFunds := false
+	if len(config.Workflows) > 0 && len(config.ConstructorDSLFile) > 0 {
+		return errors.New("cannot populate both workflows and DSL file path")
+	}
+
+	if len(config.Workflows) == 0 && len(config.ConstructorDSLFile) == 0 {
+		return errors.New("both workflows and DSL file path are empty")
+	}
+
+	// Parse provided Workflows
 	for _, workflow := range config.Workflows {
-		sawReserved := false
-		if workflow.Name == string(job.CreateAccount) {
-			sawReserved = true
-			seenCreateAccount = true
-		}
-
-		if workflow.Name == string(job.RequestFunds) {
-			seenRequestFunds = true
-			sawReserved = true
-		}
-
-		if sawReserved && workflow.Concurrency != job.ReservedWorkflowConcurrency {
-			return errors.New("reserved workflow must have concurrency 1")
+		if workflow.Name == string(job.CreateAccount) || workflow.Name == string(job.RequestFunds) {
+			if workflow.Concurrency != job.ReservedWorkflowConcurrency {
+				return fmt.Errorf(
+					"reserved workflow %s must have concurrency %d",
+					workflow.Name,
+					job.ReservedWorkflowConcurrency,
+				)
+			}
 		}
 	}
 
-	if !seenCreateAccount {
-		return errors.New("missing create_account workflow")
-	}
+	// Compile ConstructorDSLFile and save to Workflows
+	if len(config.ConstructorDSLFile) > 0 {
+		compiledWorkflows, err := dsl.Parse(ctx, config.ConstructorDSLFile)
+		if err != nil {
+			return fmt.Errorf("%s: compilation failed", types.PrintStruct(err))
+		}
 
-	if !seenRequestFunds {
-		return errors.New("missing request_funds workflow")
+		config.Workflows = compiledWorkflows
 	}
 
 	for _, account := range config.PrefundedAccounts {
@@ -546,7 +557,7 @@ func assertDataConfiguration(config *DataConfiguration) error {
 	return nil
 }
 
-func assertConfiguration(config *Configuration) error {
+func assertConfiguration(ctx context.Context, config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
 		return fmt.Errorf("%w: invalid network identifier", err)
 	}
@@ -555,7 +566,7 @@ func assertConfiguration(config *Configuration) error {
 		return fmt.Errorf("%w: invalid data configuration", err)
 	}
 
-	if err := assertConstructionConfiguration(config.Construction); err != nil {
+	if err := assertConstructionConfiguration(ctx, config.Construction); err != nil {
 		return fmt.Errorf("%w: invalid construction configuration", err)
 	}
 
@@ -564,7 +575,7 @@ func assertConfiguration(config *Configuration) error {
 
 // LoadConfiguration returns a parsed and asserted Configuration for running
 // tests.
-func LoadConfiguration(filePath string) (*Configuration, error) {
+func LoadConfiguration(ctx context.Context, filePath string) (*Configuration, error) {
 	var configRaw Configuration
 	if err := utils.LoadAndParse(filePath, &configRaw); err != nil {
 		return nil, fmt.Errorf("%w: unable to open configuration file", err)
@@ -572,7 +583,7 @@ func LoadConfiguration(filePath string) (*Configuration, error) {
 
 	config := populateMissingFields(&configRaw)
 
-	if err := assertConfiguration(config); err != nil {
+	if err := assertConfiguration(ctx, config); err != nil {
 		return nil, fmt.Errorf("%w: invalid configuration", err)
 	}
 
