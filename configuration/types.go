@@ -148,8 +148,39 @@ type ConstructionConfiguration struct {
 	Quiet bool `json:"quiet,omitempty"`
 }
 
+// ReconciliationEndCondition is used to add conditions
+// to reconciliation coverage for exiting `check:data`.
+//
+// If FromTip, Tip, Height, and AccountCount are not provided,
+// `check:data` will halt as soon as coverage surpasses
+// Coverage.
+type ReconciliationEndCondition struct {
+	// Coverage is some value [0.0, 1.0] that represents
+	// the % of accounts reconciled.
+	Coverage float64 `json:"coverage"`
+
+	// FromTip is a boolean indicating if reconciliation coverage
+	// should only be measured from tip (i.e. reconciliations
+	// performed at or after tip was reached).
+	FromTip *bool `json:"from_tip,omitempty"`
+
+	// Tip is a boolean indicating that tip must be reached
+	// before reconciliation coverage is considered valid.
+	Tip *bool `json:"tip,omitempty"`
+
+	// Height is an int64 indicating the height that must be
+	// reached before reconciliation coverage is considered valid.
+	Height *int64 `json:"height,omitempty"`
+
+	// AccountCount is an int64 indicating the number of accounts
+	// that must be observed before reconciliation coverage is considered
+	// valid.
+	AccountCount *int64 `json:"account_count,omitempty"`
+}
+
 // DataEndConditions contains all the conditions for the syncer to stop
-// when running check:data.
+// when running check:data. If any one of these conditions is considered
+// true, `check:data` will stop with success.
 type DataEndConditions struct {
 	// Index configures the syncer to stop once reaching a particular block height.
 	Index *int64 `json:"index,omitempty"`
@@ -163,12 +194,9 @@ type DataEndConditions struct {
 	// for Duration seconds.
 	Duration *uint64 `json:"duration,omitempty"`
 
-	// ReconciliationCoverage configures the syncer to stop
-	// once it has reached tip AND some proportion of
-	// all addresses have been reconciled at an index >=
-	// to when tip was first reached. The range of inputs
-	// for this condition are [0.0, 1.0].
-	ReconciliationCoverage *float64 `json:"reconciliation_coverage,omitempty"`
+	// Reconciliation configures the syncer to stop once it reaches
+	// some level of reconciliation coverage.
+	Reconciliation *ReconciliationEndCondition `json:"reconciliation,omitempty"`
 }
 
 // DataConfiguration contains all configurations to run check:data.
