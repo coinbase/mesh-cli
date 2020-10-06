@@ -96,6 +96,7 @@ type CheckDataStats struct {
 	Operations              int64   `json:"operations"`
 	ActiveReconciliations   int64   `json:"active_reconciliations"`
 	InactiveReconciliations int64   `json:"inactive_reconciliations"`
+	ExemptReconciliations   int64   `json:"exempt_reconciliations"`
 	ReconciliationCoverage  float64 `json:"reconciliation_coverage"`
 }
 
@@ -127,8 +128,15 @@ func (c *CheckDataStats) Print() {
 	table.Append(
 		[]string{
 			"Inactive Reconciliations",
-			"# of reconciliation performed on randomly selected accounts",
+			"# of reconciliations performed on randomly selected accounts",
 			strconv.FormatInt(c.InactiveReconciliations, 10),
+		},
+	)
+	table.Append(
+		[]string{
+			"Exempt Reconciliations",
+			"# of reconciliation failures considered exempt",
+			strconv.FormatInt(c.ExemptReconciliations, 10),
 		},
 	)
 	table.Append(
@@ -188,6 +196,12 @@ func ComputeCheckDataStats(
 		return nil
 	}
 
+	exemptReconciliations, err := counters.Get(ctx, storage.ExemptReconciliationCounter)
+	if err != nil {
+		log.Printf("%s: cannot get exempt reconciliations counter", err.Error())
+		return nil
+	}
+
 	stats := &CheckDataStats{
 		Blocks:                  blocks.Int64(),
 		Orphans:                 orphans.Int64(),
@@ -195,6 +209,7 @@ func ComputeCheckDataStats(
 		Operations:              ops.Int64(),
 		ActiveReconciliations:   activeReconciliations.Int64(),
 		InactiveReconciliations: inactiveReconciliations.Int64(),
+		ExemptReconciliations:   exemptReconciliations.Int64(),
 	}
 
 	if balances != nil {
@@ -505,6 +520,14 @@ func ComputeCheckDataTests(
 			storage.InactiveReconciliationCounter,
 		)
 		if err == nil && inactiveReconciliations.Int64() > 0 {
+			reconciliationsPerformed = true
+		}
+
+		exemptReconciliations, err := counterStorage.Get(
+			ctx,
+			storage.ExemptReconciliationCounter,
+		)
+		if err == nil && exemptReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
 		}
 	}
