@@ -192,16 +192,16 @@ func InitializeData(
 		log.Fatalf("%s: unable to get previously seen accounts", err.Error())
 	}
 
+	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
+	if err != nil {
+		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+	}
+
 	// Determine if we should perform historical balance lookups
 	var historicalBalanceEnabled bool
 	if config.Data.HistoricalBalanceEnabled != nil {
 		historicalBalanceEnabled = *config.Data.HistoricalBalanceEnabled
 	} else { // we must look it up
-		networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
-		if err != nil {
-			log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
-		}
-
 		historicalBalanceEnabled = networkOptions.Allow.HistoricalBalanceLookup
 	}
 
@@ -215,6 +215,7 @@ func InitializeData(
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithDebugLogging(config.Data.LogReconciliations),
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
+		reconciler.WithBalanceExemptions(networkOptions.Allow.BalanceExemptions),
 	)
 
 	blockWorkers := []storage.BlockWorker{}
