@@ -436,7 +436,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			return
 
 		case <-tc.C:
-			atTip, blockIdentifier, err := t.blockStorage.AtTip(ctx, t.config.TipDelay)
+			headBlock, err := t.blockStorage.GetBlock(ctx, nil)
+			if errors.Is(err, storage.ErrHeadBlockNotFound) {
+				continue
+			}
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate syncer height or if at tip",
@@ -445,7 +448,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				continue
 			}
 
-			// Only check coverage if we are at tip.
+			blockIdentifier := headBlock.BlockIdentifier
+			atTip := utils.AtTip(t.config.TipDelay, headBlock.Timestamp)
+
+			// Check if we are at tip and set tip height if fromTip is true.
 			if reconciliationCoverage.Tip || reconciliationCoverage.FromTip {
 				// If we fall behind tip, we must reset the firstTipIndex.
 				if !atTip {
