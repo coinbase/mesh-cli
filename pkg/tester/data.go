@@ -470,7 +470,6 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			}
 
 			// Check if at required minimum index
-			// TODO: blockIdentifer is nil if not at tip
 			if reconciliationCoverage.Index != nil && *reconciliationCoverage.Index < blockIdentifier.Index {
 				continue
 			}
