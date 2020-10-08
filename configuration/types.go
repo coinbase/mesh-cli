@@ -172,7 +172,7 @@ type ReconciliationCoverage struct {
 
 	// Index is an int64 indicating the height that must be
 	// reached before reconciliation coverage is considered valid.
-	Index *int64 `json:"height,omitempty"`
+	Index *int64 `json:"index,omitempty"`
 
 	// AccountCount is an int64 indicating the number of accounts
 	// that must be observed before reconciliation coverage is considered
