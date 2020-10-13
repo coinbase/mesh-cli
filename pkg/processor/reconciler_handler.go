@@ -66,7 +66,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	computedBalance string,
-	nodeBalance string,
+	liveBalance string,
 	block *types.BlockIdentifier,
 ) error {
 	err := h.logger.ReconcileFailureStream(
@@ -75,7 +75,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		account,
 		currency,
 		computedBalance,
-		nodeBalance,
+		liveBalance,
 		block,
 	)
 	if err != nil {
@@ -98,7 +98,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 				block.Index,
 				computedBalance,
 				currency.Symbol,
-				nodeBalance,
+				liveBalance,
 				currency.Symbol,
 			)
 		}
@@ -112,7 +112,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			block.Index,
 			computedBalance,
 			currency.Symbol,
-			nodeBalance,
+			liveBalance,
 			currency.Symbol,
 		)
 	}
@@ -128,7 +128,7 @@ func (h *ReconcilerHandler) ReconciliationExempt(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	computedBalance string,
-	nodeBalance string,
+	liveBalance string,
 	block *types.BlockIdentifier,
 	exemption *types.BalanceExemption,
 ) error {
