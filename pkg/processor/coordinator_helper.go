@@ -204,7 +204,7 @@ func (c *CoordinatorHelper) Metadata(
 		arg{argMetadata, metadataRequest},
 		arg{argPublicKeys, publicKeys},
 	)
-	metadata, suggestedFee, fetchErr := c.offlineFetcher.ConstructionMetadata(
+	metadata, suggestedFee, fetchErr := c.onlineFetcher.ConstructionMetadata(
 		ctx,
 		networkIdentifier,
 		metadataRequest,
