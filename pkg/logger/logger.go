@@ -404,27 +404,27 @@ func (l *Logger) ReconcileFailureStream(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	computedBalance string,
-	nodeBalance string,
+	liveBalance string,
 	block *types.BlockIdentifier,
 ) error {
 	// Always print out reconciliation failures
 	if reconciliationType == reconciler.InactiveReconciliation {
 		color.Yellow(
-			"Missing balance-changing operation detected for %s computed balance: %s%s node balance: %s%s",
+			"Missing balance-changing operation detected for %s computed: %s%s live: %s%s",
 			types.AccountString(account),
 			computedBalance,
 			currency.Symbol,
-			nodeBalance,
+			liveBalance,
 			currency.Symbol,
 		)
 	} else {
 		color.Yellow(
-			"Reconciliation failed for %s at %d computed: %s%s node: %s%s",
+			"Reconciliation failed for %s at %d computed: %s%s live: %s%s",
 			types.AccountString(account),
 			block.Index,
 			computedBalance,
 			currency.Symbol,
-			nodeBalance,
+			liveBalance,
 			currency.Symbol,
 		)
 	}
@@ -445,14 +445,14 @@ func (l *Logger) ReconcileFailureStream(
 	defer closeFile(f)
 
 	_, err = f.WriteString(fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s node: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
 		block.Hash,
 		block.Index,
 		computedBalance,
-		nodeBalance,
+		liveBalance,
 	))
 	if err != nil {
 		return err
