@@ -41,6 +41,7 @@ var (
 	configurationFile string
 	cpuProfile        string
 	memProfile        string
+	blockProfile      string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -54,9 +55,13 @@ var (
 	// determining the error message to show on exit much more easy.
 	SignalReceived = false
 
-	// profileCleanup is called after the root command is executed to
+	// cpuProfileCleanup is called after the root command is executed to
 	// cleanup a running cpu profile.
-	profileCleanup func()
+	cpuProfileCleanup func()
+
+	// blockProfileCleanup is called after the root command is executed to
+	// cleanup a running block profile.
+	blockProfileCleanup func()
 )
 
 // rootPreRun is executed before the root command runs and sets up cpu
@@ -64,56 +69,75 @@ var (
 //
 // Bassed on https://golang.org/pkg/runtime/pprof/#hdr-Profiling_a_Go_program
 func rootPreRun(*cobra.Command, []string) error {
-	if cpuProfile == "" {
-		return nil
-	}
-
-	f, err := os.Create(cpuProfile)
-	if err != nil {
-		return fmt.Errorf("%w: unable to create CPU profile file", err)
-	}
-	if err := pprof.StartCPUProfile(f); err != nil {
-		if err := f.Close(); err != nil {
-			log.Printf("error while closing cpu profile file: %v\n", err)
+	if cpuProfile != "" {
+		f, err := os.Create(cpuProfile)
+		if err != nil {
+			return fmt.Errorf("%w: unable to create CPU profile file", err)
 		}
-		return err
-	}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			if err := f.Close(); err != nil {
+				log.Printf("error while closing cpu profile file: %v\n", err)
+			}
+			return err
+		}
 
-	profileCleanup = func() {
-		pprof.StopCPUProfile()
-		if err := f.Close(); err != nil {
-			log.Printf("error while closing cpu profile file: %v\n", err)
+		cpuProfileCleanup = func() {
+			pprof.StopCPUProfile()
+			if err := f.Close(); err != nil {
+				log.Printf("error while closing cpu profile file: %v\n", err)
+			}
 		}
 	}
+
+	if blockProfile != "" {
+		runtime.SetBlockProfileRate(1)
+		f, err := os.Create(blockProfile)
+		if err != nil {
+			return fmt.Errorf("%w: unable to create block profile file", err)
+		}
+
+		p := pprof.Lookup("block")
+		blockProfileCleanup = func() {
+			if err := p.WriteTo(f, 0); err != nil {
+				log.Printf("error while writing block profile file: %v\n", err)
+			}
+			if err := f.Close(); err != nil {
+				log.Printf("error while closing block profile file: %v\n", err)
+			}
+		}
+	}
+
 	return nil
 }
 
 // rootPostRun is executed after the root command runs and performs memory
 // profiling.
 func rootPostRun() {
-	if profileCleanup != nil {
-		profileCleanup()
+	if cpuProfileCleanup != nil {
+		cpuProfileCleanup()
 	}
 
-	if memProfile == "" {
-		return
+	if blockProfileCleanup != nil {
+		blockProfileCleanup()
 	}
 
-	f, err := os.Create(memProfile)
-	if err != nil {
-		log.Printf("error while creating mem-profile file: %v", err)
-		return
-	}
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("error while closing mem-profile file: %v", err)
+	if memProfile != "" {
+		f, err := os.Create(memProfile)
+		if err != nil {
+			log.Printf("error while creating mem-profile file: %v", err)
+			return
 		}
-	}()
 
-	runtime.GC()
-	if err := pprof.WriteHeapProfile(f); err != nil {
-		log.Printf("error while writing heap profile: %v", err)
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Printf("error while closing mem-profile file: %v", err)
+			}
+		}()
+
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Printf("error while writing heap profile: %v", err)
+		}
 	}
 }
 
@@ -150,6 +174,12 @@ default values.`,
 		"mem-profile",
 		"",
 		`Save the pprof mem profile in the specified file`,
+	)
+	rootFlags.StringVar(
+		&blockProfile,
+		"block-profile",
+		"",
+		`Save the pprof block profile in the specified file`,
 	)
 	rootCmd.AddCommand(versionCmd)
 
@@ -217,6 +247,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.5.11")
+		fmt.Println("v0.5.12")
 	},
 }
