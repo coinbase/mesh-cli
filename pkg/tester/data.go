@@ -64,7 +64,8 @@ const (
 	EndAtTipCheckInterval = 10 * time.Second
 )
 
-var _ http.Handler = (*ConstructionTester)(nil)
+var _ http.Handler = (*DataTester)(nil)
+var _ statefulsyncer.PruneHelper = (*DataTester)(nil)
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
@@ -325,7 +326,21 @@ func (t *DataTester) StartPruning(
 		return nil
 	}
 
-	return t.syncer.Prune(ctx, statefulsyncer.DefaultPruningDepth)
+	return t.syncer.Prune(ctx, t)
+}
+
+// PruneableIndex is the index that is
+// safe for pruning.
+func (t *DataTester) PruneableIndex(
+	ctx context.Context,
+	headIndex int64,
+) (int64, error) {
+	if t.config.Data.ReconciliationDisabled {
+		// It is ok if the returned value here is negative
+		return headIndex - statefulsyncer.DefaultPruningDepth, nil
+	}
+
+	return t.reconciler.LastIndexReconciled() - 1, nil
 }
 
 // StartReconciler starts the reconciler if
