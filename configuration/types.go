@@ -341,6 +341,12 @@ type Configuration struct {
 	// should be printed to the console when a file is loaded.
 	LogConfiguration bool `json:"log_configuration"`
 
+	// CompressionDisabled configures the storage layer to not
+	// perform data compression before writing to disk. This leads
+	// to significantly more on-disk storage usage but can lead
+	// to performance gains.
+	CompressionDisabled bool `json:"compression_disabled"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
