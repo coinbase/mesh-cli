@@ -51,8 +51,10 @@ func (c *CheckConstructionResults) Print() {
 	}
 
 	fmt.Printf("\n")
-	c.Stats.Print()
-	fmt.Printf("\n")
+	if c.Stats != nil {
+		c.Stats.Print()
+		fmt.Printf("\n")
+	}
 }
 
 // Output writes CheckConstructionResults to the provided
