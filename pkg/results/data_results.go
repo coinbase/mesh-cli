@@ -27,6 +27,7 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -228,11 +229,13 @@ func ComputeCheckDataStats(
 // CheckDataProgress contains information
 // about check:data's syncing progress.
 type CheckDataProgress struct {
-	Blocks        int64   `json:"blocks"`
-	Tip           int64   `json:"tip"`
-	Completed     float64 `json:"completed"`
-	Rate          float64 `json:"rate"`
-	TimeRemaining string  `json:"time_remaining"`
+	Blocks              int64   `json:"blocks"`
+	Tip                 int64   `json:"tip"`
+	Completed           float64 `json:"completed"`
+	Rate                float64 `json:"rate"`
+	TimeRemaining       string  `json:"time_remaining"`
+	ReconcilerQueueSize int     `json:"reconciler_queue_size"`
+	ReconcilerLastIndex int64   `json:"reconciler_last_index"`
 }
 
 // ComputeCheckDataProgress returns
@@ -242,6 +245,7 @@ func ComputeCheckDataProgress(
 	fetcher *fetcher.Fetcher,
 	network *types.NetworkIdentifier,
 	counters *storage.CounterStorage,
+	reconciler *reconciler.Reconciler,
 ) *CheckDataProgress {
 	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
 	if fetchErr != nil {
@@ -287,11 +291,13 @@ func ComputeCheckDataProgress(
 	blocksSyncedFloat, _ := blocksSynced.Float64()
 
 	return &CheckDataProgress{
-		Blocks:        adjustedBlocks,
-		Tip:           tipIndex,
-		Completed:     blocksSyncedFloat * utils.OneHundred,
-		Rate:          blocksPerSecondFloat,
-		TimeRemaining: utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+		Blocks:              adjustedBlocks,
+		Tip:                 tipIndex,
+		Completed:           blocksSyncedFloat * utils.OneHundred,
+		Rate:                blocksPerSecondFloat,
+		TimeRemaining:       utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+		ReconcilerQueueSize: reconciler.QueueSize(),
+		ReconcilerLastIndex: reconciler.LastIndexReconciled(),
 	}
 }
 
@@ -310,6 +316,7 @@ func ComputeCheckDataStatus(
 	balances *storage.BalanceStorage,
 	fetcher *fetcher.Fetcher,
 	network *types.NetworkIdentifier,
+	reconciler *reconciler.Reconciler,
 ) *CheckDataStatus {
 	return &CheckDataStatus{
 		Stats: ComputeCheckDataStats(
@@ -322,6 +329,7 @@ func ComputeCheckDataStatus(
 			fetcher,
 			network,
 			counters,
+			reconciler,
 		),
 	}
 }

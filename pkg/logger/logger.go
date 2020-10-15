@@ -122,12 +122,14 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	progressMessage := fmt.Sprintf(
-		"[PROGRESS] Blocks Synced: %d/%d (Completed: %f%%, Rate: %f/second) Time Remaining: %s",
+		"[PROGRESS] Blocks Synced: %d/%d (Completed: %f%%, Rate: %f/second) Time Remaining: %s Reconciler Queue: %d (Last Index Checked: %d)",
 		status.Progress.Blocks,
 		status.Progress.Tip,
 		status.Progress.Completed,
 		status.Progress.Rate,
 		status.Progress.TimeRemaining,
+		status.Progress.ReconcilerQueueSize,
+		status.Progress.ReconcilerLastIndex,
 	)
 
 	// Don't print out the same progress message twice.
