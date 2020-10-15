@@ -150,6 +150,9 @@ func InitializeData(
 	if config.CompressionDisabled {
 		opts = append(opts, storage.WithoutCompression())
 	}
+	if config.MemoryLimitDisabled {
+		opts = append(opts, storage.WithCustomSettings(storage.PerformanceBadgerOptions(dataPath)))
+	}
 
 	localStore, err := storage.NewBadgerStorage(ctx, dataPath, opts...)
 	if err != nil {

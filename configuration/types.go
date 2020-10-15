@@ -347,6 +347,11 @@ type Configuration struct {
 	// to performance gains.
 	CompressionDisabled bool `json:"compression_disabled"`
 
+	// MemoryLimitDisabled configures storage to increase memory
+	// usage. Enabling this massively increases performance
+	// but can use 10s of GBs of RAM, even with pruning enabled.
+	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
