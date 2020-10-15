@@ -361,7 +361,14 @@ func (t *DataTester) StartPeriodicLogger(
 				big.NewInt(periodicLoggingSeconds),
 			)
 
-			status := results.ComputeCheckDataStatus(ctx, t.counterStorage, t.balanceStorage, t.fetcher, t.config.Network)
+			status := results.ComputeCheckDataStatus(
+				ctx,
+				t.counterStorage,
+				t.balanceStorage,
+				t.fetcher,
+				t.config.Network,
+				t.reconciler,
+			)
 			t.logger.LogDataStatus(ctx, status)
 		}
 	}
@@ -378,6 +385,7 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t.balanceStorage,
 		t.fetcher,
 		t.network,
+		t.reconciler,
 	)
 
 	if err := json.NewEncoder(w).Encode(status); err != nil {
