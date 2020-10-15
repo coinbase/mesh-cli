@@ -469,8 +469,27 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				}
 			}
 
+			// minIndex is the greater of firstTipIndex
+			// and reconciliationCoverage.Index
+			minIndex := firstTipIndex
+
 			// Check if at required minimum index
-			if reconciliationCoverage.Index != nil && *reconciliationCoverage.Index < blockIdentifier.Index {
+			if reconciliationCoverage.Index != nil {
+				if *reconciliationCoverage.Index < blockIdentifier.Index {
+					continue
+				}
+
+				// Override the firstTipIndex if reconciliationCoverage.Index
+				// is greater
+				if *reconciliationCoverage.Index > minIndex {
+					minIndex = *reconciliationCoverage.Index
+				}
+			}
+
+			// Check if all accounts reconciled at index (+1). If last index reconciled
+			// is less than the minimum allowed index but the QueueSize is 0, then
+			// we consider the reconciler to be caught up.
+			if t.reconciler.LastIndexReconciled() <= minIndex && t.reconciler.QueueSize() > 0 {
 				continue
 			}
 
