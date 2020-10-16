@@ -16,7 +16,6 @@ package processor
 
 import (
 	"context"
-	"errors"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -52,24 +51,15 @@ func NewReconcilerHelper(
 	}
 }
 
-// BlockExists returns a boolean indicating if block_storage
-// contains a block. This is necessary to reconcile across
+// CanonicalBlock returns a boolean indicating if a block
+// is in the canonical chain. This is necessary to reconcile across
 // reorgs. If the block returned on an account balance fetch
 // does not exist, reconciliation will be skipped.
-func (h *ReconcilerHelper) BlockExists(
+func (h *ReconcilerHelper) CanonicalBlock(
 	ctx context.Context,
 	block *types.BlockIdentifier,
 ) (bool, error) {
-	_, err := h.blockStorage.GetBlock(ctx, types.ConstructPartialBlockIdentifier(block))
-	if err == nil {
-		return true, nil
-	}
-
-	if errors.Is(err, storage.ErrBlockNotFound) {
-		return false, nil
-	}
-
-	return false, err
+	return h.blockStorage.CanonicalBlock(ctx, block)
 }
 
 // CurrentBlock returns the last processed block and is used

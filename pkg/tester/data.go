@@ -343,12 +343,11 @@ func (t *DataTester) PruneableIndex(
 	ctx context.Context,
 	headIndex int64,
 ) (int64, error) {
-	if t.config.Data.ReconciliationDisabled {
-		// It is ok if the returned value here is negative
-		return headIndex - statefulsyncer.DefaultPruningDepth, nil
-	}
-
-	return t.reconciler.LastIndexReconciled() - 1, nil
+	// We don't need blocks to exist to reconcile
+	// balances at their index.
+	//
+	// It is ok if the returned value here is negative.
+	return headIndex - statefulsyncer.DefaultPruningDepth, nil
 }
 
 // StartReconciler starts the reconciler if
