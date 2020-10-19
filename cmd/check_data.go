@@ -158,13 +158,7 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) error {
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(&sigListeners)
 
-	err = g.Wait()
-
-	// Initialize new context because calling context
-	// will no longer be usable when after termination.
-	ctx = context.Background()
-
 	// HandleErr will exit if we should not attempt
 	// to find missing operations.
-	return dataTester.HandleErr(ctx, err, &sigListeners)
+	return dataTester.HandleErr(g.Wait(), &sigListeners)
 }

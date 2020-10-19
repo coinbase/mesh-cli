@@ -157,6 +157,5 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) error {
 	sigListeners := []context.CancelFunc{cancel}
 	go handleSignals(&sigListeners)
 
-	err = g.Wait()
-	return constructionTester.HandleErr(err, &sigListeners)
+	return constructionTester.HandleErr(g.Wait(), &sigListeners)
 }

@@ -688,7 +688,11 @@ func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]c
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
-func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]context.CancelFunc) error {
+func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) error {
+	// Initialize new context because calling context
+	// will no longer be usable when after termination.
+	ctx := context.Background()
+
 	if *t.signalReceived {
 		return results.ExitData(
 			t.config,
