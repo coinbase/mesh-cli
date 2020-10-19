@@ -258,6 +258,11 @@ type DataConfiguration struct {
 	// some of the more advanced checks to confirm syncing is working as expected.
 	ReconciliationDisabled bool `json:"reconciliation_disabled"`
 
+	// ReconciliationDrainDisabled is a boolean that configures the rosetta-cli
+	// to exit check:data before the entire active reconciliation queue has
+	// been drained (if reconciliation is enabled).
+	ReconciliationDrainDisabled bool `json:"reconciliation_drain_disabled"`
+
 	// InactiveDiscrepencySearchDisabled is a boolean indicating if a search
 	// should be performed to find any inactive reconciliation discrepencies.
 	// Note, a search will never be performed if historical balance lookup
