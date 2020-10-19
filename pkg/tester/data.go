@@ -617,6 +617,74 @@ func (t *DataTester) WatchEndConditions(
 	return nil
 }
 
+// EndAtEmptyQueue exits once the active reconciler
+// queue is empty and all reconciler goroutines are idle.
+func (t *DataTester) EndAtEmptyQueue(
+	ctx context.Context,
+) error {
+	// TODO: how do we know when reconciler threads are not busy? Otherwise we will cutoff
+	// when reconciling
+
+	// TODO: what happens if we are stuck behind a high water mark with a queue?
+
+	tc := time.NewTicker(EndAtTipCheckInterval)
+	defer tc.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-tc.C:
+			queueSize := t.reconciler.QueueSize()
+			if queueSize == 0 {
+				t.cancel()
+				return nil
+			}
+
+			color.Cyan(fmt.Sprintf(
+				"Remaining Queue Size: %d",
+				queueSize,
+				// TODO: add busy threads/in-progress reconciliations
+			))
+		}
+	}
+}
+
+// DrainReconcilerQueue returns once the reconciler queue has been drained
+// or an error is encountered.
+func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]context.CancelFunc) error {
+	color.Cyan("Draining reconciler backlog...hold tight")
+
+	// To cancel all execution, need to call multiple cancel functions.
+	ctx, cancel := context.WithCancel(ctx)
+	t.cancel = cancel
+	*sigListeners = append(*sigListeners, cancel)
+
+	// Disable inactive lookups
+	t.config.Data.InactiveReconciliationConcurrency = 0
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return t.StartReconciler(ctx)
+	})
+	g.Go(func() error {
+		return t.EndAtEmptyQueue(ctx)
+	})
+
+	err := g.Wait()
+
+	if *t.signalReceived {
+		return errors.New("reconcilier queue drain halted")
+	}
+
+	if errors.Is(err, context.Canceled) {
+		color.Cyan("Drained reconciler backlog!")
+		return nil
+	}
+
+	return err
+}
+
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
@@ -643,6 +711,15 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 	}
 
 	if len(t.endCondition) != 0 {
+		// Wait for reconciliation queue to drain (only if end condition reached)
+		if !t.config.Data.ReconciliationDrainDisabled &&
+			shouldReconcile(t.config) &&
+			t.reconciler.QueueSize() > 0 {
+			if drainErr := t.DrainReconcilerQueue(ctx, sigListeners); drainErr != nil {
+				color.Red("Draining reconciler queue failed: %s", drainErr.Error())
+			}
+		}
+
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
