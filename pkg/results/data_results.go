@@ -36,6 +36,11 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+var (
+	f  = false
+	tr = true
+)
+
 // EndCondition contains the type of
 // end condition and any detail associated
 // with the stop.
@@ -98,6 +103,8 @@ type CheckDataStats struct {
 	ActiveReconciliations   int64   `json:"active_reconciliations"`
 	InactiveReconciliations int64   `json:"inactive_reconciliations"`
 	ExemptReconciliations   int64   `json:"exempt_reconciliations"`
+	FailedReconciliations   int64   `json:"failed_reconciliations"`
+	SkippedReconciliations  int64   `json:"skipped_reconciliations"`
 	ReconciliationCoverage  float64 `json:"reconciliation_coverage"`
 }
 
@@ -138,6 +145,20 @@ func (c *CheckDataStats) Print() {
 			"Exempt Reconciliations",
 			"# of reconciliation failures considered exempt",
 			strconv.FormatInt(c.ExemptReconciliations, 10),
+		},
+	)
+	table.Append(
+		[]string{
+			"Failed Reconciliations",
+			"# of reconciliation failures",
+			strconv.FormatInt(c.FailedReconciliations, 10),
+		},
+	)
+	table.Append(
+		[]string{
+			"Skipped Reconciliations",
+			"# of reconciliations skipped",
+			strconv.FormatInt(c.SkippedReconciliations, 10),
 		},
 	)
 	table.Append(
@@ -203,6 +224,18 @@ func ComputeCheckDataStats(
 		return nil
 	}
 
+	failedReconciliations, err := counters.Get(ctx, storage.FailedReconciliationCounter)
+	if err != nil {
+		log.Printf("%s: cannot get failed reconciliations counter", err.Error())
+		return nil
+	}
+
+	skippedReconciliations, err := counters.Get(ctx, storage.SkippedReconciliationsCounter)
+	if err != nil {
+		log.Printf("%s: cannot get skipped reconciliations counter", err.Error())
+		return nil
+	}
+
 	stats := &CheckDataStats{
 		Blocks:                  blocks.Int64(),
 		Orphans:                 orphans.Int64(),
@@ -211,6 +244,8 @@ func ComputeCheckDataStats(
 		ActiveReconciliations:   activeReconciliations.Int64(),
 		InactiveReconciliations: inactiveReconciliations.Int64(),
 		ExemptReconciliations:   exemptReconciliations.Int64(),
+		FailedReconciliations:   failedReconciliations.Int64(),
+		SkippedReconciliations:  skippedReconciliations.Int64(),
 	}
 
 	if balances != nil {
@@ -476,29 +511,27 @@ func ReconciliationTest(
 	cfg *configuration.Configuration,
 	err error,
 	reconciliationsPerformed bool,
+	reconciliationsFailed bool,
 ) *bool {
-	relatedErrors := []error{
-		ErrReconciliationFailure,
-	}
-	reconciliationPass := true
-	for _, relatedError := range relatedErrors {
-		if errors.Is(err, relatedError) {
-			reconciliationPass = false
-			break
-		}
+	if errors.Is(err, ErrReconciliationFailure) {
+		return &f
 	}
 
-	if (cfg.Data.BalanceTrackingDisabled || cfg.Data.ReconciliationDisabled || cfg.Data.IgnoreReconciliationError ||
-		!reconciliationsPerformed) &&
-		reconciliationPass {
+	if cfg.Data.BalanceTrackingDisabled ||
+		cfg.Data.ReconciliationDisabled ||
+		(!reconciliationsPerformed && !reconciliationsFailed) {
 		return nil
 	}
 
-	return &reconciliationPass
+	if reconciliationsFailed {
+		return &f
+	}
+
+	return &tr
 }
 
 // ComputeCheckDataTests returns a populated CheckDataTests.
-func ComputeCheckDataTests(
+func ComputeCheckDataTests( // nolint:gocognit
 	ctx context.Context,
 	cfg *configuration.Configuration,
 	err error,
@@ -506,6 +539,7 @@ func ComputeCheckDataTests(
 ) *CheckDataTests {
 	operationsSeen := false
 	reconciliationsPerformed := false
+	reconciliationsFailed := false
 	blocksSynced := false
 	if counterStorage != nil {
 		blocks, err := counterStorage.Get(ctx, storage.BlockCounter)
@@ -538,6 +572,15 @@ func ComputeCheckDataTests(
 		if err == nil && exemptReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
 		}
+
+		failedReconciliations, err := counterStorage.Get(
+			ctx,
+			storage.FailedReconciliationCounter,
+		)
+		if err == nil && failedReconciliations.Int64() > 0 {
+			reconciliationsPerformed = true
+			reconciliationsFailed = true
+		}
 	}
 
 	return &CheckDataTests{
@@ -545,7 +588,7 @@ func ComputeCheckDataTests(
 		ResponseAssertion: ResponseAssertionTest(err),
 		BlockSyncing:      BlockSyncingTest(err, blocksSynced),
 		BalanceTracking:   BalanceTrackingTest(cfg, err, operationsSeen),
-		Reconciliation:    ReconciliationTest(cfg, err, reconciliationsPerformed),
+		Reconciliation:    ReconciliationTest(cfg, err, reconciliationsPerformed, reconciliationsFailed),
 	}
 }
 

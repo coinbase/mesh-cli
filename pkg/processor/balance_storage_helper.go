@@ -38,6 +38,7 @@ type BalanceStorageHelper struct {
 	// Configuration settings
 	lookupBalanceByBlock bool
 	exemptAccounts       map[string]struct{}
+	balanceExemptions    []*types.BalanceExemption
 
 	// Interesting-only Parsing
 	interestingOnly      bool
@@ -51,6 +52,7 @@ func NewBalanceStorageHelper(
 	lookupBalanceByBlock bool,
 	exemptAccounts []*reconciler.AccountCurrency,
 	interestingOnly bool,
+	balanceExemptions []*types.BalanceExemption,
 ) *BalanceStorageHelper {
 	exemptMap := map[string]struct{}{}
 
@@ -67,6 +69,7 @@ func NewBalanceStorageHelper(
 		exemptAccounts:       exemptMap,
 		interestingAddresses: map[string]struct{}{},
 		interestingOnly:      interestingOnly,
+		balanceExemptions:    balanceExemptions,
 	}
 }
 
@@ -136,4 +139,9 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 		_, exists := h.exemptAccounts[thisAcct]
 		return exists
 	}
+}
+
+// BalanceExemptions returns a list of *types.BalanceExemption.
+func (h *BalanceStorageHelper) BalanceExemptions() []*types.BalanceExemption {
+	return h.balanceExemptions
 }

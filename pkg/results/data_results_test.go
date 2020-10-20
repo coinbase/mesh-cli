@@ -33,11 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	tr = true
-	f  = false
-)
-
 func TestComputeCheckDataResults(t *testing.T) {
 	var tests = map[string]struct {
 		cfg *configuration.Configuration
@@ -48,6 +43,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		operationCount          int64
 		activeReconciliations   int64
 		inactiveReconciliations int64
+		reconciliationFailures  int64
 
 		// balance storage values
 		provideBalanceStorage bool
@@ -303,6 +299,24 @@ func TestComputeCheckDataResults(t *testing.T) {
 				},
 			},
 		},
+		"default configuration, counter storage, reconciliation errors": {
+			cfg:                    configuration.DefaultConfiguration(),
+			err:                    []error{ErrReconciliationFailure},
+			provideCounterStorage:  true,
+			activeReconciliations:  10,
+			reconciliationFailures: 19,
+			result: &CheckDataResults{
+				Tests: &CheckDataTests{
+					RequestResponse:   true,
+					ResponseAssertion: true,
+					Reconciliation:    &f,
+				},
+				Stats: &CheckDataStats{
+					ActiveReconciliations: 10,
+					FailedReconciliations: 19,
+				},
+			},
+		},
 		"default configuration, no storage, unknown errors": {
 			cfg:    configuration.DefaultConfiguration(),
 			err:    []error{errors.New("unsure how to handle this error")},
@@ -381,6 +395,13 @@ func TestComputeCheckDataResults(t *testing.T) {
 						ctx,
 						storage.InactiveReconciliationCounter,
 						big.NewInt(test.inactiveReconciliations),
+					)
+					assert.NoError(t, err)
+
+					_, err = counterStorage.Update(
+						ctx,
+						storage.FailedReconciliationCounter,
+						big.NewInt(test.reconciliationFailures),
 					)
 					assert.NoError(t, err)
 				}

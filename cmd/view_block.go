@@ -98,7 +98,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 
 	// Print out all balance changes in a given block. This does NOT exempt
 	// any operations/accounts from parsing.
-	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false })
+	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false }, nil)
 	changes, err := p.BalanceChanges(Context, block, false)
 	if err != nil {
 		return fmt.Errorf("%w: unable to calculate balance changes", err)

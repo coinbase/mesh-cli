@@ -30,6 +30,7 @@ import (
 	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
 	"github.com/coinbase/rosetta-sdk-go/storage"
@@ -84,6 +85,7 @@ type DataTester struct {
 	genesisBlock             *types.BlockIdentifier
 	cancel                   context.CancelFunc
 	historicalBalanceEnabled bool
+	parser                   *parser.Parser
 
 	endCondition       configuration.CheckDataEndCondition
 	endConditionDetail string
@@ -173,6 +175,28 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
+	// Bootstrap balances, if provided. We need to do before initializing
+	// the reconciler otherwise we won't reconcile bootstrapped accounts
+	// until rosetta-cli restart.
+	if len(config.Data.BootstrapBalances) > 0 {
+		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
+		switch {
+		case err == storage.ErrHeadBlockNotFound:
+			err = balanceStorage.BootstrapBalances(
+				ctx,
+				config.Data.BootstrapBalances,
+				genesisBlock,
+			)
+			if err != nil {
+				log.Fatalf("%s: unable to bootstrap balances", err.Error())
+			}
+		case err != nil:
+			log.Fatalf("%s: unable to get head block identifier", err.Error())
+		default:
+			log.Println("Skipping balance bootstrapping because already started syncing")
+		}
+	}
+
 	logger := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
@@ -206,6 +230,12 @@ func InitializeData(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
+	parser := parser.New(
+		fetcher.Asserter,
+		nil,
+		networkOptions.Allow.BalanceExemptions,
+	)
+
 	// Determine if we should perform historical balance lookups
 	var historicalBalanceEnabled bool
 	if config.Data.HistoricalBalanceEnabled != nil {
@@ -217,6 +247,7 @@ func InitializeData(
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
+		parser,
 		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
 		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
 		reconciler.WithLookupBalanceByBlock(historicalBalanceEnabled),
@@ -224,7 +255,6 @@ func InitializeData(
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithDebugLogging(config.Data.LogReconciliations),
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
-		reconciler.WithBalanceExemptions(networkOptions.Allow.BalanceExemptions),
 	)
 
 	blockWorkers := []storage.BlockWorker{}
@@ -235,6 +265,7 @@ func InitializeData(
 			historicalBalanceEnabled,
 			exemptAccounts,
 			false,
+			networkOptions.Allow.BalanceExemptions,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -245,23 +276,6 @@ func InitializeData(
 		)
 
 		balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
-
-		// Bootstrap balances if provided
-		if len(config.Data.BootstrapBalances) > 0 {
-			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-			if err == storage.ErrHeadBlockNotFound {
-				err = balanceStorage.BootstrapBalances(
-					ctx,
-					config.Data.BootstrapBalances,
-					genesisBlock,
-				)
-				if err != nil {
-					log.Fatalf("%s: unable to bootstrap balances", err.Error())
-				}
-			} else {
-				log.Println("Skipping balance bootstrapping because already started syncing")
-			}
-		}
 
 		blockWorkers = append(blockWorkers, balanceStorage)
 	}
@@ -302,6 +316,7 @@ func InitializeData(
 		signalReceived:           signalReceived,
 		genesisBlock:             genesisBlock,
 		historicalBalanceEnabled: historicalBalanceEnabled,
+		parser:                   parser,
 	}
 }
 
@@ -617,10 +632,127 @@ func (t *DataTester) WatchEndConditions(
 	return nil
 }
 
+// CompleteReconciliations returns the sum of all failed, exempt, and successful
+// reconciliations.
+func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error) {
+	activeReconciliations, err := t.counterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get active reconciliations counter", err)
+	}
+
+	exemptReconciliations, err := t.counterStorage.Get(ctx, storage.ExemptReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get exempt reconciliations counter", err)
+	}
+
+	failedReconciliations, err := t.counterStorage.Get(ctx, storage.FailedReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get failed reconciliations counter", err)
+	}
+
+	skippedReconciliations, err := t.counterStorage.Get(ctx, storage.SkippedReconciliationsCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get skipped reconciliations counter", err)
+	}
+
+	return activeReconciliations.Int64() +
+		exemptReconciliations.Int64() +
+		failedReconciliations.Int64() +
+		skippedReconciliations.Int64(), nil
+}
+
+// WaitForEmptyQueue exits once the active reconciler
+// queue is empty and all reconciler goroutines are idle.
+func (t *DataTester) WaitForEmptyQueue(
+	ctx context.Context,
+) error {
+	// To ensure we don't exit while a reconciliation is ongoing
+	// (i.e. when queue size is 0 but there are busy threads),
+	// we keep track of how many reconciliations we must complete
+	// and only exit when that many reconciliations have been performed.
+	startingComplete, err := t.CompleteReconciliations(ctx)
+	if err != nil {
+		return err
+	}
+	startingRemaining := t.reconciler.QueueSize()
+
+	tc := time.NewTicker(EndAtTipCheckInterval)
+	defer tc.Stop()
+
+	color.Cyan(
+		"[PROGRESS] remaining reconciliations: %d",
+		startingRemaining,
+	)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-tc.C:
+			nowComplete, err := t.CompleteReconciliations(ctx)
+			if err != nil {
+				return err
+			}
+
+			completed := nowComplete - startingComplete
+			remaining := int64(startingRemaining) - completed
+			if remaining <= 0 {
+				t.cancel()
+				return nil
+			}
+
+			color.Cyan(
+				"[PROGRESS] remaining reconciliations: %d",
+				remaining,
+			)
+		}
+	}
+}
+
+// DrainReconcilerQueue returns once the reconciler queue has been drained
+// or an error is encountered.
+func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]context.CancelFunc) error {
+	color.Cyan("draining reconciler backlog (you can disable this in your configuration file)")
+
+	// To cancel all execution, need to call multiple cancel functions.
+	ctx, cancel := context.WithCancel(ctx)
+	t.cancel = cancel
+	*sigListeners = append(*sigListeners, cancel)
+
+	// Disable inactive lookups
+	t.reconciler.InactiveConcurrency = 0
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return t.StartReconciler(ctx)
+	})
+	g.Go(func() error {
+		return t.WaitForEmptyQueue(ctx)
+	})
+
+	err := g.Wait()
+
+	if *t.signalReceived {
+		return errors.New("reconcilier queue drain halted")
+	}
+
+	if errors.Is(err, context.Canceled) {
+		color.Cyan("drained reconciler backlog")
+		return nil
+	}
+
+	return err
+}
+
 // HandleErr is called when `check:data` returns an error.
 // If historical balance lookups are enabled, HandleErr will attempt to
 // automatically find any missing balance-changing operations.
-func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]context.CancelFunc) error {
+func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) error {
+	// Initialize new context because calling context
+	// will no longer be usable when after termination.
+	ctx := context.Background()
+
 	if *t.signalReceived {
 		return results.ExitData(
 			t.config,
@@ -642,7 +774,29 @@ func (t *DataTester) HandleErr(ctx context.Context, err error, sigListeners *[]c
 		)
 	}
 
+	// End condition will only be populated if there is
+	// no error.
 	if len(t.endCondition) != 0 {
+		// Wait for reconciliation queue to drain (only if end condition reached)
+		if shouldReconcile(t.config) &&
+			t.reconciler.QueueSize() > 0 {
+			if t.config.Data.ReconciliationDrainDisabled {
+				color.Cyan("skipping reconciler backlog drain (you can enable this in your configuration file)")
+			} else {
+				drainErr := t.DrainReconcilerQueue(ctx, sigListeners)
+				if drainErr != nil {
+					return results.ExitData(
+						t.config,
+						t.counterStorage,
+						t.balanceStorage,
+						drainErr,
+						"",
+						"",
+					)
+				}
+			}
+		}
+
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -791,6 +945,7 @@ func (t *DataTester) recursiveOpSearch(
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
+		t.parser,
 
 		// When using concurrency > 1, we could start looking up balance changes
 		// on multiple blocks at once. This can cause us to return the wrong block
@@ -810,6 +965,7 @@ func (t *DataTester) recursiveOpSearch(
 		t.historicalBalanceEnabled,
 		nil,
 		false,
+		t.parser.BalanceExemptions,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
