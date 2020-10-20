@@ -33,11 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	tr = true
-	f  = false
-)
-
 func TestComputeCheckDataResults(t *testing.T) {
 	var tests = map[string]struct {
 		cfg *configuration.Configuration
