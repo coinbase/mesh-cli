@@ -180,7 +180,8 @@ func InitializeData(
 	// until rosetta-cli restart.
 	if len(config.Data.BootstrapBalances) > 0 {
 		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-		if err == storage.ErrHeadBlockNotFound {
+		switch {
+		case err == storage.ErrHeadBlockNotFound:
 			err = balanceStorage.BootstrapBalances(
 				ctx,
 				config.Data.BootstrapBalances,
@@ -189,7 +190,9 @@ func InitializeData(
 			if err != nil {
 				log.Fatalf("%s: unable to bootstrap balances", err.Error())
 			}
-		} else {
+		case err != nil:
+			log.Fatalf("%s: unable to get head block identifier", err.Error())
+		default:
 			log.Println("Skipping balance bootstrapping because already started syncing")
 		}
 	}
