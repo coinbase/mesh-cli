@@ -175,6 +175,25 @@ func InitializeData(
 	blockStorage := storage.NewBlockStorage(localStore)
 	balanceStorage := storage.NewBalanceStorage(localStore)
 
+	// Bootstrap balances, if provided. We need to do before initializing
+	// the reconciler otherwise we won't reconcile bootstrapped accounts
+	// until rosetta-cli restart.
+	if len(config.Data.BootstrapBalances) > 0 {
+		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
+		if err == storage.ErrHeadBlockNotFound {
+			err = balanceStorage.BootstrapBalances(
+				ctx,
+				config.Data.BootstrapBalances,
+				genesisBlock,
+			)
+			if err != nil {
+				log.Fatalf("%s: unable to bootstrap balances", err.Error())
+			}
+		} else {
+			log.Println("Skipping balance bootstrapping because already started syncing")
+		}
+	}
+
 	logger := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
@@ -254,23 +273,6 @@ func InitializeData(
 		)
 
 		balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
-
-		// Bootstrap balances if provided
-		if len(config.Data.BootstrapBalances) > 0 {
-			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-			if err == storage.ErrHeadBlockNotFound {
-				err = balanceStorage.BootstrapBalances(
-					ctx,
-					config.Data.BootstrapBalances,
-					genesisBlock,
-				)
-				if err != nil {
-					log.Fatalf("%s: unable to bootstrap balances", err.Error())
-				}
-			} else {
-				log.Println("Skipping balance bootstrapping because already started syncing")
-			}
-		}
 
 		blockWorkers = append(blockWorkers, balanceStorage)
 	}
@@ -645,7 +647,13 @@ func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error)
 		return -1, fmt.Errorf("%w: cannot get failed reconciliations counter", err)
 	}
 
-	return activeReconciliations.Int64() + exemptReconciliations.Int64() + failedReconciliations.Int64(), nil
+	skippedReconciliations, err := t.counterStorage.Get(ctx, storage.SkippedReconciliationsCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get skipped reconciliations counter", err)
+	}
+
+	total := activeReconciliations.Int64() + exemptReconciliations.Int64() + failedReconciliations.Int64() + skippedReconciliations.Int64()
+	return total, nil
 }
 
 // WaitForEmptyQueue exits once the active reconciler
@@ -661,9 +669,15 @@ func (t *DataTester) WaitForEmptyQueue(
 	if err != nil {
 		return err
 	}
+	startingRemaining := t.reconciler.QueueSize()
 
 	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
+
+	color.Cyan(
+		"[PROGRESS] remaining reconciliations: %d",
+		startingRemaining,
+	)
 
 	for {
 		select {
@@ -676,16 +690,17 @@ func (t *DataTester) WaitForEmptyQueue(
 				return err
 			}
 
-			remainingReconciliations := nowComplete - startingComplete
-			if remainingReconciliations == 0 {
+			completed := nowComplete - startingComplete
+			remaining := int64(startingRemaining) - completed
+			if remaining <= 0 {
 				t.cancel()
 				return nil
 			}
 
-			color.Cyan(fmt.Sprintf(
+			color.Cyan(
 				"[PROGRESS] remaining reconciliations: %d",
-				remainingReconciliations,
-			))
+				remaining,
+			)
 		}
 	}
 }
@@ -693,7 +708,7 @@ func (t *DataTester) WaitForEmptyQueue(
 // DrainReconcilerQueue returns once the reconciler queue has been drained
 // or an error is encountered.
 func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]context.CancelFunc) error {
-	color.Cyan("Draining reconciler backlog...hold tight")
+	color.Cyan("draining reconciler backlog (you can disable this in your configuration file)")
 
 	// To cancel all execution, need to call multiple cancel functions.
 	ctx, cancel := context.WithCancel(ctx)
@@ -701,7 +716,8 @@ func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]c
 	*sigListeners = append(*sigListeners, cancel)
 
 	// Disable inactive lookups
-	t.config.Data.InactiveReconciliationConcurrency = 0
+	t.reconciler.InactiveConcurrency = 0
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		return t.StartReconciler(ctx)
@@ -717,7 +733,7 @@ func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]c
 	}
 
 	if errors.Is(err, context.Canceled) {
-		color.Cyan("Drained reconciler backlog!")
+		color.Cyan("drained reconciler backlog")
 		return nil
 	}
 

@@ -146,6 +146,19 @@ func (h *ReconcilerHandler) ReconciliationExempt(
 	return nil
 }
 
+// ReconciliationSkipped is called each time a reconciliation is skipped.
+func (h *ReconcilerHandler) ReconciliationSkipped(
+	ctx context.Context,
+	reconciliationType string,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	cause string,
+) error {
+	_, _ = h.counterStorage.Update(ctx, storage.SkippedReconciliationsCounter, big.NewInt(1))
+
+	return nil
+}
+
 // ReconciliationSucceeded is called each time a reconciliation succeeds.
 func (h *ReconcilerHandler) ReconciliationSucceeded(
 	ctx context.Context,
@@ -156,15 +169,12 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	block *types.BlockIdentifier,
 ) error {
 	// Update counters
+	counter := storage.ActiveReconciliationCounter
 	if reconciliationType == reconciler.InactiveReconciliation {
-		_, _ = h.counterStorage.Update(
-			ctx,
-			storage.InactiveReconciliationCounter,
-			big.NewInt(1),
-		)
-	} else {
-		_, _ = h.counterStorage.Update(ctx, storage.ActiveReconciliationCounter, big.NewInt(1))
+		counter = storage.InactiveReconciliationCounter
 	}
+
+	_, _ = h.counterStorage.Update(ctx, counter, big.NewInt(1))
 
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
 		return fmt.Errorf("%w: unable to store updated reconciliation", err)
