@@ -494,9 +494,14 @@ func BalanceTrackingTest(cfg *configuration.Configuration, err error, operations
 // if no reconciliation errors were received.
 func ReconciliationTest(
 	cfg *configuration.Configuration,
+	err error,
 	reconciliationsPerformed bool,
 	reconciliationsFailed bool,
 ) *bool {
+	if errors.Is(err, ErrReconciliationFailure) {
+		return &f
+	}
+
 	if cfg.Data.BalanceTrackingDisabled ||
 		cfg.Data.ReconciliationDisabled ||
 		(!reconciliationsPerformed && !reconciliationsFailed) {
@@ -568,7 +573,7 @@ func ComputeCheckDataTests(
 		ResponseAssertion: ResponseAssertionTest(err),
 		BlockSyncing:      BlockSyncingTest(err, blocksSynced),
 		BalanceTracking:   BalanceTrackingTest(cfg, err, operationsSeen),
-		Reconciliation:    ReconciliationTest(cfg, reconciliationsPerformed, reconciliationsFailed),
+		Reconciliation:    ReconciliationTest(cfg, err, reconciliationsPerformed, reconciliationsFailed),
 	}
 }
 
