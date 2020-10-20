@@ -652,8 +652,10 @@ func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error)
 		return -1, fmt.Errorf("%w: cannot get skipped reconciliations counter", err)
 	}
 
-	total := activeReconciliations.Int64() + exemptReconciliations.Int64() + failedReconciliations.Int64() + skippedReconciliations.Int64()
-	return total, nil
+	return activeReconciliations.Int64() +
+		exemptReconciliations.Int64() +
+		failedReconciliations.Int64() +
+		skippedReconciliations.Int64(), nil
 }
 
 // WaitForEmptyQueue exits once the active reconciler
@@ -773,18 +775,22 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 	// no error.
 	if len(t.endCondition) != 0 {
 		// Wait for reconciliation queue to drain (only if end condition reached)
-		if !t.config.Data.ReconciliationDrainDisabled &&
-			shouldReconcile(t.config) &&
+		if shouldReconcile(t.config) &&
 			t.reconciler.QueueSize() > 0 {
-			if drainErr := t.DrainReconcilerQueue(ctx, sigListeners); drainErr != nil {
-				return results.ExitData(
-					t.config,
-					t.counterStorage,
-					t.balanceStorage,
-					drainErr,
-					"",
-					"",
-				)
+			if t.config.Data.ReconciliationDrainDisabled {
+				color.Cyan("skipping reconciler backlog drain (you can enable this in your configuration file)")
+			} else {
+				drainErr := t.DrainReconcilerQueue(ctx, sigListeners)
+				if drainErr != nil {
+					return results.ExitData(
+						t.config,
+						t.counterStorage,
+						t.balanceStorage,
+						drainErr,
+						"",
+						"",
+					)
+				}
 			}
 		}
 

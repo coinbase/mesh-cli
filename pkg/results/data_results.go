@@ -531,7 +531,7 @@ func ReconciliationTest(
 }
 
 // ComputeCheckDataTests returns a populated CheckDataTests.
-func ComputeCheckDataTests(
+func ComputeCheckDataTests( // nolint:gocognit
 	ctx context.Context,
 	cfg *configuration.Configuration,
 	err error,
