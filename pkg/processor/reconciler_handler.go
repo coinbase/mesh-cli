@@ -69,6 +69,8 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	liveBalance string,
 	block *types.BlockIdentifier,
 ) error {
+	_, _ = h.counterStorage.Update(ctx, storage.FailedReconciliationCounter, big.NewInt(1))
+
 	err := h.logger.ReconcileFailureStream(
 		ctx,
 		reconciliationType,

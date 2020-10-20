@@ -30,6 +30,7 @@ import (
 	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
 	"github.com/coinbase/rosetta-sdk-go/storage"
@@ -84,6 +85,7 @@ type DataTester struct {
 	genesisBlock             *types.BlockIdentifier
 	cancel                   context.CancelFunc
 	historicalBalanceEnabled bool
+	parser                   *parser.Parser
 
 	endCondition       configuration.CheckDataEndCondition
 	endConditionDetail string
@@ -206,6 +208,12 @@ func InitializeData(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
+	parser := parser.New(
+		fetcher.Asserter,
+		nil,
+		networkOptions.Allow.BalanceExemptions,
+	)
+
 	// Determine if we should perform historical balance lookups
 	var historicalBalanceEnabled bool
 	if config.Data.HistoricalBalanceEnabled != nil {
@@ -217,6 +225,7 @@ func InitializeData(
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
+		parser,
 		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
 		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
 		reconciler.WithLookupBalanceByBlock(historicalBalanceEnabled),
@@ -224,7 +233,6 @@ func InitializeData(
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithDebugLogging(config.Data.LogReconciliations),
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
-		reconciler.WithBalanceExemptions(networkOptions.Allow.BalanceExemptions),
 	)
 
 	blockWorkers := []storage.BlockWorker{}
@@ -235,6 +243,7 @@ func InitializeData(
 			historicalBalanceEnabled,
 			exemptAccounts,
 			false,
+			networkOptions.Allow.BalanceExemptions,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -302,6 +311,7 @@ func InitializeData(
 		signalReceived:           signalReceived,
 		genesisBlock:             genesisBlock,
 		historicalBalanceEnabled: historicalBalanceEnabled,
+		parser:                   parser,
 	}
 }
 
@@ -617,15 +627,40 @@ func (t *DataTester) WatchEndConditions(
 	return nil
 }
 
-// EndAtEmptyQueue exits once the active reconciler
+// CompleteReconciliations returns the sum of all failed, exempt, and successful
+// reconciliations.
+func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error) {
+	activeReconciliations, err := t.counterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get active reconciliations counter", err)
+	}
+
+	exemptReconciliations, err := t.counterStorage.Get(ctx, storage.ExemptReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get exempt reconciliations counter", err)
+	}
+
+	failedReconciliations, err := t.counterStorage.Get(ctx, storage.FailedReconciliationCounter)
+	if err != nil {
+		return -1, fmt.Errorf("%w: cannot get failed reconciliations counter", err)
+	}
+
+	return activeReconciliations.Int64() + exemptReconciliations.Int64() + failedReconciliations.Int64(), nil
+}
+
+// WaitForEmptyQueue exits once the active reconciler
 // queue is empty and all reconciler goroutines are idle.
-func (t *DataTester) EndAtEmptyQueue(
+func (t *DataTester) WaitForEmptyQueue(
 	ctx context.Context,
 ) error {
-	// TODO: how do we know when reconciler threads are not busy? Otherwise we will cutoff
-	// when reconciling
-
-	// TODO: what happens if we are stuck behind a high water mark with a queue?
+	// To ensure we don't exit while a reconciliation is ongoing
+	// (i.e. when queue size is 0 but there are busy threads),
+	// we keep track of how many reconciliations we must complete
+	// and only exit when that many reconciliations have been performed.
+	startingComplete, err := t.CompleteReconciliations(ctx)
+	if err != nil {
+		return err
+	}
 
 	tc := time.NewTicker(EndAtTipCheckInterval)
 	defer tc.Stop()
@@ -636,16 +671,20 @@ func (t *DataTester) EndAtEmptyQueue(
 			return ctx.Err()
 
 		case <-tc.C:
-			queueSize := t.reconciler.QueueSize()
-			if queueSize == 0 {
+			nowComplete, err := t.CompleteReconciliations(ctx)
+			if err != nil {
+				return err
+			}
+
+			remainingReconciliations := nowComplete - startingComplete
+			if remainingReconciliations == 0 {
 				t.cancel()
 				return nil
 			}
 
 			color.Cyan(fmt.Sprintf(
-				"Remaining Queue Size: %d",
-				queueSize,
-				// TODO: add busy threads/in-progress reconciliations
+				"[PROGRESS] remaining reconciliations: %d",
+				remainingReconciliations,
 			))
 		}
 	}
@@ -668,7 +707,7 @@ func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]c
 		return t.StartReconciler(ctx)
 	})
 	g.Go(func() error {
-		return t.EndAtEmptyQueue(ctx)
+		return t.WaitForEmptyQueue(ctx)
 	})
 
 	err := g.Wait()
@@ -714,13 +753,22 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 		)
 	}
 
+	// End condition will only be populated if there is
+	// no error.
 	if len(t.endCondition) != 0 {
 		// Wait for reconciliation queue to drain (only if end condition reached)
 		if !t.config.Data.ReconciliationDrainDisabled &&
 			shouldReconcile(t.config) &&
 			t.reconciler.QueueSize() > 0 {
 			if drainErr := t.DrainReconcilerQueue(ctx, sigListeners); drainErr != nil {
-				color.Red("Draining reconciler queue failed: %s", drainErr.Error())
+				return results.ExitData(
+					t.config,
+					t.counterStorage,
+					t.balanceStorage,
+					drainErr,
+					"",
+					"",
+				)
 			}
 		}
 
@@ -872,6 +920,7 @@ func (t *DataTester) recursiveOpSearch(
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
+		t.parser,
 
 		// When using concurrency > 1, we could start looking up balance changes
 		// on multiple blocks at once. This can cause us to return the wrong block
@@ -891,6 +940,7 @@ func (t *DataTester) recursiveOpSearch(
 		t.historicalBalanceEnabled,
 		nil,
 		false,
+		t.parser.BalanceExemptions,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

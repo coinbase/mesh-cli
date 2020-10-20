@@ -97,6 +97,11 @@ func InitializeConstruction(
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
 
+	networkOptions, fetchErr := onlineFetcher.NetworkOptionsRetry(ctx, network, nil)
+	if err != nil {
+		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+	}
+
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
 		dataPath,
@@ -118,6 +123,7 @@ func InitializeConstruction(
 		false,
 		nil,
 		true,
+		networkOptions.Allow.BalanceExemptions,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -138,7 +144,7 @@ func InitializeConstruction(
 		config.Construction.BlockBroadcastLimit,
 	)
 
-	parser := parser.New(onlineFetcher.Asserter, nil)
+	parser := parser.New(onlineFetcher.Asserter, nil, networkOptions.Allow.BalanceExemptions)
 	broadcastHelper := processor.NewBroadcastStorageHelper(
 		blockStorage,
 		onlineFetcher,
