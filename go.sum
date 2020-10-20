@@ -82,6 +82,8 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9/go.mod h1:1MxXX1Ux4x6mqPmjkUgTP1CdXIBXKX7T+Jk9Gxrmx+U=
 github.com/coinbase/rosetta-sdk-go v0.5.5 h1:Z61/VUO89BDVl1m6Zj0e6OWMl5GnVevj4z79Eh3sSL0=
 github.com/coinbase/rosetta-sdk-go v0.5.5/go.mod h1:JRO4BJjhWAI7nYGwzYZWFgYfCTsQOvdZB7tGyN6kEtE=
+github.com/coinbase/rosetta-sdk-go v0.5.6-0.20201020035250-cc90959e74b4 h1:fVoxiqoTJyztkXGAxUqeguErNMrvPSpKt3WodMSB4tg=
+github.com/coinbase/rosetta-sdk-go v0.5.6-0.20201020035250-cc90959e74b4/go.mod h1:JRO4BJjhWAI7nYGwzYZWFgYfCTsQOvdZB7tGyN6kEtE=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
