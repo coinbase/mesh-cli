@@ -230,6 +230,10 @@ func InitializeData(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
+	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
+		log.Fatal("found balance exemptions but initial balance fetch disabled")
+	}
+
 	parser := parser.New(
 		fetcher.Asserter,
 		nil,
@@ -266,6 +270,7 @@ func InitializeData(
 			exemptAccounts,
 			false,
 			networkOptions.Allow.BalanceExemptions,
+			config.Data.InitialBalanceFetchDisabled,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -966,6 +971,7 @@ func (t *DataTester) recursiveOpSearch(
 		nil,
 		false,
 		t.parser.BalanceExemptions,
+		false, // we will need to perform an initial balance fetch when finding issues
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

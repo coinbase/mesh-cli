@@ -102,6 +102,10 @@ func InitializeConstruction(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
+	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Construction.InitialBalanceFetchDisabled {
+		log.Fatal("found balance exemptions but initial balance fetch disabled")
+	}
+
 	counterStorage := storage.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
 		dataPath,
@@ -124,6 +128,7 @@ func InitializeConstruction(
 		nil,
 		true,
 		networkOptions.Allow.BalanceExemptions,
+		config.Construction.InitialBalanceFetchDisabled,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

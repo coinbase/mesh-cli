@@ -34,6 +34,7 @@
   "coin_tracking_disabled": false,
   "status_port": 9090,
   "results_output_file": "",
-  "pruning_disabled": false
+  "pruning_disabled": false,
+  "initial_balance_fetch_disabled": false
  }
 }
