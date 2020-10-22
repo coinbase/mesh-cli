@@ -266,7 +266,7 @@ func InitializeData(
 			exemptAccounts,
 			false,
 			networkOptions.Allow.BalanceExemptions,
-			config.InitialBalanceFetchDisabled,
+			config.Data.InitialBalanceFetchDisabled,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(

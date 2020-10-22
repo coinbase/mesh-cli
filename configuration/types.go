@@ -146,6 +146,16 @@ type ConstructionConfiguration struct {
 	// Quiet is a boolean indicating if all request and response
 	// logging should be silenced.
 	Quiet bool `json:"quiet,omitempty"`
+
+	// InitialBalanceFetchDisabled configures rosetta-cli
+	// not to lookup the balance of newly seen accounts at the
+	// parent block before applying operations. Disabling this
+	// is only a good idea if you create multiple new accounts each block
+	// and don't fund any accounts before starting check:construction.
+	//
+	// This is a separate config from the data config because it
+	// is usually false whereas the data config by the same name is usually true.
+	InitialBalanceFetchDisabled bool `json:"initial_balance_fetch_disabled"`
 }
 
 // ReconciliationCoverage is used to add conditions
@@ -303,6 +313,15 @@ type DataConfiguration struct {
 	// wish to use `start_index` at a later point to restart from some
 	// previously synced block.
 	PruningDisabled bool `json:"pruning_disabled"`
+
+	// InitialBalanceFetchDisabled configures rosetta-cli
+	// not to lookup the balance of newly seen accounts at the
+	// parent block before applying operations. Disabling
+	// this step can significantly speed up performance
+	// without impacting validation accuracy (if all genesis
+	// accounts are provided using bootstrap_balances and
+	// syncing starts from genesis).
+	InitialBalanceFetchDisabled bool `json:"initial_balance_fetch_disabled"`
 }
 
 // Configuration contains all configuration settings for running
@@ -356,15 +375,6 @@ type Configuration struct {
 	// usage. Enabling this massively increases performance
 	// but can use 10s of GBs of RAM, even with pruning enabled.
 	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
-
-	// InitialBalanceFetchDisabled configures rosetta-cli
-	// not to lookup the balance of newly seen accounts at the
-	// parent block before applying operations. Disabling
-	// this step can significantly speed up performance
-	// without impacting validation accuracy (if all genesis
-	// accounts are provided using bootstrap_balances and
-	// syncing starts from genesis).
-	InitialBalanceFetchDisabled bool `json:"initial_balance_fetch_disabled"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
