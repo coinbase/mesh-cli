@@ -364,7 +364,7 @@ type Configuration struct {
 	// without impacting validation accuracy (if all genesis
 	// accounts are provided using bootstrap_balances and
 	// syncing starts from genesis).
-	InitialBalanceFetchDisabled bool `json:"inital_balance_fetch_disabled"`
+	InitialBalanceFetchDisabled bool `json:"initial_balance_fetch_disabled"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
