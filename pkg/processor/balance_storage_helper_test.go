@@ -85,6 +85,7 @@ func TestExemptFuncExemptAccounts(t *testing.T) {
 				test.exemptAccounts,
 				false,
 				nil,
+				false,
 			)
 
 			result := helper.ExemptFunc()(&types.Operation{
@@ -127,6 +128,7 @@ func TestExemptFuncInterestingParsing(t *testing.T) {
 				nil,
 				true,
 				nil,
+				false,
 			)
 
 			for _, addr := range test.interestingAddresses {
