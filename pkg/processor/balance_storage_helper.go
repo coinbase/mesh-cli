@@ -39,7 +39,7 @@ type BalanceStorageHelper struct {
 	lookupBalanceByBlock bool
 	exemptAccounts       map[string]struct{}
 	balanceExemptions    []*types.BalanceExemption
-	preFetchDisabled     bool
+	initialFetchDisabled bool
 
 	// Interesting-only Parsing
 	interestingOnly      bool
@@ -54,7 +54,7 @@ func NewBalanceStorageHelper(
 	exemptAccounts []*reconciler.AccountCurrency,
 	interestingOnly bool,
 	balanceExemptions []*types.BalanceExemption,
-	preFetchDisabled bool,
+	initialFetchDisabled bool,
 ) *BalanceStorageHelper {
 	exemptMap := map[string]struct{}{}
 
@@ -72,7 +72,7 @@ func NewBalanceStorageHelper(
 		interestingAddresses: map[string]struct{}{},
 		interestingOnly:      interestingOnly,
 		balanceExemptions:    balanceExemptions,
-		preFetchDisabled:     preFetchDisabled,
+		initialFetchDisabled: initialFetchDisabled,
 	}
 }
 
@@ -86,7 +86,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 	currency *types.Currency,
 	block *types.BlockIdentifier,
 ) (*types.Amount, error) {
-	if !h.lookupBalanceByBlock || h.preFetchDisabled {
+	if !h.lookupBalanceByBlock || h.initialFetchDisabled {
 		return &types.Amount{
 			Value:    "0",
 			Currency: currency,

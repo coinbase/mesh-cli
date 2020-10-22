@@ -124,6 +124,7 @@ func InitializeConstruction(
 		nil,
 		true,
 		networkOptions.Allow.BalanceExemptions,
+		config.InitialBalanceFetchDisabled,
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

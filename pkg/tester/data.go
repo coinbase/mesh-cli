@@ -266,6 +266,7 @@ func InitializeData(
 			exemptAccounts,
 			false,
 			networkOptions.Allow.BalanceExemptions,
+			config.InitialBalanceFetchDisabled,
 		)
 
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
@@ -966,6 +967,7 @@ func (t *DataTester) recursiveOpSearch(
 		nil,
 		false,
 		t.parser.BalanceExemptions,
+		false, // we will need to perform an initial balance fetch when finding issues
 	)
 
 	balanceStorageHandler := processor.NewBalanceStorageHandler(

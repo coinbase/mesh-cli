@@ -357,6 +357,15 @@ type Configuration struct {
 	// but can use 10s of GBs of RAM, even with pruning enabled.
 	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
 
+	// InitialBalanceFetchDisabled configures rosetta-cli
+	// not to lookup the balance of newly seen accounts at the
+	// parent block before applying operations. Disabling
+	// this step can significantly speed up performance
+	// without impacting validation accuracy (if all genesis
+	// accounts are provided using bootstrap_balances and
+	// syncing starts from genesis).
+	InitialBalanceFetchDisabled bool `json:"inital_balance_fetch_disabled"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
