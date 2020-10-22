@@ -230,6 +230,10 @@ func InitializeData(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
+	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
+		log.Fatal("found balance exemptions but initial balance fetch disabled")
+	}
+
 	parser := parser.New(
 		fetcher.Asserter,
 		nil,
