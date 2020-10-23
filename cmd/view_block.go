@@ -149,7 +149,6 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 				utils.PrettyAmount(parsedDiff, balanceChange.Currency),
 			)
 		}
-
 	}
 	fmt.Printf("\n")
 
