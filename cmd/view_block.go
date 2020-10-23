@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -95,7 +94,7 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if !OnlyChanges {
-		log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
+		fmt.Println("Current Block:", types.PrettyPrintStruct(block))
 	}
 
 	// Print out all balance changes in a given block. This does NOT exempt
@@ -106,23 +105,58 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
+	fmt.Printf("All Block Balance Changes (Hash: %s)\n", block.BlockIdentifier.Hash)
+
 	for _, balanceChange := range balanceChanges {
 		parsedDiff, err := types.BigInt(balanceChange.Difference)
 		if err != nil {
 			return fmt.Errorf("%w: unable to parse Difference", err)
 		}
 
-		log.Printf(
-			"%s -> %s\n",
+		fmt.Println(
 			types.PrintStruct(balanceChange.Account),
+			"->",
 			utils.PrettyAmount(parsedDiff, balanceChange.Currency),
 		)
 	}
 
+	// Print out balance changes by transaction hash
+	//
+	// TODO: modify parser to allow for calculating balance
+	// changes for a single transaction.
+	for _, tx := range block.Transactions {
+		fmt.Printf("\n")
+		balanceChanges, err := p.BalanceChanges(Context, &types.Block{
+			Transactions: []*types.Transaction{
+				tx,
+			},
+		}, false)
+		if err != nil {
+			return fmt.Errorf("%w: unable to calculate balance changes", err)
+		}
+
+		fmt.Println("Transaction Hash:", tx.TransactionIdentifier.Hash)
+
+		for _, balanceChange := range balanceChanges {
+			parsedDiff, err := types.BigInt(balanceChange.Difference)
+			if err != nil {
+				return fmt.Errorf("%w: unable to parse Difference", err)
+			}
+
+			fmt.Println(
+				types.PrintStruct(balanceChange.Account),
+				"->",
+				utils.PrettyAmount(parsedDiff, balanceChange.Currency),
+			)
+		}
+
+	}
+	fmt.Printf("\n")
+
 	if !OnlyChanges {
 		// Print out all OperationGroups for each transaction in a block.
 		for _, tx := range block.Transactions {
-			log.Printf(
+			fmt.Printf(
 				"Transaction %s Operation Groups: %s\n",
 				tx.TransactionIdentifier.Hash,
 				types.PrettyPrintStruct(parser.GroupOperations(tx)),
