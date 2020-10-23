@@ -62,6 +62,10 @@ var (
 	// blockProfileCleanup is called after the root command is executed to
 	// cleanup a running block profile.
 	blockProfileCleanup func()
+
+	// OnlyChanges is a boolean indicating if only the balance changes should be
+	// logged to the console.
+	OnlyChanges bool
 )
 
 // rootPreRun is executed before the root command runs and sets up cpu
@@ -192,6 +196,12 @@ default values.`,
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
+	viewBlockCmd.Flags().BoolVar(
+		&OnlyChanges,
+		"only-changes",
+		false,
+		`Only print balance changes for accounts in the block`,
+	)
 	rootCmd.AddCommand(viewBlockCmd)
 	rootCmd.AddCommand(viewAccountCmd)
 	rootCmd.AddCommand(viewNetworksCmd)
@@ -247,6 +257,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.5.16")
+		fmt.Println("v0.5.17")
 	},
 }

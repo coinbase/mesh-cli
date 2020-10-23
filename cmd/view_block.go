@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -44,6 +44,27 @@ fetch is formatted incorrectly.`,
 		Args: cobra.ExactArgs(1),
 	}
 )
+
+func printChanges(balanceChanges []*parser.BalanceChange) error {
+	for _, balanceChange := range balanceChanges {
+		parsedDiff, err := types.BigInt(balanceChange.Difference)
+		if err != nil {
+			return fmt.Errorf("%w: unable to parse Difference", err)
+		}
+
+		if parsedDiff.Sign() == 0 {
+			continue
+		}
+
+		fmt.Println(
+			types.PrintStruct(balanceChange.Account),
+			"->",
+			utils.PrettyAmount(parsedDiff, balanceChange.Currency),
+		)
+	}
+
+	return nil
+}
 
 func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	index, err := strconv.ParseInt(args[0], 10, 64)
@@ -94,25 +115,61 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: unable to fetch block", fetchErr.Err)
 	}
 
-	log.Printf("Current Block: %s\n", types.PrettyPrintStruct(block))
+	fmt.Printf("\n")
+	if !OnlyChanges {
+		color.Cyan("Current Block:")
+		fmt.Println(types.PrettyPrintStruct(block))
+	}
 
 	// Print out all balance changes in a given block. This does NOT exempt
 	// any operations/accounts from parsing.
+	color.Cyan("Balance Changes:")
 	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false }, nil)
-	changes, err := p.BalanceChanges(Context, block, false)
+	balanceChanges, err := p.BalanceChanges(Context, block, false)
 	if err != nil {
 		return fmt.Errorf("%w: unable to calculate balance changes", err)
 	}
 
-	log.Printf("Balance Changes: %s\n", types.PrettyPrintStruct(changes))
+	fmt.Println("Cummulative:", block.BlockIdentifier.Hash)
 
-	// Print out all OperationGroups for each transaction in a block.
+	if err := printChanges(balanceChanges); err != nil {
+		return err
+	}
+
+	fmt.Printf("\n")
+
+	// Print out balance changes by transaction hash
+	//
+	// TODO: modify parser to allow for calculating balance
+	// changes for a single transaction.
 	for _, tx := range block.Transactions {
-		log.Printf(
-			"Transaction %s Operation Groups: %s\n",
-			tx.TransactionIdentifier.Hash,
-			types.PrettyPrintStruct(parser.GroupOperations(tx)),
-		)
+		balanceChanges, err := p.BalanceChanges(Context, &types.Block{
+			Transactions: []*types.Transaction{
+				tx,
+			},
+		}, false)
+		if err != nil {
+			return fmt.Errorf("%w: unable to calculate balance changes", err)
+		}
+
+		fmt.Println("Transaction:", tx.TransactionIdentifier.Hash)
+
+		if err := printChanges(balanceChanges); err != nil {
+			return err
+		}
+		fmt.Printf("\n")
+	}
+
+	if !OnlyChanges {
+		// Print out all OperationGroups for each transaction in a block.
+		color.Cyan("Operation Groups:")
+		for _, tx := range block.Transactions {
+			fmt.Printf(
+				"Transaction %s Operation Groups: %s\n",
+				tx.TransactionIdentifier.Hash,
+				types.PrettyPrintStruct(parser.GroupOperations(tx)),
+			)
+		}
 	}
 
 	return nil
