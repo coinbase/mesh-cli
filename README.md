@@ -65,13 +65,16 @@ Available Commands:
   view:networks                View all network statuses
 
 Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
   -h, --help                        help for rosetta-cli
+      --mem-profile string          Save the pprof mem profile in the specified file
 
 Use "rosetta-cli [command] --help" for more information about a command.
 ```
@@ -206,6 +209,11 @@ by the `/account/balance` endpoint?). Take a look at the
 [simple configuration](examples/configuration/simple.json) for an example of
 how to do this.
 
+#### Status Codes
+If there are no issues found while running `check`, it will exit with a `0` status code.
+If there are any issues, it will exit with a `1` status code. It can be useful
+to run this command as an integration test for any changes to your implementation.
+
 ### Commands
 #### version
 ```
@@ -218,12 +226,15 @@ Flags:
   -h, --help   help for version
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### check:data
@@ -270,18 +281,16 @@ Flags:
   -h, --help   help for check:data
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
-
-##### Status Codes
-If there are no issues found while running `check`, it will exit with a `0` status code.
-If there are any issues, it will exit with a `1` status code. It can be useful
-to run this command as an integration test for any changes to your implementation.
 
 #### check:construction
 ```
@@ -309,12 +318,15 @@ Flags:
   -h, --help   help for check:construction
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### configuration:create
@@ -328,12 +340,15 @@ Flags:
   -h, --help   help for configuration:create
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### configuration:validate
@@ -371,12 +386,15 @@ Flags:
   -h, --help   help for view:networks
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### view:account
@@ -397,12 +415,15 @@ Flags:
   -h, --help   help for view:account
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### view:block
@@ -421,15 +442,19 @@ Usage:
   rosetta-cli view:block [flags]
 
 Flags:
-  -h, --help   help for view:block
+  -h, --help           help for view:block
+      --only-changes   Only print balance changes for accounts in the block
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### utils:asserter-configuration
@@ -450,12 +475,15 @@ Flags:
   -h, --help   help for utils:asserter-configuration
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 #### utils:train-zstd
@@ -479,12 +507,15 @@ Flags:
   -h, --help   help for utils:train-zstd
 
 Global Flags:
+      --block-profile string        Save the pprof block profile in the specified file
       --configuration-file string   Configuration file that provides connection and test settings.
                                     If you would like to generate a starter configuration file (populated
                                     with the defaults), run rosetta-cli configuration:create.
 
                                     Any fields not populated in the configuration file will be populated with
                                     default values.
+      --cpu-profile string          Save the pprof cpu profile in the specified file
+      --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
 ## Correctness Checks
