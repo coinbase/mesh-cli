@@ -254,6 +254,7 @@ func InitializeData(
 		reconciler.WithInterestingAccounts(interestingAccounts),
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
+		reconciler.WithBalancePruning(),
 	}
 	if config.Data.ReconcilerActiveBacklog != nil {
 		rOpts = append(rOpts, reconciler.WithBacklogSize(*config.Data.ReconcilerActiveBacklog))
