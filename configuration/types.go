@@ -326,7 +326,7 @@ type DataConfiguration struct {
 	// ReconcilerActiveBacklog is the maximum number of pending changes
 	// to keep in the active reconciliation backlog before skipping
 	// reconciliation on new changes.
-	ReconcilerActiveBacklog *int `json:"reconciler_active_backlog"`
+	ReconcilerActiveBacklog *int `json:"reconciler_active_backlog,omitempty"`
 }
 
 // Configuration contains all configuration settings for running
