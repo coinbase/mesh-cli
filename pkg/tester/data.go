@@ -248,17 +248,29 @@ func InitializeData(
 		historicalBalanceEnabled = networkOptions.Allow.HistoricalBalanceLookup
 	}
 
+	rOpts := []reconciler.Option{
+		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
+		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
+		reconciler.WithInterestingAccounts(interestingAccounts),
+		reconciler.WithSeenAccounts(seenAccounts),
+		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
+		reconciler.WithBalancePruning(),
+	}
+	if config.Data.ReconcilerActiveBacklog != nil {
+		rOpts = append(rOpts, reconciler.WithBacklogSize(*config.Data.ReconcilerActiveBacklog))
+	}
+	if historicalBalanceEnabled {
+		rOpts = append(rOpts, reconciler.WithLookupBalanceByBlock())
+	}
+	if config.Data.LogReconciliations {
+		rOpts = append(rOpts, reconciler.WithDebugLogging())
+	}
+
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
 		parser,
-		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
-		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
-		reconciler.WithLookupBalanceByBlock(historicalBalanceEnabled),
-		reconciler.WithInterestingAccounts(interestingAccounts),
-		reconciler.WithSeenAccounts(seenAccounts),
-		reconciler.WithDebugLogging(config.Data.LogReconciliations),
-		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
+		rOpts...,
 	)
 
 	blockWorkers := []storage.BlockWorker{}
@@ -960,7 +972,7 @@ func (t *DataTester) recursiveOpSearch(
 		// Do not do any inactive lookups when looking for the block with missing
 		// operations.
 		reconciler.WithInactiveConcurrency(0),
-		reconciler.WithLookupBalanceByBlock(t.historicalBalanceEnabled),
+		reconciler.WithLookupBalanceByBlock(),
 		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
 	)
 

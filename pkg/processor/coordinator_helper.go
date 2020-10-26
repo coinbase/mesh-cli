@@ -16,6 +16,7 @@ package processor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -394,15 +395,21 @@ func (c *CoordinatorHelper) Balance(
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) (*types.Amount, error) {
-	amount, _, err := c.balanceStorage.GetBalanceTransactional(
+	headBlock, err := c.blockStorage.GetHeadBlockIdentifier(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if headBlock == nil {
+		return nil, errors.New("no blocks synced")
+	}
+
+	return c.balanceStorage.GetBalanceTransactional(
 		ctx,
 		dbTx,
 		accountIdentifier,
 		currency,
-		nil,
+		headBlock,
 	)
-
-	return amount, err
 }
 
 // Coins returns all *types.Coin owned by

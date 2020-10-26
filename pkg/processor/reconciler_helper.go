@@ -79,7 +79,7 @@ func (h *ReconcilerHelper) ComputedBalance(
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	headBlock *types.BlockIdentifier,
-) (*types.Amount, *types.BlockIdentifier, error) {
+) (*types.Amount, error) {
 	return h.balanceStorage.GetBalance(ctx, account, currency, headBlock)
 }
 
@@ -102,4 +102,22 @@ func (h *ReconcilerHelper) LiveBalance(
 		return nil, nil, err
 	}
 	return amt, block, nil
+}
+
+// PruneBalances removes all historical balance states
+// <= some index. This can significantly reduce storage
+// usage in scenarios where historical balances are only
+// retrieved once (like reconciliation).
+func (h *ReconcilerHelper) PruneBalances(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	index int64,
+) error {
+	return h.balanceStorage.PruneBalances(
+		ctx,
+		account,
+		currency,
+		index,
+	)
 }
