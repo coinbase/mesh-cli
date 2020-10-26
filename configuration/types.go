@@ -322,6 +322,11 @@ type DataConfiguration struct {
 	// accounts are provided using bootstrap_balances and
 	// syncing starts from genesis).
 	InitialBalanceFetchDisabled bool `json:"initial_balance_fetch_disabled"`
+
+	// ReconcilerActiveBacklog is the maximum number of pending changes
+	// to keep in the active reconciliation backlog before skipping
+	// reconciliation on new changes.
+	ReconcilerActiveBacklog *int `json:"reconciler_active_backlog"`
 }
 
 // Configuration contains all configuration settings for running
