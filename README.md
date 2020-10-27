@@ -89,8 +89,8 @@ You can view a full list of all configuration options [here](https://pkg.go.dev/
 
 In the `examples/configuration` directory, you can find examples configuration
 files for running tests against a Bitcoin Rosetta implementation
-([config](examples/configuration/bitcoin.json)) and an Ethereum Rosetta
-implementation ([config](examples/configuration/ethereum.json)).
+([config](https://github.com/coinbase/rosetta-bitcoin/tree/master/rosetta-cli-conf)) and an Ethereum Rosetta
+implementation ([config](https://github.com/coinbase/rosetta-ethereum/tree/master/rosetta-cli-conf)).
 
 #### Writing check:construction Tests
 The new Construction API testing framework (first released in `rosetta-cli@v0.5.0`) uses
@@ -99,8 +99,8 @@ You can read more about the design goals [here](https://community.rosetta-api.or
 
 Most teams write their Construction API tests using the
 [Rosetta Constructor DSL](https://github.com/coinbase/rosetta-sdk-go/tree/master/constructor/dsl).
-You can find an example of a file written in this DSL in the examples
-folder ([here](https://github.com/coinbase/rosetta-cli/blob/master/examples/configuration/ethereum.ros)).
+We have examples of a DSL files written for [UTXO-based chains](https://github.com/coinbase/rosetta-bitcoin/blob/master/rosetta-cli-conf/testnet/bitcoin.ros)
+and [account-based chains](https://github.com/coinbase/rosetta-ethereum/blob/master/rosetta-cli-conf/testnet/ethereum.ros).
 
 ##### Terminology
 When first learning about a new topic, it is often useful to understand the
