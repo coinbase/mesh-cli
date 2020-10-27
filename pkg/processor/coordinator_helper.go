@@ -403,7 +403,7 @@ func (c *CoordinatorHelper) Balance(
 		return nil, errors.New("no blocks synced")
 	}
 
-	return c.balanceStorage.GetBalanceTransactional(
+	return c.balanceStorage.GetOrSetBalanceTransactional(
 		ctx,
 		dbTx,
 		accountIdentifier,

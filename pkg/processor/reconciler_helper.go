@@ -80,7 +80,7 @@ func (h *ReconcilerHelper) ComputedBalance(
 	currency *types.Currency,
 	headBlock *types.BlockIdentifier,
 ) (*types.Amount, error) {
-	return h.balanceStorage.GetBalance(ctx, account, currency, headBlock)
+	return h.balanceStorage.GetOrSetBalance(ctx, account, currency, headBlock)
 }
 
 // LiveBalance returns the live balance of an account.
