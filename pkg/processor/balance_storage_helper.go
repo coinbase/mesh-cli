@@ -84,7 +84,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
-	block *types.BlockIdentifier,
+	lookupBlock *types.BlockIdentifier,
 ) (*types.Amount, error) {
 	if !h.lookupBalanceByBlock || h.initialFetchDisabled {
 		return &types.Amount{
@@ -96,13 +96,13 @@ func (h *BalanceStorageHelper) AccountBalance(
 	// In the case that we are syncing from arbitrary height,
 	// we may need to recover the balance of an account to
 	// perform validations.
-	amount, retrievedBlock, _, err := utils.CurrencyBalance(
+	amount, block, _, err := utils.CurrencyBalance(
 		ctx,
 		h.network,
 		h.fetcher,
 		account,
 		currency,
-		block.Index,
+		lookupBlock.Index,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to get currency balance", err)
@@ -110,7 +110,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 
 	// If the returned balance block does not match the intended
 	// block a re-org could've occurred.
-	if types.Hash(block) != types.Hash(retrievedBlock) {
+	if types.Hash(lookupBlock) != types.Hash(block) {
 		return nil, syncer.ErrOrphanHead
 	}
 
