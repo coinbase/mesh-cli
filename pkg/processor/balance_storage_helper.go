@@ -109,7 +109,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 	}
 
 	// If the returned balance block does not match the intended
-	// block a re-org could've occured.
+	// block a re-org could've occurred.
 	if types.Hash(block) != types.Hash(retrievedBlock) {
 		return nil, syncer.ErrOrphanHead
 	}
