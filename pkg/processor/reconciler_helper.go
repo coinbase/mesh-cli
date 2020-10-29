@@ -32,6 +32,7 @@ type ReconcilerHelper struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
+	database       storage.Database
 	blockStorage   *storage.BlockStorage
 	balanceStorage *storage.BalanceStorage
 }
@@ -40,15 +41,24 @@ type ReconcilerHelper struct {
 func NewReconcilerHelper(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
+	database storage.Database,
 	blockStorage *storage.BlockStorage,
 	balanceStorage *storage.BalanceStorage,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
 		network:        network,
 		fetcher:        fetcher,
+		database:       database,
 		blockStorage:   blockStorage,
 		balanceStorage: balanceStorage,
 	}
+}
+
+// DatabaseTransaction returns a new read-only storage.DatabaseTransaction.
+func (h *ReconcilerHelper) DatabaseTransaction(
+	ctx context.Context,
+) storage.DatabaseTransaction {
+	return h.database.NewDatabaseTransaction(ctx, false)
 }
 
 // CanonicalBlock returns a boolean indicating if a block
@@ -57,9 +67,10 @@ func NewReconcilerHelper(
 // does not exist, reconciliation will be skipped.
 func (h *ReconcilerHelper) CanonicalBlock(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 	block *types.BlockIdentifier,
 ) (bool, error) {
-	return h.blockStorage.CanonicalBlock(ctx, block)
+	return h.blockStorage.CanonicalBlockTransactional(ctx, block, dbTx)
 }
 
 // CurrentBlock returns the last processed block and is used
@@ -67,8 +78,9 @@ func (h *ReconcilerHelper) CanonicalBlock(
 // inactive reconciliation.
 func (h *ReconcilerHelper) CurrentBlock(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 ) (*types.BlockIdentifier, error) {
-	return h.blockStorage.GetHeadBlockIdentifier(ctx)
+	return h.blockStorage.GetHeadBlockIdentifierTransactional(ctx, dbTx)
 }
 
 // ComputedBalance returns the balance of an account in block storage.
@@ -76,11 +88,12 @@ func (h *ReconcilerHelper) CurrentBlock(
 // package to allow for separation from a default storage backend.
 func (h *ReconcilerHelper) ComputedBalance(
 	ctx context.Context,
+	dbTx storage.DatabaseTransaction,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
-	headBlock *types.BlockIdentifier,
+	index int64,
 ) (*types.Amount, error) {
-	return h.balanceStorage.GetOrSetBalance(ctx, account, currency, headBlock)
+	return h.balanceStorage.GetBalanceTransactional(ctx, dbTx, account, currency, index)
 }
 
 // LiveBalance returns the live balance of an account.
@@ -88,7 +101,7 @@ func (h *ReconcilerHelper) LiveBalance(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
-	headBlock *types.BlockIdentifier,
+	index int64,
 ) (*types.Amount, *types.BlockIdentifier, error) {
 	amt, block, _, err := utils.CurrencyBalance(
 		ctx,
@@ -96,7 +109,7 @@ func (h *ReconcilerHelper) LiveBalance(
 		h.fetcher,
 		account,
 		currency,
-		headBlock,
+		index,
 	)
 	if err != nil {
 		return nil, nil, err

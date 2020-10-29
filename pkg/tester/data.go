@@ -103,14 +103,14 @@ func shouldReconcile(config *configuration.Configuration) bool {
 	return true
 }
 
-// loadAccounts is a utility function to parse the []*reconciler.AccountCurrency
+// loadAccounts is a utility function to parse the []*types.AccountCurrency
 // in a file.
-func loadAccounts(filePath string) ([]*reconciler.AccountCurrency, error) {
+func loadAccounts(filePath string) ([]*types.AccountCurrency, error) {
 	if len(filePath) == 0 {
-		return []*reconciler.AccountCurrency{}, nil
+		return []*types.AccountCurrency{}, nil
 	}
 
-	accounts := []*reconciler.AccountCurrency{}
+	accounts := []*types.AccountCurrency{}
 	if err := utils.LoadAndParse(filePath, &accounts); err != nil {
 		return nil, fmt.Errorf("%w: unable to open account file", err)
 	}
@@ -140,7 +140,7 @@ func InitializeData(
 	fetcher *fetcher.Fetcher,
 	cancel context.CancelFunc,
 	genesisBlock *types.BlockIdentifier,
-	interestingAccount *reconciler.AccountCurrency,
+	interestingAccount *types.AccountCurrency,
 	signalReceived *bool,
 ) *DataTester {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
@@ -208,6 +208,7 @@ func InitializeData(
 	reconcilerHelper := processor.NewReconcilerHelper(
 		network,
 		fetcher,
+		localStore,
 		blockStorage,
 		balanceStorage,
 	)
@@ -417,6 +418,7 @@ func (t *DataTester) StartPeriodicLogger(
 
 			status := results.ComputeCheckDataStatus(
 				ctx,
+				t.blockStorage,
 				t.counterStorage,
 				t.balanceStorage,
 				t.fetcher,
@@ -435,6 +437,7 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	status := results.ComputeCheckDataStatus(
 		r.Context(),
+		t.blockStorage,
 		t.counterStorage,
 		t.balanceStorage,
 		t.fetcher,
@@ -867,7 +870,7 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 
 // FindMissingOps logs the types.BlockIdentifier of a block
 // that is missing balance-changing operations for a
-// *reconciler.AccountCurrency.
+// *types.AccountCurrency.
 func (t *DataTester) FindMissingOps(
 	ctx context.Context,
 	originalErr error,
@@ -913,7 +916,7 @@ func (t *DataTester) FindMissingOps(
 func (t *DataTester) recursiveOpSearch(
 	ctx context.Context,
 	sigListeners *[]context.CancelFunc,
-	accountCurrency *reconciler.AccountCurrency,
+	accountCurrency *types.AccountCurrency,
 	startIndex int64,
 	endIndex int64,
 ) (*types.BlockIdentifier, error) {
@@ -948,6 +951,7 @@ func (t *DataTester) recursiveOpSearch(
 	reconcilerHelper := processor.NewReconcilerHelper(
 		t.network,
 		t.fetcher,
+		localStore,
 		blockStorage,
 		balanceStorage,
 	)
@@ -973,7 +977,7 @@ func (t *DataTester) recursiveOpSearch(
 		// operations.
 		reconciler.WithInactiveConcurrency(0),
 		reconciler.WithLookupBalanceByBlock(),
-		reconciler.WithInterestingAccounts([]*reconciler.AccountCurrency{accountCurrency}),
+		reconciler.WithInterestingAccounts([]*types.AccountCurrency{accountCurrency}),
 	)
 
 	balanceStorageHelper := processor.NewBalanceStorageHelper(

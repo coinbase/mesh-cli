@@ -280,6 +280,7 @@ func ComputeCheckDataProgress(
 	fetcher *fetcher.Fetcher,
 	network *types.NetworkIdentifier,
 	counters *storage.CounterStorage,
+	blockStorage *storage.BlockStorage,
 	reconciler *reconciler.Reconciler,
 ) *CheckDataProgress {
 	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
@@ -288,6 +289,17 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 	tipIndex := networkStatus.CurrentBlockIdentifier.Index
+
+	// Get current tip in the case that re-orgs occurred
+	// or a custom start index was provied.
+	headBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
+	if errors.Is(err, storage.ErrHeadBlockNotFound) {
+		return nil
+	}
+	if err != nil {
+		fmt.Printf("%s: cannot get head block", err.Error())
+		return nil
+	}
 
 	blocks, err := counters.Get(ctx, storage.BlockCounter)
 	if err != nil {
@@ -305,6 +317,8 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 
+	// adjustedBlocks is used to calculate the sync rate (regardless
+	// of which block we started syncing at)
 	adjustedBlocks := blocks.Int64() - orphans.Int64()
 	if tipIndex-adjustedBlocks <= 0 { // return if no blocks to sync
 		return nil
@@ -322,15 +336,15 @@ func ComputeCheckDataProgress(
 
 	blocksPerSecond := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt(elapsedTime))
 	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
-	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt64(tipIndex))
+	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(headBlock.Index), new(big.Float).SetInt64(tipIndex))
 	blocksSyncedFloat, _ := blocksSynced.Float64()
 
 	return &CheckDataProgress{
-		Blocks:              adjustedBlocks,
+		Blocks:              headBlock.Index,
 		Tip:                 tipIndex,
 		Completed:           blocksSyncedFloat * utils.OneHundred,
 		Rate:                blocksPerSecondFloat,
-		TimeRemaining:       utils.TimeToTip(blocksPerSecondFloat, adjustedBlocks, tipIndex).String(),
+		TimeRemaining:       utils.TimeToTip(blocksPerSecondFloat, headBlock.Index, tipIndex).String(),
 		ReconcilerQueueSize: reconciler.QueueSize(),
 		ReconcilerLastIndex: reconciler.LastIndexReconciled(),
 	}
@@ -347,6 +361,7 @@ type CheckDataStatus struct {
 // *CheckDataStatus.
 func ComputeCheckDataStatus(
 	ctx context.Context,
+	blocks *storage.BlockStorage,
 	counters *storage.CounterStorage,
 	balances *storage.BalanceStorage,
 	fetcher *fetcher.Fetcher,
@@ -364,6 +379,7 @@ func ComputeCheckDataStatus(
 			fetcher,
 			network,
 			counters,
+			blocks,
 			reconciler,
 		),
 	}
