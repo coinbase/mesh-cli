@@ -418,6 +418,7 @@ func (t *DataTester) StartPeriodicLogger(
 
 			status := results.ComputeCheckDataStatus(
 				ctx,
+				t.blockStorage,
 				t.counterStorage,
 				t.balanceStorage,
 				t.fetcher,
@@ -436,6 +437,7 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	status := results.ComputeCheckDataStatus(
 		r.Context(),
+		t.blockStorage,
 		t.counterStorage,
 		t.balanceStorage,
 		t.fetcher,
