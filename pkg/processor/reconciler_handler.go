@@ -36,7 +36,7 @@ type ReconcilerHandler struct {
 	balanceStorage            *storage.BalanceStorage
 	haltOnReconciliationError bool
 
-	InactiveFailure      *reconciler.AccountCurrency
+	InactiveFailure      *types.AccountCurrency
 	InactiveFailureBlock *types.BlockIdentifier
 
 	ActiveFailureBlock *types.BlockIdentifier
@@ -88,7 +88,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		if reconciliationType == reconciler.InactiveReconciliation {
 			// Populate inactive failure information so we can try to find block with
 			// missing ops.
-			h.InactiveFailure = &reconciler.AccountCurrency{
+			h.InactiveFailure = &types.AccountCurrency{
 				Account:  account,
 				Currency: currency,
 			}

@@ -35,7 +35,7 @@ type BalanceStorageHandler struct {
 	reconciler *reconciler.Reconciler
 
 	reconcile          bool
-	interestingAccount *reconciler.AccountCurrency
+	interestingAccount *types.AccountCurrency
 }
 
 // NewBalanceStorageHandler returns a new *BalanceStorageHandler.
@@ -43,7 +43,7 @@ func NewBalanceStorageHandler(
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
 	reconcile bool,
-	interestingAccount *reconciler.AccountCurrency,
+	interestingAccount *types.AccountCurrency,
 ) *BalanceStorageHandler {
 	return &BalanceStorageHandler{
 		logger:             logger,
@@ -73,7 +73,7 @@ func (h *BalanceStorageHandler) BlockAdded(
 	if h.interestingAccount != nil {
 		var interestingChange *parser.BalanceChange
 		for _, change := range changes {
-			if types.Hash(&reconciler.AccountCurrency{
+			if types.Hash(&types.AccountCurrency{
 				Account:  change.Account,
 				Currency: change.Currency,
 			}) == types.Hash(h.interestingAccount) {
