@@ -207,7 +207,7 @@ func (l *Logger) AddBlockStream(
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
 	)
-	fmt.Printf(blockString)
+	fmt.Print(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ func (l *Logger) RemoveBlockStream(
 		block.Index,
 		block.Hash,
 	)
-	fmt.Printf(blockString)
+	fmt.Print(blockString)
 	_, err = f.WriteString(blockString)
 	return err
 }
