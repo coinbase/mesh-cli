@@ -196,15 +196,16 @@ func (l *Logger) AddBlockStream(
 
 	defer closeFile(f)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	blockString := fmt.Sprintf(
 		"%s Block %d:%s with Parent Block %d:%s\n",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
-	))
-	if err != nil {
+	)
+	fmt.Printf(blockString)
+	if _, err := f.WriteString(blockString); err != nil {
 		return err
 	}
 
@@ -232,17 +233,15 @@ func (l *Logger) RemoveBlockStream(
 
 	defer closeFile(f)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	blockString := fmt.Sprintf(
 		"%s Block %d:%s\n",
 		removeEvent,
 		block.Index,
 		block.Hash,
-	))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	)
+	fmt.Printf(blockString)
+	_, err = f.WriteString(blockString)
+	return err
 }
 
 // TransactionStream writes the next processed block's transactions
