@@ -250,7 +250,10 @@ func assertDataConfiguration(config *DataConfiguration) error {
 
 		accountCount := config.EndConditions.ReconciliationCoverage.AccountCount
 		if accountCount != nil && *accountCount < 0 {
-			return fmt.Errorf("reconciliation coverage account count %d must be >= 0", *accountCount)
+			return fmt.Errorf(
+				"reconciliation coverage account count %d must be >= 0",
+				*accountCount,
+			)
 		}
 
 		if config.BalanceTrackingDisabled {
@@ -308,7 +311,10 @@ func modifyFilePaths(config *Configuration, fileDir string) {
 
 	if config.Construction != nil {
 		if len(config.Construction.ConstructorDSLFile) > 0 {
-			config.Construction.ConstructorDSLFile = path.Join(fileDir, config.Construction.ConstructorDSLFile)
+			config.Construction.ConstructorDSLFile = path.Join(
+				fileDir,
+				config.Construction.ConstructorDSLFile,
+			)
 		}
 	}
 }

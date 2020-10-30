@@ -334,17 +334,31 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 
-	blocksPerSecond := new(big.Float).Quo(new(big.Float).SetInt64(adjustedBlocks), new(big.Float).SetInt(elapsedTime))
+	blocksPerSecond := new(
+		big.Float,
+	).Quo(
+		new(big.Float).SetInt64(adjustedBlocks),
+		new(big.Float).SetInt(elapsedTime),
+	)
 	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
-	blocksSynced := new(big.Float).Quo(new(big.Float).SetInt64(headBlock.Index), new(big.Float).SetInt64(tipIndex))
+	blocksSynced := new(
+		big.Float,
+	).Quo(
+		new(big.Float).SetInt64(headBlock.Index),
+		new(big.Float).SetInt64(tipIndex),
+	)
 	blocksSyncedFloat, _ := blocksSynced.Float64()
 
 	return &CheckDataProgress{
-		Blocks:              headBlock.Index,
-		Tip:                 tipIndex,
-		Completed:           blocksSyncedFloat * utils.OneHundred,
-		Rate:                blocksPerSecondFloat,
-		TimeRemaining:       utils.TimeToTip(blocksPerSecondFloat, headBlock.Index, tipIndex).String(),
+		Blocks:    headBlock.Index,
+		Tip:       tipIndex,
+		Completed: blocksSyncedFloat * utils.OneHundred,
+		Rate:      blocksPerSecondFloat,
+		TimeRemaining: utils.TimeToTip(
+			blocksPerSecondFloat,
+			headBlock.Index,
+			tipIndex,
+		).String(),
 		ReconcilerQueueSize: reconciler.QueueSize(),
 		ReconcilerLastIndex: reconciler.LastIndexReconciled(),
 	}
@@ -604,7 +618,12 @@ func ComputeCheckDataTests( // nolint:gocognit
 		ResponseAssertion: ResponseAssertionTest(err),
 		BlockSyncing:      BlockSyncingTest(err, blocksSynced),
 		BalanceTracking:   BalanceTrackingTest(cfg, err, operationsSeen),
-		Reconciliation:    ReconciliationTest(cfg, err, reconciliationsPerformed, reconciliationsFailed),
+		Reconciliation: ReconciliationTest(
+			cfg,
+			err,
+			reconciliationsPerformed,
+			reconciliationsFailed,
+		),
 	}
 }
 

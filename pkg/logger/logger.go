@@ -143,7 +143,10 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 }
 
 // LogConstructionStatus logs results.CheckConstructionStatus.
-func (l *Logger) LogConstructionStatus(ctx context.Context, status *results.CheckConstructionStatus) {
+func (l *Logger) LogConstructionStatus(
+	ctx context.Context,
+	status *results.CheckConstructionStatus,
+) {
 	statsMessage := fmt.Sprintf(
 		"[STATS] Transactions Confirmed: %d (Created: %d, In Progress: %d, Stale: %d, Failed: %d) Addresses Created: %d",
 		status.Stats.TransactionsConfirmed,
@@ -196,15 +199,16 @@ func (l *Logger) AddBlockStream(
 
 	defer closeFile(f)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	blockString := fmt.Sprintf(
 		"%s Block %d:%s with Parent Block %d:%s\n",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
-	))
-	if err != nil {
+	)
+	fmt.Print(blockString)
+	if _, err := f.WriteString(blockString); err != nil {
 		return err
 	}
 
@@ -232,17 +236,15 @@ func (l *Logger) RemoveBlockStream(
 
 	defer closeFile(f)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	blockString := fmt.Sprintf(
 		"%s Block %d:%s\n",
 		removeEvent,
 		block.Index,
 		block.Hash,
-	))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	)
+	fmt.Print(blockString)
+	_, err = f.WriteString(blockString)
+	return err
 }
 
 // TransactionStream writes the next processed block's transactions
