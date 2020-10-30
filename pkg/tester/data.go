@@ -211,6 +211,7 @@ func InitializeData(
 		localStore,
 		blockStorage,
 		balanceStorage,
+		config.TipDelay,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
@@ -954,6 +955,7 @@ func (t *DataTester) recursiveOpSearch(
 		localStore,
 		blockStorage,
 		balanceStorage,
+		t.config.TipDelay,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(

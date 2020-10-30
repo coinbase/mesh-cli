@@ -35,6 +35,7 @@ type ReconcilerHelper struct {
 	database       storage.Database
 	blockStorage   *storage.BlockStorage
 	balanceStorage *storage.BalanceStorage
+	tipDelay       int64
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
@@ -44,6 +45,7 @@ func NewReconcilerHelper(
 	database storage.Database,
 	blockStorage *storage.BlockStorage,
 	balanceStorage *storage.BalanceStorage,
+	tipDelay int64,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
 		network:        network,
@@ -51,6 +53,7 @@ func NewReconcilerHelper(
 		database:       database,
 		blockStorage:   blockStorage,
 		balanceStorage: balanceStorage,
+		tipDelay:       tipDelay,
 	}
 }
 
@@ -71,6 +74,18 @@ func (h *ReconcilerHelper) CanonicalBlock(
 	block *types.BlockIdentifier,
 ) (bool, error) {
 	return h.blockStorage.CanonicalBlockTransactional(ctx, block, dbTx)
+}
+
+// IndexAtTip returns a boolean indicating if a block
+// index is at tip (provided some acceptable
+// tip delay). If the index is ahead of the head block
+// and the head block is at tip, we consider the
+// index at tip.
+func (h *ReconcilerHelper) IndexAtTip(
+	ctx context.Context,
+	index int64,
+) (bool, error) {
+	return h.blockStorage.IndexAtTip(ctx, h.tipDelay, index)
 }
 
 // CurrentBlock returns the last processed block and is used
