@@ -733,7 +733,10 @@ func (t *DataTester) WaitForEmptyQueue(
 
 // DrainReconcilerQueue returns once the reconciler queue has been drained
 // or an error is encountered.
-func (t *DataTester) DrainReconcilerQueue(ctx context.Context, sigListeners *[]context.CancelFunc) error {
+func (t *DataTester) DrainReconcilerQueue(
+	ctx context.Context,
+	sigListeners *[]context.CancelFunc,
+) error {
 	color.Cyan("draining reconciler backlog (you can disable this in your configuration file)")
 
 	// To cancel all execution, need to call multiple cancel functions.
@@ -802,7 +805,9 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 		if shouldReconcile(t.config) &&
 			t.reconciler.QueueSize() > 0 {
 			if t.config.Data.ReconciliationDrainDisabled {
-				color.Cyan("skipping reconciler backlog drain (you can enable this in your configuration file)")
+				color.Cyan(
+					"skipping reconciler backlog drain (you can enable this in your configuration file)",
+				)
 			} else {
 				drainErr := t.DrainReconcilerQueue(ctx, sigListeners)
 				if drainErr != nil {

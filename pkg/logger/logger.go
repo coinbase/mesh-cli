@@ -143,7 +143,10 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 }
 
 // LogConstructionStatus logs results.CheckConstructionStatus.
-func (l *Logger) LogConstructionStatus(ctx context.Context, status *results.CheckConstructionStatus) {
+func (l *Logger) LogConstructionStatus(
+	ctx context.Context,
+	status *results.CheckConstructionStatus,
+) {
 	statsMessage := fmt.Sprintf(
 		"[STATS] Transactions Confirmed: %d (Created: %d, In Progress: %d, Stale: %d, Failed: %d) Addresses Created: %d",
 		status.Stats.TransactionsConfirmed,

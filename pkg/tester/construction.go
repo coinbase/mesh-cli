@@ -102,7 +102,8 @@ func InitializeConstruction(
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
-	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Construction.InitialBalanceFetchDisabled {
+	if len(networkOptions.Allow.BalanceExemptions) > 0 &&
+		config.Construction.InitialBalanceFetchDisabled {
 		log.Fatal("found balance exemptions but initial balance fetch disabled")
 	}
 
@@ -296,7 +297,13 @@ func (t *ConstructionTester) StartPeriodicLogger(
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-tc.C:
-			status := results.ComputeCheckConstructionStatus(ctx, t.config, t.counterStorage, t.broadcastStorage, t.jobStorage)
+			status := results.ComputeCheckConstructionStatus(
+				ctx,
+				t.config,
+				t.counterStorage,
+				t.broadcastStorage,
+				t.jobStorage,
+			)
 			t.logger.LogConstructionStatus(ctx, status)
 		}
 	}
