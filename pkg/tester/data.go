@@ -206,12 +206,12 @@ func InitializeData(
 	)
 
 	reconcilerHelper := processor.NewReconcilerHelper(
+		config,
 		network,
 		fetcher,
 		localStore,
 		blockStorage,
 		balanceStorage,
-		config.TipDelay,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
@@ -955,12 +955,12 @@ func (t *DataTester) recursiveOpSearch(
 	)
 
 	reconcilerHelper := processor.NewReconcilerHelper(
+		t.config,
 		t.network,
 		t.fetcher,
 		localStore,
 		blockStorage,
 		balanceStorage,
-		t.config.TipDelay,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(

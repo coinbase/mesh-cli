@@ -17,6 +17,8 @@ package processor
 import (
 	"context"
 
+	"github.com/coinbase/rosetta-cli/configuration"
+
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage"
@@ -29,31 +31,32 @@ var _ reconciler.Helper = (*ReconcilerHelper)(nil)
 // ReconcilerHelper implements the Reconciler.Helper
 // interface.
 type ReconcilerHelper struct {
+	config *configuration.Configuration
+
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
 	database       storage.Database
 	blockStorage   *storage.BlockStorage
 	balanceStorage *storage.BalanceStorage
-	tipDelay       int64
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
 func NewReconcilerHelper(
+	config *configuration.Configuration,
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
 	database storage.Database,
 	blockStorage *storage.BlockStorage,
 	balanceStorage *storage.BalanceStorage,
-	tipDelay int64,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
+		config:         config,
 		network:        network,
 		fetcher:        fetcher,
 		database:       database,
 		blockStorage:   blockStorage,
 		balanceStorage: balanceStorage,
-		tipDelay:       tipDelay,
 	}
 }
 
@@ -85,7 +88,11 @@ func (h *ReconcilerHelper) IndexAtTip(
 	ctx context.Context,
 	index int64,
 ) (bool, error) {
-	return h.blockStorage.IndexAtTip(ctx, h.tipDelay, index)
+	return h.blockStorage.IndexAtTip(
+		ctx,
+		h.config.TipDelay,
+		index,
+	)
 }
 
 // CurrentBlock returns the last processed block and is used
@@ -142,6 +149,10 @@ func (h *ReconcilerHelper) PruneBalances(
 	currency *types.Currency,
 	index int64,
 ) error {
+	if h.config.Data.PruningDisabled {
+		return nil
+	}
+
 	return h.balanceStorage.PruneBalances(
 		ctx,
 		account,
