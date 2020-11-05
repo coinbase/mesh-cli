@@ -59,6 +59,7 @@ const (
 	DefaultTipDelay                          = 300
 	DefaultBlockBroadcastLimit               = 5
 	DefaultStatusPort                        = 9090
+	DefaultMaxReorgDepth                     = 100
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
@@ -365,6 +366,15 @@ type Configuration struct {
 	// tip. If we are > TipDelay seconds from the last processed block,
 	// we are considered to be behind tip.
 	TipDelay int64 `json:"tip_delay"`
+
+	// MaxReorgDepth specifies the maximum possible reorg depth of the blockchain
+	// being synced. This value is used to determine how aggressively to prune
+	// old block data.
+	//
+	// It is better to be overly cautious here as keeping a few
+	// too many blocks around is much better than running into an
+	// error caused by missing block data!
+	MaxReorgDepth int64 `json:"max_reorg_depth,omitempty"`
 
 	// LogConfiguration determines if the configuration settings
 	// should be printed to the console when a file is loaded.

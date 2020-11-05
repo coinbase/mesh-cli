@@ -148,6 +148,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.TipDelay = DefaultTipDelay
 	}
 
+	if config.MaxReorgDepth == 0 {
+		config.MaxReorgDepth = DefaultMaxReorgDepth
+	}
+
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
 
