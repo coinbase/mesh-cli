@@ -53,6 +53,7 @@ func DefaultConfiguration() *Configuration {
 		MaxRetries:           DefaultMaxRetries,
 		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
 		TipDelay:             DefaultTipDelay,
+		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
 	}
 }
@@ -146,6 +147,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.TipDelay == 0 {
 		config.TipDelay = DefaultTipDelay
+	}
+
+	if config.MaxReorgDepth == 0 {
+		config.MaxReorgDepth = DefaultMaxReorgDepth
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)

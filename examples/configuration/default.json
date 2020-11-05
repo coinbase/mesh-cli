@@ -11,6 +11,7 @@
  "max_online_connections": 120,
  "max_sync_concurrency": 64,
  "tip_delay": 300,
+ "max_reorg_depth": 100,
  "log_configuration": false,
  "compression_disabled": false,
  "memory_limit_disabled": false,

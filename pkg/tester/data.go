@@ -317,6 +317,7 @@ func InitializeData(
 		blockWorkers,
 		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
+		config.MaxReorgDepth,
 	)
 
 	return &DataTester{
@@ -381,7 +382,7 @@ func (t *DataTester) PruneableIndex(
 	// balances at their index.
 	//
 	// It is ok if the returned value here is negative.
-	return headIndex - statefulsyncer.DefaultPruningDepth, nil
+	return headIndex - int64(t.config.MaxReorgDepth), nil
 }
 
 // StartReconciler starts the reconciler if
@@ -1017,6 +1018,7 @@ func (t *DataTester) recursiveOpSearch(
 		[]storage.BlockWorker{balanceStorage},
 		syncer.DefaultCacheSize,
 		t.config.MaxSyncConcurrency,
+		t.config.MaxReorgDepth,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

@@ -67,6 +67,7 @@ var (
 		MaxRetries:           1000,
 		MaxSyncConcurrency:   12,
 		TipDelay:             1231,
+		MaxReorgDepth:        12,
 		Construction: &ConstructionConfiguration{
 			OfflineURL:            "https://ashdjaksdkjshdk",
 			MaxOfflineConnections: 21,
