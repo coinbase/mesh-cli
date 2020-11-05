@@ -82,6 +82,8 @@ github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201103220049-3a720608da79 h1:UvuA
 github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201103220049-3a720608da79/go.mod h1:pqBibzTcpz0mLqb7is8fo2qf93tcHjItJ3u7Yud8RI4=
 github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201105031224-eeb3d969685f h1:/w0ECMQ4kpd0vPitSOzkKteGSxmbxPACcJEbQHMfEf8=
 github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201105031224-eeb3d969685f/go.mod h1:pqBibzTcpz0mLqb7is8fo2qf93tcHjItJ3u7Yud8RI4=
+github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201105041044-671e2d01699e h1:g66k0AI2GvNuop+khjY0qO72l7JIO6ma1QbH6fJLnn8=
+github.com/coinbase/rosetta-sdk-go v0.5.10-0.20201105041044-671e2d01699e/go.mod h1:pqBibzTcpz0mLqb7is8fo2qf93tcHjItJ3u7Yud8RI4=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
