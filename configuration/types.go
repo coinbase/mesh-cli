@@ -374,7 +374,7 @@ type Configuration struct {
 	// It is better to be overly cautious here as keeping a few
 	// too many blocks around is much better than running into an
 	// error caused by missing block data!
-	MaxReorgDepth int64 `json:"max_reorg_depth,omitempty"`
+	MaxReorgDepth int `json:"max_reorg_depth,omitempty"`
 
 	// LogConfiguration determines if the configuration settings
 	// should be printed to the console when a file is loaded.

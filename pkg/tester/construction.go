@@ -258,6 +258,7 @@ func InitializeConstruction(
 		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
 		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
+		config.MaxReorgDepth,
 	)
 
 	return &ConstructionTester{
