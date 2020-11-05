@@ -53,6 +53,7 @@ func DefaultConfiguration() *Configuration {
 		MaxRetries:           DefaultMaxRetries,
 		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
 		TipDelay:             DefaultTipDelay,
+		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
 	}
 }
