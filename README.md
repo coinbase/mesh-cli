@@ -60,7 +60,7 @@ Available Commands:
   utils:asserter-configuration Generate a static configuration file for the Asserter
   utils:train-zstd             Generate a zstd dictionary for enhanced compression performance
   version                      Print rosetta-cli version
-  view:account                 View an account balance
+  view:balance                 View an account balance
   view:block                   View a block
   view:networks                View all network statuses
 
@@ -397,22 +397,22 @@ Global Flags:
       --mem-profile string          Save the pprof mem profile in the specified file
 ```
 
-#### view:account
+#### view:balance
 ```
 While debugging, it is often useful to inspect the state
 of an account at a certain block. This command allows you to look up
 any account by providing a JSON representation of a types.AccountIdentifier
 (and optionally a height to perform the query).
 
-For example, you could run view:account '{"address":"interesting address"}' 1000
+For example, you could run view:balance '{"address":"interesting address"}' 1000
 to lookup the balance of an interesting address at block 1000. Allowing the
 address to specified as JSON allows for querying by SubAccountIdentifier.
 
 Usage:
-  rosetta-cli view:account [flags]
+  rosetta-cli view:balance [flags]
 
 Flags:
-  -h, --help   help for view:account
+  -h, --help   help for view:balance
 
 Global Flags:
       --block-profile string        Save the pprof block profile in the specified file
