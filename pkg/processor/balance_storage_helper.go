@@ -96,7 +96,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 	// In the case that we are syncing from arbitrary height,
 	// we may need to recover the balance of an account to
 	// perform validations.
-	amount, block, _, err := utils.CurrencyBalance(
+	amount, block, err := utils.CurrencyBalance(
 		ctx,
 		h.network,
 		h.fetcher,

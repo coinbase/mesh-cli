@@ -304,7 +304,7 @@ func (l *Logger) TransactionStream(
 				participant,
 				amount,
 				symbol,
-				op.Status,
+				*op.Status,
 			))
 			if err != nil {
 				return err
