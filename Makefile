@@ -11,8 +11,8 @@ ADDLICENSE_CMD=go run github.com/google/addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 GOLINES_CMD=go run github.com/segmentio/golines
 GOVERALLS_CMD=go run github.com/mattn/goveralls
-COVERAGE_TEST_DIRECTORIES=./configuration/... ./pkg/constructor/... \
-	./pkg/logger/... ./pkg/scenario/...
+COVERAGE_TEST_DIRECTORIES=./configuration/... ./pkg/results/... \
+	./pkg/logger/...
 TEST_SCRIPT=go test -v ./pkg/... ./configuration/...
 COVERAGE_TEST_SCRIPT=go test -v ${COVERAGE_TEST_DIRECTORIES}
 
