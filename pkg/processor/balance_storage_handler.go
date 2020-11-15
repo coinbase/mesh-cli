@@ -16,6 +16,8 @@ package processor
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 
@@ -36,6 +38,10 @@ type BalanceStorageHandler struct {
 
 	reconcile          bool
 	interestingAccount *types.AccountCurrency
+
+	// TODO: remove when done testing
+	totalTime   time.Duration
+	totalBlocks int64
 }
 
 // NewBalanceStorageHandler returns a new *BalanceStorageHandler.
@@ -50,6 +56,7 @@ func NewBalanceStorageHandler(
 		reconciler:         reconciler,
 		reconcile:          reconcile,
 		interestingAccount: interestingAccount,
+		totalTime:          time.Duration(0),
 	}
 }
 
@@ -91,7 +98,15 @@ func (h *BalanceStorageHandler) BlockAdded(
 
 	// Mark accounts for reconciliation...this may be
 	// blocking
-	return h.reconciler.QueueChanges(ctx, block.BlockIdentifier, changes)
+	start := time.Now()
+	err := h.reconciler.QueueChanges(ctx, block.BlockIdentifier, changes)
+	dur := time.Since(start)
+	h.totalTime += dur
+	h.totalBlocks++
+
+	fmt.Println("[QUEUE CHANGES]", "duration", dur, "avg", h.totalTime/time.Duration(h.totalBlocks))
+
+	return err
 }
 
 // BlockRemoved is called whenever a block is removed from BlockStorage.
