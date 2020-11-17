@@ -249,7 +249,7 @@ func ComputeCheckDataStats(
 	}
 
 	if balances != nil {
-		coverage, err := balances.ReconciliationCoverage(ctx, 0)
+		coverage, err := balances.EstimatedReconciliationCoverage(ctx)
 		if err != nil {
 			log.Printf("%s: cannot get reconcile coverage", err.Error())
 			return nil
