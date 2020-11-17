@@ -16,8 +16,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
@@ -41,10 +39,6 @@ type ReconcilerHelper struct {
 	database       storage.Database
 	blockStorage   *storage.BlockStorage
 	balanceStorage *storage.BalanceStorage
-
-	// TODO: remove when done testing
-	totalTime  time.Duration
-	totalTimes int64
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
@@ -159,18 +153,10 @@ func (h *ReconcilerHelper) PruneBalances(
 		return nil
 	}
 
-	start := time.Now()
-	err := h.balanceStorage.PruneBalances(
+	return h.balanceStorage.PruneBalances(
 		ctx,
 		account,
 		currency,
 		index,
 	)
-	dur := time.Since(start)
-	h.totalTime += dur
-	h.totalTimes++
-
-	fmt.Println("[Balance Pruning]", "duration", dur, "avg", h.totalTime/time.Duration(h.totalTimes))
-
-	return err
 }
