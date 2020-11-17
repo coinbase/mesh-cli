@@ -275,7 +275,7 @@ func InitializeData(
 		rOpts...,
 	)
 
-	blockWorkers := []storage.BlockWorker{}
+	blockWorkers := []storage.BlockWorker{counterStorage}
 	if !config.Data.BalanceTrackingDisabled {
 		balanceStorageHelper := processor.NewBalanceStorageHelper(
 			network,

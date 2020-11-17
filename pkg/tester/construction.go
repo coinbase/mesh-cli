@@ -255,7 +255,7 @@ func InitializeConstruction(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
+		[]storage.BlockWorker{counterStorage, balanceStorage, coinStorage, broadcastStorage},
 		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
 		config.MaxReorgDepth,
