@@ -401,6 +401,12 @@ func (t *DataTester) StartReconciler(
 	return t.reconciler.Reconcile(ctx)
 }
 
+func (t *DataTester) StartCounter(
+	ctx context.Context,
+) error {
+	return t.reconcilerHandler.Updater(ctx)
+}
+
 // StartPeriodicLogger prints out periodic
 // stats about a run of `check:data`.
 func (t *DataTester) StartPeriodicLogger(
