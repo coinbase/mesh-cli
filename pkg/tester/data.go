@@ -63,6 +63,9 @@ const (
 	// EndAtTipCheckInterval is the frequency that EndAtTip condition
 	// is evaludated
 	EndAtTipCheckInterval = 10 * time.Second
+
+	// TODO: add to config
+	aggressiveAdjustmentWindow = 2
 )
 
 var _ http.Handler = (*DataTester)(nil)
@@ -318,6 +321,7 @@ func InitializeData(
 		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
 		config.MaxReorgDepth,
+		aggressiveAdjustmentWindow,
 	)
 
 	return &DataTester{
@@ -1019,6 +1023,7 @@ func (t *DataTester) recursiveOpSearch(
 		syncer.DefaultCacheSize,
 		t.config.MaxSyncConcurrency,
 		t.config.MaxReorgDepth,
+		aggressiveAdjustmentWindow,
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

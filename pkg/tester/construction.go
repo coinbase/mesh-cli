@@ -259,6 +259,7 @@ func InitializeConstruction(
 		syncer.DefaultCacheSize,
 		config.MaxSyncConcurrency,
 		config.MaxReorgDepth,
+		aggressiveAdjustmentWindow,
 	)
 
 	return &ConstructionTester{
