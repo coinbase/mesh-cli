@@ -272,8 +272,6 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	balance string,
 	block *types.BlockIdentifier,
 ) error {
-	start := time.Now()
-
 	// Update counters
 	h.counterLock.Lock()
 	if reconciliationType == reconciler.InactiveReconciliation {
@@ -286,8 +284,6 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
 		return fmt.Errorf("%w: unable to store updated reconciliation", err)
 	}
-
-	fmt.Println("reconciliation detail", time.Since(start))
 
 	return h.logger.ReconcileSuccessStream(
 		ctx,
