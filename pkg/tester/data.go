@@ -372,6 +372,14 @@ func (t *DataTester) StartPruning(
 	return t.syncer.Prune(ctx, t)
 }
 
+// StartReconcilerCountUpdater attempts to periodically
+// write cached reconciler count updates to storage.
+func (t *DataTester) StartReconcilerCountUpdater(
+	ctx context.Context,
+) error {
+	return t.reconcilerHandler.Updater(ctx)
+}
+
 // PruneableIndex is the index that is
 // safe for pruning.
 func (t *DataTester) PruneableIndex(
