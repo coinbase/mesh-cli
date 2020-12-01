@@ -16,13 +16,20 @@ package processor
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
+)
+
+const (
+	totalAccountsReconciledCount = "totalAccountsReconciled"
+	totalAccountsSeenCount       = "totalAccountsSeen"
 )
 
 var _ modules.BalanceStorageHandler = (*BalanceStorageHandler)(nil)
@@ -31,8 +38,9 @@ var _ modules.BalanceStorageHandler = (*BalanceStorageHandler)(nil)
 // or removed from block storage so that balance changes
 // can be sent to other functions (ex: reconciler).
 type BalanceStorageHandler struct {
-	logger     *logger.Logger
-	reconciler *reconciler.Reconciler
+	logger         *logger.Logger
+	reconciler     *reconciler.Reconciler
+	counterStorage *modules.CounterStorage
 
 	reconcile          bool
 	interestingAccount *types.AccountCurrency
@@ -42,12 +50,14 @@ type BalanceStorageHandler struct {
 func NewBalanceStorageHandler(
 	logger *logger.Logger,
 	reconciler *reconciler.Reconciler,
+	counterStorage *modules.CounterStorage,
 	reconcile bool,
 	interestingAccount *types.AccountCurrency,
 ) *BalanceStorageHandler {
 	return &BalanceStorageHandler{
 		logger:             logger,
 		reconciler:         reconciler,
+		counterStorage:     counterStorage,
 		reconcile:          reconcile,
 		interestingAccount: interestingAccount,
 	}
@@ -105,4 +115,16 @@ func (h *BalanceStorageHandler) BlockRemoved(
 	// We only attempt to reconciler changes when blocks are added,
 	// not removed
 	return nil
+}
+
+// AccountsReconciled updates the total accounts reconciled by count.
+func (h *BalanceStorageHandler) AccountsReconciled(ctx context.Context, dbTx database.Transaction, count int) error {
+	_, err := h.counterStorage.UpdateTransactional(ctx, dbTx, totalAccountsReconciledCount, big.NewInt(int64(count)))
+	return err
+}
+
+// AccountsSeen updates the total accounts seen by count.
+func (h *BalanceStorageHandler) AccountsSeen(ctx context.Context, dbTx database.Transaction, count int) error {
+	_, err := h.counterStorage.UpdateTransactional(ctx, dbTx, totalAccountsSeenCount, big.NewInt(int64(count)))
+	return err
 }
