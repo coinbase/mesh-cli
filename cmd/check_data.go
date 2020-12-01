@@ -143,6 +143,10 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) error {
 	})
 
 	g.Go(func() error {
+		return dataTester.StartReconcilerCountUpdater(ctx)
+	})
+
+	g.Go(func() error {
 		return tester.LogMemoryLoop(ctx)
 	})
 
