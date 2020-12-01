@@ -161,11 +161,17 @@ func (h *BalanceStorageHelper) BalanceExemptions() []*types.BalanceExemption {
 }
 
 // AccountsReconciled returns the total accounts reconciled by count.
-func (h *BalanceStorageHelper) AccountsReconciled(ctx context.Context, dbTx database.Transaction) (*big.Int, error) {
+func (h *BalanceStorageHelper) AccountsReconciled(
+	ctx context.Context,
+	dbTx database.Transaction,
+) (*big.Int, error) {
 	return h.counterStorage.GetTransactional(ctx, dbTx, modules.ReconciledAccounts)
 }
 
 // AccountsSeen returns the total accounts seen by count.
-func (h *BalanceStorageHelper) AccountsSeen(ctx context.Context, dbTx database.Transaction) (*big.Int, error) {
+func (h *BalanceStorageHelper) AccountsSeen(
+	ctx context.Context,
+	dbTx database.Transaction,
+) (*big.Int, error) {
 	return h.counterStorage.GetTransactional(ctx, dbTx, modules.SeenAccounts)
 }

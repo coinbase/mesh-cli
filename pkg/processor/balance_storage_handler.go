@@ -113,13 +113,31 @@ func (h *BalanceStorageHandler) BlockRemoved(
 }
 
 // AccountsReconciled updates the total accounts reconciled by count.
-func (h *BalanceStorageHandler) AccountsReconciled(ctx context.Context, dbTx database.Transaction, count int) error {
-	_, err := h.counterStorage.UpdateTransactional(ctx, dbTx, modules.ReconciledAccounts, big.NewInt(int64(count)))
+func (h *BalanceStorageHandler) AccountsReconciled(
+	ctx context.Context,
+	dbTx database.Transaction,
+	count int,
+) error {
+	_, err := h.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		modules.ReconciledAccounts,
+		big.NewInt(int64(count)),
+	)
 	return err
 }
 
 // AccountsSeen updates the total accounts seen by count.
-func (h *BalanceStorageHandler) AccountsSeen(ctx context.Context, dbTx database.Transaction, count int) error {
-	_, err := h.counterStorage.UpdateTransactional(ctx, dbTx, modules.SeenAccounts, big.NewInt(int64(count)))
+func (h *BalanceStorageHandler) AccountsSeen(
+	ctx context.Context,
+	dbTx database.Transaction,
+	count int,
+) error {
+	_, err := h.counterStorage.UpdateTransactional(
+		ctx,
+		dbTx,
+		modules.SeenAccounts,
+		big.NewInt(int64(count)),
+	)
 	return err
 }

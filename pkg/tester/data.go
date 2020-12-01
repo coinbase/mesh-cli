@@ -155,7 +155,10 @@ func InitializeData(
 		opts = append(opts, database.WithoutCompression())
 	}
 	if config.MemoryLimitDisabled {
-		opts = append(opts, database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)))
+		opts = append(
+			opts,
+			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+		)
 	}
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
@@ -316,7 +319,10 @@ func InitializeData(
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
 	}
 	if config.Data.PruningFrequency != nil {
-		statefulSyncerOptions = append(statefulSyncerOptions, statefulsyncer.WithPruneSleepTime(*config.Data.PruningFrequency))
+		statefulSyncerOptions = append(
+			statefulSyncerOptions,
+			statefulsyncer.WithPruneSleepTime(*config.Data.PruningFrequency),
+		)
 	}
 
 	syncer := statefulsyncer.New(
