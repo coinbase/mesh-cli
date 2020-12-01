@@ -20,7 +20,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

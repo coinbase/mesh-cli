@@ -17,7 +17,7 @@ package processor
 import (
 	"context"
 
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 

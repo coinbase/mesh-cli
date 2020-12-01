@@ -16,7 +16,7 @@ package configuration
 
 import (
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -115,7 +115,7 @@ type ConstructionConfiguration struct {
 
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
-	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts,omitempty"`
+	PrefundedAccounts []*modules.PrefundedAccount `json:"prefunded_accounts,omitempty"`
 
 	// Workflows are executed by the rosetta-cli to test
 	// certain construction flows.

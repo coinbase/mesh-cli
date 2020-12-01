@@ -26,7 +26,9 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -115,8 +117,8 @@ func TestComputeCheckDataResults(t *testing.T) {
 			err: []error{
 				syncer.ErrCannotRemoveGenesisBlock,
 				syncer.ErrOutOfOrder,
-				storage.ErrDuplicateKey,
-				storage.ErrDuplicateTransactionHash,
+				storageErrs.ErrDuplicateKey,
+				storageErrs.ErrDuplicateTransactionHash,
 			},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
@@ -129,7 +131,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		"default configuration, counter storage no blocks, balance errors": {
 			cfg:                   configuration.DefaultConfiguration(),
 			provideCounterStorage: true,
-			err:                   []error{storage.ErrNegativeBalance},
+			err:                   []error{storageErrs.ErrNegativeBalance},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
@@ -143,7 +145,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 			cfg:                   configuration.DefaultConfiguration(),
 			provideCounterStorage: true,
 			blockCount:            100,
-			err:                   []error{storage.ErrNegativeBalance},
+			err:                   []error{storageErrs.ErrNegativeBalance},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
@@ -279,7 +281,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, no storage, balance errors": {
 			cfg: configuration.DefaultConfiguration(),
-			err: []error{storage.ErrNegativeBalance},
+			err: []error{storageErrs.ErrNegativeBalance},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
@@ -358,63 +360,63 @@ func TestComputeCheckDataResults(t *testing.T) {
 				assert.NoError(t, err)
 
 				ctx := context.Background()
-				localStore, err := storage.NewBadgerStorage(
+				localStore, err := database.NewBadgerDatabase(
 					ctx,
 					dir,
-					storage.WithIndexCacheSize(storage.TinyIndexCacheSize),
+					database.WithIndexCacheSize(database.TinyIndexCacheSize),
 				)
 				assert.NoError(t, err)
 
 				logPath := path.Join(dir, "results.json")
 
-				var counterStorage *storage.CounterStorage
+				var counterStorage *modules.CounterStorage
 				if test.provideCounterStorage {
-					counterStorage = storage.NewCounterStorage(localStore)
+					counterStorage = modules.NewCounterStorage(localStore)
 					_, err = counterStorage.Update(
 						ctx,
-						storage.BlockCounter,
+						modules.BlockCounter,
 						big.NewInt(test.blockCount),
 					)
 					assert.NoError(t, err)
 
 					_, err = counterStorage.Update(
 						ctx,
-						storage.OperationCounter,
+						modules.OperationCounter,
 						big.NewInt(test.operationCount),
 					)
 					assert.NoError(t, err)
 
 					_, err = counterStorage.Update(
 						ctx,
-						storage.ActiveReconciliationCounter,
+						modules.ActiveReconciliationCounter,
 						big.NewInt(test.activeReconciliations),
 					)
 					assert.NoError(t, err)
 
 					_, err = counterStorage.Update(
 						ctx,
-						storage.InactiveReconciliationCounter,
+						modules.InactiveReconciliationCounter,
 						big.NewInt(test.inactiveReconciliations),
 					)
 					assert.NoError(t, err)
 
 					_, err = counterStorage.Update(
 						ctx,
-						storage.FailedReconciliationCounter,
+						modules.FailedReconciliationCounter,
 						big.NewInt(test.reconciliationFailures),
 					)
 					assert.NoError(t, err)
 				}
 
-				var balanceStorage *storage.BalanceStorage
+				var balanceStorage *modules.BalanceStorage
 				if test.provideBalanceStorage {
-					balanceStorage = storage.NewBalanceStorage(localStore)
+					balanceStorage = modules.NewBalanceStorage(localStore)
 
 					j := 0
 					currency := &types.Currency{Symbol: "BLAH"}
 					block := &types.BlockIdentifier{Hash: "0", Index: 0}
 					for i := 0; i < test.totalAccounts; i++ {
-						dbTransaction := localStore.NewDatabaseTransaction(ctx, true)
+						dbTransaction := localStore.Transaction(ctx)
 						acct := &types.AccountIdentifier{
 							Address: fmt.Sprintf("account %d", i),
 						}
