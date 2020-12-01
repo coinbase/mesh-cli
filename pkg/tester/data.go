@@ -310,6 +310,15 @@ func InitializeData(
 		blockWorkers = append(blockWorkers, coinStorage)
 	}
 
+	statefulSyncerOptions := []statefulsyncer.Option{
+		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
+		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
+		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+	}
+	if config.Data.PruningFrequency != nil {
+		statefulSyncerOptions = append(statefulSyncerOptions, statefulsyncer.WithPruneSleepTime(*config.Data.PruningFrequency))
+	}
+
 	syncer := statefulsyncer.New(
 		ctx,
 		network,
@@ -319,9 +328,7 @@ func InitializeData(
 		logger,
 		cancel,
 		blockWorkers,
-		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
-		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
-		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+		statefulSyncerOptions...,
 	)
 
 	return &DataTester{

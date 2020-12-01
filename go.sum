@@ -82,6 +82,12 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9/go.mod h1:1MxXX1Ux4x6mqPmjkUgTP1CdXIBXKX7T+Jk9Gxrmx+U=
 github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201185830-8cd4faec860c h1:g9YLQ7Xlcbh4e7ehNghuUr0Tu7a0o+EKOV47q+3KjVg=
 github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201185830-8cd4faec860c/go.mod h1:MvQfsL2KlJ5786OdDviRIJE3agui2YcvS1CaQPDl1Yo=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201193353-a11b3f3310c3 h1:wLrRp4gjVsX1/L3okNpXiaK5osCzeAl+h2XMocPYYxk=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201193353-a11b3f3310c3/go.mod h1:MvQfsL2KlJ5786OdDviRIJE3agui2YcvS1CaQPDl1Yo=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201193814-f4843ede4a3f h1:ku6sf059Al5duyD2a4/vV3p9yvGW1R/eMO3Cu67qPuM=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201193814-f4843ede4a3f/go.mod h1:MvQfsL2KlJ5786OdDviRIJE3agui2YcvS1CaQPDl1Yo=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201194354-4e3d0f143850 h1:2X4q0lyGzELPolyYFlSqE4bg+NCVyCT4+Mud2UxNI9Q=
+github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201194354-4e3d0f143850/go.mod h1:MvQfsL2KlJ5786OdDviRIJE3agui2YcvS1CaQPDl1Yo=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=

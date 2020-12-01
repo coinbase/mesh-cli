@@ -315,6 +315,11 @@ type DataConfiguration struct {
 	// previously synced block.
 	PruningDisabled bool `json:"pruning_disabled"`
 
+	// PruningFrequency is the frequency (in seconds) that we attempt
+	// to prune blocks. If not populated, we use the default value
+	// provided in the `statefulsyncer` package.
+	PruningFrequency *int `json:"pruning_frequency,omitempty"`
+
 	// InitialBalanceFetchDisabled configures rosetta-cli
 	// not to lookup the balance of newly seen accounts at the
 	// parent block before applying operations. Disabling
