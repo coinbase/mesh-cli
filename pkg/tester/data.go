@@ -720,6 +720,12 @@ func (t *DataTester) WaitForEmptyQueue(
 			return ctx.Err()
 
 		case <-tc.C:
+			// We force cached counts to be written before
+			// determining if we should exit.
+			if err := t.reconcilerHandler.UpdateCounts(ctx); err != nil {
+				return err
+			}
+
 			nowComplete, err := t.CompleteReconciliations(ctx)
 			if err != nil {
 				return err
