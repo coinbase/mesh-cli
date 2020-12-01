@@ -22,6 +22,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 )
@@ -36,9 +37,9 @@ type ReconcilerHelper struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
-	database       storage.Database
-	blockStorage   *storage.BlockStorage
-	balanceStorage *storage.BalanceStorage
+	database       database.Database
+	blockStorage   *modules.BlockStorage
+	balanceStorage *modules.BalanceStorage
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
@@ -46,9 +47,9 @@ func NewReconcilerHelper(
 	config *configuration.Configuration,
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
-	database storage.Database,
-	blockStorage *storage.BlockStorage,
-	balanceStorage *storage.BalanceStorage,
+	database database.Database,
+	blockStorage *modules.BlockStorage,
+	balanceStorage *modules.BalanceStorage,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
 		config:         config,
@@ -60,11 +61,11 @@ func NewReconcilerHelper(
 	}
 }
 
-// DatabaseTransaction returns a new read-only storage.DatabaseTransaction.
+// DatabaseTransaction returns a new read-only database.Transaction.
 func (h *ReconcilerHelper) DatabaseTransaction(
 	ctx context.Context,
-) storage.DatabaseTransaction {
-	return h.database.NewDatabaseTransaction(ctx, false)
+) database.Transaction {
+	return h.database.ReadTransaction(ctx)
 }
 
 // CanonicalBlock returns a boolean indicating if a block
@@ -73,7 +74,7 @@ func (h *ReconcilerHelper) DatabaseTransaction(
 // does not exist, reconciliation will be skipped.
 func (h *ReconcilerHelper) CanonicalBlock(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	block *types.BlockIdentifier,
 ) (bool, error) {
 	return h.blockStorage.CanonicalBlockTransactional(ctx, block, dbTx)
@@ -100,7 +101,7 @@ func (h *ReconcilerHelper) IndexAtTip(
 // inactive reconciliation.
 func (h *ReconcilerHelper) CurrentBlock(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 ) (*types.BlockIdentifier, error) {
 	return h.blockStorage.GetHeadBlockIdentifierTransactional(ctx, dbTx)
 }
@@ -110,7 +111,7 @@ func (h *ReconcilerHelper) CurrentBlock(
 // package to allow for separation from a default storage backend.
 func (h *ReconcilerHelper) ComputedBalance(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	index int64,

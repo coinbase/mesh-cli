@@ -21,13 +21,13 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
-	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 )
 
-var _ storage.BalanceStorageHelper = (*BalanceStorageHelper)(nil)
+var _ modules.BalanceStorageHelper = (*BalanceStorageHelper)(nil)
 
 // BalanceStorageHelper implements the storage.Helper
 // interface.

@@ -21,11 +21,11 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
-	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var _ storage.BalanceStorageHandler = (*BalanceStorageHandler)(nil)
+var _ modules.BalanceStorageHandler = (*BalanceStorageHandler)(nil)
 
 // BalanceStorageHandler is invoked whenever a block is added
 // or removed from block storage so that balance changes

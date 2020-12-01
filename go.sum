@@ -82,6 +82,7 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9/go.mod h1:1MxXX1Ux4x6mqPmjkUgTP1CdXIBXKX7T+Jk9Gxrmx+U=
 github.com/coinbase/rosetta-sdk-go v0.6.0 h1:U8/NhkPo7CGJR8Ud82Y0HqtujXSVzGZKscmxOHsmS54=
 github.com/coinbase/rosetta-sdk-go v0.6.0/go.mod h1:pqBibzTcpz0mLqb7is8fo2qf93tcHjItJ3u7Yud8RI4=
+github.com/coinbase/rosetta-sdk-go v0.6.1 h1:aOb5qstlX0uqP9HRC7wCY+YAZDzZbS2C/i3Qy/lR3xM=
 github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201181653-fa7c8e42b53e h1:OWe+e6cS7LvNpLDMabls5yiXEjNwqssYQDM8e0fuACY=
 github.com/coinbase/rosetta-sdk-go v0.6.2-0.20201201181653-fa7c8e42b53e/go.mod h1:MvQfsL2KlJ5786OdDviRIJE3agui2YcvS1CaQPDl1Yo=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=

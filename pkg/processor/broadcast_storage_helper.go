@@ -20,21 +20,22 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var _ storage.BroadcastStorageHelper = (*BroadcastStorageHelper)(nil)
+var _ modules.BroadcastStorageHelper = (*BroadcastStorageHelper)(nil)
 
 // BroadcastStorageHelper implements the storage.Helper
 // interface.
 type BroadcastStorageHelper struct {
-	blockStorage *storage.BlockStorage
+	blockStorage *modules.BlockStorage
 	fetcher      *fetcher.Fetcher
 }
 
 // NewBroadcastStorageHelper returns a new BroadcastStorageHelper.
 func NewBroadcastStorageHelper(
-	blockStorage *storage.BlockStorage,
+	blockStorage *modules.BlockStorage,
 	fetcher *fetcher.Fetcher,
 ) *BroadcastStorageHelper {
 	return &BroadcastStorageHelper{
@@ -75,7 +76,7 @@ func (h *BroadcastStorageHelper) CurrentBlockIdentifier(
 func (h *BroadcastStorageHelper) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
-	txn storage.DatabaseTransaction,
+	txn database.Transaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
 	newestBlock, transaction, err := h.blockStorage.FindTransaction(ctx, transactionIdentifier, txn)
 	if err != nil {
