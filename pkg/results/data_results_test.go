@@ -26,6 +26,8 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	sdkMocks "github.com/coinbase/rosetta-sdk-go/mocks/storage/modules"
+	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/storage/database"
 	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
@@ -33,7 +35,37 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+func baseAsserter() *asserter.Asserter {
+	a, _ := asserter.NewClientWithOptions(
+		&types.NetworkIdentifier{
+			Blockchain: "bitcoin",
+			Network:    "mainnet",
+		},
+		&types.BlockIdentifier{
+			Hash:  "block 0",
+			Index: 0,
+		},
+		[]string{"Transfer"},
+		[]*types.OperationStatus{
+			{
+				Status:     "Success",
+				Successful: true,
+			},
+		},
+		[]*types.Error{},
+		nil,
+	)
+	return a
+}
+
+func exemptFunc() parser.ExemptOperation {
+	return func(op *types.Operation) bool {
+		return false
+	}
+}
 
 func TestComputeCheckDataResults(t *testing.T) {
 	var tests = map[string]struct {
@@ -411,37 +443,30 @@ func TestComputeCheckDataResults(t *testing.T) {
 				var balanceStorage *modules.BalanceStorage
 				if test.provideBalanceStorage {
 					balanceStorage = modules.NewBalanceStorage(localStore)
-
-					j := 0
-					currency := &types.Currency{Symbol: "BLAH"}
-					block := &types.BlockIdentifier{Hash: "0", Index: 0}
-					for i := 0; i < test.totalAccounts; i++ {
-						dbTransaction := localStore.Transaction(ctx)
-						acct := &types.AccountIdentifier{
-							Address: fmt.Sprintf("account %d", i),
-						}
-						assert.NoError(t, balanceStorage.SetBalance(
-							ctx,
-							dbTransaction,
-							acct,
-							&types.Amount{Value: "1", Currency: currency},
-							block,
-						))
-						assert.NoError(t, dbTransaction.Commit(ctx))
-
-						if j >= test.reconciledAccounts {
-							continue
-						}
-
-						assert.NoError(t, balanceStorage.Reconciled(
-							ctx,
-							acct,
-							currency,
-							block,
-						))
-
-						j++
-					}
+					mockHelper := &sdkMocks.BalanceStorageHelper{}
+					mockHelper.On("Asserter").Return(baseAsserter())
+					mockHelper.On("ExemptFunc").Return(exemptFunc())
+					mockHelper.On("BalanceExemptions").Return([]*types.BalanceExemption{})
+					mockHelper.On(
+						"AccountsSeen",
+						mock.Anything,
+						mock.Anything,
+						mock.Anything,
+					).Return(
+						big.NewInt(int64(test.totalAccounts)),
+						nil,
+					)
+					mockHelper.On(
+						"AccountsReconciled",
+						mock.Anything,
+						mock.Anything,
+						mock.Anything,
+					).Return(
+						big.NewInt(int64(test.reconciledAccounts)),
+						nil,
+					)
+					mockHandler := &sdkMocks.BalanceStorageHandler{}
+					balanceStorage.Initialize(mockHelper, mockHandler)
 				}
 
 				t.Run(testName, func(t *testing.T) {
