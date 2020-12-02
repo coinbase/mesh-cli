@@ -33,7 +33,9 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -71,14 +73,14 @@ var _ statefulsyncer.PruneHelper = (*DataTester)(nil)
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
 	network                  *types.NetworkIdentifier
-	database                 storage.Database
+	database                 database.Database
 	config                   *configuration.Configuration
 	syncer                   *statefulsyncer.StatefulSyncer
 	reconciler               *reconciler.Reconciler
 	logger                   *logger.Logger
-	balanceStorage           *storage.BalanceStorage
-	blockStorage             *storage.BlockStorage
-	counterStorage           *storage.CounterStorage
+	balanceStorage           *modules.BalanceStorage
+	blockStorage             *modules.BlockStorage
+	counterStorage           *modules.CounterStorage
 	reconcilerHandler        *processor.ReconcilerHandler
 	fetcher                  *fetcher.Fetcher
 	signalReceived           *bool
@@ -148,15 +150,18 @@ func InitializeData(
 		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
-	opts := []storage.BadgerOption{}
+	opts := []database.BadgerOption{}
 	if config.CompressionDisabled {
-		opts = append(opts, storage.WithoutCompression())
+		opts = append(opts, database.WithoutCompression())
 	}
 	if config.MemoryLimitDisabled {
-		opts = append(opts, storage.WithCustomSettings(storage.PerformanceBadgerOptions(dataPath)))
+		opts = append(
+			opts,
+			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+		)
 	}
 
-	localStore, err := storage.NewBadgerStorage(ctx, dataPath, opts...)
+	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
@@ -171,9 +176,9 @@ func InitializeData(
 		log.Fatalf("%s: unable to load interesting accounts", err.Error())
 	}
 
-	counterStorage := storage.NewCounterStorage(localStore)
-	blockStorage := storage.NewBlockStorage(localStore)
-	balanceStorage := storage.NewBalanceStorage(localStore)
+	counterStorage := modules.NewCounterStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore)
+	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	// Bootstrap balances, if provided. We need to do before initializing
 	// the reconciler otherwise we won't reconcile bootstrapped accounts
@@ -181,7 +186,7 @@ func InitializeData(
 	if len(config.Data.BootstrapBalances) > 0 {
 		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
 		switch {
-		case err == storage.ErrHeadBlockNotFound:
+		case err == storageErrs.ErrHeadBlockNotFound:
 			err = balanceStorage.BootstrapBalances(
 				ctx,
 				config.Data.BootstrapBalances,
@@ -275,11 +280,12 @@ func InitializeData(
 		rOpts...,
 	)
 
-	blockWorkers := []storage.BlockWorker{}
+	blockWorkers := []modules.BlockWorker{counterStorage}
 	if !config.Data.BalanceTrackingDisabled {
 		balanceStorageHelper := processor.NewBalanceStorageHelper(
 			network,
 			fetcher,
+			counterStorage,
 			historicalBalanceEnabled,
 			exemptAccounts,
 			false,
@@ -290,6 +296,7 @@ func InitializeData(
 		balanceStorageHandler := processor.NewBalanceStorageHandler(
 			logger,
 			r,
+			counterStorage,
 			shouldReconcile(config),
 			interestingAccount,
 		)
@@ -301,9 +308,21 @@ func InitializeData(
 
 	if !config.Data.CoinTrackingDisabled {
 		coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
-		coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, fetcher.Asserter)
+		coinStorage := modules.NewCoinStorage(localStore, coinStorageHelper, fetcher.Asserter)
 
 		blockWorkers = append(blockWorkers, coinStorage)
+	}
+
+	statefulSyncerOptions := []statefulsyncer.Option{
+		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
+		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
+		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+	}
+	if config.Data.PruningFrequency != nil {
+		statefulSyncerOptions = append(
+			statefulSyncerOptions,
+			statefulsyncer.WithPruneSleepTime(*config.Data.PruningFrequency),
+		)
 	}
 
 	syncer := statefulsyncer.New(
@@ -315,9 +334,7 @@ func InitializeData(
 		logger,
 		cancel,
 		blockWorkers,
-		syncer.DefaultCacheSize,
-		config.MaxSyncConcurrency,
-		config.MaxReorgDepth,
+		statefulSyncerOptions...,
 	)
 
 	return &DataTester{
@@ -512,7 +529,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 
 		case <-tc.C:
 			headBlock, err := t.blockStorage.GetBlock(ctx, nil)
-			if errors.Is(err, storage.ErrHeadBlockNotFound) {
+			if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 				continue
 			}
 			if err != nil {
@@ -665,22 +682,22 @@ func (t *DataTester) WatchEndConditions(
 // CompleteReconciliations returns the sum of all failed, exempt, and successful
 // reconciliations.
 func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error) {
-	activeReconciliations, err := t.counterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+	activeReconciliations, err := t.counterStorage.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
 		return -1, fmt.Errorf("%w: cannot get active reconciliations counter", err)
 	}
 
-	exemptReconciliations, err := t.counterStorage.Get(ctx, storage.ExemptReconciliationCounter)
+	exemptReconciliations, err := t.counterStorage.Get(ctx, modules.ExemptReconciliationCounter)
 	if err != nil {
 		return -1, fmt.Errorf("%w: cannot get exempt reconciliations counter", err)
 	}
 
-	failedReconciliations, err := t.counterStorage.Get(ctx, storage.FailedReconciliationCounter)
+	failedReconciliations, err := t.counterStorage.Get(ctx, modules.FailedReconciliationCounter)
 	if err != nil {
 		return -1, fmt.Errorf("%w: cannot get failed reconciliations counter", err)
 	}
 
-	skippedReconciliations, err := t.counterStorage.Get(ctx, storage.SkippedReconciliationsCounter)
+	skippedReconciliations, err := t.counterStorage.Get(ctx, modules.SkippedReconciliationsCounter)
 	if err != nil {
 		return -1, fmt.Errorf("%w: cannot get skipped reconciliations counter", err)
 	}
@@ -952,14 +969,14 @@ func (t *DataTester) recursiveOpSearch(
 	}
 	defer utils.RemoveTempDir(tmpDir)
 
-	localStore, err := storage.NewBadgerStorage(ctx, tmpDir)
+	localStore, err := database.NewBadgerDatabase(ctx, tmpDir)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to initialize database", err)
 	}
 
-	counterStorage := storage.NewCounterStorage(localStore)
-	blockStorage := storage.NewBlockStorage(localStore)
-	balanceStorage := storage.NewBalanceStorage(localStore)
+	counterStorage := modules.NewCounterStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore)
+	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	logger := logger.NewLogger(
 		tmpDir,
@@ -1005,6 +1022,7 @@ func (t *DataTester) recursiveOpSearch(
 	balanceStorageHelper := processor.NewBalanceStorageHelper(
 		t.network,
 		t.fetcher,
+		counterStorage,
 		t.historicalBalanceEnabled,
 		nil,
 		false,
@@ -1015,6 +1033,7 @@ func (t *DataTester) recursiveOpSearch(
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
 		logger,
 		r,
+		counterStorage,
 		true,
 		accountCurrency,
 	)
@@ -1029,10 +1048,10 @@ func (t *DataTester) recursiveOpSearch(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{balanceStorage},
-		syncer.DefaultCacheSize,
-		t.config.MaxSyncConcurrency,
-		t.config.MaxReorgDepth,
+		[]modules.BlockWorker{balanceStorage},
+		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
+		statefulsyncer.WithMaxConcurrency(t.config.MaxSyncConcurrency),
+		statefulsyncer.WithPastBlockLimit(t.config.MaxReorgDepth),
 	)
 
 	g, ctx := errgroup.WithContext(ctx)

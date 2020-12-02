@@ -80,6 +80,7 @@ func TestExemptFuncExemptAccounts(t *testing.T) {
 			helper := NewBalanceStorageHelper(
 				nil,
 				nil,
+				nil,
 				false,
 				test.exemptAccounts,
 				false,
@@ -121,6 +122,7 @@ func TestExemptFuncInterestingParsing(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			helper := NewBalanceStorageHelper(
+				nil,
 				nil,
 				nil,
 				false,

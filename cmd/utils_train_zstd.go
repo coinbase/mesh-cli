@@ -20,7 +20,8 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/encoder"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -58,9 +59,9 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: unable to convert max items to integer", err)
 	}
 
-	compressorEntries := []*storage.CompressorEntry{}
+	compressorEntries := []*encoder.CompressorEntry{}
 	if len(args) > trainArgs {
-		compressorEntries = append(compressorEntries, &storage.CompressorEntry{
+		compressorEntries = append(compressorEntries, &encoder.CompressorEntry{
 			Namespace:      namespace,
 			DictionaryPath: args[4],
 		})
@@ -70,7 +71,7 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
 
 	log.Printf("Running zstd training (this could take a while)...")
 
-	_, _, err = storage.BadgerTrain(
+	_, _, err = database.BadgerTrain(
 		Context,
 		namespace,
 		databasePath,

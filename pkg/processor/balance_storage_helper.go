@@ -17,23 +17,26 @@ package processor
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 )
 
-var _ storage.BalanceStorageHelper = (*BalanceStorageHelper)(nil)
+var _ modules.BalanceStorageHelper = (*BalanceStorageHelper)(nil)
 
 // BalanceStorageHelper implements the storage.Helper
 // interface.
 type BalanceStorageHelper struct {
-	network *types.NetworkIdentifier
-	fetcher *fetcher.Fetcher
+	network        *types.NetworkIdentifier
+	fetcher        *fetcher.Fetcher
+	counterStorage *modules.CounterStorage
 
 	// Configuration settings
 	lookupBalanceByBlock bool
@@ -50,6 +53,7 @@ type BalanceStorageHelper struct {
 func NewBalanceStorageHelper(
 	network *types.NetworkIdentifier,
 	fetcher *fetcher.Fetcher,
+	counterStorage *modules.CounterStorage,
 	lookupBalanceByBlock bool,
 	exemptAccounts []*types.AccountCurrency,
 	interestingOnly bool,
@@ -67,6 +71,7 @@ func NewBalanceStorageHelper(
 	return &BalanceStorageHelper{
 		network:              network,
 		fetcher:              fetcher,
+		counterStorage:       counterStorage,
 		lookupBalanceByBlock: lookupBalanceByBlock,
 		exemptAccounts:       exemptMap,
 		interestingAddresses: map[string]struct{}{},
@@ -153,4 +158,20 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 // BalanceExemptions returns a list of *types.BalanceExemption.
 func (h *BalanceStorageHelper) BalanceExemptions() []*types.BalanceExemption {
 	return h.balanceExemptions
+}
+
+// AccountsReconciled returns the total accounts reconciled by count.
+func (h *BalanceStorageHelper) AccountsReconciled(
+	ctx context.Context,
+	dbTx database.Transaction,
+) (*big.Int, error) {
+	return h.counterStorage.GetTransactional(ctx, dbTx, modules.ReconciledAccounts)
+}
+
+// AccountsSeen returns the total accounts seen by count.
+func (h *BalanceStorageHelper) AccountsSeen(
+	ctx context.Context,
+	dbTx database.Transaction,
+) (*big.Int, error) {
+	return h.counterStorage.GetTransactional(ctx, dbTx, modules.SeenAccounts)
 }

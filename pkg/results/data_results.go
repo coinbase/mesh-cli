@@ -28,7 +28,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -175,62 +176,62 @@ func (c *CheckDataStats) Print() {
 // ComputeCheckDataStats returns a populated CheckDataStats.
 func ComputeCheckDataStats(
 	ctx context.Context,
-	counters *storage.CounterStorage,
-	balances *storage.BalanceStorage,
+	counters *modules.CounterStorage,
+	balances *modules.BalanceStorage,
 ) *CheckDataStats {
 	if counters == nil {
 		return nil
 	}
 
-	blocks, err := counters.Get(ctx, storage.BlockCounter)
+	blocks, err := counters.Get(ctx, modules.BlockCounter)
 	if err != nil {
 		log.Printf("%s: cannot get block counter", err.Error())
 		return nil
 	}
 
-	orphans, err := counters.Get(ctx, storage.OrphanCounter)
+	orphans, err := counters.Get(ctx, modules.OrphanCounter)
 	if err != nil {
 		log.Printf("%s: cannot get orphan counter", err.Error())
 		return nil
 	}
 
-	txs, err := counters.Get(ctx, storage.TransactionCounter)
+	txs, err := counters.Get(ctx, modules.TransactionCounter)
 	if err != nil {
 		log.Printf("%s: cannot get transaction counter", err.Error())
 		return nil
 	}
 
-	ops, err := counters.Get(ctx, storage.OperationCounter)
+	ops, err := counters.Get(ctx, modules.OperationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get operations counter", err.Error())
 		return nil
 	}
 
-	activeReconciliations, err := counters.Get(ctx, storage.ActiveReconciliationCounter)
+	activeReconciliations, err := counters.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get active reconciliations counter", err.Error())
 		return nil
 	}
 
-	inactiveReconciliations, err := counters.Get(ctx, storage.InactiveReconciliationCounter)
+	inactiveReconciliations, err := counters.Get(ctx, modules.InactiveReconciliationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get inactive reconciliations counter", err.Error())
 		return nil
 	}
 
-	exemptReconciliations, err := counters.Get(ctx, storage.ExemptReconciliationCounter)
+	exemptReconciliations, err := counters.Get(ctx, modules.ExemptReconciliationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get exempt reconciliations counter", err.Error())
 		return nil
 	}
 
-	failedReconciliations, err := counters.Get(ctx, storage.FailedReconciliationCounter)
+	failedReconciliations, err := counters.Get(ctx, modules.FailedReconciliationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get failed reconciliations counter", err.Error())
 		return nil
 	}
 
-	skippedReconciliations, err := counters.Get(ctx, storage.SkippedReconciliationsCounter)
+	skippedReconciliations, err := counters.Get(ctx, modules.SkippedReconciliationsCounter)
 	if err != nil {
 		log.Printf("%s: cannot get skipped reconciliations counter", err.Error())
 		return nil
@@ -249,7 +250,7 @@ func ComputeCheckDataStats(
 	}
 
 	if balances != nil {
-		coverage, err := balances.ReconciliationCoverage(ctx, 0)
+		coverage, err := balances.EstimatedReconciliationCoverage(ctx)
 		if err != nil {
 			log.Printf("%s: cannot get reconcile coverage", err.Error())
 			return nil
@@ -279,8 +280,8 @@ func ComputeCheckDataProgress(
 	ctx context.Context,
 	fetcher *fetcher.Fetcher,
 	network *types.NetworkIdentifier,
-	counters *storage.CounterStorage,
-	blockStorage *storage.BlockStorage,
+	counters *modules.CounterStorage,
+	blockStorage *modules.BlockStorage,
 	reconciler *reconciler.Reconciler,
 ) *CheckDataProgress {
 	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
@@ -293,7 +294,7 @@ func ComputeCheckDataProgress(
 	// Get current tip in the case that re-orgs occurred
 	// or a custom start index was provied.
 	headBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
-	if errors.Is(err, storage.ErrHeadBlockNotFound) {
+	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 		return nil
 	}
 	if err != nil {
@@ -301,7 +302,7 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 
-	blocks, err := counters.Get(ctx, storage.BlockCounter)
+	blocks, err := counters.Get(ctx, modules.BlockCounter)
 	if err != nil {
 		fmt.Printf("%s: cannot get block counter", err.Error())
 		return nil
@@ -311,7 +312,7 @@ func ComputeCheckDataProgress(
 		return nil
 	}
 
-	orphans, err := counters.Get(ctx, storage.OrphanCounter)
+	orphans, err := counters.Get(ctx, modules.OrphanCounter)
 	if err != nil {
 		fmt.Printf("%s: cannot get orphan counter", err.Error())
 		return nil
@@ -375,9 +376,9 @@ type CheckDataStatus struct {
 // *CheckDataStatus.
 func ComputeCheckDataStatus(
 	ctx context.Context,
-	blocks *storage.BlockStorage,
-	counters *storage.CounterStorage,
-	balances *storage.BalanceStorage,
+	blocks *modules.BlockStorage,
+	counters *modules.CounterStorage,
+	balances *modules.BalanceStorage,
 	fetcher *fetcher.Fetcher,
 	network *types.NetworkIdentifier,
 	reconciler *reconciler.Reconciler,
@@ -503,9 +504,9 @@ func ResponseAssertionTest(err error) bool {
 // blocks.
 func BlockSyncingTest(err error, blocksSynced bool) *bool {
 	syncPass := true
-	storageFailed, _ := storage.Err(err)
+	storageFailed, _ := storageErrs.Err(err)
 	if syncer.Err(err) ||
-		(storageFailed && !errors.Is(err, storage.ErrNegativeBalance)) {
+		(storageFailed && !errors.Is(err, storageErrs.ErrNegativeBalance)) {
 		syncPass = false
 	}
 
@@ -521,7 +522,7 @@ func BlockSyncingTest(err error, blocksSynced bool) *bool {
 // while syncing.
 func BalanceTrackingTest(cfg *configuration.Configuration, err error, operationsSeen bool) *bool {
 	balancePass := true
-	for _, balanceStorageErr := range storage.BalanceStorageErrs {
+	for _, balanceStorageErr := range storageErrs.BalanceStorageErrs {
 		if errors.Is(err, balanceStorageErr) {
 			balancePass = false
 			break
@@ -565,31 +566,31 @@ func ComputeCheckDataTests( // nolint:gocognit
 	ctx context.Context,
 	cfg *configuration.Configuration,
 	err error,
-	counterStorage *storage.CounterStorage,
+	counterStorage *modules.CounterStorage,
 ) *CheckDataTests {
 	operationsSeen := false
 	reconciliationsPerformed := false
 	reconciliationsFailed := false
 	blocksSynced := false
 	if counterStorage != nil {
-		blocks, err := counterStorage.Get(ctx, storage.BlockCounter)
+		blocks, err := counterStorage.Get(ctx, modules.BlockCounter)
 		if err == nil && blocks.Int64() > 0 {
 			blocksSynced = true
 		}
 
-		ops, err := counterStorage.Get(ctx, storage.OperationCounter)
+		ops, err := counterStorage.Get(ctx, modules.OperationCounter)
 		if err == nil && ops.Int64() > 0 {
 			operationsSeen = true
 		}
 
-		activeReconciliations, err := counterStorage.Get(ctx, storage.ActiveReconciliationCounter)
+		activeReconciliations, err := counterStorage.Get(ctx, modules.ActiveReconciliationCounter)
 		if err == nil && activeReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
 		}
 
 		inactiveReconciliations, err := counterStorage.Get(
 			ctx,
-			storage.InactiveReconciliationCounter,
+			modules.InactiveReconciliationCounter,
 		)
 		if err == nil && inactiveReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
@@ -597,7 +598,7 @@ func ComputeCheckDataTests( // nolint:gocognit
 
 		exemptReconciliations, err := counterStorage.Get(
 			ctx,
-			storage.ExemptReconciliationCounter,
+			modules.ExemptReconciliationCounter,
 		)
 		if err == nil && exemptReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
@@ -605,7 +606,7 @@ func ComputeCheckDataTests( // nolint:gocognit
 
 		failedReconciliations, err := counterStorage.Get(
 			ctx,
-			storage.FailedReconciliationCounter,
+			modules.FailedReconciliationCounter,
 		)
 		if err == nil && failedReconciliations.Int64() > 0 {
 			reconciliationsPerformed = true
@@ -631,8 +632,8 @@ func ComputeCheckDataTests( // nolint:gocognit
 func ComputeCheckDataResults(
 	cfg *configuration.Configuration,
 	err error,
-	counterStorage *storage.CounterStorage,
-	balanceStorage *storage.BalanceStorage,
+	counterStorage *modules.CounterStorage,
+	balanceStorage *modules.BalanceStorage,
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,
 ) *CheckDataResults {
@@ -677,8 +678,8 @@ func ComputeCheckDataResults(
 // and to a provided output path.
 func ExitData(
 	config *configuration.Configuration,
-	counterStorage *storage.CounterStorage,
-	balanceStorage *storage.BalanceStorage,
+	counterStorage *modules.CounterStorage,
+	balanceStorage *modules.BalanceStorage,
 	err error,
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,

@@ -19,7 +19,7 @@ import (
 	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -28,13 +28,13 @@ var _ coordinator.Handler = (*CoordinatorHandler)(nil)
 // CoordinatorHandler is invoked by the Coordinator
 // when addresses are created or transactions are created.
 type CoordinatorHandler struct {
-	counterStorage *storage.CounterStorage
+	counterStorage *modules.CounterStorage
 }
 
 // NewCoordinatorHandler returns a new
 // *CoordinatorHandler.
 func NewCoordinatorHandler(
-	counterStorage *storage.CounterStorage,
+	counterStorage *modules.CounterStorage,
 ) *CoordinatorHandler {
 	return &CoordinatorHandler{
 		counterStorage: counterStorage,
@@ -50,7 +50,7 @@ func (h *CoordinatorHandler) TransactionCreated(
 ) error {
 	_, _ = h.counterStorage.Update(
 		ctx,
-		storage.TransactionsCreatedCounter,
+		modules.TransactionsCreatedCounter,
 		big.NewInt(1),
 	)
 

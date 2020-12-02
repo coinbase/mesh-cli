@@ -32,7 +32,9 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/syncer"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -54,15 +56,15 @@ var _ http.Handler = (*ConstructionTester)(nil)
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
 	network          *types.NetworkIdentifier
-	database         storage.Database
+	database         database.Database
 	config           *configuration.Configuration
 	syncer           *statefulsyncer.StatefulSyncer
 	logger           *logger.Logger
 	onlineFetcher    *fetcher.Fetcher
-	broadcastStorage *storage.BroadcastStorage
-	blockStorage     *storage.BlockStorage
-	jobStorage       *storage.JobStorage
-	counterStorage   *storage.CounterStorage
+	broadcastStorage *modules.BroadcastStorage
+	blockStorage     *modules.BlockStorage
+	jobStorage       *modules.JobStorage
+	counterStorage   *modules.CounterStorage
 	coordinator      *coordinator.Coordinator
 	cancel           context.CancelFunc
 	signalReceived   *bool
@@ -84,15 +86,18 @@ func InitializeConstruction(
 		log.Fatalf("%s: cannot create command path", err.Error())
 	}
 
-	opts := []storage.BadgerOption{}
+	opts := []database.BadgerOption{}
 	if config.CompressionDisabled {
-		opts = append(opts, storage.WithoutCompression())
+		opts = append(opts, database.WithoutCompression())
 	}
 	if config.MemoryLimitDisabled {
-		opts = append(opts, storage.WithCustomSettings(storage.PerformanceBadgerOptions(dataPath)))
+		opts = append(
+			opts,
+			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+		)
 	}
 
-	localStore, err := storage.NewBadgerStorage(ctx, dataPath, opts...)
+	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
 	}
@@ -107,7 +112,7 @@ func InitializeConstruction(
 		log.Fatal("found balance exemptions but initial balance fetch disabled")
 	}
 
-	counterStorage := storage.NewCounterStorage(localStore)
+	counterStorage := modules.NewCounterStorage(localStore)
 	logger := logger.NewLogger(
 		dataPath,
 		false,
@@ -116,15 +121,16 @@ func InitializeConstruction(
 		false,
 	)
 
-	blockStorage := storage.NewBlockStorage(localStore)
-	keyStorage := storage.NewKeyStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore)
+	keyStorage := modules.NewKeyStorage(localStore)
 	coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
-	coinStorage := storage.NewCoinStorage(localStore, coinStorageHelper, onlineFetcher.Asserter)
-	balanceStorage := storage.NewBalanceStorage(localStore)
+	coinStorage := modules.NewCoinStorage(localStore, coinStorageHelper, onlineFetcher.Asserter)
+	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	balanceStorageHelper := processor.NewBalanceStorageHelper(
 		network,
 		onlineFetcher,
+		counterStorage,
 		false,
 		nil,
 		true,
@@ -135,13 +141,14 @@ func InitializeConstruction(
 	balanceStorageHandler := processor.NewBalanceStorageHandler(
 		logger,
 		nil,
+		counterStorage,
 		false,
 		nil,
 	)
 
 	balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
 
-	broadcastStorage := storage.NewBroadcastStorage(
+	broadcastStorage := modules.NewBroadcastStorage(
 		localStore,
 		config.Construction.StaleDepth,
 		config.Construction.BroadcastLimit,
@@ -209,7 +216,7 @@ func InitializeConstruction(
 		return nil, fmt.Errorf("%w: unable to set coin balances", err)
 	}
 
-	jobStorage := storage.NewJobStorage(localStore)
+	jobStorage := modules.NewJobStorage(localStore)
 	coordinatorHelper := processor.NewCoordinatorHelper(
 		offlineFetcher,
 		onlineFetcher,
@@ -255,10 +262,10 @@ func InitializeConstruction(
 		counterStorage,
 		logger,
 		cancel,
-		[]storage.BlockWorker{balanceStorage, coinStorage, broadcastStorage},
-		syncer.DefaultCacheSize,
-		config.MaxSyncConcurrency,
-		config.MaxReorgDepth,
+		[]modules.BlockWorker{counterStorage, balanceStorage, coinStorage, broadcastStorage},
+		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
+		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
+		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
 	)
 
 	return &ConstructionTester{
@@ -360,7 +367,7 @@ func (t *ConstructionTester) StartSyncer(
 ) error {
 	startIndex := int64(-1)
 	_, err := t.blockStorage.GetHeadBlockIdentifier(ctx)
-	if errors.Is(err, storage.ErrHeadBlockNotFound) {
+	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 		// If no head block exists, ensure we are at tip before starting. Otherwise,
 		// we will unnecessarily sync tons of blocks before reaching any that matter.
 		startIndex, err = t.waitForTip(ctx)

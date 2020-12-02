@@ -25,7 +25,7 @@ import (
 	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -37,19 +37,19 @@ var _ reconciler.Handler = (*ReconcilerHandler)(nil)
 
 var (
 	countKeys = []string{
-		storage.FailedReconciliationCounter,
-		storage.SkippedReconciliationsCounter,
-		storage.ExemptReconciliationCounter,
-		storage.ActiveReconciliationCounter,
-		storage.InactiveReconciliationCounter,
+		modules.FailedReconciliationCounter,
+		modules.SkippedReconciliationsCounter,
+		modules.ExemptReconciliationCounter,
+		modules.ActiveReconciliationCounter,
+		modules.InactiveReconciliationCounter,
 	}
 )
 
 // ReconcilerHandler implements the Reconciler.Handler interface.
 type ReconcilerHandler struct {
 	logger                    *logger.Logger
-	counterStorage            *storage.CounterStorage
-	balanceStorage            *storage.BalanceStorage
+	counterStorage            *modules.CounterStorage
+	balanceStorage            *modules.BalanceStorage
 	haltOnReconciliationError bool
 
 	InactiveFailure      *types.AccountCurrency
@@ -64,8 +64,8 @@ type ReconcilerHandler struct {
 // NewReconcilerHandler creates a new ReconcilerHandler.
 func NewReconcilerHandler(
 	logger *logger.Logger,
-	counterStorage *storage.CounterStorage,
-	balanceStorage *storage.BalanceStorage,
+	counterStorage *modules.CounterStorage,
+	balanceStorage *modules.BalanceStorage,
 	haltOnReconciliationError bool,
 ) *ReconcilerHandler {
 	counts := map[string]int64{}
@@ -82,7 +82,7 @@ func NewReconcilerHandler(
 	}
 }
 
-// Updater periodically updates storage with cached counts.
+// Updater periodically updates modules.with cached counts.
 func (h *ReconcilerHandler) Updater(ctx context.Context) error {
 	tc := time.NewTicker(updateFrequency)
 	defer tc.Stop()
@@ -99,7 +99,7 @@ func (h *ReconcilerHandler) Updater(ctx context.Context) error {
 	}
 }
 
-// UpdateCounts forces cached counts to be written to storage.
+// UpdateCounts forces cached counts to be written to modules.
 func (h *ReconcilerHandler) UpdateCounts(ctx context.Context) error {
 	for _, key := range countKeys {
 		h.counterLock.Lock()
@@ -132,7 +132,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 	block *types.BlockIdentifier,
 ) error {
 	h.counterLock.Lock()
-	h.counts[storage.FailedReconciliationCounter]++
+	h.counts[modules.FailedReconciliationCounter]++
 	h.counterLock.Unlock()
 
 	err := h.logger.ReconcileFailureStream(
@@ -202,7 +202,7 @@ func (h *ReconcilerHandler) ReconciliationExempt(
 	exemption *types.BalanceExemption,
 ) error {
 	h.counterLock.Lock()
-	h.counts[storage.ExemptReconciliationCounter]++
+	h.counts[modules.ExemptReconciliationCounter]++
 	h.counterLock.Unlock()
 
 	// Although the reconciliation was exempt (non-zero difference that was ignored),
@@ -224,7 +224,7 @@ func (h *ReconcilerHandler) ReconciliationSkipped(
 	cause string,
 ) error {
 	h.counterLock.Lock()
-	h.counts[storage.SkippedReconciliationsCounter]++
+	h.counts[modules.SkippedReconciliationsCounter]++
 	h.counterLock.Unlock()
 
 	return nil
@@ -240,9 +240,9 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	block *types.BlockIdentifier,
 ) error {
 	// Update counters
-	counter := storage.ActiveReconciliationCounter
+	counter := modules.ActiveReconciliationCounter
 	if reconciliationType == reconciler.InactiveReconciliation {
-		counter = storage.InactiveReconciliationCounter
+		counter = modules.InactiveReconciliationCounter
 	}
 
 	h.counterLock.Lock()

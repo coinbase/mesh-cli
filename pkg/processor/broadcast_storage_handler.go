@@ -23,18 +23,19 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/parser"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var _ storage.BroadcastStorageHandler = (*BroadcastStorageHandler)(nil)
+var _ modules.BroadcastStorageHandler = (*BroadcastStorageHandler)(nil)
 
 // BroadcastStorageHandler is invoked whenever a block is added
 // or removed from block storage so that balance changes
 // can be sent to other functions (ex: reconciler).
 type BroadcastStorageHandler struct {
 	config         *configuration.Configuration
-	counterStorage *storage.CounterStorage
+	counterStorage *modules.CounterStorage
 	coordinator    *coordinator.Coordinator
 	parser         *parser.Parser
 }
@@ -42,7 +43,7 @@ type BroadcastStorageHandler struct {
 // NewBroadcastStorageHandler returns a new *BroadcastStorageHandler.
 func NewBroadcastStorageHandler(
 	config *configuration.Configuration,
-	counterStorage *storage.CounterStorage,
+	counterStorage *modules.CounterStorage,
 	coordinator *coordinator.Coordinator,
 	parser *parser.Parser,
 ) *BroadcastStorageHandler {
@@ -58,7 +59,7 @@ func NewBroadcastStorageHandler(
 // last time at a block height < current block height - confirmationDepth.
 func (h *BroadcastStorageHandler) TransactionConfirmed(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	identifier string,
 	blockIdentifier *types.BlockIdentifier,
 	transaction *types.Transaction,
@@ -71,7 +72,7 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 	_, _ = h.counterStorage.UpdateTransactional(
 		ctx,
 		dbTx,
-		storage.TransactionsConfirmedCounter,
+		modules.TransactionsConfirmedCounter,
 		big.NewInt(1),
 	)
 
@@ -92,14 +93,14 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 // current block height - last broadcast > staleDepth.
 func (h *BroadcastStorageHandler) TransactionStale(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	identifier string,
 	transactionIdentifier *types.TransactionIdentifier,
 ) error {
 	_, _ = h.counterStorage.UpdateTransactional(
 		ctx,
 		dbTx,
-		storage.StaleBroadcastsCounter,
+		modules.StaleBroadcastsCounter,
 		big.NewInt(1),
 	)
 
@@ -110,7 +111,7 @@ func (h *BroadcastStorageHandler) TransactionStale(
 // put it over the provided broadcast limit.
 func (h *BroadcastStorageHandler) BroadcastFailed(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	identifier string,
 	transactionIdentifier *types.TransactionIdentifier,
 	intent []*types.Operation,
@@ -118,7 +119,7 @@ func (h *BroadcastStorageHandler) BroadcastFailed(
 	_, _ = h.counterStorage.UpdateTransactional(
 		ctx,
 		dbTx,
-		storage.FailedBroadcastsCounter,
+		modules.FailedBroadcastsCounter,
 		big.NewInt(1),
 	)
 

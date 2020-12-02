@@ -23,7 +23,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -73,8 +73,8 @@ func (c *CheckConstructionResults) Output(path string) {
 func ComputeCheckConstructionResults(
 	cfg *configuration.Configuration,
 	err error,
-	counterStorage *storage.CounterStorage,
-	jobStorage *storage.JobStorage,
+	counterStorage *modules.CounterStorage,
+	jobStorage *modules.JobStorage,
 ) *CheckConstructionResults {
 	ctx := context.Background()
 	stats := ComputeCheckConstructionStats(ctx, cfg, counterStorage, jobStorage)
@@ -169,38 +169,38 @@ func (c *CheckConstructionStats) Print() {
 func ComputeCheckConstructionStats(
 	ctx context.Context,
 	config *configuration.Configuration,
-	counters *storage.CounterStorage,
-	jobs *storage.JobStorage,
+	counters *modules.CounterStorage,
+	jobs *modules.JobStorage,
 ) *CheckConstructionStats {
 	if counters == nil || jobs == nil {
 		return nil
 	}
 
-	transactionsCreated, err := counters.Get(ctx, storage.TransactionsCreatedCounter)
+	transactionsCreated, err := counters.Get(ctx, modules.TransactionsCreatedCounter)
 	if err != nil {
 		log.Printf("%s cannot get transactions created counter\n", err.Error())
 		return nil
 	}
 
-	transactionsConfirmed, err := counters.Get(ctx, storage.TransactionsConfirmedCounter)
+	transactionsConfirmed, err := counters.Get(ctx, modules.TransactionsConfirmedCounter)
 	if err != nil {
 		log.Printf("%s cannot get transactions confirmed counter\n", err.Error())
 		return nil
 	}
 
-	staleBroadcasts, err := counters.Get(ctx, storage.StaleBroadcastsCounter)
+	staleBroadcasts, err := counters.Get(ctx, modules.StaleBroadcastsCounter)
 	if err != nil {
 		log.Printf("%s cannot get stale broadcasts counter\n", err)
 		return nil
 	}
 
-	failedBroadcasts, err := counters.Get(ctx, storage.FailedBroadcastsCounter)
+	failedBroadcasts, err := counters.Get(ctx, modules.FailedBroadcastsCounter)
 	if err != nil {
 		log.Printf("%s cannot get failed broadcasts counter\n", err.Error())
 		return nil
 	}
 
-	addressesCreated, err := counters.Get(ctx, storage.AddressesCreatedCounter)
+	addressesCreated, err := counters.Get(ctx, modules.AddressesCreatedCounter)
 	if err != nil {
 		log.Printf("%s cannot get addresses created counter\n", err.Error())
 		return nil
@@ -239,8 +239,8 @@ type CheckConstructionProgress struct {
 // *CheckConstructionProgress.
 func ComputeCheckConstructionProgress(
 	ctx context.Context,
-	broadcasts *storage.BroadcastStorage,
-	jobs *storage.JobStorage,
+	broadcasts *modules.BroadcastStorage,
+	jobs *modules.JobStorage,
 ) *CheckConstructionProgress {
 	inflight, err := broadcasts.GetAllBroadcasts(ctx)
 	if err != nil {
@@ -271,9 +271,9 @@ type CheckConstructionStatus struct {
 func ComputeCheckConstructionStatus(
 	ctx context.Context,
 	config *configuration.Configuration,
-	counters *storage.CounterStorage,
-	broadcasts *storage.BroadcastStorage,
-	jobs *storage.JobStorage,
+	counters *modules.CounterStorage,
+	broadcasts *modules.BroadcastStorage,
+	jobs *modules.JobStorage,
 ) *CheckConstructionStatus {
 	return &CheckConstructionStatus{
 		Stats:    ComputeCheckConstructionStats(ctx, config, counters, jobs),
@@ -295,8 +295,8 @@ func FetchCheckConstructionStatus(url string) (*CheckConstructionStatus, error) 
 // and to a provided output path.
 func ExitConstruction(
 	config *configuration.Configuration,
-	counterStorage *storage.CounterStorage,
-	jobStorage *storage.JobStorage,
+	counterStorage *modules.CounterStorage,
+	jobStorage *modules.JobStorage,
 	err error,
 ) error {
 	results := ComputeCheckConstructionResults(

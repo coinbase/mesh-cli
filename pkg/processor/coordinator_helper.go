@@ -24,7 +24,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -62,13 +63,13 @@ type CoordinatorHelper struct {
 	offlineFetcher *fetcher.Fetcher
 	onlineFetcher  *fetcher.Fetcher
 
-	database         storage.Database
-	blockStorage     *storage.BlockStorage
-	keyStorage       *storage.KeyStorage
-	balanceStorage   *storage.BalanceStorage
-	coinStorage      *storage.CoinStorage
-	broadcastStorage *storage.BroadcastStorage
-	counterStorage   *storage.CounterStorage
+	database         database.Database
+	blockStorage     *modules.BlockStorage
+	keyStorage       *modules.KeyStorage
+	balanceStorage   *modules.BalanceStorage
+	coinStorage      *modules.CoinStorage
+	broadcastStorage *modules.BroadcastStorage
+	counterStorage   *modules.CounterStorage
 
 	balanceStorageHelper *BalanceStorageHelper
 
@@ -81,14 +82,14 @@ type CoordinatorHelper struct {
 func NewCoordinatorHelper(
 	offlineFetcher *fetcher.Fetcher,
 	onlineFetcher *fetcher.Fetcher,
-	database storage.Database,
-	blockStorage *storage.BlockStorage,
-	keyStorage *storage.KeyStorage,
-	balanceStorage *storage.BalanceStorage,
-	coinStorage *storage.CoinStorage,
-	broadcastStorage *storage.BroadcastStorage,
+	database database.Database,
+	blockStorage *modules.BlockStorage,
+	keyStorage *modules.KeyStorage,
+	balanceStorage *modules.BalanceStorage,
+	coinStorage *modules.CoinStorage,
+	broadcastStorage *modules.BroadcastStorage,
 	balanceStorageHelper *BalanceStorageHelper,
-	counterStorage *storage.CounterStorage,
+	counterStorage *modules.CounterStorage,
 	quiet bool,
 ) *CoordinatorHelper {
 	return &CoordinatorHelper{
@@ -106,9 +107,9 @@ func NewCoordinatorHelper(
 	}
 }
 
-// DatabaseTransaction returns a new write-ready storage.DatabaseTransaction.
-func (c *CoordinatorHelper) DatabaseTransaction(ctx context.Context) storage.DatabaseTransaction {
-	return c.database.NewDatabaseTransaction(ctx, true)
+// DatabaseTransaction returns a new write-ready database.Transaction.
+func (c *CoordinatorHelper) DatabaseTransaction(ctx context.Context) database.Transaction {
+	return c.database.Transaction(ctx)
 }
 
 type arg struct {
@@ -359,7 +360,7 @@ func (c *CoordinatorHelper) Sign(
 // associated with an address.
 func (c *CoordinatorHelper) GetKey(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	account *types.AccountIdentifier,
 ) (*keys.KeyPair, error) {
 	return c.keyStorage.GetTransactional(ctx, dbTx, account)
@@ -369,7 +370,7 @@ func (c *CoordinatorHelper) GetKey(
 // in KeyStorage.
 func (c *CoordinatorHelper) StoreKey(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	account *types.AccountIdentifier,
 	keyPair *keys.KeyPair,
 ) error {
@@ -379,7 +380,7 @@ func (c *CoordinatorHelper) StoreKey(
 	_, _ = c.counterStorage.UpdateTransactional(
 		ctx,
 		dbTx,
-		storage.AddressesCreatedCounter,
+		modules.AddressesCreatedCounter,
 		big.NewInt(1),
 	)
 	return c.keyStorage.StoreTransactional(ctx, account, keyPair, dbTx)
@@ -391,7 +392,7 @@ func (c *CoordinatorHelper) StoreKey(
 // 0 will be returned.
 func (c *CoordinatorHelper) Balance(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) (*types.Amount, error) {
@@ -416,7 +417,7 @@ func (c *CoordinatorHelper) Balance(
 // an account.
 func (c *CoordinatorHelper) Coins(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	accountIdentifier *types.AccountIdentifier,
 	currency *types.Currency,
 ) ([]*types.Coin, error) {
@@ -445,25 +446,25 @@ func (c *CoordinatorHelper) Coins(
 // funds.
 func (c *CoordinatorHelper) LockedAccounts(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 ) ([]*types.AccountIdentifier, error) {
 	return c.broadcastStorage.LockedAccounts(ctx, dbTx)
 }
 
 // AllBroadcasts returns a slice of all in-progress broadcasts in BroadcastStorage.
-func (c *CoordinatorHelper) AllBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+func (c *CoordinatorHelper) AllBroadcasts(ctx context.Context) ([]*modules.Broadcast, error) {
 	return c.broadcastStorage.GetAllBroadcasts(ctx)
 }
 
 // ClearBroadcasts deletes all pending broadcasts.
-func (c *CoordinatorHelper) ClearBroadcasts(ctx context.Context) ([]*storage.Broadcast, error) {
+func (c *CoordinatorHelper) ClearBroadcasts(ctx context.Context) ([]*modules.Broadcast, error) {
 	return c.broadcastStorage.ClearBroadcasts(ctx)
 }
 
 // Broadcast enqueues a particular intent for broadcast.
 func (c *CoordinatorHelper) Broadcast(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 	identifier string,
 	network *types.NetworkIdentifier,
 	intent []*types.Operation,
@@ -499,7 +500,7 @@ func (c *CoordinatorHelper) BroadcastAll(
 // AllAccounts returns a slice of all known accounts.
 func (c *CoordinatorHelper) AllAccounts(
 	ctx context.Context,
-	dbTx storage.DatabaseTransaction,
+	dbTx database.Transaction,
 ) ([]*types.AccountIdentifier, error) {
 	return c.keyStorage.GetAllAccountsTransactional(ctx, dbTx)
 }

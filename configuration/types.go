@@ -16,7 +16,7 @@ package configuration
 
 import (
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -115,7 +115,7 @@ type ConstructionConfiguration struct {
 
 	// PrefundedAccounts is an array of prefunded accounts
 	// to use while testing.
-	PrefundedAccounts []*storage.PrefundedAccount `json:"prefunded_accounts,omitempty"`
+	PrefundedAccounts []*modules.PrefundedAccount `json:"prefunded_accounts,omitempty"`
 
 	// Workflows are executed by the rosetta-cli to test
 	// certain construction flows.
@@ -314,6 +314,11 @@ type DataConfiguration struct {
 	// wish to use `start_index` at a later point to restart from some
 	// previously synced block.
 	PruningDisabled bool `json:"pruning_disabled"`
+
+	// PruningFrequency is the frequency (in seconds) that we attempt
+	// to prune blocks. If not populated, we use the default value
+	// provided in the `statefulsyncer` package.
+	PruningFrequency *int `json:"pruning_frequency,omitempty"`
 
 	// InitialBalanceFetchDisabled configures rosetta-cli
 	// not to lookup the balance of newly seen accounts at the

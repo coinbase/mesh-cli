@@ -17,20 +17,21 @@ package processor
 import (
 	"context"
 
-	"github.com/coinbase/rosetta-sdk-go/storage"
+	"github.com/coinbase/rosetta-sdk-go/storage/database"
+	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-var _ storage.CoinStorageHelper = (*CoinStorageHelper)(nil)
+var _ modules.CoinStorageHelper = (*CoinStorageHelper)(nil)
 
 // CoinStorageHelper implements the storage.CoinStorageHelper
 // interface.
 type CoinStorageHelper struct {
-	blockStorage *storage.BlockStorage
+	blockStorage *modules.BlockStorage
 }
 
 // NewCoinStorageHelper returns a new *CoinStorageHelper.
-func NewCoinStorageHelper(blockStorage *storage.BlockStorage) *CoinStorageHelper {
+func NewCoinStorageHelper(blockStorage *modules.BlockStorage) *CoinStorageHelper {
 	return &CoinStorageHelper{blockStorage: blockStorage}
 }
 
@@ -38,7 +39,7 @@ func NewCoinStorageHelper(blockStorage *storage.BlockStorage) *CoinStorageHelper
 // the context of a storage.DatabaseTransaction.
 func (c *CoinStorageHelper) CurrentBlockIdentifier(
 	ctx context.Context,
-	transaction storage.DatabaseTransaction,
+	transaction database.Transaction,
 ) (*types.BlockIdentifier, error) {
 	return c.blockStorage.GetHeadBlockIdentifierTransactional(ctx, transaction)
 }
