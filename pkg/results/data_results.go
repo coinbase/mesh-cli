@@ -23,7 +23,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/sidhujag/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"

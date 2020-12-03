@@ -24,7 +24,7 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/sidhujag/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -257,6 +257,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.6.4")
+		fmt.Println("v0.6.5")
 	},
 }

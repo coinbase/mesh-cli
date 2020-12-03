@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/pkg/results"
-	"github.com/coinbase/rosetta-cli/pkg/tester"
+	"github.com/sidhujag/rosetta-cli/pkg/results"
+	"github.com/sidhujag/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -42,7 +42,7 @@ are run to ensure that intermediate representations are correct (i.e. does
 an unsigned transaction return a superset of operations provided during
 construction?).
 
-Check out the https://github.com/coinbase/rosetta-cli/tree/master/examples
+Check out the https://github.com/sidhujag/rosetta-cli/tree/master/examples
 directory for examples of how to configure this test for Bitcoin and
 Ethereum.
 

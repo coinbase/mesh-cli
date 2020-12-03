@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/sidhujag/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/parser"

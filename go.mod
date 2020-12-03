@@ -1,4 +1,4 @@
-module github.com/coinbase/rosetta-cli
+module github.com/sidhujag/rosetta-cli
 
 go 1.13
 

@@ -21,7 +21,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/sidhujag/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
