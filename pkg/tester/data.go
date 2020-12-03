@@ -154,12 +154,12 @@ func InitializeData(
 	if config.CompressionDisabled {
 		opts = append(opts, database.WithoutCompression())
 	}
-	
+
 	if config.MemoryLimitDisabled {
 		performanceOpts := database.PerformanceBadgerOptions(dataPath)
 		// Use an extended table size for larger commits.
 		performanceOpts.MaxTableSize = config.MaxTableSize
-		performanceOpts.ValueLogFileSize = config.ValueLogFileSize
+		performanceOpts.ValueLogFileSize = config.MaxLogSize
 		opts = append(
 			opts,
 			database.WithCustomSettings(performanceOpts),
