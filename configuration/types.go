@@ -60,8 +60,8 @@ const (
 	DefaultBlockBroadcastLimit               = 5
 	DefaultStatusPort                        = 9090
 	DefaultMaxReorgDepth                     = 100
-	DefaultMaxTableSize						 = 256 << 20
-	DefaultLogValueSize						 = 64 << 20
+	DefaultMaxTableSize                      = 256 << 20
+	DefaultLogValueSize                      = 64 << 20
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"

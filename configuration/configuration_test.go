@@ -69,7 +69,7 @@ var (
 		TipDelay:             1231,
 		MaxReorgDepth:        12,
 		MaxTableSize:         268435456,
-		MaxLogSize:        	  67108864,
+		MaxLogSize:           67108864,
 		Construction: &ConstructionConfiguration{
 			OfflineURL:            "https://ashdjaksdkjshdk",
 			MaxOfflineConnections: 21,
