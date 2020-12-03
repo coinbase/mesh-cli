@@ -215,6 +215,9 @@ func initConfig() {
 	Context = context.Background()
 	var err error
 	if len(configurationFile) == 0 {
+		configurationFile = os.Getenv("ROSETTA_CONFIGURATION_FILE")
+	}
+	if len(configurationFile) == 0 {
 		Config = configuration.DefaultConfiguration()
 	} else {
 		Config, err = configuration.LoadConfiguration(Context, configurationFile)
