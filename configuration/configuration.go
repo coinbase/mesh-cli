@@ -54,6 +54,8 @@ func DefaultConfiguration() *Configuration {
 		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
+		MaxTableSize:         DefaultMaxTableSize,
+		MaxLogSize:           DefaultLogValueSize,
 		Data:                 DefaultDataConfiguration(),
 	}
 }
@@ -151,6 +153,14 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.MaxReorgDepth == 0 {
 		config.MaxReorgDepth = DefaultMaxReorgDepth
+	}
+
+	if config.MaxTableSize == 0 {
+		config.MaxTableSize = DefaultMaxTableSize
+	}
+
+	if config.MaxLogSize == 0 {
+		config.MaxLogSize = DefaultLogValueSize
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)

@@ -60,6 +60,8 @@ const (
 	DefaultBlockBroadcastLimit               = 5
 	DefaultStatusPort                        = 9090
 	DefaultMaxReorgDepth                     = 100
+	DefaultMaxTableSize						 = 256 << 20
+	DefaultLogValueSize						 = 64 << 20
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
@@ -395,6 +397,20 @@ type Configuration struct {
 	// usage. Enabling this massively increases performance
 	// but can use 10s of GBs of RAM, even with pruning enabled.
 	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
+
+	// MaxTableSize default is 256 MB. The larger
+	// this value is, the larger database transactions
+	// storage can handle (~15% of the max table size
+	// == max commit size). 0 means use default.
+	MaxTableSize bool `json:"max_table_size,omitempty"`
+
+	// MaxLogSize should be 4 times the size of MaxLogSize. 
+	// There are many threads about optimizing memory usage in Badger (which
+	// can grow to many GBs if left untuned). Our own research indicates
+	// that each MB increase in MaxTableSize and/or ValueLogFileSize corresponds
+	// to a 10 MB increase in RAM usage (all other settings equal). Our primary
+	// concern is large database transaction size.
+	MaxLogSize bool `json:"max_log_size,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`

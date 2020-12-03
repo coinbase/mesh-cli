@@ -160,6 +160,13 @@ func InitializeData(
 			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
 		)
 	}
+	// Use an extended table size for larger commits.
+	if len(config.MaxTableSize) > 0 {
+		opts.MaxTableSize = config.MaxTableSize
+	}
+	if len(config.MaxLogSize) > 0 {
+		opts.ValueLogFileSize = config.MaxLogSize
+	}
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
