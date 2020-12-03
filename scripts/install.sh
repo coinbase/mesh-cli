@@ -298,7 +298,7 @@ EOF
 
 BINARY=rosetta-cli
 FORMAT=tar.gz
-OWNER=sidhujag
+OWNER=coinbase
 REPO="rosetta-cli"
 OS=$(uname_os)
 ARCH=$(uname_arch)
