@@ -10,10 +10,10 @@
 CLI to validate the correctness of Rosetta API implementations
 </p>
 <p align="center">
-  <a href="https://circleci.com/gh/sidhujag/rosetta-cli/tree/master"><img src="https://circleci.com/gh/sidhujag/rosetta-cli/tree/master.svg?style=shield" /></a>
-  <a href="https://coveralls.io/github/sidhujag/rosetta-cli"><img src="https://coveralls.io/repos/github/sidhujag/rosetta-cli/badge.svg" /></a>
-  <a href="https://goreportcard.com/report/github.com/sidhujag/rosetta-cli"><img src="https://goreportcard.com/badge/github.com/sidhujag/rosetta-cli" /></a>
-  <a href="https://github.com/sidhujag/rosetta-cli/blob/master/LICENSE.txt"><img src="https://img.shields.io/github/license/sidhujag/rosetta-cli.svg" /></a>
+  <a href="https://circleci.com/gh/coinbase/rosetta-cli/tree/master"><img src="https://circleci.com/gh/coinbase/rosetta-cli/tree/master.svg?style=shield" /></a>
+  <a href="https://coveralls.io/github/coinbase/rosetta-cli"><img src="https://coveralls.io/repos/github/coinbase/rosetta-cli/badge.svg" /></a>
+  <a href="https://goreportcard.com/report/github.com/coinbase/rosetta-cli"><img src="https://goreportcard.com/badge/github.com/coinbase/rosetta-cli" /></a>
+  <a href="https://github.com/coinbase/rosetta-cli/blob/master/LICENSE.txt"><img src="https://img.shields.io/github/license/coinbase/rosetta-cli.svg" /></a>
 </p>
 
 ## Overview
@@ -31,7 +31,7 @@ Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 ## Install
 To download a binary for the latest release, run:
 ```
-curl -sSfL https://raw.githubusercontent.com/sidhujag/rosetta-cli/master/scripts/install.sh | sh -s
+curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s
 ```
 
 The binary will be installed inside the `./bin` directory (relative to where the install command was run).
@@ -41,7 +41,7 @@ _Downloading binaries from the Github UI will cause permission errors on Mac._
 ### Installing in Custom Location
 To download the binary into a specific directory, run:
 ```
-curl -sSfL https://raw.githubusercontent.com/sidhujag/rosetta-cli/master/scripts/install.sh | sh -s -- -b <relative directory>
+curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s -- -b <relative directory>
 ```
 
 ## Usage
@@ -85,7 +85,7 @@ provided at runtime. If a configuration file is not provided, the default
 configuration is used. This default configuration can be viewed
 [here](examples/configuration/default.json). Note, there is no default
 configuration for running `check:construction` as this is very network-specific.
-You can view a full list of all configuration options [here](https://pkg.go.dev/github.com/sidhujag/rosetta-cli/configuration).
+You can view a full list of all configuration options [here](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration).
 
 In the `examples/configuration` directory, you can find examples configuration
 files for running tests against a Bitcoin Rosetta implementation
@@ -143,7 +143,7 @@ Please note that `create_account` can contain a transaction broadcast if
 on-chain origination is required for new accounts on your blockchain.
 
 If you plan to run the automated Construction API tester in CI, you may wish to
-provide [`prefunded accounts`](https://pkg.go.dev/github.com/sidhujag/rosetta-cli/configuration#ConstructionConfiguration)
+provide [`prefunded accounts`](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration#ConstructionConfiguration)
 when running the tester (otherwise you would need to manually fund generated
 accounts).
 
@@ -187,7 +187,7 @@ provide this functionality through the use of "end conditions" which can be
 specified in your configuration file.
 
 ##### check:data
-A full list of `check:data` end conditions can be found [here](https://pkg.go.dev/github.com/sidhujag/rosetta-cli/configuration#DataEndConditions).
+A full list of `check:data` end conditions can be found [here](https://pkg.go.dev/github.com/coinbase/rosetta-cli/configuration#DataEndConditions).
 If any end condition is satisifed, we will exit and output the
 results in `results_output_file` (if it is populated).
 
@@ -303,7 +303,7 @@ are run to ensure that intermediate representations are correct (i.e. does
 an unsigned transaction return a superset of operations provided during
 construction?).
 
-Check out the https://github.com/sidhujag/rosetta-cli/tree/master/examples
+Check out the https://github.com/coinbase/rosetta-cli/tree/master/examples
 directory for examples of how to configure this test for Bitcoin and
 Ethereum.
 

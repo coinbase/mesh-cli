@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sidhujag/rosetta-cli/pkg/results"
-	"github.com/sidhujag/rosetta-cli/pkg/tester"
+	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/utils"

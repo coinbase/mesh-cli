@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sidhujag/rosetta-cli/pkg/logger"
-	"github.com/sidhujag/rosetta-cli/pkg/results"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"

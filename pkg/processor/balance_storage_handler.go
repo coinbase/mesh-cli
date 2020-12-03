@@ -18,7 +18,7 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/sidhujag/rosetta-cli/pkg/logger"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"

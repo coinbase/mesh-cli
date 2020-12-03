@@ -17,7 +17,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/sidhujag/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"

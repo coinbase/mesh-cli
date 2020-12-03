@@ -21,7 +21,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/sidhujag/rosetta-cli/pkg/results"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
