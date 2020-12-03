@@ -154,18 +154,16 @@ func InitializeData(
 	if config.CompressionDisabled {
 		opts = append(opts, database.WithoutCompression())
 	}
+	
 	if config.MemoryLimitDisabled {
+		performanceOpts := database.PerformanceBadgerOptions(dataPath)
+		// Use an extended table size for larger commits.
+		performanceOpts.MaxTableSize = config.MaxTableSize
+		performanceOpts.ValueLogFileSize = config.ValueLogFileSize
 		opts = append(
 			opts,
-			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			database.WithCustomSettings(performanceOpts),
 		)
-	}
-	// Use an extended table size for larger commits.
-	if len(config.MaxTableSize) > 0 {
-		opts.MaxTableSize = config.MaxTableSize
-	}
-	if len(config.MaxLogSize) > 0 {
-		opts.ValueLogFileSize = config.MaxLogSize
 	}
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)

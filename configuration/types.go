@@ -401,7 +401,7 @@ type Configuration struct {
 	// MaxTableSize default is 256 MB. The larger
 	// this value is, the larger database transactions
 	// storage can handle (~15% of the max table size
-	// == max commit size). 0 means use default.
+	// == max commit size). It is only applied if MemoryLimitDisabled is true.
 	MaxTableSize uint64 `json:"max_table_size,omitempty"`
 
 	// MaxLogSize should be 4 times the size of MaxLogSize. 
@@ -409,7 +409,7 @@ type Configuration struct {
 	// can grow to many GBs if left untuned). Our own research indicates
 	// that each MB increase in MaxTableSize and/or ValueLogFileSize corresponds
 	// to a 10 MB increase in RAM usage (all other settings equal). Our primary
-	// concern is large database transaction size.
+	// concern is large database transaction size. It is only applied if MemoryLimitDisabled is true.
 	MaxLogSize uint64 `json:"max_log_size,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`

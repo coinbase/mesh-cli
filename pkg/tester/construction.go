@@ -90,25 +90,18 @@ func InitializeConstruction(
 	if config.CompressionDisabled {
 		opts = append(opts, database.WithoutCompression())
 	}
+
 	if config.MemoryLimitDisabled {
+		performanceOpts := database.PerformanceBadgerOptions(dataPath)
+		// Use an extended table size for larger commits.
+		performanceOpts.MaxTableSize = config.MaxTableSize
+		performanceOpts.ValueLogFileSize = config.ValueLogFileSize
 		opts = append(
 			opts,
-			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			database.WithCustomSettings(performanceOpts),
 		)
 	}
-	// Use an extended table size for larger commits.
-	opts = append(
-		opts,
-		database.BadgerOption{
-			MaxTableSize: config.MaxTableSize,
-		},
-	)
-	opts = append(
-		opts,
-		database.BadgerOption{
-			ValueLogFileSize: config.MaxLogSize,
-		},
-	)
+	
 	
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
