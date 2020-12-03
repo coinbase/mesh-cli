@@ -402,7 +402,7 @@ type Configuration struct {
 	// this value is, the larger database transactions
 	// storage can handle (~15% of the max table size
 	// == max commit size). It is only applied if MemoryLimitDisabled is true.
-	MaxTableSize uint64 `json:"max_table_size,omitempty"`
+	MaxTableSize int64 `json:"max_table_size,omitempty"`
 
 	// MaxLogSize should be 4 times the size of MaxLogSize. 
 	// There are many threads about optimizing memory usage in Badger (which
@@ -410,7 +410,7 @@ type Configuration struct {
 	// that each MB increase in MaxTableSize and/or ValueLogFileSize corresponds
 	// to a 10 MB increase in RAM usage (all other settings equal). Our primary
 	// concern is large database transaction size. It is only applied if MemoryLimitDisabled is true.
-	MaxLogSize uint64 `json:"max_log_size,omitempty"`
+	MaxLogSize int64 `json:"max_log_size,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
