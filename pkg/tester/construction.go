@@ -97,13 +97,19 @@ func InitializeConstruction(
 		)
 	}
 	// Use an extended table size for larger commits.
-	if len(config.MaxTableSize) > 0 {
-		opts.MaxTableSize = config.MaxTableSize
-	}
-	if len(config.MaxLogSize) > 0 {
-		opts.ValueLogFileSize = config.MaxLogSize
-	}
-
+	opts = append(
+		opts,
+		database.BadgerOption{
+			MaxTableSize: config.MaxTableSize,
+		},
+	)
+	opts = append(
+		opts,
+		database.BadgerOption{
+			ValueLogFileSize: config.MaxLogSize,
+		},
+	)
+	
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
 		log.Fatalf("%s: unable to initialize database", err.Error())
