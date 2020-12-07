@@ -561,7 +561,7 @@ operations should be returned by the Rosetta Data API.
 Many of the packages use a `Helper/Handler` interface pattern to acquire
 required information or to send events to some client implementation. An example
 of this is in the `reconciler` package where a `Helper` is used to get
-the account balance and the `Handler` is called to incidate whether the
+the account balance and the `Handler` is called to indicate whether the
 reconciliation of an account was successful.
 
 ### Repo Structure
