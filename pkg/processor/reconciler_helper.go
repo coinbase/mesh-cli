@@ -161,3 +161,18 @@ func (h *ReconcilerHelper) PruneBalances(
 		index,
 	)
 }
+
+// ForceInactiveReconciliation overrides the default
+// calculation to determine if an account should be
+// reconciled inactively.
+//
+// TODO: complete this implementation (forcing when
+// reaching tip if from_tip end condition is enabled)
+func (h *ReconcilerHelper) ForceInactiveReconciliation(
+	ctx context.Context,
+	account *types.AccountIdentifier,
+	currency *types.Currency,
+	lastChecked *types.BlockIdentifier,
+) bool {
+	return false
+}
