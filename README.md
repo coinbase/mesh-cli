@@ -92,6 +92,17 @@ files for running tests against a Bitcoin Rosetta implementation
 ([config](https://github.com/coinbase/rosetta-bitcoin/tree/master/rosetta-cli-conf)) and an Ethereum Rosetta
 implementation ([config](https://github.com/coinbase/rosetta-ethereum/tree/master/rosetta-cli-conf)).
 
+#### Using environment variables
+
+It's possible to set the configuration file path using an environment variable instead
+of using a CLI flag. See an example below:
+
+```bash
+ROSETTA_CONFIGURATION_FILE=/path/to/cli/config rosetta <command>
+```
+
+CLI flags take precedence over environment variables.
+
 #### Writing check:construction Tests
 The new Construction API testing framework (first released in `rosetta-cli@v0.5.0`) uses
 a new design pattern to allow for complex transaction construction orchestration.
