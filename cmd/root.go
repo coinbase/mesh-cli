@@ -31,6 +31,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// configEnvKey is an env variable name that sets a config file location
+	configEnvKey = "ROSETTA_CONFIGURATION_FILE"
+)
+
 var (
 	rootCmd = &cobra.Command{
 		Use:               "rosetta-cli",
@@ -214,6 +219,13 @@ default values.`,
 func initConfig() {
 	Context = context.Background()
 	var err error
+
+	// Use path provided by the environment variable if config path arg is not set.
+	// Default configuration will be used if the env var is not
+	if len(configurationFile) == 0 {
+		configurationFile = os.Getenv(configEnvKey)
+	}
+
 	if len(configurationFile) == 0 {
 		Config = configuration.DefaultConfiguration()
 	} else {
