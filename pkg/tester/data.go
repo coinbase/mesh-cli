@@ -177,7 +177,7 @@ func InitializeData(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
-	blockStorage := modules.NewBlockStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	logger := logger.NewLogger(
@@ -320,6 +320,7 @@ func InitializeData(
 		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
 		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
 	}
 	if config.Data.PruningFrequency != nil {
 		statefulSyncerOptions = append(
@@ -978,7 +979,7 @@ func (t *DataTester) recursiveOpSearch(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
-	blockStorage := modules.NewBlockStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore, t.config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	logger := logger.NewLogger(
@@ -1055,6 +1056,7 @@ func (t *DataTester) recursiveOpSearch(
 		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
 		statefulsyncer.WithMaxConcurrency(t.config.MaxSyncConcurrency),
 		statefulsyncer.WithPastBlockLimit(t.config.MaxReorgDepth),
+		statefulsyncer.WithSeenConcurrency(int64(t.config.SeenBlockWorkers)),
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
