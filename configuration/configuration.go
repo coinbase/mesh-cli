@@ -240,7 +240,7 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 	return nil
 }
 
-func assertDataConfiguration(config *DataConfiguration) error {
+func assertDataConfiguration(config *DataConfiguration) error { // nolint:gocognit
 	if config.StartIndex != nil && *config.StartIndex < 0 {
 		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
 	}
