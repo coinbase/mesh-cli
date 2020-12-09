@@ -180,28 +180,6 @@ func InitializeData(
 	blockStorage := modules.NewBlockStorage(localStore)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
-	// Bootstrap balances, if provided. We need to do before initializing
-	// the reconciler otherwise we won't reconcile bootstrapped accounts
-	// until rosetta-cli restart.
-	if len(config.Data.BootstrapBalances) > 0 {
-		_, err := blockStorage.GetHeadBlockIdentifier(ctx)
-		switch {
-		case err == storageErrs.ErrHeadBlockNotFound:
-			err = balanceStorage.BootstrapBalances(
-				ctx,
-				config.Data.BootstrapBalances,
-				genesisBlock,
-			)
-			if err != nil {
-				log.Fatalf("%s: unable to bootstrap balances", err.Error())
-			}
-		case err != nil:
-			log.Fatalf("%s: unable to get head block identifier", err.Error())
-		default:
-			log.Println("Skipping balance bootstrapping because already started syncing")
-		}
-	}
-
 	logger := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
@@ -304,6 +282,31 @@ func InitializeData(
 		balanceStorage.Initialize(balanceStorageHelper, balanceStorageHandler)
 
 		blockWorkers = append(blockWorkers, balanceStorage)
+
+		// Bootstrap balances, if provided. We need to do before initializing
+		// the reconciler otherwise we won't reconcile bootstrapped accounts
+		// until rosetta-cli restart.
+		//
+		// We need to do this after instantiating the balance storage handler
+		// because it is invoked within BootstrapBalances.
+		if len(config.Data.BootstrapBalances) > 0 {
+			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
+			switch {
+			case err == storageErrs.ErrHeadBlockNotFound:
+				err = balanceStorage.BootstrapBalances(
+					ctx,
+					config.Data.BootstrapBalances,
+					genesisBlock,
+				)
+				if err != nil {
+					log.Fatalf("%s: unable to bootstrap balances", err.Error())
+				}
+			case err != nil:
+				log.Fatalf("%s: unable to get head block identifier", err.Error())
+			default:
+				log.Println("Skipping balance bootstrapping because already started syncing")
+			}
+		}
 	}
 
 	if !config.Data.CoinTrackingDisabled {

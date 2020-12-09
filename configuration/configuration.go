@@ -232,6 +232,10 @@ func assertDataConfiguration(config *DataConfiguration) error {
 		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
 	}
 
+	if !config.ReconciliationDisabled && config.BalanceTrackingDisabled {
+		return errors.New("balance tracking must be enabled to perform reconciliation")
+	}
+
 	if config.EndConditions == nil {
 		return nil
 	}
