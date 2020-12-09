@@ -46,7 +46,6 @@ func DefaultDataConfiguration() *DataConfiguration {
 // EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
-	numCPU := runtime.NumCPU()
 	return &Configuration{
 		Network:              EthereumNetwork,
 		OnlineURL:            DefaultURL,
@@ -57,8 +56,6 @@ func DefaultConfiguration() *Configuration {
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
-		SeenBlockWorkers:     numCPU,
-		SerialBlockWorkers:   numCPU,
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"os/exec"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -158,7 +159,13 @@ func TestLoadConfiguration(t *testing.T) {
 	}{
 		"nothing provided": {
 			provided: &Configuration{},
-			expected: DefaultConfiguration(),
+			expected: func() *Configuration {
+				cfg := DefaultConfiguration()
+				cfg.SeenBlockWorkers = runtime.NumCPU()
+				cfg.SerialBlockWorkers = runtime.NumCPU()
+
+				return cfg
+			}(),
 		},
 		"no overwrite": {
 			provided: whackyConfig,
@@ -173,6 +180,8 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
+				cfg.SeenBlockWorkers = runtime.NumCPU()
+				cfg.SerialBlockWorkers = runtime.NumCPU()
 				cfg.Construction = &ConstructionConfiguration{
 					OfflineURL:            DefaultURL,
 					MaxOfflineConnections: DefaultMaxOfflineConnections,
@@ -195,6 +204,8 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
+				cfg.SeenBlockWorkers = runtime.NumCPU()
+				cfg.SerialBlockWorkers = runtime.NumCPU()
 				cfg.Construction = &ConstructionConfiguration{
 					OfflineURL:            DefaultURL,
 					MaxOfflineConnections: DefaultMaxOfflineConnections,
@@ -223,6 +234,8 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
+				cfg.SeenBlockWorkers = runtime.NumCPU()
+				cfg.SerialBlockWorkers = runtime.NumCPU()
 				cfg.Construction = &ConstructionConfiguration{
 					OfflineURL:            DefaultURL,
 					MaxOfflineConnections: DefaultMaxOfflineConnections,
@@ -314,6 +327,8 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
+				cfg.SeenBlockWorkers = runtime.NumCPU()
+				cfg.SerialBlockWorkers = runtime.NumCPU()
 				cfg.Data.EndConditions = &DataEndConditions{
 					ReconciliationCoverage: &ReconciliationCoverage{
 						Coverage:     goodCoverage,
@@ -371,6 +386,8 @@ func TestLoadConfiguration(t *testing.T) {
 			provided: multipleEndConditions,
 			expected: func() *Configuration {
 				def := DefaultConfiguration()
+				def.SeenBlockWorkers = runtime.NumCPU()
+				def.SerialBlockWorkers = runtime.NumCPU()
 				def.Data.EndConditions = multipleEndConditions.Data.EndConditions
 
 				return def
