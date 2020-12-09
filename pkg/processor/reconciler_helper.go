@@ -37,9 +37,10 @@ type ReconcilerHelper struct {
 	network *types.NetworkIdentifier
 	fetcher *fetcher.Fetcher
 
-	database       database.Database
-	blockStorage   *modules.BlockStorage
-	balanceStorage *modules.BalanceStorage
+	database                    database.Database
+	blockStorage                *modules.BlockStorage
+	balanceStorage              *modules.BalanceStorage
+	forceInactiveReconciliation *bool
 }
 
 // NewReconcilerHelper returns a new ReconcilerHelper.
@@ -50,14 +51,16 @@ func NewReconcilerHelper(
 	database database.Database,
 	blockStorage *modules.BlockStorage,
 	balanceStorage *modules.BalanceStorage,
+	forceInactiveReconciliation *bool,
 ) *ReconcilerHelper {
 	return &ReconcilerHelper{
-		config:         config,
-		network:        network,
-		fetcher:        fetcher,
-		database:       database,
-		blockStorage:   blockStorage,
-		balanceStorage: balanceStorage,
+		config:                      config,
+		network:                     network,
+		fetcher:                     fetcher,
+		database:                    database,
+		blockStorage:                blockStorage,
+		balanceStorage:              balanceStorage,
+		forceInactiveReconciliation: forceInactiveReconciliation,
 	}
 }
 
@@ -165,14 +168,15 @@ func (h *ReconcilerHelper) PruneBalances(
 // ForceInactiveReconciliation overrides the default
 // calculation to determine if an account should be
 // reconciled inactively.
-//
-// TODO: complete this implementation (forcing when
-// reaching tip if from_tip end condition is enabled)
 func (h *ReconcilerHelper) ForceInactiveReconciliation(
 	ctx context.Context,
 	account *types.AccountIdentifier,
 	currency *types.Currency,
 	lastChecked *types.BlockIdentifier,
 ) bool {
-	return false
+	if h.forceInactiveReconciliation == nil {
+		return false
+	}
+
+	return *h.forceInactiveReconciliation
 }

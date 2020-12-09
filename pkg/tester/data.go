@@ -72,22 +72,23 @@ var _ statefulsyncer.PruneHelper = (*DataTester)(nil)
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
-	network                  *types.NetworkIdentifier
-	database                 database.Database
-	config                   *configuration.Configuration
-	syncer                   *statefulsyncer.StatefulSyncer
-	reconciler               *reconciler.Reconciler
-	logger                   *logger.Logger
-	balanceStorage           *modules.BalanceStorage
-	blockStorage             *modules.BlockStorage
-	counterStorage           *modules.CounterStorage
-	reconcilerHandler        *processor.ReconcilerHandler
-	fetcher                  *fetcher.Fetcher
-	signalReceived           *bool
-	genesisBlock             *types.BlockIdentifier
-	cancel                   context.CancelFunc
-	historicalBalanceEnabled bool
-	parser                   *parser.Parser
+	network                     *types.NetworkIdentifier
+	database                    database.Database
+	config                      *configuration.Configuration
+	syncer                      *statefulsyncer.StatefulSyncer
+	reconciler                  *reconciler.Reconciler
+	logger                      *logger.Logger
+	balanceStorage              *modules.BalanceStorage
+	blockStorage                *modules.BlockStorage
+	counterStorage              *modules.CounterStorage
+	reconcilerHandler           *processor.ReconcilerHandler
+	fetcher                     *fetcher.Fetcher
+	signalReceived              *bool
+	genesisBlock                *types.BlockIdentifier
+	cancel                      context.CancelFunc
+	historicalBalanceEnabled    bool
+	parser                      *parser.Parser
+	forceInactiveReconciliation *bool
 
 	endCondition       configuration.CheckDataEndCondition
 	endConditionDetail string
@@ -188,6 +189,7 @@ func InitializeData(
 		config.Data.LogReconciliations,
 	)
 
+	var forceInactiveReconciliation bool
 	reconcilerHelper := processor.NewReconcilerHelper(
 		config,
 		network,
@@ -195,6 +197,7 @@ func InitializeData(
 		localStore,
 		blockStorage,
 		balanceStorage,
+		&forceInactiveReconciliation,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
@@ -342,22 +345,23 @@ func InitializeData(
 	)
 
 	return &DataTester{
-		network:                  network,
-		database:                 localStore,
-		config:                   config,
-		syncer:                   syncer,
-		cancel:                   cancel,
-		reconciler:               r,
-		logger:                   logger,
-		balanceStorage:           balanceStorage,
-		blockStorage:             blockStorage,
-		counterStorage:           counterStorage,
-		reconcilerHandler:        reconcilerHandler,
-		fetcher:                  fetcher,
-		signalReceived:           signalReceived,
-		genesisBlock:             genesisBlock,
-		historicalBalanceEnabled: historicalBalanceEnabled,
-		parser:                   parser,
+		network:                     network,
+		database:                    localStore,
+		config:                      config,
+		syncer:                      syncer,
+		cancel:                      cancel,
+		reconciler:                  r,
+		logger:                      logger,
+		balanceStorage:              balanceStorage,
+		blockStorage:                blockStorage,
+		counterStorage:              counterStorage,
+		reconcilerHandler:           reconcilerHandler,
+		fetcher:                     fetcher,
+		signalReceived:              signalReceived,
+		genesisBlock:                genesisBlock,
+		historicalBalanceEnabled:    historicalBalanceEnabled,
+		parser:                      parser,
+		forceInactiveReconciliation: &forceInactiveReconciliation,
 	}
 }
 
@@ -481,6 +485,44 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// syncedToTip returns a boolean indicating if we are synced to tip and
+// the last synced block.
+func (t *DataTester) syncedToTip(ctx context.Context) (bool, int64, error) {
+	headBlock, err := t.blockStorage.GetBlock(ctx, nil)
+	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
+		return false, -1, nil
+	}
+	if err != nil {
+		return false, -1, err
+	}
+
+	blockIdentifier := headBlock.BlockIdentifier
+
+	// If the last synced block is within TipDelay
+	// seconds from the current time, we are synced
+	// to tip.
+	if utils.AtTip(t.config.TipDelay, headBlock.Timestamp) {
+		return true, blockIdentifier.Index, nil
+	}
+
+	status, fetchErr := t.fetcher.NetworkStatusRetry(ctx, t.network, nil)
+	if fetchErr != nil {
+		return false, -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+	}
+
+	// If the Rosetta implementation says it is at tip (regardless of the current
+	// block timestamp) and our last synced block has the same index,
+	// we are synced to tip.
+	if status.SyncStatus != nil &&
+		status.SyncStatus.Synced != nil &&
+		*status.SyncStatus.Synced &&
+		blockIdentifier.Index == status.CurrentBlockIdentifier.Index {
+		return true, blockIdentifier.Index, nil
+	}
+
+	return false, blockIdentifier.Index, nil
+}
+
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
 func (t *DataTester) EndAtTipLoop(
 	ctx context.Context,
@@ -494,7 +536,7 @@ func (t *DataTester) EndAtTipLoop(
 			return
 
 		case <-tc.C:
-			atTip, blockIdentifier, err := t.blockStorage.AtTip(ctx, t.config.TipDelay)
+			atTip, blockIndex, err := t.syncedToTip(ctx)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate if syncer is at tip",
@@ -507,7 +549,7 @@ func (t *DataTester) EndAtTipLoop(
 				t.endCondition = configuration.TipEndCondition
 				t.endConditionDetail = fmt.Sprintf(
 					"Tip: %d",
-					blockIdentifier.Index,
+					blockIndex,
 				)
 				t.cancel()
 				return
@@ -532,10 +574,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			return
 
 		case <-tc.C:
-			headBlock, err := t.blockStorage.GetBlock(ctx, nil)
-			if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
-				continue
-			}
+			atTip, blockIndex, err := t.syncedToTip(ctx)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate syncer height or if at tip",
@@ -544,15 +583,24 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				continue
 			}
 
-			blockIdentifier := headBlock.BlockIdentifier
-			atTip := utils.AtTip(t.config.TipDelay, headBlock.Timestamp)
-
 			// Check if we are at tip and set tip height if fromTip is true.
 			if reconciliationCoverage.Tip || reconciliationCoverage.FromTip {
 				// If we fall behind tip, we must reset the firstTipIndex.
+				var disableForceReconciliation bool
 				if !atTip {
+					disableForceReconciliation = true
 					firstTipIndex = int64(-1)
 					continue
+				}
+
+				// forceInactiveReconciliation should NEVER be nil
+				// by this point but we check just to be sure.
+				if t.forceInactiveReconciliation != nil {
+					*t.forceInactiveReconciliation = !disableForceReconciliation
+
+					if !disableForceReconciliation {
+						log.Println("enabling forced inactive reconciliation")
+					}
 				}
 
 				// Once at tip, we want to consider
@@ -561,7 +609,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				// block, so we take the range from when first
 				// at tip to the current block.
 				if firstTipIndex < 0 {
-					firstTipIndex = blockIdentifier.Index
+					firstTipIndex = blockIndex
 				}
 			}
 
@@ -571,7 +619,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 
 			// Check if at required minimum index
 			if reconciliationCoverage.Index != nil {
-				if *reconciliationCoverage.Index < blockIdentifier.Index {
+				if *reconciliationCoverage.Index < blockIndex {
 					continue
 				}
 
@@ -990,6 +1038,7 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 	)
 
+	t.forceInactiveReconciliation = types.Bool(false)
 	reconcilerHelper := processor.NewReconcilerHelper(
 		t.config,
 		t.network,
@@ -997,6 +1046,7 @@ func (t *DataTester) recursiveOpSearch(
 		localStore,
 		blockStorage,
 		balanceStorage,
+		t.forceInactiveReconciliation,
 	)
 
 	reconcilerHandler := processor.NewReconcilerHandler(
