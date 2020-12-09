@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"runtime"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
@@ -153,6 +154,15 @@ func populateMissingFields(config *Configuration) *Configuration {
 		config.MaxReorgDepth = DefaultMaxReorgDepth
 	}
 
+	numCPU := runtime.NumCPU()
+	if config.SeenBlockWorkers == 0 {
+		config.SeenBlockWorkers = numCPU
+	}
+
+	if config.SerialBlockWorkers == 0 {
+		config.SerialBlockWorkers = numCPU
+	}
+
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
 
@@ -227,9 +237,13 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 	return nil
 }
 
-func assertDataConfiguration(config *DataConfiguration) error {
+func assertDataConfiguration(config *DataConfiguration) error { // nolint:gocognit
 	if config.StartIndex != nil && *config.StartIndex < 0 {
 		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
+	}
+
+	if !config.ReconciliationDisabled && config.BalanceTrackingDisabled {
+		return errors.New("balance tracking must be enabled to perform reconciliation")
 	}
 
 	if config.EndConditions == nil {
@@ -286,6 +300,14 @@ func assertDataConfiguration(config *DataConfiguration) error {
 func assertConfiguration(ctx context.Context, config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
 		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	if config.SeenBlockWorkers <= 0 {
+		return errors.New("seen_block_workers must be > 0")
+	}
+
+	if config.SerialBlockWorkers <= 0 {
+		return errors.New("serial_block_workers must be > 0")
 	}
 
 	if err := assertDataConfiguration(config.Data); err != nil {

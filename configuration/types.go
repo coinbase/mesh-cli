@@ -396,6 +396,16 @@ type Configuration struct {
 	// but can use 10s of GBs of RAM, even with pruning enabled.
 	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
 
+	// SeenBlockWorkers is the number of goroutines spawned to store
+	// seen blocks in storage before we attempt to sequence. If not populated,
+	// this value defaults to runtime.NumCPU().
+	SeenBlockWorkers int `json:"seen_block_workers,omitempty"`
+
+	// SerialBlockWorkers is the number of goroutines spawned to help
+	// with block sequencing (i.e. updating balances, updating coins, etc).
+	// If not populated, this value defaults to runtime.NumCPU().
+	SerialBlockWorkers int `json:"serial_block_workers,omitempty"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }

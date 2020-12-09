@@ -121,7 +121,7 @@ func InitializeConstruction(
 		false,
 	)
 
-	blockStorage := modules.NewBlockStorage(localStore)
+	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	keyStorage := modules.NewKeyStorage(localStore)
 	coinStorageHelper := processor.NewCoinStorageHelper(blockStorage)
 	coinStorage := modules.NewCoinStorage(localStore, coinStorageHelper, onlineFetcher.Asserter)
@@ -266,6 +266,7 @@ func InitializeConstruction(
 		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
 		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
 	)
 
 	return &ConstructionTester{
