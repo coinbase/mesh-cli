@@ -485,9 +485,9 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// syncedToTip returns a boolean indicating if we are synced to tip and
+// syncedStatus returns a boolean indicating if we are synced to tip and
 // the last synced block.
-func (t *DataTester) syncedToTip(ctx context.Context) (bool, int64, error) {
+func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
 	headBlock, err := t.blockStorage.GetBlock(ctx, nil)
 	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 		return false, -1, nil
@@ -536,7 +536,7 @@ func (t *DataTester) EndAtTipLoop(
 			return
 
 		case <-tc.C:
-			atTip, blockIndex, err := t.syncedToTip(ctx)
+			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate if syncer is at tip",
@@ -574,7 +574,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			return
 
 		case <-tc.C:
-			atTip, blockIndex, err := t.syncedToTip(ctx)
+			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
 				log.Printf(
 					"%s: unable to evaluate syncer height or if at tip",
