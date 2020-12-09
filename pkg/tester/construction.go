@@ -329,6 +329,12 @@ func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
 		return status.CurrentBlockIdentifier.Index, nil
 	}
 
+	// If the Rosetta implementation says it is at tip (regardless of the current
+	// block timestamp), we should start.
+	if status.SyncStatus != nil && status.SyncStatus.Synced != nil && *status.SyncStatus.Synced {
+		return status.CurrentBlockIdentifier.Index, nil
+	}
+
 	return -1, nil
 }
 
