@@ -250,6 +250,7 @@ func ComputeCheckDataStats(
 	}
 
 	if balances != nil {
+		// TODO: handle nil handler/nil helper error
 		coverage, err := balances.EstimatedReconciliationCoverage(ctx)
 		if err != nil {
 			log.Printf("%s: cannot get reconcile coverage", err.Error())
