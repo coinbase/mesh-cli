@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"runtime"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
@@ -45,6 +46,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 // EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
+	numCPU := runtime.NumCPU()
 	return &Configuration{
 		Network:              EthereumNetwork,
 		OnlineURL:            DefaultURL,
@@ -55,6 +57,8 @@ func DefaultConfiguration() *Configuration {
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
+		SeenBlockWorkers:     numCPU,
+		SerialBlockWorkers:   numCPU,
 	}
 }
 
@@ -151,6 +155,15 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.MaxReorgDepth == 0 {
 		config.MaxReorgDepth = DefaultMaxReorgDepth
+	}
+
+	numCPU := runtime.NumCPU()
+	if config.SeenBlockWorkers == 0 {
+		config.SeenBlockWorkers = numCPU
+	}
+
+	if config.SerialBlockWorkers == 0 {
+		config.SerialBlockWorkers = numCPU
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
@@ -290,6 +303,14 @@ func assertDataConfiguration(config *DataConfiguration) error {
 func assertConfiguration(ctx context.Context, config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
 		return fmt.Errorf("%w: invalid network identifier", err)
+	}
+
+	if config.SeenBlockWorkers <= 0 {
+		return errors.New("seen_block_workers must be > 0")
+	}
+
+	if config.SerialBlockWorkers <= 0 {
+		return errors.New("serial_block_workers must be > 0")
 	}
 
 	if err := assertDataConfiguration(config.Data); err != nil {

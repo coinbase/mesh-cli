@@ -68,6 +68,8 @@ var (
 		MaxSyncConcurrency:   12,
 		TipDelay:             1231,
 		MaxReorgDepth:        12,
+		SeenBlockWorkers:     300,
+		SerialBlockWorkers:   200,
 		Construction: &ConstructionConfiguration{
 			OfflineURL:            "https://ashdjaksdkjshdk",
 			MaxOfflineConnections: 21,
