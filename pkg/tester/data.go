@@ -674,10 +674,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			}
 
 			color.Cyan(fmt.Sprintf(
-				"[END CONDITIONS] Waiting for reconciliation coverage after block %d (%f%%) to surpass required coverage (%f%%)",
+				"[END CONDITIONS] Waiting for reconciliation coverage after block %d (%f%%) to surpass requirement (%f%%)",
 				firstTipIndex,
-				reconciliationCoverage.Coverage*utils.OneHundred,
 				coverage*utils.OneHundred,
+				reconciliationCoverage.Coverage*utils.OneHundred,
 			))
 		}
 	}
