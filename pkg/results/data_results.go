@@ -101,6 +101,7 @@ type CheckDataStats struct {
 	Orphans                 int64   `json:"orphans"`
 	Transactions            int64   `json:"transactions"`
 	Operations              int64   `json:"operations"`
+	Accounts                int64   `json:"accounts"`
 	ActiveReconciliations   int64   `json:"active_reconciliations"`
 	InactiveReconciliations int64   `json:"inactive_reconciliations"`
 	ExemptReconciliations   int64   `json:"exempt_reconciliations"`
@@ -126,6 +127,9 @@ func (c *CheckDataStats) Print() {
 	)
 	table.Append(
 		[]string{"Operations", "# of operations processed", strconv.FormatInt(c.Operations, 10)},
+	)
+	table.Append(
+		[]string{"Accounts", "# of accounts seen", strconv.FormatInt(c.Accounts, 10)},
 	)
 	table.Append(
 		[]string{
@@ -207,6 +211,12 @@ func ComputeCheckDataStats(
 		return nil
 	}
 
+	accounts, err := counters.Get(ctx, modules.SeenAccounts)
+	if err != nil {
+		log.Printf("%s: cannot get accounts counter", err.Error())
+		return nil
+	}
+
 	activeReconciliations, err := counters.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
 		log.Printf("%s: cannot get active reconciliations counter", err.Error())
@@ -242,6 +252,7 @@ func ComputeCheckDataStats(
 		Orphans:                 orphans.Int64(),
 		Transactions:            txs.Int64(),
 		Operations:              ops.Int64(),
+		Accounts:                accounts.Int64(),
 		ActiveReconciliations:   activeReconciliations.Int64(),
 		InactiveReconciliations: inactiveReconciliations.Int64(),
 		ExemptReconciliations:   exemptReconciliations.Int64(),

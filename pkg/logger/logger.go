@@ -97,11 +97,12 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	statsMessage := fmt.Sprintf(
-		"[STATS] Blocks: %d (Orphaned: %d) Transactions: %d Operations: %d Reconciliations: %d (Inactive: %d, Exempt: %d, Skipped: %d, Coverage: %f%%)", // nolint:lll
+		"[STATS] Blocks: %d (Orphaned: %d) Transactions: %d Operations: %d Accounts: %d Reconciliations: %d (Inactive: %d, Exempt: %d, Skipped: %d, Coverage: %f%%)", // nolint:lll
 		status.Stats.Blocks,
 		status.Stats.Orphans,
 		status.Stats.Transactions,
 		status.Stats.Operations,
+		status.Stats.Accounts,
 		status.Stats.ActiveReconciliations+status.Stats.InactiveReconciliations,
 		status.Stats.InactiveReconciliations,
 		status.Stats.ExemptReconciliations,
