@@ -597,10 +597,6 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				// by this point but we check just to be sure.
 				if t.forceInactiveReconciliation != nil {
 					*t.forceInactiveReconciliation = !disableForceReconciliation
-
-					if !disableForceReconciliation {
-						log.Println("enabling forced inactive reconciliation")
-					}
 				}
 
 				// Once at tip, we want to consider
@@ -676,6 +672,13 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				t.cancel()
 				return
 			}
+
+			color.Cyan(fmt.Sprintf(
+				"[END CONDITIONS] Waiting for reconciliation coverage after block %d (%f%%) to surpass required coverage (%f%%)",
+				firstTipIndex,
+				reconciliationCoverage.Coverage*utils.OneHundred,
+				coverage*utils.OneHundred,
+			))
 		}
 	}
 }
