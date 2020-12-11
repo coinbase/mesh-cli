@@ -162,12 +162,20 @@ func InitializeConstruction(
 		blockStorage,
 		onlineFetcher,
 	)
-	offlineFetcher := fetcher.New(
-		config.Construction.OfflineURL,
+
+	fetcherOpts := []fetcher.Option{
 		fetcher.WithMaxConnections(config.Construction.MaxOfflineConnections),
 		fetcher.WithAsserter(onlineFetcher.Asserter),
-		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
+		fetcher.WithTimeout(time.Duration(config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(config.MaxRetries),
+	}
+	if config.Construction.ForceRetry {
+		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
+	}
+
+	offlineFetcher := fetcher.New(
+		config.Construction.OfflineURL,
+		fetcherOpts...,
 	)
 
 	// Import prefunded account and save to database

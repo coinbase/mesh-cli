@@ -53,6 +53,8 @@ const (
 	argUnsignedTransaction   = "unsigned_transaction"
 	argTransactionIdentifier = "transaction_identifier"
 	argNetworkTransaction    = "network_transaction"
+
+	kvPrefix = "coordinator_kv"
 )
 
 var _ coordinator.Helper = (*CoordinatorHelper)(nil)
@@ -511,4 +513,31 @@ func (c *CoordinatorHelper) HeadBlockExists(ctx context.Context) bool {
 	headBlock, _ := c.blockStorage.GetHeadBlockIdentifier(ctx)
 
 	return headBlock != nil
+}
+
+func kvKey(key string) []byte {
+	return []byte(fmt.Sprintf("%s/%s", kvPrefix, key))
+}
+
+// SetBlob transactionally persists
+// a key and value.
+func (c *CoordinatorHelper) SetBlob(
+	ctx context.Context,
+	dbTx database.Transaction,
+	key string,
+	value []byte,
+) error {
+	// We defensively don't claim the value slice
+	// in our buffer pool.
+	return dbTx.Set(ctx, kvKey(key), value, false)
+}
+
+// GetBlob transactionally retrieves
+// a key and value.
+func (c *CoordinatorHelper) GetBlob(
+	ctx context.Context,
+	dbTx database.Transaction,
+	key string,
+) (bool, []byte, error) {
+	return dbTx.Get(ctx, kvKey(key))
 }

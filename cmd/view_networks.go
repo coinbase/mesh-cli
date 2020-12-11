@@ -41,11 +41,19 @@ not formatted correctly.`,
 )
 
 func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
+	fetcherOpts := []fetcher.Option{
+		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
+	}
+	if Config.ForceRetry {
+		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
+	}
+
 	f := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcherOpts...,
 	)
 
 	// Attempt to fetch network list

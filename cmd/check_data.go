@@ -74,12 +74,19 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) error {
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(Context)
 
+	fetcherOpts := []fetcher.Option{
+		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
+	}
+	if Config.ForceRetry {
+		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
+	}
+
 	fetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
-		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcherOpts...,
 	)
 
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network)

@@ -56,11 +56,19 @@ func runViewBalanceCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create a new fetcher
+	fetcherOpts := []fetcher.Option{
+		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
+	}
+	if Config.ForceRetry {
+		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
+	}
+
 	newFetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcherOpts...,
 	)
 
 	// Initialize the fetcher's asserter
