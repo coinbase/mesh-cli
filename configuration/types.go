@@ -84,6 +84,10 @@ type ConstructionConfiguration struct {
 	// fetcher will open.
 	MaxOfflineConnections int `json:"max_offline_connections"`
 
+	// ForceRetry overrides the default retry handling to retry
+	// on all non-200 responses.
+	ForceRetry bool `json:"force_retry,omitempty"`
+
 	// StaleDepth is the number of blocks to wait before attempting
 	// to rebroadcast after not finding a transaction on-chain.
 	StaleDepth int64 `json:"stale_depth"`
@@ -362,6 +366,10 @@ type Configuration struct {
 	// MaxOnlineConnections is the maximum number of open connections that the online
 	// fetcher will open.
 	MaxOnlineConnections int `json:"max_online_connections"`
+
+	// ForceRetry overrides the default retry handling to retry
+	// on all non-200 responses.
+	ForceRetry bool `json:"force_retry,omitempty"`
 
 	// MaxSyncConcurrency is the maximum sync concurrency to use while syncing blocks.
 	// Sync concurrency is managed automatically by the `syncer` package.
