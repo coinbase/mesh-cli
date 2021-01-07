@@ -1,2 +1,5 @@
 rosetta-cli
 bin/
+
+# Intellij setting
+.idea/
