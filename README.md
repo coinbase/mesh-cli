@@ -585,6 +585,15 @@ pkg
   tester // test orchestrators
 ```
 
+## Troubleshoot
+* While running `check:data` or `check:configuration` option if you get the following error:
+
+    ```dial tcp 127.0.0.1:8080: socket: too many open files: unable to sync to 1902533: unable to sync to 1902533```
+    
+    Please run `ulimit -n 100000` to increase the max concurrent opened file limit
+
+    _Note: MacOS users, if you face  `ulimit: setrlimit failed: invalid argument` error while setting `ulimit`, please run `sudo launchctl limit maxfiles 100000 200000` before setting the `ulimit`_
+
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
