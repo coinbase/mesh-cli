@@ -586,7 +586,7 @@ pkg
 ```
 
 ## Troubleshoot
-* While running `check:data` or `check:configuration` option if you get the following error:
+* While running `check:data` or `check:construction` option if you get the following error:
 
     ```dial tcp 127.0.0.1:8080: socket: too many open files: unable to sync to 1902533: unable to sync to 1902533```
     
