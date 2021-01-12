@@ -499,7 +499,13 @@ func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
 		return false, -1, err
 	}
 
-	return atTip, blockIdentifier.Index, nil
+	var blockIndex int64 = -1
+	
+	if blockIdentifier != nil {
+		blockIndex = blockIdentifier.Index
+	}
+
+	return atTip, blockIndex, nil
 }
 
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
