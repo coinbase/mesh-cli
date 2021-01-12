@@ -159,6 +159,7 @@ func InitializeConstruction(
 
 	parser := parser.New(onlineFetcher.Asserter, nil, networkOptions.Allow.BalanceExemptions)
 	broadcastHelper := processor.NewBroadcastStorageHelper(
+		network,
 		blockStorage,
 		onlineFetcher,
 	)
@@ -327,20 +328,18 @@ func (t *ConstructionTester) StartPeriodicLogger(
 }
 
 func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
-	status, fetchErr := t.onlineFetcher.NetworkStatusRetry(ctx, t.network, nil)
-	if fetchErr != nil {
-		return -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
+	atTip, blockIdentifier, err := utils.CheckNetworkTip(
+		ctx,
+		t.network,
+		t.config.TipDelay,
+		t.onlineFetcher,
+	)
+	if err != nil {
+		return -1, err
 	}
 
-	// If a block has yet to be synced, start syncing from tip.
-	if utils.AtTip(t.config.TipDelay, status.CurrentBlockTimestamp) {
-		return status.CurrentBlockIdentifier.Index, nil
-	}
-
-	// If the Rosetta implementation says it is at tip (regardless of the current
-	// block timestamp), we should start.
-	if status.SyncStatus != nil && status.SyncStatus.Synced != nil && *status.SyncStatus.Synced {
-		return status.CurrentBlockIdentifier.Index, nil
+	if atTip {
+		return blockIdentifier.Index, nil
 	}
 
 	return -1, nil

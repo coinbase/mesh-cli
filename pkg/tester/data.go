@@ -488,39 +488,24 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // syncedStatus returns a boolean indicating if we are synced to tip and
 // the last synced block.
 func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
-	headBlock, err := t.blockStorage.GetBlock(ctx, nil)
-	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
-		return false, -1, nil
-	}
+	atTip, blockIdentifier, err := utils.CheckStorageTip(
+		ctx,
+		t.network,
+		t.config.TipDelay,
+		t.fetcher,
+		t.blockStorage,
+	)
 	if err != nil {
 		return false, -1, err
 	}
 
-	blockIdentifier := headBlock.BlockIdentifier
+	var blockIndex int64 = -1
 
-	// If the last synced block is within TipDelay
-	// seconds from the current time, we are synced
-	// to tip.
-	if utils.AtTip(t.config.TipDelay, headBlock.Timestamp) {
-		return true, blockIdentifier.Index, nil
+	if blockIdentifier != nil {
+		blockIndex = blockIdentifier.Index
 	}
 
-	status, fetchErr := t.fetcher.NetworkStatusRetry(ctx, t.network, nil)
-	if fetchErr != nil {
-		return false, -1, fmt.Errorf("%w: unable to fetch network status", fetchErr.Err)
-	}
-
-	// If the Rosetta implementation says it is at tip (regardless of the current
-	// block timestamp) and our last synced block has the same index,
-	// we are synced to tip.
-	if status.SyncStatus != nil &&
-		status.SyncStatus.Synced != nil &&
-		*status.SyncStatus.Synced &&
-		blockIdentifier.Index == status.CurrentBlockIdentifier.Index {
-		return true, blockIdentifier.Index, nil
-	}
-
-	return false, blockIdentifier.Index, nil
+	return atTip, blockIndex, nil
 }
 
 // EndAtTipLoop runs a loop that evaluates end condition EndAtTip
