@@ -500,7 +500,7 @@ func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
 	}
 
 	var blockIndex int64 = -1
-	
+
 	if blockIdentifier != nil {
 		blockIndex = blockIdentifier.Index
 	}
