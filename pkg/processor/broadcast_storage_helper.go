@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"github.com/coinbase/rosetta-sdk-go/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/storage/database"
@@ -29,16 +30,19 @@ var _ modules.BroadcastStorageHelper = (*BroadcastStorageHelper)(nil)
 // BroadcastStorageHelper implements the storage.Helper
 // interface.
 type BroadcastStorageHelper struct {
+	network      *types.NetworkIdentifier
 	blockStorage *modules.BlockStorage
 	fetcher      *fetcher.Fetcher
 }
 
 // NewBroadcastStorageHelper returns a new BroadcastStorageHelper.
 func NewBroadcastStorageHelper(
+	network *types.NetworkIdentifier,
 	blockStorage *modules.BlockStorage,
 	fetcher *fetcher.Fetcher,
 ) *BroadcastStorageHelper {
 	return &BroadcastStorageHelper{
+		network:      network,
 		blockStorage: blockStorage,
 		fetcher:      fetcher,
 	}
@@ -49,9 +53,9 @@ func (h *BroadcastStorageHelper) AtTip(
 	ctx context.Context,
 	tipDelay int64,
 ) (bool, error) {
-	atTip, _, err := h.blockStorage.AtTip(ctx, tipDelay)
+	atTip, _, err := utils.CheckStorageTip(ctx, h.network, tipDelay, h.fetcher, h.blockStorage)
 	if err != nil {
-		return false, fmt.Errorf("%w: unable to determine if at tip", err)
+		return false, err
 	}
 
 	return atTip, nil
