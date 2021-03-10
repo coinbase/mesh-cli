@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -66,7 +67,7 @@ func printChanges(balanceChanges []*parser.BalanceChange) error {
 	return nil
 }
 
-func runViewBlockCmd(cmd *cobra.Command, args []string) error {
+func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	index, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
 		return fmt.Errorf("%w: unable to parse index %s", err, args[0])
@@ -121,6 +122,10 @@ func runViewBlockCmd(cmd *cobra.Command, args []string) error {
 	)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: unable to fetch block", fetchErr.Err)
+	}
+	// It's valid for a block to be omitted without triggering an error
+	if block == nil {
+		return errors.New("block not found, it might be omitted")
 	}
 
 	fmt.Printf("\n")
