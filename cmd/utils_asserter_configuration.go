@@ -16,8 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -30,7 +32,7 @@ var (
 		Short: "Generate a static configuration file for the Asserter",
 		Long: `In production deployments, it is useful to initialize the response
 Asserter (https://github.com/coinbase/rosetta-sdk-go/tree/master/asserter) using
-a static configuration instead of intializing a configuration dynamically
+a static configuration instead of initializing a configuration dynamically
 from the node. This allows a client to error on new types/statuses that may
 have been added in an update instead of silently erroring.
 
@@ -61,10 +63,22 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: unable to generate spec", err)
 	}
 
+	sortArrayFieldsOnConfiguration(configuration)
+
 	if err := utils.SerializeAndWrite(args[0], configuration); err != nil {
 		return fmt.Errorf("%w: unable to serialize asserter configuration", err)
 	}
 
 	color.Green("Configuration file saved!")
 	return nil
+}
+
+func sortArrayFieldsOnConfiguration(configuration *asserter.Configuration) {
+	sort.Strings(configuration.AllowedOperationTypes)
+	sort.Slice(configuration.AllowedOperationStatuses, func(i, j int) bool {
+		return configuration.AllowedOperationStatuses[i].Status < configuration.AllowedOperationStatuses[j].Status
+	})
+	sort.Slice(configuration.AllowedErrors, func(i, j int) bool {
+		return configuration.AllowedErrors[i].Code < configuration.AllowedErrors[j].Code
+	})
 }
