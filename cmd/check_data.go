@@ -70,7 +70,7 @@ of what one of these files looks like.`,
 	}
 )
 
-func runCheckDataCmd(cmd *cobra.Command, args []string) error {
+func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(Context)
 
@@ -113,6 +113,22 @@ func runCheckDataCmd(cmd *cobra.Command, args []string) error {
 			"",
 			"",
 		)
+	}
+
+	if asserterConfigurationPath != "" {
+		if err := validateAsserterConfiguration(
+			ctx, fetcher, Config.Network, asserterConfigurationPath,
+		); err != nil {
+			cancel()
+			return results.ExitData(
+				Config,
+				nil,
+				nil,
+				fmt.Errorf("%w: network options mismatch asserter configuration", err),
+				"",
+				"",
+			)
+		}
 	}
 
 	dataTester := tester.InitializeData(
