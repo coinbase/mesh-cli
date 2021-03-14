@@ -334,6 +334,10 @@ func modifyFilePaths(config *Configuration, fileDir string) {
 		if len(config.Data.InterestingAccounts) > 0 {
 			config.Data.InterestingAccounts = path.Join(fileDir, config.Data.InterestingAccounts)
 		}
+
+		if len(config.Data.ExemptAccounts) > 0 {
+			config.Data.ExemptAccounts = path.Join(fileDir, config.Data.ExemptAccounts)
+		}
 	}
 
 	if config.Construction != nil {

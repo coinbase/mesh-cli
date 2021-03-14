@@ -351,6 +351,8 @@ type Configuration struct {
 	OnlineURL string `json:"online_url"`
 
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
+	// The path can be absolute or relative to the directory containing the rosetta-cli
+	// binary.
 	DataDirectory string `json:"data_directory"`
 
 	// HTTPTimeout is the timeout for a HTTP request in seconds.
