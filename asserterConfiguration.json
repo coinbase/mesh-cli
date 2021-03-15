@@ -1,0 +1,172 @@
+{
+ "network_identifier": {
+  "blockchain": "cardano",
+  "network": "mainnet"
+ },
+ "genesis_block_identifier": {
+  "index": 0,
+  "hash": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+ },
+ "allowed_operation_types": [
+  "input",
+  "output",
+  "stakeDelegation",
+  "stakeKeyDeregistration",
+  "stakeKeyRegistration",
+  "withdrawal"
+ ],
+ "allowed_operation_statuses": [
+  {
+   "status": "success",
+   "successful": true
+  }
+ ],
+ "allowed_errors": [
+  {
+   "code": 4001,
+   "message": "Block not found",
+   "retriable": false
+  },
+  {
+   "code": 4002,
+   "message": "Network not found",
+   "retriable": false
+  },
+  {
+   "code": 4003,
+   "message": "Networks not found",
+   "retriable": false
+  },
+  {
+   "code": 4004,
+   "message": "Invalid blockchain",
+   "retriable": false
+  },
+  {
+   "code": 4005,
+   "message": "Genesis block not found",
+   "retriable": false
+  },
+  {
+   "code": 4006,
+   "message": "Transaction not found",
+   "retriable": false
+  },
+  {
+   "code": 4007,
+   "message": "Invalid public key format",
+   "retriable": false
+  },
+  {
+   "code": 4008,
+   "message": "Transaction inputs parameters errors in operations array",
+   "retriable": false
+  },
+  {
+   "code": 4009,
+   "message": "Transaction outputs parameters errors in operations array",
+   "retriable": false
+  },
+  {
+   "code": 4010,
+   "message": "The transaction you are trying to build has more outputs than inputs",
+   "retriable": false
+  },
+  {
+   "code": 4011,
+   "message": "Cant create signed transaction from transaction bytes",
+   "retriable": false
+  },
+  {
+   "code": 4012,
+   "message": "Cant create unsigned transaction from transaction bytes",
+   "retriable": false
+  },
+  {
+   "code": 4013,
+   "message": "Cant deserialize transaction input from transaction body",
+   "retriable": false
+  },
+  {
+   "code": 4014,
+   "message": "Cant deserialize transaction output from transaction body",
+   "retriable": false
+  },
+  {
+   "code": 4015,
+   "message": "Provided address is invalid",
+   "retriable": true
+  },
+  {
+   "code": 4016,
+   "message": "Provided address type is invalid",
+   "retriable": true
+  },
+  {
+   "code": 4017,
+   "message": "Invalid staking key format",
+   "retriable": false
+  },
+  {
+   "code": 4018,
+   "message": "Staking key is required for this type of address",
+   "retriable": false
+  },
+  {
+   "code": 4019,
+   "message": "Provided operation type is invalid",
+   "retriable": true
+  },
+  {
+   "code": 4020,
+   "message": "Pool key hash is required for stake delegation",
+   "retriable": false
+  },
+  {
+   "code": 4021,
+   "message": "Assets are required for output operation token bundle",
+   "retriable": false
+  },
+  {
+   "code": 4022,
+   "message": "Asset value is required for token asset",
+   "retriable": false
+  },
+  {
+   "code": 5000,
+   "message": "An error occurred",
+   "retriable": true
+  },
+  {
+   "code": 5001,
+   "message": "Not implemented",
+   "retriable": false
+  },
+  {
+   "code": 5002,
+   "message": "Address generation error",
+   "retriable": false
+  },
+  {
+   "code": 5003,
+   "message": "Parse signed transaction error",
+   "retriable": false
+  },
+  {
+   "code": 5004,
+   "message": "Cant create signed transaction probably because of unsigned transaction bytes",
+   "retriable": false
+  },
+  {
+   "code": 5005,
+   "message": "Cant build witnesses set for transaction probably because of provided signatures",
+   "retriable": false
+  },
+  {
+   "code": 5006,
+   "message": "Error when sending the transaction",
+   "retriable": true
+  }
+ ],
+ "allowed_timestamp_start_index": 1
+}

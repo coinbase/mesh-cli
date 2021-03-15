@@ -69,8 +69,8 @@ func verifyAllowMatch(
 }
 
 func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
-	if networkTsi == nil {
-		return errors.New("network allow timestamp start index nil")
+	if networkTsi == nil { // This field is optional and defaults to all allowed
+		return nil
 	}
 	if *networkTsi != assertTsi {
 		return fmt.Errorf(
