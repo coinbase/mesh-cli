@@ -13,15 +13,15 @@ import (
 	"strings"
 )
 
-// Confirm `/network/options` has relevant settings that match the assert configuration serlialized
+// Confirm `/network/options` has relevant settings that match the assert configuration serialized
 // and written to `asserterConfigurationPath`
 func validateAsserterConfiguration(
 	ctx context.Context, f *fetcher.Fetcher, network *types.NetworkIdentifier,
 	asserterConfigurationPath string,
 ) error {
-	resp, fetchErr := f.NetworkOptions(ctx, Config.Network, nil)
+	resp, fetchErr := f.NetworkOptions(ctx, network, nil)
 	if fetchErr != nil {
-		return fetchErr.Err // how to return the errors?
+		return fetchErr.Err
 	}
 
 	var asserterConfiguration asserter.Configuration
@@ -32,8 +32,9 @@ func validateAsserterConfiguration(
 	return verifyAllowMatch(resp, &asserterConfiguration)
 }
 
+// Check the "allow" fields in the network options and asserter configuration match
 func verifyAllowMatch(
-	resp *types.NetworkOptionsResponse, configuration *asserter.Configuration,
+	resp *types.NetworkOptionsResponse, asserterConfig *asserter.Configuration,
 ) error {
 	if resp == nil {
 		return errors.New("resp nil")
@@ -42,29 +43,29 @@ func verifyAllowMatch(
 	if networkAllow == nil {
 		return errors.New("network's allow is nil")
 	}
-	if configuration == nil {
-		return errors.New("configuration nil")
+	if asserterConfig == nil {
+		return errors.New("asserterConfig nil")
 	}
 
 	if err := verifyTimestampStartIndex(
-		networkAllow.TimestampStartIndex, configuration.AllowedTimestampStartIndex,
+		networkAllow.TimestampStartIndex, asserterConfig.AllowedTimestampStartIndex,
 	); err != nil {
 		return err
 	}
 
 	if err := verifyOperationTypes(
-		networkAllow.OperationTypes, configuration.AllowedOperationTypes,
+		networkAllow.OperationTypes, asserterConfig.AllowedOperationTypes,
 	); err != nil {
 		return err
 	}
 
 	if err := verifyOperationStatuses(
-		networkAllow.OperationStatuses, configuration.AllowedOperationStatuses,
+		networkAllow.OperationStatuses, asserterConfig.AllowedOperationStatuses,
 	); err != nil {
 		return err
 	}
 
-	return verifyErrors(networkAllow.Errors, configuration.AllowedErrors)
+	return verifyErrors(networkAllow.Errors, asserterConfig.AllowedErrors)
 }
 
 func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
