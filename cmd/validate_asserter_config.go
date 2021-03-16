@@ -1,3 +1,17 @@
+// Copyright 2020 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cmd
 
 import (
@@ -13,59 +27,57 @@ import (
 	"strings"
 )
 
-// Confirm `/network/options` has relevant settings that match the assert configuration serialized
-// and written to `asserterConfigurationPath`
-func validateAsserterConfiguration(
+// Common helper across Construction and Data
+// Issues an RPC to fetch /network/options, and extracts the `Allow`
+// Reads the JSON file at `asserterConfigurationFile` and loads into a Go object
+// Intended to feed directly into `validateNetworkAndAsserterAllowMatch`
+// This is a standalone function so the latter can be easily unit tested
+func getNetworkAllowAndAsserterConfiguration(
 	ctx context.Context, f *fetcher.Fetcher, network *types.NetworkIdentifier,
-	asserterConfigurationPath string,
-) error {
+	asserterConfigurationFile string,
+) (*types.Allow, *asserter.Configuration, error) {
+	var asserterConfiguration asserter.Configuration
+	if err := utils.LoadAndParse(asserterConfigurationFile, &asserterConfiguration); err != nil {
+		return nil, nil, err
+	}
+
 	resp, fetchErr := f.NetworkOptions(ctx, network, nil)
 	if fetchErr != nil {
-		return fetchErr.Err
+		return nil, nil, fetchErr.Err
 	}
 
-	var asserterConfiguration asserter.Configuration
-	if err := utils.LoadAndParse(asserterConfigurationPath, &asserterConfiguration); err != nil {
-		return err
-	}
-
-	return verifyAllowMatch(resp, &asserterConfiguration)
+	return resp.Allow, &asserterConfiguration, nil
 }
 
-// Check the "allow" fields in the network options and asserter configuration match
-func verifyAllowMatch(
-	resp *types.NetworkOptionsResponse, asserterConfig *asserter.Configuration,
+func validateNetworkAndAsserterAllowMatch(
+	networkAllow *types.Allow, asserterConfiguration *asserter.Configuration,
 ) error {
-	if resp == nil {
-		return errors.New("resp nil")
-	}
-	networkAllow := resp.Allow
 	if networkAllow == nil {
-		return errors.New("network's allow is nil")
+		return errors.New("networkAllow nil")
 	}
-	if asserterConfig == nil {
-		return errors.New("asserterConfig nil")
+	if asserterConfiguration == nil {
+		return errors.New("asserterConfiguration nil")
 	}
 
 	if err := verifyTimestampStartIndex(
-		networkAllow.TimestampStartIndex, asserterConfig.AllowedTimestampStartIndex,
+		networkAllow.TimestampStartIndex, asserterConfiguration.AllowedTimestampStartIndex,
 	); err != nil {
 		return err
 	}
 
 	if err := verifyOperationTypes(
-		networkAllow.OperationTypes, asserterConfig.AllowedOperationTypes,
+		networkAllow.OperationTypes, asserterConfiguration.AllowedOperationTypes,
 	); err != nil {
 		return err
 	}
 
 	if err := verifyOperationStatuses(
-		networkAllow.OperationStatuses, asserterConfig.AllowedOperationStatuses,
+		networkAllow.OperationStatuses, asserterConfiguration.AllowedOperationStatuses,
 	); err != nil {
 		return err
 	}
 
-	return verifyErrors(networkAllow.Errors, asserterConfig.AllowedErrors)
+	return verifyErrors(networkAllow.Errors, asserterConfiguration.AllowedErrors)
 }
 
 func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
@@ -153,7 +165,7 @@ func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 		asserterError := asserterErrors[i]
 		if !reflect.DeepEqual(networkError, asserterError) {
 			return fmt.Errorf(
-				"network / asserter operation error mismatch %v %v",
+				"network / asserter error mismatch %v %v",
 				networkError, asserterError,
 			)
 		}

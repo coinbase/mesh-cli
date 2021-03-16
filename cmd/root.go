@@ -74,7 +74,7 @@ var (
 
 	// If non-empty, used to validate that /network/options matches the contents of the file
 	// located at this path.
-	asserterConfigurationPath string
+	asserterConfigurationFile string
 )
 
 // rootPreRun is executed before the root command runs and sets up cpu
@@ -202,15 +202,15 @@ default values.`,
 
 	// Check commands
 	checkDataCmd.Flags().StringVar(
-		&asserterConfigurationPath,
-		"asserter-configuration-path",
+		&asserterConfigurationFile,
+		"asserter-configuration-file",
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
-		&asserterConfigurationPath,
-		"asserter-configuration-path",
+		&asserterConfigurationFile,
+		"asserter-configuration-file",
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)

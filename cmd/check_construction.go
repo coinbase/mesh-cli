@@ -103,16 +103,28 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 		)
 	}
 
-	if asserterConfigurationPath != "" {
-		if err := validateAsserterConfiguration(
-			ctx, fetcher, Config.Network, asserterConfigurationPath,
+	if asserterConfigurationFile != "" {
+		networkAllow, asserterConfiguration, err := getNetworkAllowAndAsserterConfiguration(
+			ctx, fetcher, Config.Network, asserterConfigurationFile)
+		if err != nil {
+			cancel()
+			return results.ExitConstruction(
+				Config,
+				nil,
+				nil,
+				fmt.Errorf("%w: failure getting /network/options or asserter configuration", err),
+			)
+		}
+
+		if err := validateNetworkAndAsserterAllowMatch(
+			networkAllow, asserterConfiguration,
 		); err != nil {
 			cancel()
 			return results.ExitConstruction(
 				Config,
 				nil,
 				nil,
-				fmt.Errorf("%w: network options mismatch asserter configuration", err),
+				fmt.Errorf("%w: network / asserter configuration validation failure", err),
 			)
 		}
 	}
