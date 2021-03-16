@@ -74,6 +74,26 @@ func TestOperationStatuses(t *testing.T) {
 	confirmError(t, networkAllow, asserterConfiguration)
 }
 
+func TestErrors(t *testing.T) {
+	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.Errors[0].Code = 123
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedErrors[1].Message = "mismatchMessage"
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	_, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.Errors[0].Details = map[string]interface{}{"key": "value"}
+	asserterConfiguration.AllowedErrors[0].Details = map[string]interface{}{"key": "differentValue"}
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	networkAllow, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedErrors = append(asserterConfiguration.AllowedErrors,
+		&types.Error{Code: 123, Message: "extra"})
+	confirmError(t, networkAllow, asserterConfiguration)
+}
+
 // Generate simple configs for testing
 // Generators used internally below are so they are logically equal but can be mutated separately
 func generateNetworkAllowAndAsserterConfiguration() (
