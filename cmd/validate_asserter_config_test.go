@@ -44,12 +44,10 @@ func TestTsi(t *testing.T) {
 
 func TestOperationTypes(t *testing.T) {
 	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
-	networkAllow.OperationTypes = generateOperationTypes()
 	networkAllow.OperationTypes[1] = "mismatchType"
 	confirmError(t, networkAllow, asserterConfiguration)
 
-	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
-	networkAllow.OperationTypes = append(networkAllow.OperationTypes, "extra")
+	networkAllow.OperationTypes = append(generateOperationTypes(), "extra")
 	confirmError(t, networkAllow, asserterConfiguration)
 
 	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
@@ -57,11 +55,53 @@ func TestOperationTypes(t *testing.T) {
 	confirmError(t, networkAllow, asserterConfiguration)
 }
 
+func TestOperationStatuses(t *testing.T) {
+	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.OperationStatuses[0].Successful = !networkAllow.OperationStatuses[0].Successful
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedOperationStatuses[1].Status = "mismatchStatus"
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	_, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedOperationStatuses = append(generateOperationStatuses(),
+		&types.OperationStatus{Status: "extra"})
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	_, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.OperationStatuses = nil
+	confirmError(t, networkAllow, asserterConfiguration)
+}
+
 // Generate simple configs for testing
+// Generators used internally below are so they are logically equal but can be mutated separately
 func generateNetworkAllowAndAsserterConfiguration() (
 	*types.Allow, *asserter.Configuration,
 ) {
-	operationStatuses := []*types.OperationStatus{
+	var tsi int64 = 5
+	allow := &types.Allow{
+		OperationStatuses:       generateOperationStatuses(),
+		OperationTypes:          generateOperationTypes(),
+		Errors:                  generateErrors(),
+		TimestampStartIndex:     &tsi,
+	}
+	config := &asserter.Configuration{
+		AllowedOperationStatuses:   generateOperationStatuses(),
+		AllowedOperationTypes:      generateOperationTypes(),
+		AllowedErrors:              generateErrors(),
+		AllowedTimestampStartIndex: tsi,
+	}
+
+	return allow, config
+}
+
+func generateOperationTypes() []string {
+	return []string{"type0", "type1"}
+}
+
+func generateOperationStatuses() []*types.OperationStatus {
+	return []*types.OperationStatus{
 		{
 			Successful: true,
 			Status: "status0",
@@ -71,8 +111,10 @@ func generateNetworkAllowAndAsserterConfiguration() (
 			Status: "status1",
 		},
 	}
-	operationTypes := generateOperationTypes()
-	errors := []*types.Error{
+}
+
+func generateErrors() []*types.Error {
+	return []*types.Error{
 		{
 			Code: 1,
 			Message: "message1",
@@ -82,26 +124,6 @@ func generateNetworkAllowAndAsserterConfiguration() (
 			Message: "message2",
 		},
 	}
-	var tsi int64 = 5
-
-	allow := &types.Allow{
-		OperationStatuses:       operationStatuses,
-		OperationTypes:          operationTypes,
-		Errors:                  errors,
-		TimestampStartIndex:     &tsi,
-	}
-	config := &asserter.Configuration{
-		AllowedOperationStatuses:   operationStatuses,
-		AllowedOperationTypes:      operationTypes,
-		AllowedErrors:              errors,
-		AllowedTimestampStartIndex: tsi,
-	}
-
-	return allow, config
-}
-
-func generateOperationTypes() []string {
-	return []string{"type0", "type1"}
 }
 
 func confirmSuccess(
