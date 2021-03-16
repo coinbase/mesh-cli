@@ -23,9 +23,41 @@ import (
 
 func TestMatch(t *testing.T) {
 	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
-	assert.NoError(t, validateNetworkAndAsserterAllowMatch(networkAllow, asserterConfiguration))
+	confirmSuccess(t, networkAllow, asserterConfiguration)
 }
 
+func TestNil(t *testing.T) {
+	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
+	confirmError(t, nil, asserterConfiguration)
+	confirmError(t, networkAllow, nil)
+}
+
+func TestTsi(t *testing.T) {
+	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.TimestampStartIndex = nil
+	confirmSuccess(t, networkAllow, asserterConfiguration)
+
+	networkAllow, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedTimestampStartIndex = 567
+	confirmError(t, networkAllow, asserterConfiguration)
+}
+
+func TestOperationTypes(t *testing.T) {
+	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.OperationTypes = generateOperationTypes()
+	networkAllow.OperationTypes[1] = "mismatchType"
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
+	networkAllow.OperationTypes = append(networkAllow.OperationTypes, "extra")
+	confirmError(t, networkAllow, asserterConfiguration)
+
+	networkAllow, _ = generateNetworkAllowAndAsserterConfiguration()
+	asserterConfiguration.AllowedOperationTypes = nil
+	confirmError(t, networkAllow, asserterConfiguration)
+}
+
+// Generate simple configs for testing
 func generateNetworkAllowAndAsserterConfiguration() (
 	*types.Allow, *asserter.Configuration,
 ) {
@@ -39,7 +71,7 @@ func generateNetworkAllowAndAsserterConfiguration() (
 			Status: "status1",
 		},
 	}
-	operationTypes := []string{"type0", "type1"}
+	operationTypes := generateOperationTypes()
 	errors := []*types.Error{
 		{
 			Code: 1,
@@ -66,4 +98,20 @@ func generateNetworkAllowAndAsserterConfiguration() (
 	}
 
 	return allow, config
+}
+
+func generateOperationTypes() []string {
+	return []string{"type0", "type1"}
+}
+
+func confirmSuccess(
+	t *testing.T, networkAllow *types.Allow, asserterConfiguration *asserter.Configuration,
+) {
+	assert.NoError(t, validateNetworkAndAsserterAllowMatch(networkAllow, asserterConfiguration))
+}
+
+func confirmError(
+	t *testing.T, networkAllow *types.Allow, asserterConfiguration *asserter.Configuration,
+) {
+	assert.Error(t, validateNetworkAndAsserterAllowMatch(networkAllow, asserterConfiguration))
 }
