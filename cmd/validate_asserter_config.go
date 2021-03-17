@@ -108,8 +108,9 @@ func verifyOperationTypes(networkOt, asserterOt []string) error {
 		asserterOperationType := asserterOt[i]
 		if networkOperationType != asserterOperationType {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation type mismatch %v %v",
-				networkOperationType, asserterOperationType,
+				"/network/options / asserter-configuration-file operation type mismatch %v %v\n"+
+					"network operation types: %v\nasserter operation types: %v",
+				networkOperationType, asserterOperationType, networkOt, asserterOt,
 			)
 		}
 	}
@@ -137,8 +138,9 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 		asserterOperationStatus := asserterOs[i]
 		if !reflect.DeepEqual(networkOperationStatus, asserterOperationStatus) {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation status mismatch %v %v",
-				networkOperationStatus, asserterOperationStatus,
+				"/network/options / asserter-configuration-file operation status mismatch %v %v\n"+
+					"network operation statuses: %v\nasserter operation statuses: %v",
+				networkOperationStatus, asserterOperationStatus, networkOs, asserterOs,
 			)
 		}
 	}
@@ -165,8 +167,9 @@ func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 		asserterError := asserterErrors[i]
 		if !reflect.DeepEqual(networkError, asserterError) {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file error mismatch %v %v",
-				networkError, asserterError,
+				"/network/options / asserter-configuration-file error mismatch %v %v\n"+
+					"network errors: %v\nasserter errors: %v",
+				networkError, asserterError, networkErrors, asserterErrors,
 			)
 		}
 	}
