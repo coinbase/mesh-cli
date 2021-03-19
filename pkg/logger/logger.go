@@ -270,15 +270,15 @@ func (l *Logger) TransactionStream(
 	defer closeFile(f)
 
 	for _, tx := range block.Transactions {
-		blockString := fmt.Sprintf(
+		transactionString := fmt.Sprintf(
 			"Transaction %s at Block %d:%s\n",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
 		)
 		
-		fmt.Print(blockString)
-		_, err = f.WriteString(blockString)
+		fmt.Print(transactionString)
+		_, err = f.WriteString(transactionString)
 
 		if err != nil {
 			return err
