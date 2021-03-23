@@ -96,7 +96,8 @@ func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
 func verifyOperationTypes(networkOt, asserterOt []string) error {
 	if len(networkOt) != len(asserterOt) {
 		return fmt.Errorf(
-			"/network/options / asserter-configuration-file operation types length mismatch %v %v",
+			"/network/options / asserter-configuration-file operation types length mismatch %+v "+
+				"%+v",
 			networkOt, asserterOt,
 		)
 	}
@@ -108,8 +109,8 @@ func verifyOperationTypes(networkOt, asserterOt []string) error {
 		asserterOperationType := asserterOt[i]
 		if networkOperationType != asserterOperationType {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation type mismatch %v %v\n"+
-					"network operation types: %v\nasserter operation types: %v",
+				"/network/options / asserter-configuration-file operation type mismatch %+v "+
+				"%+v\nnetwork operation types: %+v\nasserter operation types: %+v",
 				networkOperationType, asserterOperationType, networkOt, asserterOt,
 			)
 		}
@@ -122,7 +123,7 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 	if len(networkOs) != len(asserterOs) {
 		return fmt.Errorf(
 			"/network/options / asserter-configuration-file operation statuses length mismatch "+
-				"%v %v",
+				"%+v %+v",
 			networkOs, asserterOs,
 		)
 	}
@@ -138,8 +139,8 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 		asserterOperationStatus := asserterOs[i]
 		if !reflect.DeepEqual(networkOperationStatus, asserterOperationStatus) {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation status mismatch %v %v\n"+
-					"network operation statuses: %v\nasserter operation statuses: %v",
+				"/network/options / asserter-configuration-file operation status mismatch %+v "+
+					"%+v\nnetwork operation statuses: %+v\nasserter operation statuses: %+v",
 				networkOperationStatus, asserterOperationStatus, networkOs, asserterOs,
 			)
 		}
@@ -151,7 +152,7 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 	if len(networkErrors) != len(asserterErrors) {
 		return fmt.Errorf(
-			"/network/options / asserter-configuration-file errors length mismatch %v %v",
+			"/network/options / asserter-configuration-file errors length mismatch %+v %+v",
 			networkErrors, asserterErrors,
 		)
 	}
@@ -167,8 +168,8 @@ func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 		asserterError := asserterErrors[i]
 		if !reflect.DeepEqual(networkError, asserterError) {
 			return fmt.Errorf(
-				"/network/options / asserter-configuration-file error mismatch %v %v\n"+
-					"network errors: %v\nasserter errors: %v",
+				"/network/options / asserter-configuration-file error mismatch %+v %+v\n"+
+					"network errors: %+v\nasserter errors: %+v",
 				networkError, asserterError, networkErrors, asserterErrors,
 			)
 		}
