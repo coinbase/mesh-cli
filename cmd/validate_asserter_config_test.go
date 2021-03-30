@@ -33,8 +33,11 @@ func TestNil(t *testing.T) {
 }
 
 func TestTsi(t *testing.T) {
+	// Confirm nil defaults to 1
 	networkAllow, asserterConfiguration := generateNetworkAllowAndAsserterConfiguration()
 	networkAllow.TimestampStartIndex = nil
+	confirmError(t, networkAllow, asserterConfiguration)
+	asserterConfiguration.AllowedTimestampStartIndex = 1
 	confirmSuccess(t, networkAllow, asserterConfiguration)
 
 	networkAllow, asserterConfiguration = generateNetworkAllowAndAsserterConfiguration()

@@ -80,13 +80,14 @@ func validateNetworkAndAsserterAllowMatch(
 }
 
 func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
-	if networkTsi == nil { // This field is optional and defaults to all allowed
-		return nil
+	var networkTsiVal int64 = 1
+	if networkTsi != nil { // This field is optional and defaults to all allowed
+		networkTsiVal = *networkTsi
 	}
-	if *networkTsi != assertTsi {
+	if networkTsiVal != assertTsi {
 		return fmt.Errorf(
 			"/network/options / asserter-configuration-file timestamp start index mismatch. %d %d",
-			*networkTsi, assertTsi,
+			networkTsiVal, assertTsi,
 		)
 	}
 
