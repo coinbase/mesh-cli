@@ -71,6 +71,19 @@ var (
 	// OnlyChanges is a boolean indicating if only the balance changes should be
 	// logged to the console.
 	OnlyChanges bool
+
+	// If non-empty, used to validate that /network/options matches the contents of the file
+	// located at this path. The intended use case is someone previously ran
+	// utils:asserter-configuration `asserterConfigurationFile`, so the validation is being done
+	// against the same file (or an identical copy of that file at this path). This file contains a
+	// snapshot of /network/options (and some other unrelated configuration options), so this will
+	// trigger validation of the current /network/options against that. See
+	// utils:asserter-configuration for more details.
+	//
+	// The main goal is to verify these core configuration options don't change across releases,
+	// which has caused production incidents in the past. This can be used for both check:data
+	// and check:construction.
+	asserterConfigurationFile string
 )
 
 // rootPreRun is executed before the root command runs and sets up cpu
@@ -197,7 +210,19 @@ default values.`,
 	rootCmd.AddCommand(configurationValidateCmd)
 
 	// Check commands
+	checkDataCmd.Flags().StringVar(
+		&asserterConfigurationFile,
+		"asserter-configuration-file",
+		"", // Default to skip validation
+		`Check that /network/options matches contents of file at this path`,
+	)
 	rootCmd.AddCommand(checkDataCmd)
+	checkConstructionCmd.Flags().StringVar(
+		&asserterConfigurationFile,
+		"asserter-configuration-file",
+		"", // Default to skip validation
+		`Check that /network/options matches contents of file at this path`,
+	)
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands

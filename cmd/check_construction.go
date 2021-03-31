@@ -53,7 +53,7 @@ arbitrary scenarios (i.e. staking, governance).`,
 	}
 )
 
-func runCheckConstructionCmd(cmd *cobra.Command, args []string) error {
+func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 	if Config.Construction == nil {
 		return results.ExitConstruction(
 			Config,
@@ -101,6 +101,20 @@ func runCheckConstructionCmd(cmd *cobra.Command, args []string) error {
 			nil,
 			fmt.Errorf("%w: unable to confirm network is supported", err),
 		)
+	}
+
+	if asserterConfigurationFile != "" {
+		if err := validateNetworkOptionsMatchesAsserterConfiguration(
+			ctx, fetcher, Config.Network, asserterConfigurationFile,
+		); err != nil {
+			cancel()
+			return results.ExitConstruction(
+				Config,
+				nil,
+				nil,
+				err,
+			)
+		}
 	}
 
 	constructionTester, err := tester.InitializeConstruction(
