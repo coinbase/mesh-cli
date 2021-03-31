@@ -568,6 +568,11 @@ operations should be returned by the Rosetta Data API.
 * `make release` to run one last check before opening a PR
 * `make compile version=RELEASE_TAG` to generate binaries
 
+If you are developing on both rosetta-cli and rosetta-sdk-go, use [go.mod replace](https://golang.org/ref/mod#go-mod-file-replace) to reference local changes: 
+```
+replace "github.com/coinbase/rosetta-sdk-go" v0.6.8 => "../rosetta-sdk-go"
+```
+
 ### Helper/Handler
 Many of the packages use a `Helper/Handler` interface pattern to acquire
 required information or to send events to some client implementation. An example
@@ -597,4 +602,4 @@ pkg
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
-© 2020 Coinbase
+© 2021 Coinbase
