@@ -30,8 +30,17 @@ Before diving into the CLI, we recommend taking a look at the Rosetta API Docs:
 
 ## Install
 To download a binary for the latest release, run:
+
+With Linux: 
+
 ```
 curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s
+```
+
+With Windows and Bash
+
+```
+curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | bash -s
 ```
 
 The binary will be installed inside the `./bin` directory (relative to where the install command was run).
@@ -40,9 +49,17 @@ _Downloading binaries from the Github UI will cause permission errors on Mac._
 
 ### Installing in Custom Location
 To download the binary into a specific directory, run:
+
+With Linux:
 ```
 curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s -- -b <relative directory>
 ```
+
+With Windows and Bash:
+```
+curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | bash -s -- -b <relative directory>
+```
+
 
 ## Usage
 ```
