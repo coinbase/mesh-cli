@@ -22,6 +22,7 @@ import (
 	"log"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
@@ -161,6 +162,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if config.SerialBlockWorkers == 0 {
 		config.SerialBlockWorkers = numCPU
+	}
+
+	if len(strings.TrimSpace(config.ValidationFile)) == 0 {
+		config.ValidationFile = ""
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
