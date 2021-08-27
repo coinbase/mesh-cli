@@ -41,7 +41,8 @@ validate-configuration-files:
 test: | validate-configuration-files
 	${TEST_SCRIPT}
 
-test-cover:	
+test-cover:
+	${GOVERALLS_INSTALL}
 	if [ "${COVERALLS_TOKEN}" ]; then ${COVERAGE_TEST_SCRIPT} -coverprofile=c.out -covermode=count; ${GOVERALLS_CMD} -coverprofile=c.out -repotoken ${COVERALLS_TOKEN}; fi
 
 add-license:
