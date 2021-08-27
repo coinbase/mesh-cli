@@ -57,6 +57,9 @@ func baseAsserter() *asserter.Asserter {
 		},
 		[]*types.Error{},
 		nil,
+		&asserter.Validations{
+			Enabled: false,
+		},
 	)
 	return a
 }
