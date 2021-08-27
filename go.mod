@@ -1,6 +1,6 @@
 module github.com/coinbase/rosetta-cli
 
-go 1.13
+go 1.16
 
 require (
 	github.com/coinbase/rosetta-sdk-go v0.6.8
