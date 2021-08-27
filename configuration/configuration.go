@@ -353,6 +353,10 @@ func modifyFilePaths(config *Configuration, fileDir string) {
 			)
 		}
 	}
+
+	if len(config.ValidationFile) > 0 {
+		config.ValidationFile = path.Join(fileDir, config.ValidationFile)
+	}
 }
 
 // LoadConfiguration returns a parsed and asserted Configuration for running
