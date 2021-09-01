@@ -416,6 +416,11 @@ type Configuration struct {
 	// If not populated, this value defaults to runtime.NumCPU().
 	SerialBlockWorkers int `json:"serial_block_workers,omitempty"`
 
+	// ValidationFile is the file used for asset specific validation
+	// If not provided, then this will be empty string and no asset
+	// specific validation will be done
+	ValidationFile string `json:"validation_file,omitempty"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
