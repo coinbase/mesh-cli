@@ -27,6 +27,7 @@ xgo -go 1.16.3 --targets=${TARGETS} -out "bin/rosetta-cli-${VERSION}" .;
 
 # Rename some files
 mv "bin/rosetta-cli-${VERSION}-darwin-10.12-amd64" "bin/rosetta-cli-${VERSION}-darwin-amd64"
+mv "bin/rosetta-cli-${VERSION}-darwin-10.12-amd64" "bin/rosetta-cli-${VERSION}-darwin-arm64"
 mv "bin/rosetta-cli-${VERSION}-windows-4.0-amd64.exe" "bin/rosetta-cli-${VERSION}-windows-amd64"
 
 # Tar all files
