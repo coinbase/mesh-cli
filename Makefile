@@ -62,6 +62,7 @@ salus:
 
 release: add-license shorten-lines format test lint salus
 
+# This command is to generate multi-platform binaries.
 compile:
 	./scripts/compile.sh $(version)
 
