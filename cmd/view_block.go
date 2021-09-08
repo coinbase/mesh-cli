@@ -94,7 +94,7 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	// Behind the scenes this makes a call to get the
 	// network status and uses the response to inform
 	// the asserter what are valid responses.
-	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network, "")
+	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
 		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
 	}

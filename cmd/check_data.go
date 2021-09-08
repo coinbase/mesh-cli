@@ -89,7 +89,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		fetcherOpts...,
 	)
 
-	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network, "")
+	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
 		cancel()
 		return results.ExitData(
