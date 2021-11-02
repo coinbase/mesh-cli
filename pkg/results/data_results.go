@@ -306,6 +306,12 @@ func ComputeCheckDataProgress(
 	}
 	tipIndex := networkStatus.CurrentBlockIdentifier.Index
 
+	// some blockchains don't start their genesis block from 0 height
+	// So take the height of genesis block and calculate tipIndex based on that
+	if networkStatus.GenesisBlockIdentifier != nil {
+		tipIndex = tipIndex - networkStatus.GenesisBlockIdentifier.Index
+	}
+
 	// Get current tip in the case that re-orgs occurred
 	// or a custom start index was provied.
 	headBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
