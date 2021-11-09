@@ -306,10 +306,9 @@ func ComputeCheckDataProgress(
 	}
 	tipIndex := networkStatus.CurrentBlockIdentifier.Index
 
-	// some blockchains don't start their genesis block from 0 height
-	// So take the height of genesis block and calculate tipIndex based on that
+	genesisBlockIndex := int64(0)
 	if networkStatus.GenesisBlockIdentifier != nil {
-		tipIndex -= networkStatus.GenesisBlockIdentifier.Index
+		genesisBlockIndex =  networkStatus.GenesisBlockIdentifier.Index
 	}
 
 	// Get current tip in the case that re-orgs occurred
@@ -363,11 +362,14 @@ func ComputeCheckDataProgress(
 		new(big.Float).SetInt(elapsedTime),
 	)
 	blocksPerSecondFloat, _ := blocksPerSecond.Float64()
+
+	// some blockchains don't start their genesis block from 0 height
+	// So take the height of genesis block and calculate sync percentage based on that
 	blocksSynced := new(
 		big.Float,
 	).Quo(
-		new(big.Float).SetInt64(headBlock.Index),
-		new(big.Float).SetInt64(tipIndex),
+		new(big.Float).SetInt64(headBlock.Index - genesisBlockIndex),
+		new(big.Float).SetInt64(tipIndex - genesisBlockIndex),
 	)
 	blocksSyncedFloat, _ := blocksSynced.Float64()
 
