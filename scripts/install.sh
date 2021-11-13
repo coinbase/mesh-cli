@@ -67,6 +67,7 @@ execute() {
 get_binaries() {
   case "$PLATFORM" in
     darwin/amd64) BINARY="rosetta-cli" ;;
+    darwin/arm64) BINARY="rosetta-cli" ;;
     linux/amd64) BINARY="rosetta-cli" ;;
     linux/arm64) BINARY="rosetta-cli" ;;
     linux/mips64) BINARY="rosetta-cli" ;;
