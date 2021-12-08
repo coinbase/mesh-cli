@@ -3,7 +3,7 @@ module github.com/coinbase/rosetta-cli
 go 1.16
 
 require (
-	github.com/coinbase/rosetta-sdk-go v0.7.1
+	github.com/coinbase/rosetta-sdk-go v0.7.2
 	github.com/fatih/color v1.13.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
