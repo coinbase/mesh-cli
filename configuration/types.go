@@ -258,11 +258,11 @@ type DataConfiguration struct {
 	// beginning syncing, it will be ignored.
 	BootstrapBalances string `json:"bootstrap_balances"`
 
-	// HistoricalBalanceEnabled is a boolean that dictates how balance lookup is performed.
-	// When set to true, balances are looked up at the block where a balance
+	// HistoricalBalanceDisabled is a boolean that dictates how balance lookup is performed.
+	// When set to false, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
-	// historical balance lookup should set this to false.
-	HistoricalBalanceEnabled *bool `json:"historical_balance_enabled,omitempty"`
+	// historical balance lookup should set this to true.
+	HistoricalBalanceDisabled *bool `json:"historical_balance_disabled,omitempty"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.
@@ -421,9 +421,9 @@ type Configuration struct {
 	// specific validation will be done
 	ValidationFile string `json:"validation_file,omitempty"`
 
-	// ErrorStackTraceEnabled if true then it will print error stack trace
+	// ErrorStackTraceDisabled if true then it will print error stack trace
 	// if the data or construction check fails
-	ErrorStackTraceEnabled bool `json:"error_stack_trace_enabled"`
+	ErrorStackTraceDisabled bool `json:"error_stack_trace_disabled"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`

@@ -301,7 +301,7 @@ func ExitConstruction(
 	jobStorage *modules.JobStorage,
 	err error,
 ) error {
-	if config.ErrorStackTraceEnabled {
+	if !config.ErrorStackTraceDisabled {
 		err = pkgError.WithStack(err)
 	}
 
