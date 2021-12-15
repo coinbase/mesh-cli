@@ -421,7 +421,7 @@ type Configuration struct {
 	// specific validation will be done
 	ValidationFile string `json:"validation_file,omitempty"`
 
-	// ErrorStackTraceDisabled if true then it will print error stack trace
+	// ErrorStackTraceDisabled if false then it will print error stack trace
 	// if the data or construction check fails
 	ErrorStackTraceDisabled bool `json:"error_stack_trace_disabled"`
 
