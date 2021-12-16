@@ -709,7 +709,7 @@ func ExitData(
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,
 ) error {
-	if config.ErrorStackTraceEnabled {
+	if !config.ErrorStackTraceDisabled {
 		err = pkgError.WithStack(err)
 	}
 

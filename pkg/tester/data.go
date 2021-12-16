@@ -230,8 +230,8 @@ func InitializeData(
 
 	// Determine if we should perform historical balance lookups
 	var historicalBalanceEnabled bool
-	if config.Data.HistoricalBalanceEnabled != nil {
-		historicalBalanceEnabled = *config.Data.HistoricalBalanceEnabled
+	if config.Data.HistoricalBalanceDisabled != nil {
+		historicalBalanceEnabled = !*config.Data.HistoricalBalanceDisabled
 	} else { // we must look it up
 		historicalBalanceEnabled = networkOptions.Allow.HistoricalBalanceLookup
 	}
