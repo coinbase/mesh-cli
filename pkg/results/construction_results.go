@@ -313,7 +313,9 @@ func ExitConstruction(
 	)
 	if results != nil {
 		results.Print()
-		results.Output(config.Construction.ResultsOutputFile)
+		if config.Construction != nil {
+			results.Output(config.Construction.ResultsOutputFile)
+		}
 	}
 
 	return err
