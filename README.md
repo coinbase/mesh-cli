@@ -90,4 +90,4 @@ pkg
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
-© 2021 Coinbase
+© 2022 Coinbase
