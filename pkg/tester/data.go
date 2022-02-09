@@ -932,7 +932,7 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 	}
 
 	if t.config.Data.InactiveDiscrepencySearchDisabled {
-		color.Yellow("Search for inactive reconciliation discrepency is disabled")
+		color.Yellow("Search for inactive reconciliation discrepancy is disabled")
 		return results.ExitData(
 			t.config,
 			t.counterStorage,

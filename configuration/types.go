@@ -279,10 +279,10 @@ type DataConfiguration struct {
 	ReconciliationDrainDisabled bool `json:"reconciliation_drain_disabled"`
 
 	// InactiveDiscrepencySearchDisabled is a boolean indicating if a search
-	// should be performed to find any inactive reconciliation discrepencies.
+	// should be performed to find any inactive reconciliation discrepancies.
 	// Note, a search will never be performed if historical balance lookup
 	// is disabled.
-	InactiveDiscrepencySearchDisabled bool `json:"inactive_discrepency_search_disabled"`
+	InactiveDiscrepencySearchDisabled bool `json:"inactive_discrepancy_search_disabled"`
 
 	// BalanceTrackingDisabled is a boolean that indicates balances calculation
 	// should not be attempted. When first testing an implemenation, it can be
