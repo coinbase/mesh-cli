@@ -21,6 +21,8 @@ import (
 	"os"
 	"strconv"
 
+	pkgError "github.com/pkg/errors"
+
 	"github.com/coinbase/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
@@ -83,7 +85,7 @@ func ComputeCheckConstructionResults(
 	}
 
 	if err != nil {
-		results.Error = err.Error()
+		results.Error = fmt.Sprintf("%+v", err)
 
 		// We never want to populate an end condition
 		// if there was an error!
@@ -291,7 +293,7 @@ func FetchCheckConstructionStatus(url string) (*CheckConstructionStatus, error) 
 	return &status, nil
 }
 
-// ExitConstruction exits check:data, logs the test results to the console,
+// ExitConstruction exits check:construction, logs the test results to the console,
 // and to a provided output path.
 func ExitConstruction(
 	config *configuration.Configuration,
@@ -299,6 +301,10 @@ func ExitConstruction(
 	jobStorage *modules.JobStorage,
 	err error,
 ) error {
+	if !config.ErrorStackTraceDisabled {
+		err = pkgError.WithStack(err)
+	}
+
 	results := ComputeCheckConstructionResults(
 		config,
 		err,
@@ -307,7 +313,9 @@ func ExitConstruction(
 	)
 	if results != nil {
 		results.Print()
-		results.Output(config.Construction.ResultsOutputFile)
+		if config.Construction != nil {
+			results.Output(config.Construction.ResultsOutputFile)
+		}
 	}
 
 	return err

@@ -23,6 +23,8 @@ import (
 	"os"
 	"strconv"
 
+	pkgError "github.com/pkg/errors"
+
 	"github.com/coinbase/rosetta-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -308,7 +310,7 @@ func ComputeCheckDataProgress(
 
 	genesisBlockIndex := int64(0)
 	if networkStatus.GenesisBlockIdentifier != nil {
-		genesisBlockIndex =  networkStatus.GenesisBlockIdentifier.Index
+		genesisBlockIndex = networkStatus.GenesisBlockIdentifier.Index
 	}
 
 	// Get current tip in the case that re-orgs occurred
@@ -368,8 +370,8 @@ func ComputeCheckDataProgress(
 	blocksSynced := new(
 		big.Float,
 	).Quo(
-		new(big.Float).SetInt64(headBlock.Index - genesisBlockIndex),
-		new(big.Float).SetInt64(tipIndex - genesisBlockIndex),
+		new(big.Float).SetInt64(headBlock.Index-genesisBlockIndex),
+		new(big.Float).SetInt64(tipIndex-genesisBlockIndex),
 	)
 	blocksSyncedFloat, _ := blocksSynced.Float64()
 
@@ -669,7 +671,7 @@ func ComputeCheckDataResults(
 	}
 
 	if err != nil {
-		results.Error = err.Error()
+		results.Error = fmt.Sprintf("%+v", err)
 
 		// If all tests pass, but we still encountered an error,
 		// then we hard exit without showing check:data results
@@ -707,6 +709,10 @@ func ExitData(
 	endCondition configuration.CheckDataEndCondition,
 	endConditionDetail string,
 ) error {
+	if !config.ErrorStackTraceDisabled {
+		err = pkgError.WithStack(err)
+	}
+
 	results := ComputeCheckDataResults(
 		config,
 		err,

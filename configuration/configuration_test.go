@@ -29,13 +29,13 @@ import (
 )
 
 var (
-	startIndex        = int64(89)
-	badStartIndex     = int64(-10)
-	goodCoverage      = float64(0.33)
-	badCoverage       = float64(-2)
-	endTip            = false
-	historicalEnabled = true
-	fakeWorkflows     = []*job.Workflow{
+	startIndex         = int64(89)
+	badStartIndex      = int64(-10)
+	goodCoverage       = float64(0.33)
+	badCoverage        = float64(-2)
+	endTip             = false
+	historicalDisabled = false
+	fakeWorkflows      = []*job.Workflow{
 		{
 			Name:        string(job.CreateAccount),
 			Concurrency: job.ReservedWorkflowConcurrency,
@@ -62,15 +62,16 @@ var (
 			Blockchain: "sweet",
 			Network:    "sweeter",
 		},
-		OnlineURL:            "http://hasudhasjkdk",
-		MaxOnlineConnections: 10,
-		HTTPTimeout:          21,
-		MaxRetries:           1000,
-		MaxSyncConcurrency:   12,
-		TipDelay:             1231,
-		MaxReorgDepth:        12,
-		SeenBlockWorkers:     300,
-		SerialBlockWorkers:   200,
+		OnlineURL:               "http://hasudhasjkdk",
+		MaxOnlineConnections:    10,
+		HTTPTimeout:             21,
+		MaxRetries:              1000,
+		MaxSyncConcurrency:      12,
+		TipDelay:                1231,
+		MaxReorgDepth:           12,
+		SeenBlockWorkers:        300,
+		SerialBlockWorkers:      200,
+		ErrorStackTraceDisabled: false,
 		Construction: &ConstructionConfiguration{
 			OfflineURL:            "https://ashdjaksdkjshdk",
 			MaxOfflineConnections: 21,
@@ -91,7 +92,7 @@ var (
 			InactiveReconciliationConcurrency: 2938,
 			InactiveReconciliationFrequency:   3,
 			ReconciliationDisabled:            false,
-			HistoricalBalanceEnabled:          &historicalEnabled,
+			HistoricalBalanceDisabled:         &historicalDisabled,
 			StartIndex:                        &startIndex,
 			StatusPort:                        123,
 			EndConditions: &DataEndConditions{

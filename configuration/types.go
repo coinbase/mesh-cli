@@ -258,11 +258,11 @@ type DataConfiguration struct {
 	// beginning syncing, it will be ignored.
 	BootstrapBalances string `json:"bootstrap_balances"`
 
-	// HistoricalBalanceEnabled is a boolean that dictates how balance lookup is performed.
-	// When set to true, balances are looked up at the block where a balance
+	// HistoricalBalanceDisabled is a boolean that dictates how balance lookup is performed.
+	// When set to false, balances are looked up at the block where a balance
 	// change occurred instead of at the current block. Blockchains that do not support
-	// historical balance lookup should set this to false.
-	HistoricalBalanceEnabled *bool `json:"historical_balance_enabled,omitempty"`
+	// historical balance lookup should set this to true.
+	HistoricalBalanceDisabled *bool `json:"historical_balance_disabled,omitempty"`
 
 	// InterestingAccounts is a path to a file listing all accounts to check on each block. Look
 	// at the examples directory for an example of how to structure this file.
@@ -278,11 +278,11 @@ type DataConfiguration struct {
 	// been drained (if reconciliation is enabled).
 	ReconciliationDrainDisabled bool `json:"reconciliation_drain_disabled"`
 
-	// InactiveDiscrepencySearchDisabled is a boolean indicating if a search
+	// InactiveDiscrepancySearchDisabled is a boolean indicating if a search
 	// should be performed to find any inactive reconciliation discrepancies.
 	// Note, a search will never be performed if historical balance lookup
 	// is disabled.
-	InactiveDiscrepencySearchDisabled bool `json:"inactive_discrepancy_search_disabled"`
+	InactiveDiscrepancySearchDisabled bool `json:"inactive_discrepancy_search_disabled"`
 
 	// BalanceTrackingDisabled is a boolean that indicates balances calculation
 	// should not be attempted. When first testing an implemenation, it can be
@@ -301,7 +301,7 @@ type DataConfiguration struct {
 	// If no blocks have ever been synced, syncing will start from genesis.
 	StartIndex *int64 `json:"start_index,omitempty"`
 
-	// EndCondition contains the conditions for the syncer to stop
+	// EndCondition contains the conditions for the syncer to stop.
 	EndConditions *DataEndConditions `json:"end_conditions,omitempty"`
 
 	// StatusPort allows the caller to query a running check:data
@@ -420,6 +420,10 @@ type Configuration struct {
 	// If not provided, then this will be empty string and no asset
 	// specific validation will be done
 	ValidationFile string `json:"validation_file,omitempty"`
+
+	// ErrorStackTraceDisabled if false then it will print error stack trace
+	// if the data or construction check fails
+	ErrorStackTraceDisabled bool `json:"error_stack_trace_disabled"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
