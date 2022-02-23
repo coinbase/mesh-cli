@@ -133,30 +133,6 @@ func buildZapLogger(
 	return zapLogger, err
 }
 
-func (l *Logger) Info(msg string, fields ...zap.Field) {
-	l.zapLogger.Info(msg, fields...)
-}
-
-func (l *Logger) Debug(msg string, fields ...zap.Field) {
-	l.zapLogger.Debug(msg, fields...)
-}
-
-func (l *Logger) Error(msg string, fields ...zap.Field) {
-	l.zapLogger.Error(msg, fields...)
-}
-
-func (l *Logger) Warn(msg string, fields ...zap.Field) {
-	l.zapLogger.Warn(msg, fields...)
-}
-
-func (l *Logger) Panic(msg string, fields ...zap.Field) {
-	l.zapLogger.Panic(msg, fields...)
-}
-
-func (l *Logger) Fatal(msg string, fields ...zap.Field) {
-	l.zapLogger.Fatal(msg, fields...)
-}
-
 // LogDataStatus logs results.CheckDataStatus.
 func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataStatus) {
 	if status.Stats.Blocks == 0 { // wait for at least 1 block to be processed
@@ -536,6 +512,36 @@ func (l *Logger) ReconcileFailureStream(
 	}
 
 	return nil
+}
+
+// Info logs at Info level
+func (l *Logger) Info(msg string, fields ...zap.Field) {
+	l.zapLogger.Info(msg, fields...)
+}
+
+// Debug logs at Debug level
+func (l *Logger) Debug(msg string, fields ...zap.Field) {
+	l.zapLogger.Debug(msg, fields...)
+}
+
+// Error logs at Error level
+func (l *Logger) Error(msg string, fields ...zap.Field) {
+	l.zapLogger.Error(msg, fields...)
+}
+
+// Warn logs at Warn level
+func (l *Logger) Warn(msg string, fields ...zap.Field) {
+	l.zapLogger.Warn(msg, fields...)
+}
+
+// Panic logs at Panic level
+func (l *Logger) Panic(msg string, fields ...zap.Field) {
+	l.zapLogger.Panic(msg, fields...)
+}
+
+// Fatal logs at Fatal level
+func (l *Logger) Fatal(msg string, fields ...zap.Field) {
+	l.zapLogger.Fatal(msg, fields...)
 }
 
 // Helper function to close log file
