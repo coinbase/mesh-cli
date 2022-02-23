@@ -21,6 +21,9 @@ import (
 	"os"
 	"path"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/coinbase/rosetta-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -32,6 +35,8 @@ import (
 )
 
 var _ statefulsyncer.Logger = (*Logger)(nil)
+
+type CheckType string
 
 const (
 	// blockStreamFile contains the stream of processed
@@ -58,6 +63,11 @@ const (
 	// removeEvent is printed in a stream
 	// when an event is orphaned.
 	removeEvent = "Remove"
+
+	// Construction identifies construction check
+	Construction CheckType = "construction"
+	// Data identifies data check
+	Data CheckType = "data"
 )
 
 // Logger contains all logic to record validator output
@@ -71,6 +81,8 @@ type Logger struct {
 
 	lastStatsMessage    string
 	lastProgressMessage string
+
+	zapLogger *zap.Logger
 }
 
 // NewLogger constructs a new Logger.
@@ -80,14 +92,69 @@ func NewLogger(
 	logTransactions bool,
 	logBalanceChanges bool,
 	logReconciliation bool,
-) *Logger {
+	checkType CheckType,
+	network *types.NetworkIdentifier,
+	fields ...zap.Field,
+) (*Logger, error) {
+	config := zap.NewDevelopmentConfig()
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	zapLogger, err := buildZapLogger(checkType, network, fields...)
+	if err != nil {
+		return nil, err
+	}
 	return &Logger{
 		logDir:            logDir,
 		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
+		zapLogger:         zapLogger,
+	}, nil
+}
+
+func buildZapLogger(
+	checkType CheckType,
+	network *types.NetworkIdentifier,
+	fields ...zap.Field,
+) (*zap.Logger, error) {
+	config := zap.NewDevelopmentConfig()
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	baseSlice := []zap.Field {
+		zap.String("blockchain", network.Blockchain),
+		zap.String("network", network.Network),
+		zap.String("check_type", string(checkType)),
 	}
+	mergedSlice := append(baseSlice, fields...)
+
+	zapLogger, err := config.Build(
+		zap.Fields(mergedSlice...),
+	)
+	return zapLogger, err
+}
+
+func (l *Logger) Info(msg string, fields ...zap.Field) {
+	l.zapLogger.Info(msg, fields...)
+}
+
+func (l *Logger) Debug(msg string, fields ...zap.Field) {
+	l.zapLogger.Debug(msg, fields...)
+}
+
+func (l *Logger) Error(msg string, fields ...zap.Field) {
+	l.zapLogger.Error(msg, fields...)
+}
+
+func (l *Logger) Warn(msg string, fields ...zap.Field) {
+	l.zapLogger.Warn(msg, fields...)
+}
+
+func (l *Logger) Panic(msg string, fields ...zap.Field) {
+	l.zapLogger.Panic(msg, fields...)
+}
+
+func (l *Logger) Fatal(msg string, fields ...zap.Field) {
+	l.zapLogger.Fatal(msg, fields...)
 }
 
 // LogDataStatus logs results.CheckDataStatus.
@@ -276,7 +343,7 @@ func (l *Logger) TransactionStream(
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
 		)
-		
+
 		fmt.Print(transactionString)
 		_, err = f.WriteString(transactionString)
 

@@ -181,13 +181,19 @@ func InitializeData(
 	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
-	logger := logger.NewLogger(
+	logger, err := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
 		config.Data.LogTransactions,
 		config.Data.LogBalanceChanges,
 		config.Data.LogReconciliations,
+		logger.Data,
+		network,
 	)
+	if err != nil {
+		log.Fatalf(fmt.Sprintf("unable to initialize logger with error: %s", err.Error()))
+		return nil
+	}
 
 	var forceInactiveReconciliation bool
 	reconcilerHelper := processor.NewReconcilerHelper(
@@ -1018,13 +1024,19 @@ func (t *DataTester) recursiveOpSearch(
 	blockStorage := modules.NewBlockStorage(localStore, t.config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
-	logger := logger.NewLogger(
+	logger, err := logger.NewLogger(
 		tmpDir,
 		false,
 		false,
 		false,
 		false,
+		logger.Data,
+		t.network,
 	)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize logger with error: %s", err.Error())
+	}
 
 	t.forceInactiveReconciliation = types.Bool(false)
 	reconcilerHelper := processor.NewReconcilerHelper(

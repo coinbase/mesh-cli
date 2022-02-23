@@ -113,13 +113,18 @@ func InitializeConstruction(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
-	logger := logger.NewLogger(
+	logger, err := logger.NewLogger(
 		dataPath,
 		false,
 		false,
 		false,
 		false,
+		logger.Construction,
+		network,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize logger with error: %s", err.Error())
+	}
 
 	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	keyStorage := modules.NewKeyStorage(localStore)
