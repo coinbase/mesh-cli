@@ -96,8 +96,6 @@ func NewLogger(
 	network *types.NetworkIdentifier,
 	fields ...zap.Field,
 ) (*Logger, error) {
-	config := zap.NewDevelopmentConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	zapLogger, err := buildZapLogger(checkType, network, fields...)
 	if err != nil {
 		return nil, err
