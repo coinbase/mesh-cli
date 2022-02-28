@@ -498,7 +498,7 @@ func (c *CheckDataTests) Print() {
 	table.Append(
 		[]string{
 			"Reconciliation",
-			"No balance discrepencies were found between computed and live balances",
+			"No balance discrepancies were found between computed and live balances",
 			convertBool(c.Reconciliation),
 		},
 	)
