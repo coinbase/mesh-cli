@@ -104,18 +104,18 @@ While running the `check:data` or `check:construction` option, if you get the fo
     
 Please run the `ulimit -n 10000` command to increase the max concurrent opened file limit.
 
-_Note: MacOS users, if you face  `ulimit: setrlimit failed: invalid argument` error while setting `ulimit`, please run `sudo launchctl limit maxfiles 10000 200000` before setting the `ulimit`_
+_Note: MacOS users, if you face  `ulimit: setrlimit failed: invalid argument` error while setting `ulimit`, please run `sudo launchctl limit maxfiles 10000 200000` before setting the `ulimit`._
 
 ## Related Projects
 
-* [`rosetta-sdk-go`][https://github.com/coinbase/rosetta-sdk-go] — The `rosetta-sdk-go` SDK provides a collection of packages used for interaction with the Rosetta API specification. Much of the SDK code is generated from this, the [`rosetta-specifications`](https://github.com/coinbase/rosetta-specifications) repository.
-* [`rosetta-specifications`](https://github.com/coinbase/rosetta-specifications) — The `rosetta-specifications` repository generates the SDK code in the [`rosetta-sdk-go`][https://github.com/coinbase/rosetta-sdk-go] repository.
+* [`rosetta-sdk-go`](https://github.com/coinbase/rosetta-sdk-go) — The `rosetta-sdk-go` SDK provides a collection of packages used for interaction with the Rosetta API specification. Much of the SDK code is generated from this, the [`rosetta-specifications`](https://github.com/coinbase/rosetta-specifications) repository.
+* [`rosetta-specifications`](https://github.com/coinbase/rosetta-specifications) — The `rosetta-specifications` repository generates the SDK code in the [`rosetta-sdk-go`](https://github.com/coinbase/rosetta-sdk-go) repository.
 
 ### Reference Implementations
 
 To help you with examples, we developed complete Rosetta API reference implementations for [Bitcoin](https://github.com/coinbase/rosetta-bitcoin) and [Ethereum](https://github.com/coinbase/rosetta-ethereum). Developers of Bitcoin-like or Ethereum-like blockchains may find it easier to fork these reference implementations than to write an implementation from scratch.
 
-You can also find community implementations for a variety of blockchains in the [rosetta-ecosystem][https://github.com/coinbase/rosetta-ecosystem] repository, and in the [ecosystem category](https://community.rosetta-api.org/c/ecosystem) of our community site. 
+You can also find community implementations for a variety of blockchains in the [rosetta-ecosystem](https://github.com/coinbase/rosetta-ecosystem) repository, and in the [ecosystem category](https://community.rosetta-api.org/c/ecosystem) of our community site. 
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
