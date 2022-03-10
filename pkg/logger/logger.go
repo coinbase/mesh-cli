@@ -38,6 +38,14 @@ var _ statefulsyncer.Logger = (*Logger)(nil)
 
 type CheckType string
 
+var logLevels = map[zapcore.Level]zapcore.Level{
+	zapcore.InfoLevel:  zapcore.DebugLevel,
+	zapcore.DebugLevel: zapcore.WarnLevel,
+	zapcore.WarnLevel:  zapcore.ErrorLevel,
+	zapcore.ErrorLevel: zapcore.PanicLevel,
+	zapcore.PanicLevel: zapcore.FatalLevel,
+}
+
 const (
 	// blockStreamFile contains the stream of processed
 	// blocks and whether they were added or removed.
@@ -74,6 +82,7 @@ const (
 // and benchmark a Rosetta Server.
 type Logger struct {
 	logDir            string
+	logLevel          zapcore.Level
 	logBlocks         bool
 	logTransactions   bool
 	logBalanceChanges bool
@@ -102,6 +111,7 @@ func NewLogger(
 	}
 	return &Logger{
 		logDir:            logDir,
+		logLevel:          zap.InfoLevel,
 		logBlocks:         logBlocks,
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
@@ -118,7 +128,7 @@ func buildZapLogger(
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	baseSlice := []zap.Field {
+	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
 		zap.String("network", network.Network),
 		zap.String("check_type", string(checkType)),
@@ -153,7 +163,6 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 
 	// Don't print out the same stats message twice.
 	if statsMessage == l.lastStatsMessage {
-		return
 	}
 
 	l.lastStatsMessage = statsMessage
@@ -512,34 +521,57 @@ func (l *Logger) ReconcileFailureStream(
 	return nil
 }
 
+func (l *Logger) shouldLog(configuredLogLevel zapcore.Level, logType zapcore.Level) bool {
+	if logType == configuredLogLevel {
+		return true
+	}
+	nextHigherLevel, exists := logLevels[configuredLogLevel]
+	if !exists {
+		return false
+	}
+	return shouldLog(nextHigherLevel, logType)
+}
+
 // Info logs at Info level
 func (l *Logger) Info(msg string, fields ...zap.Field) {
-	l.zapLogger.Info(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.InfoLevel) {
+		l.zapLogger.Info(msg, fields...)
+	}
 }
 
 // Debug logs at Debug level
 func (l *Logger) Debug(msg string, fields ...zap.Field) {
-	l.zapLogger.Debug(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.DebugLevel) {
+		l.zapLogger.Info(msg, fields...)
+	}
 }
 
 // Error logs at Error level
 func (l *Logger) Error(msg string, fields ...zap.Field) {
-	l.zapLogger.Error(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.ErrorLevel) {
+		l.zapLogger.Info(msg, fields...)
+	}
 }
 
 // Warn logs at Warn level
 func (l *Logger) Warn(msg string, fields ...zap.Field) {
-	l.zapLogger.Warn(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.DebugLevel) {
+		l.zapLogger.Warn(msg, fields...)
+	}
 }
 
 // Panic logs at Panic level
 func (l *Logger) Panic(msg string, fields ...zap.Field) {
-	l.zapLogger.Panic(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.DebugLevel) {
+		l.zapLogger.Panic(msg, fields...)
+	}
 }
 
 // Fatal logs at Fatal level
 func (l *Logger) Fatal(msg string, fields ...zap.Field) {
-	l.zapLogger.Fatal(msg, fields...)
+	if l.shouldLog(l.logLevel, zapcore.DebugLevel) {
+		l.zapLogger.Fatal(msg, fields...)
+	}
 }
 
 // Helper function to close log file
