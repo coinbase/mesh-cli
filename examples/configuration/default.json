@@ -3,6 +3,8 @@
   "blockchain": "Ethereum",
   "network": "Ropsten"
  },
+ "log_level": "",
+ "ZapLogLevel": "info",
  "online_url": "http://localhost:8080",
  "data_directory": "",
  "http_timeout": 10,
