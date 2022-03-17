@@ -208,8 +208,6 @@ func (l *Logger) LogConstructionStatus(
 
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
-	l.Info(statsMessage)
-	l.Warn(statsMessage)
 }
 
 // LogMemoryStats logs memory usage information.
