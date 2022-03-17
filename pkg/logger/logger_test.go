@@ -463,7 +463,9 @@ func TestLogger_ReconcileFailureStream(t *testing.T) {
 				lastProgressMessage: tt.fields.lastProgressMessage,
 				zapLogger:           tt.fields.zapLogger,
 			}
-			if err := l.ReconcileFailureStream(tt.args.ctx, tt.args.reconciliationType, tt.args.account, tt.args.currency, tt.args.computedBalance, tt.args.liveBalance, tt.args.block); (err != nil) != tt.wantErr {
+
+			if err := l.ReconcileFailureStream(tt.args.ctx, tt.args.reconciliationType, tt.args.account,
+				tt.args.currency, tt.args.computedBalance, tt.args.liveBalance, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("ReconcileFailureStream() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -511,7 +513,8 @@ func TestLogger_ReconcileSuccessStream(t *testing.T) {
 				lastProgressMessage: tt.fields.lastProgressMessage,
 				zapLogger:           tt.fields.zapLogger,
 			}
-			if err := l.ReconcileSuccessStream(tt.args.ctx, tt.args.reconciliationType, tt.args.account, tt.args.currency, tt.args.balance, tt.args.block); (err != nil) != tt.wantErr {
+			if err := l.ReconcileSuccessStream(tt.args.ctx, tt.args.reconciliationType, tt.args.account,
+				tt.args.currency, tt.args.balance, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("ReconcileSuccessStream() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -711,7 +714,8 @@ func TestNewLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewLogger(tt.args.logDir, tt.args.logBlocks, tt.args.logTransactions, tt.args.logBalanceChanges, tt.args.logReconciliation, zap.DebugLevel, tt.args.checkType, tt.args.network, tt.args.fields...)
+			got, err := NewLogger(tt.args.logDir, tt.args.logBlocks, tt.args.logTransactions, tt.args.logBalanceChanges,
+				tt.args.logReconciliation, zap.DebugLevel, tt.args.checkType, tt.args.network, tt.args.fields...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLogger() error = %v, wantErr %v", err, tt.wantErr)
 				return
