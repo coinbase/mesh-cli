@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"log"
 	"math/big"
 	"net/http"
@@ -187,6 +188,7 @@ func InitializeData(
 		config.Data.LogTransactions,
 		config.Data.LogBalanceChanges,
 		config.Data.LogReconciliations,
+		config.ZapLogLevel,
 		logger.Data,
 		network,
 	)
@@ -1030,6 +1032,7 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 		false,
 		false,
+		zap.InfoLevel,
 		logger.Data,
 		t.network,
 	)

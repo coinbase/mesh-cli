@@ -18,6 +18,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"go.uber.org/zap/zapcore"
 )
 
 // CheckDataEndCondition is a type of "successful" end
@@ -346,6 +347,13 @@ type Configuration struct {
 	// be constructed and where blocks should be synced to monitor
 	// for broadcast success.
 	Network *types.NetworkIdentifier `json:"network"`
+
+	// LogLevel is the minimum level of log that will be output
+	// Possible values: Debug, Info, Warn, Error, Panic, Fatal
+	LogLevel string `json:"log_level"`
+
+	// zapLogLevel is the parsed LogLevel
+	ZapLogLevel zapcore.Level
 
 	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
 	OnlineURL string `json:"online_url"`
