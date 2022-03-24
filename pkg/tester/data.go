@@ -19,11 +19,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"log"
 	"math/big"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
@@ -136,6 +137,10 @@ func (t *DataTester) CloseDatabase(ctx context.Context) {
 	}
 }
 
+func (dt *DataTester) GetReconciler() *reconciler.Reconciler {
+	return dt.reconciler
+}
+
 // InitializeData returns a new *DataTester.
 func InitializeData(
 	ctx context.Context,
@@ -222,7 +227,7 @@ func InitializeData(
 	}
 
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
-	if err != nil {
+	if fetchErr != nil {
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 

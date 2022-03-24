@@ -1,0 +1,194 @@
+request_funds(1){
+  find_account{
+    currency = {"symbol":"AVAX", "decimals":18};
+    random_account = find_balance({
+      "minimum_balance":{
+        "value": "0",
+        "currency": {{currency}}
+      },
+      "create_limit":1
+    });
+  },
+
+  // Create a separate scenario to request funds so that
+  // the address we are using to request funds does not
+  // get rolled back if funds do not yet exist.
+  request{
+    loaded_account = find_balance({
+      "account_identifier": {{random_account.account_identifier}},
+      "minimum_balance":{
+        "value": "10000000000000000", // 0.01 AVAX
+        "currency": {{currency}}
+      }
+    });
+  }
+}
+
+create_account(1){
+  create{
+    network = {"network":"Fuji", "blockchain":"Avalanche"};
+    key = generate_key({"curve_type": "secp256k1"});
+    account = derive({
+      "network_identifier": {{network}},
+      "public_key": {{key.public_key}}
+    });
+
+    // If the account is not saved, the key will be lost!
+    save_account({
+      "account_identifier": {{account.account_identifier}},
+      "keypair": {{key}}
+    });
+  }
+}
+
+simple_transfer(10){
+  transfer{
+    transfer.network = {"network":"Fuji", "blockchain":"Avalanche"};
+    currency = {"symbol":"AVAX", "decimals":18};
+    sender = find_balance({
+      "minimum_balance":{
+        "value": "10000000000000000", // 0.01 AVAX
+        "currency": {{currency}}
+      }
+    });
+
+    // Set the recipient_amount as some value <= sender.balance-max_fee
+    max_fee = "4725000000000000"; // 0.004725 AVAX
+    available_amount = {{sender.balance.value}} - {{max_fee}};
+    recipient_amount = random_number({"minimum": "1", "maximum": {{available_amount}}});
+    print_message({"recipient_amount":{{recipient_amount}}});
+
+    // Find recipient and construct operations
+    sender_amount = 0 - {{recipient_amount}};
+    recipient = find_balance({
+      "not_account_identifier":[{{sender.account_identifier}}],
+      "minimum_balance":{
+        "value": "0",
+        "currency": {{currency}}
+      },
+      "create_limit": 100,
+      "create_probability": 50
+    });
+    transfer.confirmation_depth = "1";
+    transfer.operations = [
+      {
+        "operation_identifier":{"index":0},
+        "type":"CALL",
+        "account":{{sender.account_identifier}},
+        "amount":{
+          "value":{{sender_amount}},
+          "currency":{{currency}}
+        }
+      },
+      {
+        "operation_identifier":{"index":1},
+        "type":"CALL",
+        "account":{{recipient.account_identifier}},
+        "amount":{
+          "value":{{recipient_amount}},
+          "currency":{{currency}}
+        }
+      }
+    ];
+  }
+}
+
+smart_contract_transfer(10){
+  transfer{
+    transfer.network = {"network":"Fuji", "blockchain":"Avalanche"};
+    currency = {"symbol":"AVAX", "decimals":18};
+    sender = find_balance({
+      "minimum_balance":{
+        "value": "10000000000000000", // 0.01 AVAX
+        "currency": {{currency}}
+      }
+    });
+
+    // Set the recipient_amount as some value <= sender.balance-max_fee
+    max_fee = "4725000000000000"; // 0.004725 AVAX
+    available_amount = {{sender.balance.value}} - {{max_fee}};
+    recipient_amount = random_number({"minimum": "1", "maximum": {{available_amount}}});
+    print_message({"recipient_amount":{{recipient_amount}}});
+
+    // Set recipient to be a smart contract wallet
+    sender_amount = 0 - {{recipient_amount}};
+    recipient = {"address":"0x3b60cABB2C0e9ADe3e364b1F9752342A5D6079e2"};
+
+    // Create unused recipient so we still randomly generate addresses
+    // (otherwise simple_transfer will never be invoked)
+    urecipient = find_balance({
+      "not_account_identifier":[{{sender.account_identifier}}],
+      "minimum_balance":{
+        "value": "0",
+        "currency": {{currency}}
+      },
+      "create_limit": 100,
+      "create_probability": 50
+    });
+
+    transfer.confirmation_depth = "1";
+    transfer.operations = [
+      {
+        "operation_identifier":{"index":0},
+        "type":"CALL",
+        "account":{{sender.account_identifier}},
+        "amount":{
+          "value":{{sender_amount}},
+          "currency":{{currency}}
+        }
+      },
+      {
+        "operation_identifier":{"index":1},
+        "type":"CALL",
+        "account":{{recipient}},
+        "amount":{
+          "value":{{recipient_amount}},
+          "currency":{{currency}}
+        }
+      }
+    ];
+  }
+}
+
+return_funds(10){
+  transfer{
+    transfer.network = {"network":"Fuji", "blockchain":"Avalanche"};
+    currency = {"symbol":"AVAX", "decimals":18};
+    max_fee = "4725000000000000"; // 0.004725 AVAX
+    sender = find_balance({
+      "minimum_balance":{
+        "value": {{max_fee}},
+        "currency": {{currency}}
+      }
+    });
+
+    // Set the recipient_amount as some sender.balance-max_fee
+    available_amount = {{sender.balance.value}} - {{max_fee}};
+    print_message({"available_amount":{{available_amount}}});
+    sender_amount = 0 - {{available_amount}};
+
+    // Provide a static address as the recipient and construct operations
+    faucet = {"address":"0x6f0f6DA1852857d7789f68a28bba866671f3880D"};
+    transfer.confirmation_depth = "1";
+    transfer.operations = [
+      {
+        "operation_identifier":{"index":0},
+        "type":"CALL",
+        "account":{{sender.account_identifier}},
+        "amount":{
+          "value":{{sender_amount}},
+          "currency":{{currency}}
+        }
+      },
+      {
+        "operation_identifier":{"index":1},
+        "type":"CALL",
+        "account":{{faucet}},
+        "amount":{
+          "value":{{available_amount}},
+          "currency":{{currency}}
+        }
+      }
+    ];
+  }
+}

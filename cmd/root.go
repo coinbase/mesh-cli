@@ -217,6 +217,7 @@ default values.`,
 		`Check that /network/options matches contents of file at this path`,
 	)
 	rootCmd.AddCommand(checkDataCmd)
+	rootCmd.AddCommand(checkUpdateQueueTime)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
 		"asserter-configuration-file",
