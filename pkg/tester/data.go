@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
@@ -135,6 +137,10 @@ func (t *DataTester) CloseDatabase(ctx context.Context) {
 	}
 }
 
+func (dt *DataTester) GetReconciler() *reconciler.Reconciler {
+	return dt.reconciler
+}
+
 // InitializeData returns a new *DataTester.
 func InitializeData(
 	ctx context.Context,
@@ -187,6 +193,7 @@ func InitializeData(
 		config.Data.LogTransactions,
 		config.Data.LogBalanceChanges,
 		config.Data.LogReconciliations,
+		config.ZapLogLevel,
 		logger.Data,
 		network,
 	)
@@ -220,7 +227,7 @@ func InitializeData(
 	}
 
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
-	if err != nil {
+	if fetchErr != nil {
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
@@ -1030,6 +1037,7 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 		false,
 		false,
+		zap.InfoLevel,
 		logger.Data,
 		t.network,
 	)
