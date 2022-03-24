@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"path"
 	"runtime"
@@ -31,6 +32,27 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
 )
+
+var stringToLogLevelMapping = map[string]zapcore.Level{
+	// DebugLevel logs are typically voluminous, and are usually disabled in
+	// production.
+	"debug": zapcore.DebugLevel,
+	// InfoLevel is the default logging priority.
+	"info": zapcore.InfoLevel,
+	// WarnLevel logs are more important than Info, but don't need individual
+	// human review.
+	"warn": zapcore.WarnLevel,
+	// ErrorLevel logs are high-priority. If an application is running smoothly,
+	// it shouldn't generate any error-level logs.
+	"error": zapcore.ErrorLevel,
+	// DPanicLevel logs are particularly important errors. In development the
+	// logger panics after writing the message.
+	"dpanic": zapcore.DPanicLevel,
+	// PanicLevel logs a message, then panics.
+	"panic": zapcore.PanicLevel,
+	// FatalLevel logs a message, then calls os.Exit(1).
+	"fatal": zapcore.FatalLevel,
+}
 
 // DefaultDataConfiguration returns the default *DataConfiguration
 // for running `check:data`.
@@ -49,6 +71,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
 		Network:              EthereumNetwork,
+		LogLevel:             "",
 		OnlineURL:            DefaultURL,
 		MaxOnlineConnections: DefaultMaxOnlineConnections,
 		HTTPTimeout:          DefaultTimeout,
@@ -166,6 +189,12 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if len(strings.TrimSpace(config.ValidationFile)) == 0 {
 		config.ValidationFile = ""
+	}
+
+	config.LogLevel = strings.ToLower(config.LogLevel)
+
+	if zapLogLevel, valid := stringToLogLevelMapping[config.LogLevel]; valid {
+		config.ZapLogLevel = zapLogLevel
 	}
 
 	config.Construction = populateConstructionMissingFields(config.Construction)

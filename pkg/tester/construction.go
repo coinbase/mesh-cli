@@ -119,6 +119,7 @@ func InitializeConstruction(
 		false,
 		false,
 		false,
+		config.ZapLogLevel,
 		logger.Construction,
 		network,
 	)
