@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
@@ -135,10 +133,6 @@ func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		log.Fatalf("%s: error closing database", err.Error())
 	}
-}
-
-func (dt *DataTester) GetReconciler() *reconciler.Reconciler {
-	return dt.reconciler
 }
 
 // InitializeData returns a new *DataTester.
@@ -1037,7 +1031,6 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 		false,
 		false,
-		zap.InfoLevel,
 		logger.Data,
 		t.network,
 	)
