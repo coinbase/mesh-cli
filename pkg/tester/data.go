@@ -187,7 +187,6 @@ func InitializeData(
 		config.Data.LogTransactions,
 		config.Data.LogBalanceChanges,
 		config.Data.LogReconciliations,
-		config.ZapLogLevel,
 		logger.Data,
 		network,
 	)
