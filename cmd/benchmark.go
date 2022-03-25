@@ -28,7 +28,7 @@ website: https://github.com/facebook/zstd#the-case-for-small-data-compression`,
 
 func runBenchmarkCmd(_ *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithCancel(Context)
-	time_taken := t.Bmark_Sync(ctx, cancel, Config, 1000)
-	fmt.Printf("Total Time Taken for Sync Operations: %s", time_taken)
+	timeTaken := t.Bmark_Sync(ctx, cancel, Config, 1000)
+	fmt.Printf("Total Time Taken for Sync Operations: %s", timeTaken)
 	return nil
 }

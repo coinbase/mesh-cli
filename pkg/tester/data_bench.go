@@ -27,25 +27,29 @@ import (
 	"time"
 )
 
-func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, Config *configuration.Configuration, N int) time.Duration {
+const (
+	startIndex, endIndex int64 = 0, 10
+)
+
+func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, N int) time.Duration {
 
 	// Create a new fetcher
 	fetcher := fetcher.New(
-		Config.OnlineURL,
-		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(Config.MaxRetries),
+		config.OnlineURL,
+		fetcher.WithRetryElapsedTime(time.Duration(config.RetryElapsedTime)*time.Second),
+		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxRetries(config.MaxRetries),
 	)
 
-	dataPath, _ := utils.CreateCommandPath(Config.DataDirectory, dataCmdName, Config.Network)
-	logger, err := logger.NewLogger(
+	dataPath, _ := utils.CreateCommandPath(config.DataDirectory, dataCmdName, config.Network)
+	logger, _ := logger.NewLogger(
 		dataPath,
-		Config.Data.LogBlocks,
-		Config.Data.LogTransactions,
-		Config.Data.LogBalanceChanges,
-		Config.Data.LogReconciliations,
+		config.Data.LogBlocks,
+		config.Data.LogTransactions,
+		config.Data.LogBalanceChanges,
+		config.Data.LogReconciliations,
 		logger.Data,
-		Config.Network,
+		config.Network,
 	)
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath)
@@ -55,12 +59,12 @@ func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, Config *configur
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
-	blockStorage := modules.NewBlockStorage(localStore, Config.SerialBlockWorkers)
+	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
 	syncer := statefulsyncer.New(
 		ctx,
-		Config.Network,
+		config.Network,
 		fetcher,
 		blockStorage,
 		counterStorage,
@@ -68,16 +72,15 @@ func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, Config *configur
 		cancel,
 		[]modules.BlockWorker{balanceStorage},
 		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
-		statefulsyncer.WithMaxConcurrency(Config.MaxSyncConcurrency),
-		statefulsyncer.WithPastBlockLimit(Config.MaxReorgDepth),
-		statefulsyncer.WithSeenConcurrency(int64(Config.SeenBlockWorkers)),
+		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
+		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
+		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
 	)
-
-	startIndex, endIndex := int64(0), int64(10)
+	
 	timer := timerFactory()
 
 	for n := 0; n < N; n++ {
-		syncer.Sync(ctx, startIndex, endIndex)
+		_ = syncer.Sync(ctx, startIndex, endIndex)
 	}
 
 	return timer()
