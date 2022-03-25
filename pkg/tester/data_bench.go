@@ -31,7 +31,7 @@ const (
 	startIndex, endIndex int64 = 0, 10
 )
 
-func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, N int) time.Duration {
+func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
 
 	// Create a new fetcher
 	fetcher := fetcher.New(
@@ -76,10 +76,10 @@ func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configur
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
 		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
 	)
-	
+
 	timer := timerFactory()
 
-	for n := 0; n < N; n++ {
+	for n := 0; n < numTimesToRun; n++ {
 		_ = syncer.Sync(ctx, startIndex, endIndex)
 	}
 
