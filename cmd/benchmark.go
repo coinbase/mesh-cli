@@ -10,18 +10,10 @@ import (
 var (
 	checkBenchmarkCmd = &cobra.Command{
 		Use:   "check:benchmark",
-		Short: "Generate a zstd dictionary for enhanced compression performance",
-		Long: `Zstandard (https://github.com/facebook/zstd) is used by
-rosetta-sdk-go/storage to compress data stored to disk. It is possible
-to improve compression performance by training a dictionary on a particular
-storage namespace. This command runs this training and outputs a dictionary
-that can be used with rosetta-sdk-go/storage.
-
-The arguments for this command are:
-<namespace> <database path> <dictionary path> <max items> (<existing dictionary path>)
-
-You can learn more about dictionary compression on the Zstandard
-website: https://github.com/facebook/zstd#the-case-for-small-data-compression`,
+		Short: "Benchmark performance of time critical methods of rosetta-cli and rosetta-sdk",
+		Long: `This command can be used to benchmark the performance of time critical methods for rosetta-cli and rosetta-sdk.
+This is useful for optimizing the performance of commands like check:data and check:construction, which can take a long time to complete.
+The performance improvement can be objectively compared.`,
 		RunE: runBenchmarkCmd,
 	}
 )
