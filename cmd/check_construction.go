@@ -38,7 +38,7 @@ Construction API implementation by creating and broadcasting transactions
 on a blockchain. In short, this tool generates new addresses, requests
 funds, constructs transactions, signs transactions, broadcasts transactions,
 and confirms transactions land on-chain. At each phase, a series of tests
-are run to ensure that intermediate representations are correct (i.e. does
+are run to ensure that intermediate representations are correct (for example, does
 an unsigned transaction return a superset of operations provided during
 construction?).
 
@@ -48,7 +48,7 @@ Ethereum.
 
 Right now, this tool only supports transfer testing (for both account-based
 and UTXO-based blockchains). However, we plan to add support for testing
-arbitrary scenarios (i.e. staking, governance).`,
+arbitrary scenarios (for example, staking and governance).`,
 		RunE: runCheckConstructionCmd,
 	}
 )
