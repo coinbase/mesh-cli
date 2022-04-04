@@ -10,7 +10,7 @@ import (
 var (
 	checkBenchmarkCmd = &cobra.Command{
 		Use:   "check:benchmark",
-		Short: "Benchmark performance of time critical methods of rosetta-cli and rosetta-sdk",
+		Short: "Benchmark performance of time-critical methods of rosetta-cli and rosetta-sdk",
 		Long: `This command can be used to benchmark the performance of time critical methods for rosetta-cli and rosetta-sdk.
 This is useful for optimizing the performance of commands like check:data and check:construction, which can take a long time to complete.
 The performance improvement can be objectively compared.`,
