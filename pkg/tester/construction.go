@@ -212,16 +212,17 @@ func InitializeConstruction(
 			Network:  network,
 			Currency: prefundedAcc.Currency,
 		}
-
-		acctCoinsReq := &utils.AccountCoinsRequest{
-			Account:        prefundedAcc.AccountIdentifier,
-			Network:        network,
-			Currencies:     []*types.Currency{prefundedAcc.Currency},
-			IncludeMempool: false,
-		}
-
 		accountBalanceRequests = append(accountBalanceRequests, accountBalance)
-		acctCoinsReqs = append(acctCoinsReqs, acctCoinsReq)
+
+		if config.CoinSupported {
+			acctCoinsReq := &utils.AccountCoinsRequest{
+				Account:        prefundedAcc.AccountIdentifier,
+				Network:        network,
+				Currencies:     []*types.Currency{prefundedAcc.Currency},
+				IncludeMempool: false,
+			}
+			acctCoinsReqs = append(acctCoinsReqs, acctCoinsReq)
+		}
 	}
 
 	accBalances, err := utils.GetAccountBalances(ctx, onlineFetcher, accountBalanceRequests)
@@ -238,20 +239,22 @@ func InitializeConstruction(
 	// ------------ Get account coins and add them in coins storage ------------
 	// -------------------------------------------------------------------------
 
-	acctCoins, errAccCoins := utils.GetAccountCoins(ctx, onlineFetcher, acctCoinsReqs)
-	if errAccCoins != nil {
-		return nil, fmt.Errorf("%w: unable to get account coins", errAccCoins)
-	}
+	if config.CoinSupported {
+		acctCoins, errAccCoins := utils.GetAccountCoins(ctx, onlineFetcher, acctCoinsReqs)
+		if errAccCoins != nil {
+			return nil, fmt.Errorf("%w: unable to get account coins", errAccCoins)
+		}
 
-	// Extract accounts from account coins requests
-	var accts []*types.AccountIdentifier
-	for _, req := range acctCoinsReqs {
-		accts = append(accts, req.Account)
-	}
+		// Extract accounts from account coins requests
+		var accts []*types.AccountIdentifier
+		for _, req := range acctCoinsReqs {
+			accts = append(accts, req.Account)
+		}
 
-	err = coinStorage.SetCoinsImported(ctx, accts, acctCoins)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to set coin balances", err)
+		err = coinStorage.SetCoinsImported(ctx, accts, acctCoins)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to set coin balances", err)
+		}
 	}
 
 	// --------------------------------------------------------------------------
