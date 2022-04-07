@@ -120,4 +120,7 @@ You can also find community implementations for a variety of blockchains in the 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
+## Release
+When we release a new rosetta-cli version, please update the [version number](https://github.com/coinbase/rosetta-cli/blob/master/cmd/root.go#L297) so that `rosetta-cli version` command can print the correct value.
+
 © 2022 Coinbase
