@@ -294,6 +294,7 @@ func InitializeConstruction(
 
 	broadcastHandler := processor.NewBroadcastStorageHandler(
 		config,
+		blockStorage,
 		counterStorage,
 		coordinator,
 		parser,

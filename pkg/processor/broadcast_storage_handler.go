@@ -35,6 +35,7 @@ var _ modules.BroadcastStorageHandler = (*BroadcastStorageHandler)(nil)
 // can be sent to other functions (ex: reconciler).
 type BroadcastStorageHandler struct {
 	config         *configuration.Configuration
+	blockStorage   *modules.BlockStorage
 	counterStorage *modules.CounterStorage
 	coordinator    *coordinator.Coordinator
 	parser         *parser.Parser
@@ -43,12 +44,14 @@ type BroadcastStorageHandler struct {
 // NewBroadcastStorageHandler returns a new *BroadcastStorageHandler.
 func NewBroadcastStorageHandler(
 	config *configuration.Configuration,
+	blockStorage *modules.BlockStorage,
 	counterStorage *modules.CounterStorage,
 	coordinator *coordinator.Coordinator,
 	parser *parser.Parser,
 ) *BroadcastStorageHandler {
 	return &BroadcastStorageHandler{
 		config:         config,
+		blockStorage:   blockStorage,
 		counterStorage: counterStorage,
 		coordinator:    coordinator,
 		parser:         parser,
@@ -65,7 +68,17 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 	transaction *types.Transaction,
 	intent []*types.Operation,
 ) error {
-	if err := h.parser.ExpectedOperations(intent, transaction.Operations, false, true); err != nil {
+	_, _, relatedTransactions, err := h.blockStorage.FindRelatedTransactions(ctx, transaction.TransactionIdentifier, dbTx)
+	if err != nil {
+		return fmt.Errorf("%w: could not find related transactions", err)
+	}
+
+	observed := transaction.Operations
+	for _, relatedTransaction := range relatedTransactions {
+		observed = append(observed, relatedTransaction.Operations...)
+	}
+
+	if err := h.parser.ExpectedOperations(intent, observed, false, true); err != nil {
 		return fmt.Errorf("%w: confirmed transaction did not match intent", err)
 	}
 
