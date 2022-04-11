@@ -2,6 +2,8 @@ module github.com/coinbase/rosetta-cli
 
 go 1.16
 
+replace github.com/coinbase/rosetta-sdk-go => /Users/raj.pamula/rosetta-sdk-go
+
 require (
 	github.com/coinbase/rosetta-sdk-go v0.7.7
 	github.com/fatih/color v1.13.0

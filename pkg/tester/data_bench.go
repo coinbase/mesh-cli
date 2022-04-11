@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	startIndex, endIndex int64 = 0, 10
+	startIndex, endIndex int64 = 0, 25
 )
 
 func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
