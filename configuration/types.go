@@ -426,6 +426,12 @@ type Configuration struct {
 	// if the data or construction check fails
 	ErrorStackTraceDisabled bool `json:"error_stack_trace_disabled"`
 
+	// CoinSupported indicates whether your implementation support coins or not.
+	// If your implementation is based on account-based blockchain (e.g. Ethereum),
+	// this value must be false. If your implementation is UTXO-based blockchain (e.g. Bitcoin),
+	// then this value must be true.
+	CoinSupported bool `json:"coin_supported"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 }
