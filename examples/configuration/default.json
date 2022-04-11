@@ -16,6 +16,7 @@
  "compression_disabled": false,
  "memory_limit_disabled": false,
  "error_stack_trace_disabled": false,
+ "coin_supported": false,
  "construction": null,
  "data": {
   "active_reconciliation_concurrency": 16,
