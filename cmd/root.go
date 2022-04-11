@@ -241,7 +241,7 @@ default values.`,
 	rootCmd.AddCommand(utilsTrainZstdCmd)
 
 	// Benchmark
-	rootCmd.AddCommand(checkBenchmarkCmd)
+	rootCmd.AddCommand(checkPerfCmd)
 }
 
 func initConfig() {

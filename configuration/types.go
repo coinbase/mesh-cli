@@ -60,6 +60,7 @@ const (
 	DefaultBlockBroadcastLimit               = 5
 	DefaultStatusPort                        = 9090
 	DefaultMaxReorgDepth                     = 100
+	LogLevel                                 = "WARN"
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
