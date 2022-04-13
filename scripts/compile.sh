@@ -16,14 +16,14 @@
 
 VERSION=$1;
 
-go get github.com/crazy-max/xgo
+go install github.com/crazy-max/xgo@latest
 
 MAC_TARGETS="darwin/amd64,darwin/arm64"
 LINUX_TARGETS="linux/amd64,linux/arm64,linux/mips64,linux/mips64le,linux/ppc64le,linux/s390x"
 WINDOWS_TARGET="windows/amd64"
 TARGETS="${MAC_TARGETS},${LINUX_TARGETS},${WINDOWS_TARGET}"
 
-xgo -go 1.16.3 --targets=${TARGETS} -out "bin/rosetta-cli-${VERSION}" .;
+xgo -go 1.17.8 --targets=${TARGETS} -out "bin/rosetta-cli-${VERSION}" .;
 
 # Rename some files
 mv "bin/rosetta-cli-${VERSION}-darwin-10.16-amd64" "bin/rosetta-cli-${VERSION}-darwin-amd64"
@@ -33,5 +33,3 @@ mv "bin/rosetta-cli-${VERSION}-windows-4.0-amd64.exe" "bin/rosetta-cli-${VERSION
 # Tar all files
 cd bin || exit;
 for i in *; do tar -czf "$i.tar.gz" "$i" && rm "$i"; done
-
-go mod tidy
