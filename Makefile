@@ -20,7 +20,7 @@ TEST_SCRIPT=go test -v ./pkg/... ./configuration/... ./cmd
 COVERAGE_TEST_SCRIPT=go test -v ${COVERAGE_TEST_DIRECTORIES}
 
 deps:
-	go get ./...
+	go install ./...
 
 lint:
 	golangci-lint run --timeout 2m0s -v \
