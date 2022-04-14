@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 
+	customerrors "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -180,11 +181,11 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 	}
 
 	if len(config.Workflows) > 0 && len(config.ConstructorDSLFile) > 0 {
-		return errors.New("cannot populate both workflows and DSL file path")
+		return fmt.Errorf("%w: cannot populate both workflows and DSL file path", customerrors.ErrParseFileFailed)
 	}
 
 	if len(config.Workflows) == 0 && len(config.ConstructorDSLFile) == 0 {
-		return errors.New("both workflows and DSL file path are empty")
+		return fmt.Errorf("%w: both workflows and DSL file path are empty", customerrors.ErrParseFileFailed)
 	}
 
 	// Compile ConstructorDSLFile and save to Workflows
@@ -203,7 +204,8 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		if workflow.Name == string(job.CreateAccount) || workflow.Name == string(job.RequestFunds) {
 			if workflow.Concurrency != job.ReservedWorkflowConcurrency {
 				return fmt.Errorf(
-					"reserved workflow %s must have concurrency %d",
+					"%w: reserved workflow %s must have concurrency %d",
+					customerrors.ErrParseWorkflowFailed,
 					workflow.Name,
 					job.ReservedWorkflowConcurrency,
 				)

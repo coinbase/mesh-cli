@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"log"
 	"net/http"
 	"time"
@@ -83,7 +84,7 @@ func InitializeConstruction(
 ) (*ConstructionTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, constructionCmdName, network)
 	if err != nil {
-		log.Fatalf("%s: cannot create command path", err.Error())
+		return nil, fmt.Errorf("%s: cannot create command path", err.Error())
 	}
 
 	opts := []database.BadgerOption{}
@@ -99,17 +100,17 @@ func InitializeConstruction(
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
-		log.Fatalf("%s: unable to initialize database", err.Error())
+		return nil, fmt.Errorf("%s: unable to initialize database", err.Error())
 	}
 
 	networkOptions, fetchErr := onlineFetcher.NetworkOptionsRetry(ctx, network, nil)
 	if err != nil {
-		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+		return nil, fmt.Errorf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 &&
 		config.Construction.InitialBalanceFetchDisabled {
-		log.Fatal("found balance exemptions but initial balance fetch disabled")
+		return nil, fmt.Errorf("found balance exemptions but initial balance fetch disabled")
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
@@ -578,7 +579,7 @@ func (t *ConstructionTester) HandleErr(
 			t.config,
 			t.counterStorage,
 			t.jobStorage,
-			errors.New("check halted"),
+			fmt.Errorf("%w: %v", customErrs.ErrConstructionCheckHalt, err.Error()),
 		)
 	}
 
