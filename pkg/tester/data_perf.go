@@ -26,6 +26,7 @@ const (
 	startIndex, endIndex int64 = 0, 25
 )
 
+// Benchmark the asset issuer's /block endpoint
 func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
 	// Create a new fetcher
 	fetcher := fetcher.New(
@@ -48,6 +49,7 @@ func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configu
 	return timer()
 }
 
+// Benchmark the asset issuers /account/balance endpoint
 func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
 	// Create a new fetcher
 	fetcher := fetcher.New(

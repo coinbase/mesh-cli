@@ -20,7 +20,11 @@ The performance improvement can be objectively compared.`,
 
 func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithCancel(Context)
-	timeTaken := t.Bmark_Sync(ctx, cancel, Config, 3000)
-	fmt.Printf("Total Time Taken for Sync Operations: %s", timeTaken)
+	
+	timeTaken := t.Bmark_Block(ctx, cancel, Config, 3000)
+	fmt.Printf("Total Time Taken for /block endpoint: %s", timeTaken)
+
+	timeTaken = t.Bmark_AccountBalance(ctx, cancel, Config, 3000)
+	fmt.Printf("Total Time Taken for /account/balance endpoint: %s", timeTaken)
 	return nil
 }
