@@ -17,13 +17,8 @@ package tester
 import (
 	"context"
 	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
-	"github.com/coinbase/rosetta-sdk-go/statefulsyncer"
-	"github.com/coinbase/rosetta-sdk-go/storage/database"
-	"github.com/coinbase/rosetta-sdk-go/storage/modules"
-	"github.com/coinbase/rosetta-sdk-go/syncer"
-	"github.com/coinbase/rosetta-sdk-go/utils"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"time"
 )
 
@@ -31,8 +26,7 @@ const (
 	startIndex, endIndex int64 = 0, 25
 )
 
-func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
-
+func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
 	// Create a new fetcher
 	fetcher := fetcher.New(
 		config.OnlineURL,
@@ -40,48 +34,41 @@ func Bmark_Sync(ctx context.Context, cancel context.CancelFunc, config *configur
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
 		fetcher.WithMaxRetries(config.MaxRetries),
 	)
-
-	dataPath, _ := utils.CreateCommandPath(config.DataDirectory, dataCmdName, config.Network)
-	logger, _ := logger.NewLogger(
-		dataPath,
-		config.Data.LogBlocks,
-		config.Data.LogTransactions,
-		config.Data.LogBalanceChanges,
-		config.Data.LogReconciliations,
-		logger.Data,
-		config.Network,
-	)
-
-	localStore, err := database.NewBadgerDatabase(ctx, dataPath)
-
-	if err != nil {
-		logger.Error("%s: cannot initialize database")
-	}
-
-	counterStorage := modules.NewCounterStorage(localStore)
-	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
-	balanceStorage := modules.NewBalanceStorage(localStore)
-
-	syncer := statefulsyncer.New(
-		ctx,
-		config.Network,
-		fetcher,
-		blockStorage,
-		counterStorage,
-		logger,
-		cancel,
-		[]modules.BlockWorker{balanceStorage},
-		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
-		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
-		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
-		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
-	)
-
 	timer := timerFactory()
 
-	for n := 0; n < numTimesToRun; n++ {
-		_ = syncer.Sync(ctx, startIndex, endIndex)
+	for m := startIndex; m < endIndex; m++ {
+		for n := 0; n < numTimesToRun; n++ {
+			partialBlockId := &types.PartialBlockIdentifier{
+				Hash:  nil,
+				Index: &m,
+			}
+			_, _ = fetcher.Block(ctx, config.Network, partialBlockId)
+		}
 	}
+	return timer()
+}
 
+func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
+	// Create a new fetcher
+	fetcher := fetcher.New(
+		config.OnlineURL,
+		fetcher.WithRetryElapsedTime(time.Duration(config.RetryElapsedTime)*time.Second),
+		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
+		fetcher.WithMaxRetries(config.MaxRetries),
+	)
+	timer := timerFactory()
+
+	for m := startIndex; m < endIndex; m++ {
+		for n := 0; n < numTimesToRun; n++ {
+			account := &types.AccountIdentifier{
+				Address: "address",
+			}
+			partialBlockId := &types.PartialBlockIdentifier{
+				Hash:  nil,
+				Index: &m,
+			}
+			fetcher.AccountBalance(ctx, config.Network, account, partialBlockId, nil)
+		}
+	}
 	return timer()
 }
