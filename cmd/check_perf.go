@@ -4,6 +4,7 @@ import (
 	"context"
 	t "github.com/coinbase/rosetta-cli/pkg/tester"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"time"
 )
 
@@ -19,24 +20,27 @@ This is useful for ensuring that there are no performance degradations in the ro
 
 func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
 	ctx, _ := context.WithCancel(Context)
+	g, ctx := errgroup.WithContext(ctx)
 
 	blockEndpointTimeConstraint := time.Duration(Config.BlockEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
 	blockEndpointCtx, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
-	defer blockEndpointCancel()
+	//defer blockEndpointCancel()
 
 	accountBalanceEndpointTimeConstraint := time.Duration(Config.AccountBalanceEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
 	accountBalanceEndpointCtx, accountBalanceEndpointCancel := context.WithTimeout(ctx, accountBalanceEndpointTimeConstraint)
-	defer accountBalanceEndpointCancel()
+	//defer accountBalanceEndpointCancel()
 
 	fetcher, timer, elapsed := t.Setup_Benchmarking(Config)
-	go func() {
-		t.Bmark_Block(blockEndpointCtx, blockEndpointCancel, Config, fetcher, timer, elapsed)
-	}()
+	g.Go(func() error {
+		return t.Bmark_Block(blockEndpointCtx, blockEndpointCancel, Config, fetcher, timer, elapsed)
+	})
 
 	fetcher, timer, elapsed = t.Setup_Benchmarking(Config)
-	go func() {
-		t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed)
-	}()
+	g.Go(func() error {
+		return t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed)
+	})
+
+	g.Wait()
 
 	return nil
 }

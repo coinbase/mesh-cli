@@ -38,7 +38,7 @@ func Setup_Benchmarking(config *configuration.Configuration) (*fetcher.Fetcher, 
 }
 
 // Benchmark the asset issuer's /block endpoint
-func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) {
+func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) error {
 	go func() {
 		for m := config.StartBlock; m < config.EndBlock; m++ {
 			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
@@ -58,11 +58,13 @@ func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configu
 		fmt.Printf("Total Time Taken for /block endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
 		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
 		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
+		return nil
 	}
+	return nil
 }
 
 // Benchmark the asset issuers /account/balance endpoint
-func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) {
+func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) error {
 	go func() {
 		for m := config.StartBlock; m < config.EndBlock; m++ {
 			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
@@ -85,5 +87,7 @@ func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config
 		fmt.Printf("Total Time Taken for /account/balance endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
 		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
 		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
+		return nil
 	}
+	return nil
 }

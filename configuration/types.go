@@ -228,7 +228,7 @@ type DataConfiguration struct {
 	InactiveReconciliationConcurrency uint64 `json:"inactive_reconciliation_concurrency"`
 
 	// InactiveReconciliationFrequency is the number of blocks to wait between
-	// inactive reconiliations on each account.
+	// inactive reconciliations on each account.
 	InactiveReconciliationFrequency uint64 `json:"inactive_reconciliation_frequency"`
 
 	// LogBlocks is a boolean indicating whether to log processed blocks.
@@ -438,18 +438,18 @@ type Configuration struct {
 
 	// StartBlock is the starting block for running check:perf.
 	// If not provided, then this defaults to 0 (the genesis block)
-	StartBlock int64 `"json:start_block,omitempty"`
+	StartBlock int64 `json:"start_block,omitempty"`
 
-	BlockEndpointTimeConstraint int `"json:block_endpoint_time_constraint"`
+	BlockEndpointTimeConstraint int `json:"block_endpoint_time_constraint"`
 
-	AccountBalanceEndpointTimeConstraint int `"json:block_endpoint_time_constraint"`
+	AccountBalanceEndpointTimeConstraint int `json:"account_balance_endpoint_time_constraint"`
 
 	// EndBlock is the ending block for running check:perf.
 	// Must be provided when running check:perf
-	EndBlock int64 `"json:start_block"`
+	EndBlock int64 `json:"end_block"`
 
 	// NumTimesToHitEndpoints is the number of times each rosetta-server endpoint will be benchmarked
-	NumTimesToHitEndpoints int `"json:num_times_to_hit_endpoints"`
+	NumTimesToHitEndpoints int `json:"num_times_to_hit_endpoints"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
