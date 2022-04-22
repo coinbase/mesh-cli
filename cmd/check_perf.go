@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	t "github.com/coinbase/rosetta-cli/pkg/tester"
 	"github.com/spf13/cobra"
+	"time"
 )
 
 var (
@@ -18,12 +18,25 @@ This is useful for ensuring that there are no performance degradations in the ro
 )
 
 func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
-	ctx, cancel := context.WithCancel(Context)
+	ctx, _ := context.WithCancel(Context)
 
-	timeTaken := t.Bmark_Block(ctx, cancel, Config, 3000)
-	fmt.Printf("Total Time Taken for /block endpoint: %s", timeTaken)
+	blockEndpointTimeConstraint := time.Duration(Config.BlockEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
+	blockEndpointCtx, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
+	defer blockEndpointCancel()
 
-	timeTaken = t.Bmark_AccountBalance(ctx, cancel, Config, 3000)
-	fmt.Printf("Total Time Taken for /account/balance endpoint: %s", timeTaken)
+	accountBalanceEndpointTimeConstraint := time.Duration(Config.AccountBalanceEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
+	accountBalanceEndpointCtx, accountBalanceEndpointCancel := context.WithTimeout(ctx, accountBalanceEndpointTimeConstraint)
+	defer accountBalanceEndpointCancel()
+
+	fetcher, timer, elapsed := t.Setup_Benchmarking(Config)
+	go func() {
+		t.Bmark_Block(blockEndpointCtx, blockEndpointCancel, Config, fetcher, timer, elapsed)
+	}()
+
+	fetcher, timer, elapsed = t.Setup_Benchmarking(Config)
+	go func() {
+		t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed)
+	}()
+
 	return nil
 }

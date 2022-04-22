@@ -240,7 +240,7 @@ default values.`,
 	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
 	rootCmd.AddCommand(utilsTrainZstdCmd)
 
-	// Benchmark
+	// Benchmark commands
 	rootCmd.AddCommand(checkPerfCmd)
 }
 

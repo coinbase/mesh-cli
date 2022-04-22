@@ -341,7 +341,7 @@ type DataConfiguration struct {
 }
 
 // Configuration contains all configuration settings for running
-// check:data or check:construction.
+// check:data, check:construction, or check:perf.
 type Configuration struct {
 	// Network is the *types.NetworkIdentifier where transactions should
 	// be constructed and where blocks should be synced to monitor
@@ -431,6 +431,25 @@ type Configuration struct {
 	// this value must be false. If your implementation is UTXO-based blockchain (e.g. Bitcoin),
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
+
+	//********************//
+	// Check Perf configs //
+	//********************//
+
+	// StartBlock is the starting block for running check:perf.
+	// If not provided, then this defaults to 0 (the genesis block)
+	StartBlock int64 `"json:start_block,omitempty"`
+
+	BlockEndpointTimeConstraint int `"json:block_endpoint_time_constraint"`
+
+	AccountBalanceEndpointTimeConstraint int `"json:block_endpoint_time_constraint"`
+
+	// EndBlock is the ending block for running check:perf.
+	// Must be provided when running check:perf
+	EndBlock int64 `"json:start_block"`
+
+	// NumTimesToHitEndpoints is the number of times each rosetta-server endpoint will be benchmarked
+	NumTimesToHitEndpoints int `"json:num_times_to_hit_endpoints"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`

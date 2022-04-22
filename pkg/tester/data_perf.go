@@ -16,18 +16,15 @@ package tester
 
 import (
 	"context"
+	"fmt"
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
+	"log"
 	"time"
 )
 
-const (
-	startIndex, endIndex int64 = 0, 25
-)
-
-// Benchmark the asset issuer's /block endpoint
-func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
+func Setup_Benchmarking(config *configuration.Configuration) (*fetcher.Fetcher, func() time.Duration, chan time.Duration) {
 	// Create a new fetcher
 	fetcher := fetcher.New(
 		config.OnlineURL,
@@ -36,41 +33,57 @@ func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configu
 		fetcher.WithMaxRetries(config.MaxRetries),
 	)
 	timer := timerFactory()
+	elapsed := make(chan time.Duration, 1)
+	return fetcher, timer, elapsed
+}
 
-	for m := startIndex; m < endIndex; m++ {
-		for n := 0; n < numTimesToRun; n++ {
-			partialBlockId := &types.PartialBlockIdentifier{
-				Hash:  nil,
-				Index: &m,
+// Benchmark the asset issuer's /block endpoint
+func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) {
+	go func() {
+		for m := config.StartBlock; m < config.EndBlock; m++ {
+			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
+				partialBlockId := &types.PartialBlockIdentifier{
+					Hash:  nil,
+					Index: &m,
+				}
+				_, _ = fetcher.Block(ctx, config.Network, partialBlockId)
 			}
-			_, _ = fetcher.Block(ctx, config.Network, partialBlockId)
 		}
+		elapsed <- timer()
+	}()
+	select {
+	case <-ctx.Done():
+		log.Fatalf("/block endpoint failed check:perf")
+	case timeTaken := <-elapsed:
+		fmt.Printf("Total Time Taken for /block endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
+		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
+		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
 	}
-	return timer()
 }
 
 // Benchmark the asset issuers /account/balance endpoint
-func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, numTimesToRun int) time.Duration {
-	// Create a new fetcher
-	fetcher := fetcher.New(
-		config.OnlineURL,
-		fetcher.WithRetryElapsedTime(time.Duration(config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(config.MaxRetries),
-	)
-	timer := timerFactory()
-
-	for m := startIndex; m < endIndex; m++ {
-		for n := 0; n < numTimesToRun; n++ {
-			account := &types.AccountIdentifier{
-				Address: "address",
+func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) {
+	go func() {
+		for m := config.StartBlock; m < config.EndBlock; m++ {
+			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
+				account := &types.AccountIdentifier{
+					Address: "address",
+				}
+				partialBlockId := &types.PartialBlockIdentifier{
+					Hash:  nil,
+					Index: &m,
+				}
+				fetcher.AccountBalance(ctx, config.Network, account, partialBlockId, nil)
 			}
-			partialBlockId := &types.PartialBlockIdentifier{
-				Hash:  nil,
-				Index: &m,
-			}
-			fetcher.AccountBalance(ctx, config.Network, account, partialBlockId, nil)
 		}
+		elapsed <- timer()
+	}()
+	select {
+	case <-ctx.Done():
+		log.Fatalf("/block endpoint failed check:perf")
+	case timeTaken := <-elapsed:
+		fmt.Printf("Total Time Taken for /account/balance endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
+		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
+		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
 	}
-	return timer()
 }
