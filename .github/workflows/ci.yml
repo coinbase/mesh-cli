@@ -39,7 +39,6 @@ jobs:
         with:
           version: latest
           args: --timeout 3m
-      - run: make check-comments
 
   Check-License:
     runs-on: ubuntu-latest
