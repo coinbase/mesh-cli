@@ -61,7 +61,6 @@ func Bmark_Block(ctx context.Context, config *configuration.Configuration, fetch
 		rawStats.BlockEndpointNumErrors = int64(total_errors)
 		return nil
 	}
-	return nil
 }
 
 // Benchmark the asset issuers /account/balance endpoint
@@ -93,5 +92,4 @@ func Bmark_AccountBalance(ctx context.Context, config *configuration.Configurati
 		rawStats.AccountBalanceNumErrors = int64(total_errors)
 		return nil
 	}
-	return nil
 }
