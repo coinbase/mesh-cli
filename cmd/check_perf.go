@@ -24,23 +24,24 @@ func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
 	ctx, _ := context.WithCancel(Context)
 	g, ctx := errgroup.WithContext(ctx)
 
+	TotalNumEndpoints := int64(Config.Perf.NumTimesToHitEndpoints) * (Config.Perf.EndBlock - Config.Perf.StartBlock)
 	perfRawStats := &results.CheckPerfRawStats{AccountBalanceEndpointTotalTime: -1, BlockEndpointTotalTime: -1}
 
 	fmt.Printf("Running Check:Perf for %s:%s for blocks %d-%d \n", Config.Network.Blockchain, Config.Network.Network, Config.Perf.StartBlock, Config.Perf.EndBlock)
 
 	fetcher, timer, elapsed := t.Setup_Benchmarking(Config)
-	blockEndpointTimeConstraint := time.Duration(Config.Perf.BlockEndpointTimeConstraintMs*Config.Perf.NumTimesToHitEndpoints) * time.Millisecond
-	_, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
+	blockEndpointTimeConstraint := time.Duration(Config.Perf.BlockEndpointTimeConstraintMs*TotalNumEndpoints) * time.Millisecond
+	blockEndpointCtx, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
 	g.Go(func() error {
-		return t.Bmark_Block(ctx, blockEndpointCancel, Config, fetcher, timer, elapsed, perfRawStats)
+		return t.Bmark_Block(blockEndpointCtx, Config, fetcher, timer, elapsed, perfRawStats)
 	})
 	defer blockEndpointCancel()
 
 	fetcher, timer, elapsed = t.Setup_Benchmarking(Config)
-	accountBalanceEndpointTimeConstraint := time.Duration(Config.Perf.AccountBalanceEndpointTimeConstraintMs*Config.Perf.NumTimesToHitEndpoints) * time.Millisecond
+	accountBalanceEndpointTimeConstraint := time.Duration(Config.Perf.AccountBalanceEndpointTimeConstraintMs*TotalNumEndpoints) * time.Millisecond
 	accountBalanceEndpointCtx, accountBalanceEndpointCancel := context.WithTimeout(ctx, accountBalanceEndpointTimeConstraint)
 	g.Go(func() error {
-		return t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed, perfRawStats)
+		return t.Bmark_AccountBalance(accountBalanceEndpointCtx, Config, fetcher, timer, elapsed, perfRawStats)
 	})
 	defer accountBalanceEndpointCancel()
 

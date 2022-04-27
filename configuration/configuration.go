@@ -48,7 +48,7 @@ func DefaultPerfConfiguration() *CheckPerfConfiguration {
 	return &CheckPerfConfiguration{
 		StartBlock:                             10,
 		BlockEndpointTimeConstraintMs:          50000000,
-		AccountBalanceEndpointTimeConstraintMs: 5,
+		AccountBalanceEndpointTimeConstraintMs: 50000000,
 		EndBlock:                               50,
 		NumTimesToHitEndpoints:                 1,
 		StatsOutputFile:                        "./check_perf_stats.json",

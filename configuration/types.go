@@ -446,9 +446,9 @@ type CheckPerfConfiguration struct {
 	// If not provided, then this defaults to 0 (the genesis block)
 	StartBlock int64 `json:"start_block,omitempty"`
 
-	BlockEndpointTimeConstraintMs int `json:"block_endpoint_time_constraint"`
+	BlockEndpointTimeConstraintMs int64 `json:"block_endpoint_time_constraint"`
 
-	AccountBalanceEndpointTimeConstraintMs int `json:"account_balance_endpoint_time_constraint"`
+	AccountBalanceEndpointTimeConstraintMs int64 `json:"account_balance_endpoint_time_constraint"`
 
 	// EndBlock is the ending block for running check:perf.
 	// Must be provided when running check:perf

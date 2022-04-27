@@ -36,7 +36,7 @@ func Setup_Benchmarking(config *configuration.Configuration) (*fetcher.Fetcher, 
 }
 
 // Benchmark the asset issuer's /block endpoint
-func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
+func Bmark_Block(ctx context.Context, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
 	total_errors := 0
 	go func() {
 		for m := config.Perf.StartBlock; m < config.Perf.EndBlock; m++ {
@@ -65,7 +65,7 @@ func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configu
 }
 
 // Benchmark the asset issuers /account/balance endpoint
-func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
+func Bmark_AccountBalance(ctx context.Context, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
 	total_errors := 0
 	go func() {
 		for m := config.Perf.StartBlock; m < config.Perf.EndBlock; m++ {
