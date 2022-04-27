@@ -16,11 +16,11 @@ package tester
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"log"
 	"time"
 )
 
@@ -28,9 +28,7 @@ func Setup_Benchmarking(config *configuration.Configuration) (*fetcher.Fetcher, 
 	// Create a new fetcher
 	fetcher := fetcher.New(
 		config.OnlineURL,
-		fetcher.WithRetryElapsedTime(time.Duration(config.RetryElapsedTime)*time.Second),
-		fetcher.WithTimeout(time.Duration(config.HTTPTimeout)*time.Second),
-		fetcher.WithMaxRetries(config.MaxRetries),
+		fetcher.WithMaxRetries(0),
 	)
 	timer := timerFactory()
 	elapsed := make(chan time.Duration, 1)
@@ -38,36 +36,40 @@ func Setup_Benchmarking(config *configuration.Configuration) (*fetcher.Fetcher, 
 }
 
 // Benchmark the asset issuer's /block endpoint
-func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) error {
+func Bmark_Block(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
+	total_errors := 0
 	go func() {
-		for m := config.StartBlock; m < config.EndBlock; m++ {
-			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
+		for m := config.Perf.StartBlock; m < config.Perf.EndBlock; m++ {
+			for n := 0; n < config.Perf.NumTimesToHitEndpoints; n++ {
 				partialBlockId := &types.PartialBlockIdentifier{
 					Hash:  nil,
 					Index: &m,
 				}
-				_, _ = fetcher.Block(ctx, config.Network, partialBlockId)
+				_, err := fetcher.Block(ctx, config.Network, partialBlockId)
+				if err != nil {
+					total_errors++
+				}
 			}
 		}
 		elapsed <- timer()
 	}()
 	select {
 	case <-ctx.Done():
-		log.Fatalf("/block endpoint failed check:perf")
+		return errors.New("/block endpoint benchmarking timed out")
 	case timeTaken := <-elapsed:
-		fmt.Printf("Total Time Taken for /block endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
-		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
-		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
+		rawStats.BlockEndpointTotalTime = timeTaken
+		rawStats.BlockEndpointNumErrors = int64(total_errors)
 		return nil
 	}
 	return nil
 }
 
 // Benchmark the asset issuers /account/balance endpoint
-func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration) error {
+func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config *configuration.Configuration, fetcher *fetcher.Fetcher, timer func() time.Duration, elapsed chan time.Duration, rawStats *results.CheckPerfRawStats) error {
+	total_errors := 0
 	go func() {
-		for m := config.StartBlock; m < config.EndBlock; m++ {
-			for n := 0; n < config.NumTimesToHitEndpoints; n++ {
+		for m := config.Perf.StartBlock; m < config.Perf.EndBlock; m++ {
+			for n := 0; n < config.Perf.NumTimesToHitEndpoints; n++ {
 				account := &types.AccountIdentifier{
 					Address: "address",
 				}
@@ -75,18 +77,20 @@ func Bmark_AccountBalance(ctx context.Context, cancel context.CancelFunc, config
 					Hash:  nil,
 					Index: &m,
 				}
-				fetcher.AccountBalance(ctx, config.Network, account, partialBlockId, nil)
+				_, _, _, err := fetcher.AccountBalance(ctx, config.Network, account, partialBlockId, nil)
+				if err != nil {
+					total_errors++
+				}
 			}
 		}
 		elapsed <- timer()
 	}()
 	select {
 	case <-ctx.Done():
-		log.Fatalf("/block endpoint failed check:perf")
+		return errors.New("/account/balance endpoint benchmarking timed out")
 	case timeTaken := <-elapsed:
-		fmt.Printf("Total Time Taken for /account/balance endpoint for %s times: %s \n", config.NumTimesToHitEndpoints, timeTaken)
-		averageTime := timeTaken / time.Duration((int64(config.NumTimesToHitEndpoints) * (config.EndBlock - config.StartBlock)))
-		fmt.Printf("Average Time Taken per /block call: %s \n", averageTime)
+		rawStats.AccountBalanceEndpointTotalTime = timeTaken
+		rawStats.AccountBalanceNumErrors = int64(total_errors)
 		return nil
 	}
 	return nil

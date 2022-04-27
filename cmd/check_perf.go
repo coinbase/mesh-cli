@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/results"
 	t "github.com/coinbase/rosetta-cli/pkg/tester"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -22,25 +24,27 @@ func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
 	ctx, _ := context.WithCancel(Context)
 	g, ctx := errgroup.WithContext(ctx)
 
-	blockEndpointTimeConstraint := time.Duration(Config.BlockEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
-	blockEndpointCtx, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
-	//defer blockEndpointCancel()
+	perfRawStats := &results.CheckPerfRawStats{AccountBalanceEndpointTotalTime: -1, BlockEndpointTotalTime: -1}
 
-	accountBalanceEndpointTimeConstraint := time.Duration(Config.AccountBalanceEndpointTimeConstraint*Config.NumTimesToHitEndpoints) * time.Millisecond
-	accountBalanceEndpointCtx, accountBalanceEndpointCancel := context.WithTimeout(ctx, accountBalanceEndpointTimeConstraint)
-	//defer accountBalanceEndpointCancel()
+	fmt.Printf("Running Check:Perf for %s:%s for blocks %d-%d \n", Config.Network.Blockchain, Config.Network.Network, Config.Perf.StartBlock, Config.Perf.EndBlock)
 
 	fetcher, timer, elapsed := t.Setup_Benchmarking(Config)
+	blockEndpointTimeConstraint := time.Duration(Config.Perf.BlockEndpointTimeConstraintMs*Config.Perf.NumTimesToHitEndpoints) * time.Millisecond
+	_, blockEndpointCancel := context.WithTimeout(ctx, blockEndpointTimeConstraint)
 	g.Go(func() error {
-		return t.Bmark_Block(blockEndpointCtx, blockEndpointCancel, Config, fetcher, timer, elapsed)
+		return t.Bmark_Block(ctx, blockEndpointCancel, Config, fetcher, timer, elapsed, perfRawStats)
 	})
+	defer blockEndpointCancel()
 
 	fetcher, timer, elapsed = t.Setup_Benchmarking(Config)
+	accountBalanceEndpointTimeConstraint := time.Duration(Config.Perf.AccountBalanceEndpointTimeConstraintMs*Config.Perf.NumTimesToHitEndpoints) * time.Millisecond
+	accountBalanceEndpointCtx, accountBalanceEndpointCancel := context.WithTimeout(ctx, accountBalanceEndpointTimeConstraint)
 	g.Go(func() error {
-		return t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed)
+		return t.Bmark_AccountBalance(accountBalanceEndpointCtx, accountBalanceEndpointCancel, Config, fetcher, timer, elapsed, perfRawStats)
 	})
+	defer accountBalanceEndpointCancel()
 
-	g.Wait()
+	results.ExitPerf(Config.Perf, g.Wait(), perfRawStats)
 
 	return nil
 }

@@ -432,17 +432,23 @@ type Configuration struct {
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
 
-	//********************//
-	// Check Perf configs //
-	//********************//
+	Construction *ConstructionConfiguration `json:"construction"`
+	Data         *DataConfiguration         `json:"data"`
+	Perf         *CheckPerfConfiguration    `json:"data"`
+}
+
+//********************//
+// Check Perf configs //
+//********************//
+type CheckPerfConfiguration struct {
 
 	// StartBlock is the starting block for running check:perf.
 	// If not provided, then this defaults to 0 (the genesis block)
 	StartBlock int64 `json:"start_block,omitempty"`
 
-	BlockEndpointTimeConstraint int `json:"block_endpoint_time_constraint"`
+	BlockEndpointTimeConstraintMs int `json:"block_endpoint_time_constraint"`
 
-	AccountBalanceEndpointTimeConstraint int `json:"account_balance_endpoint_time_constraint"`
+	AccountBalanceEndpointTimeConstraintMs int `json:"account_balance_endpoint_time_constraint"`
 
 	// EndBlock is the ending block for running check:perf.
 	// Must be provided when running check:perf
@@ -451,6 +457,6 @@ type Configuration struct {
 	// NumTimesToHitEndpoints is the number of times each rosetta-server endpoint will be benchmarked
 	NumTimesToHitEndpoints int `json:"num_times_to_hit_endpoints"`
 
-	Construction *ConstructionConfiguration `json:"construction"`
-	Data         *DataConfiguration         `json:"data"`
+	// Location to output test results
+	StatsOutputFile string `json:"check_perf_output_dir"`
 }

@@ -314,7 +314,7 @@ func ComputeCheckDataProgress(
 	}
 
 	// Get current tip in the case that re-orgs occurred
-	// or a custom start index was provied.
+	// or a custom start index was provided.
 	headBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
 	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 		return nil

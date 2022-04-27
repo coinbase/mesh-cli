@@ -44,25 +44,32 @@ func DefaultDataConfiguration() *DataConfiguration {
 	}
 }
 
+func DefaultPerfConfiguration() *CheckPerfConfiguration {
+	return &CheckPerfConfiguration{
+		StartBlock:                             10,
+		BlockEndpointTimeConstraintMs:          50000000,
+		AccountBalanceEndpointTimeConstraintMs: 5,
+		EndBlock:                               50,
+		NumTimesToHitEndpoints:                 1,
+		StatsOutputFile:                        "./check_perf_stats.json",
+	}
+}
+
 // DefaultConfiguration returns a *Configuration with the
 // EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:                              EthereumNetwork,
-		OnlineURL:                            DefaultURL,
-		MaxOnlineConnections:                 DefaultMaxOnlineConnections,
-		HTTPTimeout:                          DefaultTimeout,
-		MaxRetries:                           DefaultMaxRetries,
-		MaxSyncConcurrency:                   DefaultMaxSyncConcurrency,
-		TipDelay:                             DefaultTipDelay,
-		MaxReorgDepth:                        DefaultMaxReorgDepth,
-		Data:                                 DefaultDataConfiguration(),
-		StartBlock:                           0,
-		BlockEndpointTimeConstraint:          5,
-		AccountBalanceEndpointTimeConstraint: 5,
-		EndBlock:                             100,
-		NumTimesToHitEndpoints:               5,
+		Network:              EthereumNetwork,
+		OnlineURL:            DefaultURL,
+		MaxOnlineConnections: DefaultMaxOnlineConnections,
+		HTTPTimeout:          DefaultTimeout,
+		MaxRetries:           DefaultMaxRetries,
+		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
+		TipDelay:             DefaultTipDelay,
+		MaxReorgDepth:        DefaultMaxReorgDepth,
+		Data:                 DefaultDataConfiguration(),
+		Perf:                 DefaultPerfConfiguration(),
 	}
 }
 
