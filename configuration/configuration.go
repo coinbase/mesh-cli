@@ -40,6 +40,18 @@ func DefaultDataConfiguration() *DataConfiguration {
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
 		StatusPort:                        DefaultStatusPort,
+		LogBlocks:                         true,
+	}
+}
+
+func DefaultPerfConfiguration() *CheckPerfConfiguration {
+	return &CheckPerfConfiguration{
+		StartBlock:                             10,
+		BlockEndpointTimeConstraintMs:          50000000,
+		AccountBalanceEndpointTimeConstraintMs: 50000000,
+		EndBlock:                               50,
+		NumTimesToHitEndpoints:                 1,
+		StatsOutputFile:                        "./check_perf_stats.json",
 	}
 }
 
@@ -57,6 +69,7 @@ func DefaultConfiguration() *Configuration {
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
+		Perf:                 DefaultPerfConfiguration(),
 	}
 }
 

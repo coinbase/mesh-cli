@@ -22,7 +22,7 @@
   "active_reconciliation_concurrency": 16,
   "inactive_reconciliation_concurrency": 4,
   "inactive_reconciliation_frequency": 250,
-  "log_blocks": false,
+  "log_blocks": true,
   "log_transactions": false,
   "log_balance_changes": false,
   "log_reconciliations": false,
@@ -39,5 +39,13 @@
   "results_output_file": "",
   "pruning_disabled": false,
   "initial_balance_fetch_disabled": false
+ },
+ "perf": {
+  "start_block": 10,
+  "block_endpoint_time_constraint": 50000000,
+  "account_balance_endpoint_time_constraint": 50000000,
+  "end_block": 50,
+  "num_times_to_hit_endpoints": 1,
+  "check_perf_output_dir": "./check_perf_stats.json"
  }
 }
