@@ -38,11 +38,6 @@
   "status_port": 9090,
   "results_output_file": "",
   "pruning_disabled": false,
-  "initial_balance_fetch_disabled": false,
-  "start_block": 0,
-  "block_endpoint_time_constraint": 5,
-  "account_balance_endpoint_time_constraint": 5,
-  "end_block": 100,
-  "num_times_to_hit_endpoints": 5
+  "initial_balance_fetch_disabled": false
  }
 }
