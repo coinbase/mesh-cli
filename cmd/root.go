@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
 	"runtime/pprof"
 	"syscall"
@@ -92,7 +93,7 @@ var (
 // Bassed on https://golang.org/pkg/runtime/pprof/#hdr-Profiling_a_Go_program
 func rootPreRun(*cobra.Command, []string) error {
 	if cpuProfile != "" {
-		f, err := os.Create(cpuProfile)
+		f, err := os.Create(path.Clean(cpuProfile))
 		if err != nil {
 			return fmt.Errorf("%w: unable to create CPU profile file", err)
 		}
@@ -113,7 +114,7 @@ func rootPreRun(*cobra.Command, []string) error {
 
 	if blockProfile != "" {
 		runtime.SetBlockProfileRate(1)
-		f, err := os.Create(blockProfile)
+		f, err := os.Create(path.Clean(blockProfile))
 		if err != nil {
 			return fmt.Errorf("%w: unable to create block profile file", err)
 		}
@@ -144,7 +145,7 @@ func rootPostRun() {
 	}
 
 	if memProfile != "" {
-		f, err := os.Create(memProfile)
+		f, err := os.Create(path.Clean(memProfile))
 		if err != nil {
 			log.Printf("error while creating mem-profile file: %v", err)
 			return
