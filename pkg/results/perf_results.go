@@ -98,7 +98,7 @@ func (c *CheckPerfStats) Print() {
 		[]string{
 			"/Account/Balance Endpoint Total Time",
 			"Total elapsed time taken to fetch all account balances (ms)",
-			strconv.FormatInt(c.AccountBalanceEndpointAverageTimeMs, 10),
+			strconv.FormatInt(c.AccountBalanceEndpointTotalTimeMs, 10),
 		},
 	)
 	table.Append(

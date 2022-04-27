@@ -21,7 +21,8 @@ This is useful for ensuring that there are no performance degradations in the ro
 )
 
 func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
-	ctx, _ := context.WithCancel(Context)
+	ctx, cancel := context.WithCancel(Context)
+	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
 	TotalNumEndpoints := int64(Config.Perf.NumTimesToHitEndpoints) * (Config.Perf.EndBlock - Config.Perf.StartBlock)
@@ -45,7 +46,5 @@ func runCheckPerfCmd(_ *cobra.Command, _ []string) error {
 	})
 	defer accountBalanceEndpointCancel()
 
-	results.ExitPerf(Config.Perf, g.Wait(), perfRawStats)
-
-	return nil
+	return results.ExitPerf(Config.Perf, g.Wait(), perfRawStats)
 }

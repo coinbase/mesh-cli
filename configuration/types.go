@@ -434,7 +434,7 @@ type Configuration struct {
 
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
-	Perf         *CheckPerfConfiguration    `json:"data"`
+	Perf         *CheckPerfConfiguration    `json:"perf"`
 }
 
 //********************//
