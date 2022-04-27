@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
@@ -131,7 +132,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	dataTester := tester.InitializeData(
+	dataTester, err := tester.InitializeData(
 		ctx,
 		Config,
 		Config.Network,
@@ -141,6 +142,9 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		nil, // only populated when doing recursive search
 		&SignalReceived,
 	)
+	if err != nil {
+		return fmt.Errorf("%s:%s", customErrs.ErrInitDataTester, err)
+	}
 
 	defer dataTester.CloseDatabase(ctx)
 

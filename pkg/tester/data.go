@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/results"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -145,10 +145,10 @@ func InitializeData(
 	genesisBlock *types.BlockIdentifier,
 	interestingAccount *types.AccountCurrency,
 	signalReceived *bool,
-) *DataTester {
+) (*DataTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
 	if err != nil {
-		log.Fatalf("%s: cannot create command path", err.Error())
+		return nil, fmt.Errorf("%s: cannot create command path", err.Error())
 	}
 
 	opts := []database.BadgerOption{}
@@ -164,17 +164,17 @@ func InitializeData(
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
-		log.Fatalf("%s: unable to initialize database", err.Error())
+		return nil, fmt.Errorf("%s: unable to initialize database", err.Error())
 	}
 
 	exemptAccounts, err := loadAccounts(config.Data.ExemptAccounts)
 	if err != nil {
-		log.Fatalf("%s: unable to load exempt accounts", err.Error())
+		return nil, fmt.Errorf("%s: unable to load exempt accounts", err.Error())
 	}
 
 	interestingAccounts, err := loadAccounts(config.Data.InterestingAccounts)
 	if err != nil {
-		log.Fatalf("%s: unable to load interesting accounts", err.Error())
+		return nil, fmt.Errorf("%s: unable to load interesting accounts", err.Error())
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
@@ -191,8 +191,7 @@ func InitializeData(
 		network,
 	)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("unable to initialize logger with error: %s", err.Error()))
-		return nil
+		return nil, fmt.Errorf("unable to initialize logger with error: %s", err.Error())
 	}
 
 	var forceInactiveReconciliation bool
@@ -216,16 +215,16 @@ func InitializeData(
 	// Get all previously seen accounts
 	seenAccounts, err := balanceStorage.GetAllAccountCurrency(ctx)
 	if err != nil {
-		log.Fatalf("%s: unable to get previously seen accounts", err.Error())
+		return nil, fmt.Errorf("%s: unable to get previously seen accounts", err.Error())
 	}
 
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
-	if err != nil {
-		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+	if fetchErr != nil {
+		return nil, fmt.Errorf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
-		log.Fatal("found balance exemptions but initial balance fetch disabled")
+		return nil, fmt.Errorf("found balance exemptions but initial balance fetch disabled")
 	}
 
 	parser := parser.New(
@@ -308,10 +307,10 @@ func InitializeData(
 					genesisBlock,
 				)
 				if err != nil {
-					log.Fatalf("%s: unable to bootstrap balances", err.Error())
+					return nil, fmt.Errorf("%s: unable to bootstrap balances", err.Error())
 				}
 			case err != nil:
-				log.Fatalf("%s: unable to get head block identifier", err.Error())
+				return nil, fmt.Errorf("%s: unable to get head block identifier", err.Error())
 			default:
 				log.Println("Skipping balance bootstrapping because already started syncing")
 			}
@@ -368,7 +367,7 @@ func InitializeData(
 		historicalBalanceEnabled:    historicalBalanceEnabled,
 		parser:                      parser,
 		forceInactiveReconciliation: &forceInactiveReconciliation,
-	}
+	}, nil
 }
 
 // StartSyncing syncs from startIndex to endIndex.
@@ -860,7 +859,7 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
-			errors.New("check halted"),
+			fmt.Errorf("%w: %v", customErrs.ErrDataCheckHalt, err.Error()),
 			"",
 			"",
 		)
