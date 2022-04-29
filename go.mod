@@ -3,10 +3,7 @@ module github.com/coinbase/rosetta-cli
 go 1.16
 
 require (
-	github.com/Azure/azure-pipeline-go v0.2.2 // indirect
-	github.com/Azure/azure-storage-blob-go v0.7.0 // indirect
-	github.com/Azure/go-autorest/autorest/adal v0.8.0 // indirect
-	github.com/coinbase/rosetta-sdk-go v0.7.8
+	github.com/coinbase/rosetta-sdk-go v0.7.9
 	github.com/fatih/color v1.13.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
