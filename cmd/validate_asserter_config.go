@@ -16,8 +16,8 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -52,10 +52,10 @@ func validateNetworkAndAsserterAllowMatch(
 	networkAllow *types.Allow, asserterConfiguration *asserter.Configuration,
 ) error {
 	if networkAllow == nil {
-		return errors.New("/network/options object's Allow is nil")
+		return fmt.Errorf("%w: /network/options object's Allow is nil", errors.ErrAsserterConfigError)
 	}
 	if asserterConfiguration == nil {
-		return errors.New("asserter-configuration-file object is nil")
+		return fmt.Errorf("%w: asserter-configuration-file object is nil", errors.ErrAsserterConfigError)
 	}
 
 	if err := verifyTimestampStartIndex(
@@ -111,7 +111,7 @@ func verifyOperationTypes(networkOt, asserterOt []string) error {
 		if networkOperationType != asserterOperationType {
 			return fmt.Errorf(
 				"/network/options / asserter-configuration-file operation type mismatch %+v "+
-				"%+v\nnetwork operation types: %+v\nasserter operation types: %+v",
+					"%+v\nnetwork operation types: %+v\nasserter operation types: %+v",
 				networkOperationType, asserterOperationType, networkOt, asserterOt,
 			)
 		}

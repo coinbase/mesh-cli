@@ -16,8 +16,8 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
@@ -59,7 +59,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			errors.New("construction configuration is missing"),
+			errors.ErrConstructionConfigMissing,
 		)
 	}
 

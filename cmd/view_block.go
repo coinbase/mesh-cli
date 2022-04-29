@@ -15,8 +15,8 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"strconv"
 	"time"
 
@@ -125,7 +125,7 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	}
 	// It's valid for a block to be omitted without triggering an error
 	if block == nil {
-		return errors.New("block not found, it might be omitted")
+		return fmt.Errorf("%w: block not found, it might be omitted", errors.ErrBlockNotFound)
 	}
 
 	fmt.Printf("\n")

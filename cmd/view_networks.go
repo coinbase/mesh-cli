@@ -15,8 +15,8 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"log"
 	"time"
 
@@ -63,7 +63,7 @@ func runViewNetworksCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(networkList.NetworkIdentifiers) == 0 {
-		return errors.New("no networks available")
+		return errors.ErrNoAvailableNetwork
 	}
 
 	for _, network := range networkList.NetworkIdentifiers {
