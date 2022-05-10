@@ -44,6 +44,19 @@ func DefaultDataConfiguration() *DataConfiguration {
 	}
 }
 
+// DefaultPerfConfiguration returns the default *CheckPerfConfiguration
+// for running `check:perf`.
+func DefaultPerfConfiguration() *CheckPerfConfiguration {
+	return &CheckPerfConfiguration{
+		StartBlock:                             10,
+		BlockEndpointTimeConstraintMs:          50000000,
+		AccountBalanceEndpointTimeConstraintMs: 50000000,
+		EndBlock:                               50,
+		NumTimesToHitEndpoints:                 1,
+		StatsOutputFile:                        "./check_perf_stats.json",
+	}
+}
+
 // DefaultConfiguration returns a *Configuration with the
 // EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
@@ -58,6 +71,7 @@ func DefaultConfiguration() *Configuration {
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
+		Perf:                 DefaultPerfConfiguration(),
 	}
 }
 
