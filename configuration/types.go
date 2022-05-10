@@ -60,7 +60,14 @@ const (
 	DefaultBlockBroadcastLimit               = 5
 	DefaultStatusPort                        = 9090
 	DefaultMaxReorgDepth                     = 100
-	LogLevel                                 = "WARN"
+
+	// Check Perf Default Configs
+	DefaultStartBlock                             = 100
+	DefaultEndBlock                               = 10000
+	DefaultNumTimesToHitEndpoints                 = 50
+	DefaultOutputFile                             = "./check_perf_stats.json"
+	DefaultBlockEndpointTimeConstraintMs          = 5000
+	DefaultAccountBalanceEndpointTimeConstraintMs = 5000
 
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"

@@ -71,8 +71,25 @@ func DefaultConfiguration() *Configuration {
 		TipDelay:             DefaultTipDelay,
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
-		Perf:                 DefaultPerfConfiguration(),
 	}
+}
+
+func populatePerfMissingFields(
+	perfConfig *CheckPerfConfiguration,
+) *CheckPerfConfiguration {
+	if perfConfig == nil {
+		return nil
+	}
+
+	if len(perfConfig.StatsOutputFile) == 0 {
+		perfConfig.StatsOutputFile = DefaultOutputFile
+	}
+
+	if perfConfig.NumTimesToHitEndpoints == 0 {
+		perfConfig.NumTimesToHitEndpoints = DefaultNumTimesToHitEndpoints
+	}
+
+	return perfConfig
 }
 
 func populateConstructionMissingFields(
@@ -185,6 +202,7 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
+	config.Perf = populatePerfMissingFields(config.Perf)
 
 	return config
 }
