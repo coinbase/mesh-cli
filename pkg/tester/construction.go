@@ -103,7 +103,7 @@ func InitializeConstruction(
 	}
 
 	networkOptions, fetchErr := onlineFetcher.NetworkOptionsRetry(ctx, network, nil)
-	if err != nil {
+	if fetchErr != nil {
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
 	}
 
