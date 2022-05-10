@@ -325,7 +325,6 @@ func TestLoadConfiguration(t *testing.T) {
 						},
 					},
 				},
-				Perf: DefaultPerfConfiguration(),
 			},
 			expected: func() *Configuration {
 				cfg := DefaultConfiguration()
