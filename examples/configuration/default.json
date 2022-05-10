@@ -22,7 +22,7 @@
   "active_reconciliation_concurrency": 16,
   "inactive_reconciliation_concurrency": 4,
   "inactive_reconciliation_frequency": 250,
-  "log_blocks": true,
+  "log_blocks": false,
   "log_transactions": false,
   "log_balance_changes": false,
   "log_reconciliations": false,

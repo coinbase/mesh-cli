@@ -40,7 +40,7 @@ func DefaultDataConfiguration() *DataConfiguration {
 		InactiveReconciliationConcurrency: DefaultInactiveReconciliationConcurrency,
 		InactiveReconciliationFrequency:   DefaultInactiveReconciliationFrequency,
 		StatusPort:                        DefaultStatusPort,
-		LogBlocks:                         true,
+		LogBlocks:                         false,
 	}
 }
 
