@@ -39,5 +39,6 @@
   "results_output_file": "",
   "pruning_disabled": false,
   "initial_balance_fetch_disabled": false
- }
+ },
+ "perf": null
 }

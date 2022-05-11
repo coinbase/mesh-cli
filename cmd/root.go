@@ -240,6 +240,9 @@ default values.`,
 	// Utils
 	rootCmd.AddCommand(utilsAsserterConfigurationCmd)
 	rootCmd.AddCommand(utilsTrainZstdCmd)
+
+	// Benchmark commands
+	rootCmd.AddCommand(checkPerfCmd)
 }
 
 func initConfig() {

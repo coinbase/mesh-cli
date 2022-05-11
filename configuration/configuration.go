@@ -44,6 +44,19 @@ func DefaultDataConfiguration() *DataConfiguration {
 	}
 }
 
+// DefaultPerfConfiguration returns the default *CheckPerfConfiguration
+// for running `check:perf`.
+func DefaultPerfConfiguration() *CheckPerfConfiguration {
+	return &CheckPerfConfiguration{
+		StartBlock:                             10,
+		BlockEndpointTimeConstraintMs:          50000000,
+		AccountBalanceEndpointTimeConstraintMs: 50000000,
+		EndBlock:                               50,
+		NumTimesToHitEndpoints:                 1,
+		StatsOutputFile:                        "./check_perf_stats.json",
+	}
+}
+
 // DefaultConfiguration returns a *Configuration with the
 // EthereumNetwork, DefaultURL, DefaultTimeout,
 // DefaultConstructionConfiguration and DefaultDataConfiguration.
@@ -59,6 +72,24 @@ func DefaultConfiguration() *Configuration {
 		MaxReorgDepth:        DefaultMaxReorgDepth,
 		Data:                 DefaultDataConfiguration(),
 	}
+}
+
+func populatePerfMissingFields(
+	perfConfig *CheckPerfConfiguration,
+) *CheckPerfConfiguration {
+	if perfConfig == nil {
+		return nil
+	}
+
+	if len(perfConfig.StatsOutputFile) == 0 {
+		perfConfig.StatsOutputFile = DefaultOutputFile
+	}
+
+	if perfConfig.NumTimesToHitEndpoints == 0 {
+		perfConfig.NumTimesToHitEndpoints = DefaultNumTimesToHitEndpoints
+	}
+
+	return perfConfig
 }
 
 func populateConstructionMissingFields(
@@ -171,6 +202,7 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	config.Construction = populateConstructionMissingFields(config.Construction)
 	config.Data = populateDataMissingFields(config.Data)
+	config.Perf = populatePerfMissingFields(config.Perf)
 
 	return config
 }
