@@ -48,7 +48,8 @@ var (
 	cpuProfile        string
 	memProfile        string
 	blockProfile      string
-	nodeUrl			  string
+	onlineUrl		  string
+	offlineUrl        string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -220,10 +221,10 @@ default values.`,
 	)
 
 	checkDataCmd.Flags().StringVar(
-		&nodeUrl,
-		"node-url",
+		&onlineUrl,
+		"online-url",
 		"",
-		"Override node url in configuration file",
+		"Override online node url in configuration file",
 	)
 
 	rootCmd.AddCommand(checkDataCmd)
@@ -235,10 +236,17 @@ default values.`,
 	)
 
 	checkConstructionCmd.Flags().StringVar(
-		&nodeUrl,
-		"node-url",
+		&onlineUrl,
+		"online-url",
 		"",
-		"Override node url in configuration file",
+		"Override online node url in configuration file",
+	)
+
+	checkConstructionCmd.Flags().StringVar(
+		&offlineUrl,
+		"offline-url",
+		"",
+		"Override offline node url in configuration file",
 	)
 
 	rootCmd.AddCommand(checkConstructionCmd)
@@ -283,8 +291,11 @@ func initConfig() {
 	}
 
 	// Override node url in configuration file when it's explicitly set via CLI
-	if len(nodeUrl) != 0 {
-		Config.OnlineURL = nodeUrl
+	if len(onlineUrl) != 0 {
+		Config.OnlineURL = onlineUrl
+	}
+	if len(offlineUrl) != 0 {
+		Config.Construction.OfflineURL = offlineUrl
 	}
 }
 
