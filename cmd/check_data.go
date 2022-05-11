@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/coinbase/rosetta-cli/pkg/errors"
+	"log"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
@@ -83,7 +84,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	if Config.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
 	}
-
+	log.Println("node url: ", Config.OnlineURL)
 	fetcher := fetcher.New(
 		Config.OnlineURL,
 		fetcherOpts...,

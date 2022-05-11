@@ -48,6 +48,7 @@ var (
 	cpuProfile        string
 	memProfile        string
 	blockProfile      string
+	nodeUrl			  string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -217,6 +218,14 @@ default values.`,
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)
+
+	checkDataCmd.Flags().StringVar(
+		&nodeUrl,
+		"node-url",
+		"",
+		"Override node url in configuration file",
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -224,6 +233,14 @@ default values.`,
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)
+
+	checkConstructionCmd.Flags().StringVar(
+		&nodeUrl,
+		"node-url",
+		"",
+		"Override node url in configuration file",
+	)
+
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
@@ -260,8 +277,14 @@ func initConfig() {
 	} else {
 		Config, err = configuration.LoadConfiguration(Context, configurationFile)
 	}
+
 	if err != nil {
 		log.Fatalf("%s: unable to load configuration", err.Error())
+	}
+
+	// Override node url in configuration file when it's explicitly set via CLI
+	if len(nodeUrl) != 0 {
+		Config.OnlineURL = nodeUrl
 	}
 }
 
