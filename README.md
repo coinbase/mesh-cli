@@ -35,6 +35,17 @@ To download the binary into a specific directory, run:
 curl -sSfL https://raw.githubusercontent.com/coinbase/rosetta-cli/master/scripts/install.sh | sh -s -- -b <relative directory>
 ```
 
+### Run via Docker
+Running the following command will start a Docker container and present CLI for the Rosetta API.
+```
+docker run -it [image-name] [command]
+```
+
+Example: To validate that the Data API implementation is correct, running the following command will start a Docker container with a data directory at `<working directory>`.
+```
+docker run -v "$(pwd):/data" -it [image-name] check:data --configuration-file /data/config.json
+```
+
 ## Updates and Releases
 
 We recommend that you continually update your installation to the latest release as soon as possible. The latest release notes are available in our [Community](https://community.rosetta-api.org) board under the [Release](https://community.rosetta-api.org/c/releases/13) category.
