@@ -47,3 +47,4 @@ RUN apt-get update -y && apt-get install -y \
 COPY --from=cli /go/bin/ /usr/local/bin/
 
 WORKDIR /app
+ENTRYPOINT ["rosetta-cli"]
