@@ -17,11 +17,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
-
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
@@ -131,7 +131,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	dataTester := tester.InitializeData(
+	dataTester, err := tester.InitializeData(
 		ctx,
 		Config,
 		Config.Network,
@@ -142,6 +142,9 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		&SignalReceived,
 	)
 
+	if err != nil {
+		return fmt.Errorf("%s:%s", errors.ErrInitDataTester, err)
+	}
 	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)

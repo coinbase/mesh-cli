@@ -21,6 +21,12 @@ import (
 // Configuration Errors
 
 var (
+	// Data Errors
+
+	ErrCheckStorageTipFailed = errors.New("unable to check storage tip")
+	ErrDataCheckHalt         = errors.New("data check halted")
+	ErrInitDataTester        = errors.New("unexpected error occurred while trying to initialize data tester")
+
 	// Construction Configuration Errors
 
 	ErrParseFileFailed           = errors.New("unable to parse config files")
@@ -29,8 +35,6 @@ var (
 	ErrCompileDSLFileFailed      = errors.New("unable to compile DSL file")
 	ErrParseWorkflowFailed       = errors.New("unable to parse workflow")
 	ErrConstructionConfigMissing = errors.New("construction configuration is missing")
-
-	// TODO: Data Configuration Errors
 
 	// Construction check errors
 
