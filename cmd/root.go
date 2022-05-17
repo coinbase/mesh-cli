@@ -48,10 +48,10 @@ var (
 	cpuProfile        string
 	memProfile        string
 	blockProfile      string
-	onlineUrl		  string
-	offlineUrl        string
-	startIndex		  int64
-	endIndex		  int64
+	onlineURL         string
+	offlineURL        string
+	startIndex        int64
+	endIndex          int64
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -223,7 +223,7 @@ default values.`,
 	)
 
 	checkDataCmd.Flags().StringVar(
-		&onlineUrl,
+		&onlineURL,
 		"online-url",
 		"",
 		"Override online node url in configuration file",
@@ -252,14 +252,14 @@ default values.`,
 	)
 
 	checkConstructionCmd.Flags().StringVar(
-		&onlineUrl,
+		&onlineURL,
 		"online-url",
 		"",
 		"Override online node url in configuration file",
 	)
 
 	checkConstructionCmd.Flags().StringVar(
-		&offlineUrl,
+		&offlineURL,
 		"offline-url",
 		"",
 		"Override offline node url in configuration file",
@@ -307,11 +307,11 @@ func initConfig() {
 	}
 
 	// Override node url in configuration file when it's explicitly set via CLI
-	if len(onlineUrl) != 0 {
-		Config.OnlineURL = onlineUrl
+	if len(onlineURL) != 0 {
+		Config.OnlineURL = onlineURL
 	}
-	if len(offlineUrl) != 0 {
-		Config.Construction.OfflineURL = offlineUrl
+	if len(offlineURL) != 0 {
+		Config.Construction.OfflineURL = offlineURL
 	}
 
 	// Override start and end syncing index in configuration file when it's explicitly set via CLI
