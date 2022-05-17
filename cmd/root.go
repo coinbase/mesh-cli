@@ -50,6 +50,8 @@ var (
 	blockProfile      string
 	onlineUrl		  string
 	offlineUrl        string
+	startIndex		  int64
+	endIndex		  int64
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -227,6 +229,20 @@ default values.`,
 		"Override online node url in configuration file",
 	)
 
+	checkDataCmd.Flags().Int64Var(
+		&startIndex,
+		"start-block",
+		-1,
+		`start-block is the block height to start syncing from. This will override the start_index from configuration file`,
+	)
+
+	checkDataCmd.Flags().Int64Var(
+		&endIndex,
+		"end-block",
+		-1,
+		`End-block configures the syncer to stop once reaching a particular block height. This will override the index from configuration file`,
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -296,6 +312,15 @@ func initConfig() {
 	}
 	if len(offlineUrl) != 0 {
 		Config.Construction.OfflineURL = offlineUrl
+	}
+
+	// Override start and end syncing index in configuration file when it's explicitly set via CLI
+	if startIndex != -1 {
+		Config.Data.StartIndex = &startIndex
+	}
+
+	if endIndex != -1 {
+		Config.Data.EndConditions.Index = &endIndex
 	}
 }
 
