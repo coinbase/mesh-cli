@@ -317,6 +317,9 @@ func initConfig() {
 	// Override start and end syncing index in configuration file when it's explicitly set via CLI
 	if startIndex != -1 {
 		Config.Data.StartIndex = &startIndex
+		// Configures rosetta-cli to lookup the balance of newly seen accounts at the
+		// parent block before applying operations. Otherwise the balance will be 0.
+		Config.Data.InitialBalanceFetchDisabled = false
 	}
 
 	if endIndex != -1 {
