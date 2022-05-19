@@ -93,6 +93,11 @@ If you are developing on both the `rosetta-cli` and `rosetta-sdk-go` repositorie
 ```
 replace "github.com/coinbase/rosetta-sdk-go" v0.6.8 => "../rosetta-sdk-go"
 ```
+## Release
+* When we release a new rosetta-cli version, please update the [version number](https://github.com/coinbase/rosetta-cli/blob/master/cmd/root.go#L297) so that `rosetta-cli version` command can print the correct value.
+* Create binaries and upload all the binaries in the new release tag (Eg: https://github.com/coinbase/rosetta-cli/releases/tag/v0.7.7)
+    * `make compile version=<New Version>`
+    * All the binaries will be created in the `bin` folder and should have extension as `tar.gz` and new version number
 
 ### Helper/Handler
 Many of the packages use a `Helper/Handler` interface pattern to acquire required information or to send events to some client implementation. An example of this is in the `reconciler` package where a `Helper` is used to get the account balance and the `Handler` is called to indicate whether the reconciliation of an account was successful.
@@ -128,10 +133,7 @@ To help you with examples, we developed complete Rosetta API reference implement
 
 You can also find community implementations for a variety of blockchains in the [rosetta-ecosystem](https://github.com/coinbase/rosetta-ecosystem) repository, and in the [ecosystem category](https://community.rosetta-api.org/c/ecosystem) of our community site. 
 
+
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
-
-## Release
-When we release a new rosetta-cli version, please update the [version number](https://github.com/coinbase/rosetta-cli/blob/master/cmd/root.go#L297) so that `rosetta-cli version` command can print the correct value.
-
 © 2022 Coinbase
