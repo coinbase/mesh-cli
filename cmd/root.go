@@ -48,6 +48,10 @@ var (
 	cpuProfile        string
 	memProfile        string
 	blockProfile      string
+	onlineURL         string
+	offlineURL        string
+	startIndex        int64
+	endIndex          int64
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -217,6 +221,28 @@ default values.`,
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)
+
+	checkDataCmd.Flags().StringVar(
+		&onlineURL,
+		"online-url",
+		"",
+		"Override online node url in configuration file",
+	)
+
+	checkDataCmd.Flags().Int64Var(
+		&startIndex,
+		"start-block",
+		-1,
+		`start-block is the block height to start syncing from. This will override the start_index from configuration file`,
+	)
+
+	checkDataCmd.Flags().Int64Var(
+		&endIndex,
+		"end-block",
+		-1,
+		`End-block configures the syncer to stop once reaching a particular block height. This will override the index from configuration file`,
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -224,6 +250,21 @@ default values.`,
 		"", // Default to skip validation
 		`Check that /network/options matches contents of file at this path`,
 	)
+
+	checkConstructionCmd.Flags().StringVar(
+		&onlineURL,
+		"online-url",
+		"",
+		"Override online node url in configuration file",
+	)
+
+	checkConstructionCmd.Flags().StringVar(
+		&offlineURL,
+		"offline-url",
+		"",
+		"Override offline node url in configuration file",
+	)
+
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
@@ -260,8 +301,29 @@ func initConfig() {
 	} else {
 		Config, err = configuration.LoadConfiguration(Context, configurationFile)
 	}
+
 	if err != nil {
 		log.Fatalf("%s: unable to load configuration", err.Error())
+	}
+
+	// Override node url in configuration file when it's explicitly set via CLI
+	if len(onlineURL) != 0 {
+		Config.OnlineURL = onlineURL
+	}
+	if len(offlineURL) != 0 {
+		Config.Construction.OfflineURL = offlineURL
+	}
+
+	// Override start and end syncing index in configuration file when it's explicitly set via CLI
+	if startIndex != -1 {
+		Config.Data.StartIndex = &startIndex
+		// Configures rosetta-cli to lookup the balance of newly seen accounts at the
+		// parent block before applying operations. Otherwise the balance will be 0.
+		Config.Data.InitialBalanceFetchDisabled = false
+	}
+
+	if endIndex != -1 {
+		Config.Data.EndConditions.Index = &endIndex
 	}
 }
 
