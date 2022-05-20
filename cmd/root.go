@@ -44,14 +44,16 @@ var (
 		PersistentPreRunE: rootPreRun,
 	}
 
-	configurationFile string
-	cpuProfile        string
-	memProfile        string
-	blockProfile      string
-	onlineURL         string
-	offlineURL        string
-	startIndex        int64
-	endIndex          int64
+	configurationFile      string
+	cpuProfile             string
+	memProfile             string
+	blockProfile           string
+	onlineURL              string
+	offlineURL             string
+	startIndex             int64
+	endIndex               int64
+	dataResultFile         string
+	constructionResultFile string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -243,6 +245,13 @@ default values.`,
 		`End-block configures the syncer to stop once reaching a particular block height. This will override the index from configuration file`,
 	)
 
+	checkDataCmd.Flags().StringVar(
+		&dataResultFile,
+		"result-file",
+		"",
+		"Result-file configures the location of validation result. This will override the results_output_file from configuration file",
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -265,6 +274,12 @@ default values.`,
 		"Override offline node url in configuration file",
 	)
 
+	checkConstructionCmd.Flags().StringVar(
+		&constructionResultFile,
+		"result-file",
+		"",
+		"Result-file configures the location of validation result. This will override the results_output_file from configuration file",
+	)
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
@@ -325,6 +340,14 @@ func initConfig() {
 	if endIndex != -1 {
 		Config.Data.EndConditions.Index = &endIndex
 	}
+
+	if len(dataResultFile) != 0 {
+		Config.Data.ResultsOutputFile = dataResultFile
+	}
+
+	if len(constructionResultFile) != 0 {
+		Config.Construction.ResultsOutputFile = constructionResultFile
+	}
 }
 
 func ensureDataDirectoryExists() {
@@ -360,6 +383,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.7.7")
+		fmt.Println("v0.7.9")
 	},
 }
