@@ -54,6 +54,7 @@ var (
 	endIndex               int64
 	dataResultFile         string
 	constructionResultFile string
+	dataDirectory          string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -252,6 +253,12 @@ default values.`,
 		"Result-file configures the location of validation result. This will override the results_output_file from configuration file",
 	)
 
+	checkDataCmd.Flags().StringVar(
+		&dataDirectory,
+		"data-dir",
+		"",
+		"Data-dir configures the location of logs and data for validation. This will override the data_directory from configuration file",
+	)
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -347,6 +354,10 @@ func initConfig() {
 
 	if len(constructionResultFile) != 0 {
 		Config.Construction.ResultsOutputFile = constructionResultFile
+	}
+
+	if len(dataDirectory) != 0 {
+		Config.DataDirectory = dataDirectory
 	}
 }
 
