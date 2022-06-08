@@ -306,6 +306,9 @@ default values.`,
 
 	// Benchmark commands
 	rootCmd.AddCommand(checkPerfCmd)
+
+	// check:spec
+	rootCmd.AddCommand(checkSpecCmd)
 }
 
 func initConfig() {
