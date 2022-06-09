@@ -62,7 +62,7 @@ type checkSpec struct {
 	fetcher *fetcher.Fetcher
 }
 
-func newCheckSpec(ctx context.Context) (*checkSpec, error) {
+func newCheckSpec(ctx context.Context, serverAddr string) (*checkSpec, error) {
 	fetcherOpts := []fetcher.Option{
 		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
@@ -75,7 +75,7 @@ func newCheckSpec(ctx context.Context) (*checkSpec, error) {
 	}
 
 	fetcher := fetcher.New(
-		Config.OnlineURL,
+		serverAddr,
 		fetcherOpts...,
 	)
 
@@ -96,32 +96,102 @@ func newCheckSpec(ctx context.Context) (*checkSpec, error) {
 	}, nil
 }
 
+func (cs *checkSpec) NetworkOptions(ctx context.Context) error {
+	res, err := cs.fetcher.NetworkOptionsRetry(ctx, Config.Network, nil)
+	if err != nil {
+		return fmt.Errorf("%w: unable to fetch network options", err.Err)
+	}
+
+	// version is required
+	if res.Version == nil {
+		return fmt.Errorf("%w: unable to find version in network/options response", errVersion)
+	}
+
+	if err := validateVersion(res.Version.RosettaVersion); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := validateVersion(res.Version.NodeVersion); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	// allow is required
+	if res.Allow == nil {
+		return fmt.Errorf("%w: unable to find allow in network/options response", errAllowNullPointer)
+	}
+
+	if err := validateOperationStatuses(res.Allow.OperationStatuses); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := validateOperationTypes(res.Allow.OperationTypes); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := validateErrors(res.Allow.Errors); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := validateCallMethods(res.Allow.CallMethods); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := validateBalanceExemptions(res.Allow.BalanceExemptions); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
 func (cs *checkSpec) NetworkStatus(ctx context.Context) error {
 	res, err := cs.fetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if err != nil {
 		return fmt.Errorf("%w: unable to fetch network status", err.Err)
 	}
 
-	if err := verifyBlockIdentifier(res.CurrentBlockIdentifier); err != nil {
+	// current_block_identifier is required
+	if err := validateBlockIdentifier(res.CurrentBlockIdentifier); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	// TODO
+	// current_block_timestamp is required
+	if err := validateTimestamp(res.CurrentBlockTimestamp); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	// genesis_block_identifier is required
+	if err := validateBlockIdentifier(res.GenesisBlockIdentifier); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	// peers is required
+	if err := validatePeers(res.Peers); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
 	return nil
 }
 
 func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 	ctx := context.Background()
-	cs, err := newCheckSpec(ctx)
+	onlineCheckSpec, err := newCheckSpec(ctx, Config.OnlineURL)
 	if err != nil {
-		return fmt.Errorf("%w: unable to create checkSpec object", err)
+		return fmt.Errorf("%w: unable to create checkSpec object with online URL", err)
 	}
 
-	if err = cs.NetworkStatus(ctx); err != nil {
+	if err = onlineCheckSpec.NetworkStatus(ctx); err != nil {
 		return fmt.Errorf("%w: network status verification failed", err)
 	}
 
 	// TODO: more checks
+	offlineCheckSpec, err := newCheckSpec(ctx, Config.Construction.OfflineURL)
+	if err != nil {
+		return fmt.Errorf("%w: unable to create checkSpec object with offline URL", err)
+	}
+
+	if err = offlineCheckSpec.NetworkOptions(ctx); err != nil {
+		return fmt.Errorf("%w: network options verification failed", err)
+	}
 
 	fmt.Println("Successfully validated check:spec")
 	return nil
