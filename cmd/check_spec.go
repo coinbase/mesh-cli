@@ -39,7 +39,7 @@ var (
 // type checkSpecer interface {
 // 	NetworkList() error
 // 	NetworkOptions() error
-// 	NetworkStatus(ctx context.Context) error
+//  NetworkStatus(ctx context.Context) error
 
 // 	AccountBalance() error
 // 	AccountCoins() error
@@ -59,45 +59,71 @@ var (
 // 	MultipleModes() error
 // }
 type checkSpec struct {
-	fetcher *fetcher.Fetcher
+	onlineFetcher  *fetcher.Fetcher
+	offlineFetcher *fetcher.Fetcher
 }
 
 func newCheckSpec(ctx context.Context) (*checkSpec, error) {
-	fetcherOpts := []fetcher.Option{
+	onlineFetcherOpts := []fetcher.Option{
 		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(Config.MaxRetries),
 	}
 
-	if Config.ForceRetry {
-		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
+	offlineFetcherOpts := []fetcher.Option{
+		fetcher.WithMaxConnections(Config.Construction.MaxOfflineConnections),
+		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
+		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
+		fetcher.WithMaxRetries(Config.MaxRetries),
 	}
 
-	fetcher := fetcher.New(
+	if Config.ForceRetry {
+		onlineFetcherOpts = append(onlineFetcherOpts, fetcher.WithForceRetry())
+		offlineFetcherOpts = append(offlineFetcherOpts, fetcher.WithForceRetry())
+	}
+
+	onlineFetcher := fetcher.New(
 		Config.OnlineURL,
-		fetcherOpts...,
+		onlineFetcherOpts...,
+	)
+	offlineFetcher := fetcher.New(
+		Config.Construction.OfflineURL,
+		offlineFetcherOpts...,
 	)
 
-	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
+	_, _, fetchErr := onlineFetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
 		return nil, results.ExitData(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
+			fmt.Errorf("%w: unable to initialize asserter for online node fetcher", fetchErr.Err),
+			"",
+			"",
+		)
+	}
+
+	_, _, fetchErr = offlineFetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
+	if fetchErr != nil {
+		return nil, results.ExitData(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("%w: unable to initialize asserter for offline node fetcher", fetchErr.Err),
 			"",
 			"",
 		)
 	}
 
 	return &checkSpec{
-		fetcher: fetcher,
+		onlineFetcher:  onlineFetcher,
+		offlineFetcher: offlineFetcher,
 	}, nil
 }
 
 func (cs *checkSpec) NetworkStatus(ctx context.Context) error {
-	res, err := cs.fetcher.NetworkStatusRetry(ctx, Config.Network, nil)
+	res, err := cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if err != nil {
 		return fmt.Errorf("%w: unable to fetch network status", err.Err)
 	}
@@ -110,6 +136,23 @@ func (cs *checkSpec) NetworkStatus(ctx context.Context) error {
 	return nil
 }
 
+func (cs *checkSpec) NetworkList(ctx context.Context, fetcher *fetcher.Fetcher) error {
+	networks, err := fetcher.NetworkList(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("%w: unable to fetch network list", err.Err)
+	}
+	if len(networks.NetworkIdentifiers) == 0 {
+		return fmt.Errorf("network_identifiers are required")
+	}
+	for _, network := range networks.NetworkIdentifiers {
+		if network.Network == Config.Network.Network &&
+			network.Blockchain == Config.Network.Blockchain {
+			return nil
+		}
+	}
+	return fmt.Errorf("network identifier in configuration file is not returned by /network/list")
+}
+
 func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 	ctx := context.Background()
 	cs, err := newCheckSpec(ctx)
@@ -119,6 +162,14 @@ func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 
 	if err = cs.NetworkStatus(ctx); err != nil {
 		return fmt.Errorf("%w: network status verification failed", err)
+	}
+
+	if err = cs.NetworkList(ctx, cs.onlineFetcher); err != nil {
+		return fmt.Errorf("%w: online network list verification failed", err)
+	}
+
+	if err = cs.NetworkList(ctx, cs.offlineFetcher); err != nil {
+		return fmt.Errorf("%w: offline network list verification failed", err)
 	}
 
 	// TODO: more checks
