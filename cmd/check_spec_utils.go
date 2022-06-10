@@ -17,6 +17,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/coinbase/rosetta-sdk-go/keys"
+	storageErrs "github.com/coinbase/rosetta-sdk-go/storage/errors"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -24,36 +26,86 @@ import (
 )
 
 var (
-	errBlockIdentifierNullPointer   = errors.New("Null pointer to BlockIdentifier object")
-	errBlockIdentifierEmptyHash     = errors.New("BlockIdentifier can't have empty hash")
-	errBlockIdentifierNegativeIndex = errors.New("BlockIdentifier can't have negative index")
+	errBlockIdentifierNullPointer   = errors.New("null pointer to BlockIdentifier object")
+	errBlockIdentifierEmptyHash     = errors.New("blockIdentifier can't have empty hash")
+	errBlockIdentifierNegativeIndex = errors.New("blockIdentifier can't have negative index")
 
-	errTimestampNegative  = errors.New("Timestamp can't be negative")
-	errVersionEmpty       = errors.New("Version can't be empty")
-	errVersionNullPointer = errors.New("Null pointer to Version object")
+	errTimestampNegative  = errors.New("timestamp can't be negative")
+	errVersionEmpty       = errors.New("version can't be empty")
+	errVersionNullPointer = errors.New("null pointer to Version object")
 
-	errOperationStatusEmptyStatus = errors.New("OperationStatus can't have empty status value")
-	errOperationStatusNullPointer = errors.New("Null pointer to OperationStatus object")
-	errOperationTypeEmpty         = errors.New("OperationType can't be empty")
+	errOperationStatusEmptyStatus = errors.New("operationStatus can't have empty status value")
+	errOperationStatusNullPointer = errors.New("null pointer to OperationStatus object")
+	errOperationTypeEmpty         = errors.New("operationType can't be empty")
 
-	errErrorEmpty        = errors.New("Error object can't be empty")
-	errErrorEmptyMessage = errors.New("Error object can't have empty message")
-	errErrorNegativeCode = errors.New("Error object can't have negative code")
+	errErrorEmpty        = errors.New("error object can't be empty")
+	errErrorEmptyMessage = errors.New("error object can't have empty message")
+	errErrorNegativeCode = errors.New("error object can't have negative code")
 
-	errCallMethodEmptyName   = errors.New("Call method name can't be empty")
-	errBalanceExemptionEmpty = errors.New("Balance exemption can't be empty")
-	errAllowNullPointer      = errors.New("Null pointer to Allow object")
+	errCallMethodEmptyName   = errors.New("call method name can't be empty")
+	errBalanceExemptionEmpty = errors.New("balance exemption can't be empty")
+	errAllowNullPointer      = errors.New("null pointer to Allow object")
 
-	errBalanceEmptyValue        = errors.New("Amount can't be empty")
-	errCurrencyEmptySymbol      = errors.New("Currency can't have empty symbol")
-	errCurrencyNegativeDecimals = errors.New("Currency can't have negative decimals")
-	errAccountNullPointer       = errors.New("Null pointer to Account object")
+	errBalanceEmptyValue        = errors.New("amount can't be empty")
+	errCurrencyEmptySymbol      = errors.New("currency can't have empty symbol")
+	errCurrencyNegativeDecimals = errors.New("currency can't have negative decimals")
+	errAccountNullPointer       = errors.New("null pointer to Account object")
 
-	errCoinIdentifierEmpty         = errors.New("Coin identifier can't be empty")
-	errCoinIdentifierNullPointer   = errors.New("Null pointer to coin identifier object")
-	errBlockNotIdempotent          = errors.New("Multiple calls with the same hash don't return the same block")
-	errBlockTip                    = errors.New("Unspecified block_identifier doesn't give the tip block")
-	errRosettaConfigNoConstruction = errors.New("No construction element in Rosetta config")
+	errCoinIdentifierEmpty         = errors.New("coin identifier can't be empty")
+	errCoinIdentifierNullPointer   = errors.New("null pointer to coin identifier object")
+	errBlockNotIdempotent          = errors.New("multiple calls with the same hash don't return the same block")
+	errBlockTip                    = errors.New("unspecified block_identifier doesn't give the tip block")
+	errRosettaConfigNoConstruction = errors.New("no construction element in Rosetta config")
+
+	checkSpecConstructionOutput = map[checkSpecAPI]checkSpecOutput{
+		constructionPreprocess: {
+			api: constructionPreprocess,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				offlineMode: checkSpecPending,
+			},
+		},
+		constructionMetadata: {
+			api: constructionMetadata,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				metedata: checkSpecPending,
+			},
+		},
+		constructionParse: {
+			api: constructionParse,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				operations:  checkSpecPending,
+				offlineMode: checkSpecPending,
+			},
+		},
+		constructionPayloads: {
+			api: constructionPayloads,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				unsignedTx:      checkSpecPending,
+				signingPayloads: checkSpecPending,
+				offlineMode:     checkSpecPending,
+			},
+		},
+		constructionCombine: {
+			api: constructionCombine,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				signedTx:    checkSpecPending,
+				offlineMode: checkSpecPending,
+			},
+		},
+		constructionHash: {
+			api: constructionHash,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				txID:        checkSpecPending,
+				offlineMode: checkSpecPending,
+			},
+		},
+		constructionSubmit: {
+			api: constructionSubmit,
+			validation: map[checkSpecRequirement]checkSpecStatus{
+				txID: checkSpecPending,
+			},
+		},
+	}
 )
 
 type checkSpecAPI string
@@ -61,14 +113,21 @@ type checkSpecRequirement string
 type checkSpecStatus string
 
 const (
-	networkList    checkSpecAPI = "/network/list"
-	networkOptions checkSpecAPI = "/network/options"
-	networkStatus  checkSpecAPI = "/network/status"
-	accountBalance checkSpecAPI = "/account/balance"
-	accountCoins   checkSpecAPI = "/account/coins"
-	block          checkSpecAPI = "/block"
-	errorObject    checkSpecAPI = "error object"
-	modes          checkSpecAPI = "modes"
+	networkList            checkSpecAPI = "/network/list"
+	networkOptions         checkSpecAPI = "/network/options"
+	networkStatus          checkSpecAPI = "/network/status"
+	accountBalance         checkSpecAPI = "/account/balance"
+	accountCoins           checkSpecAPI = "/account/coins"
+	block                  checkSpecAPI = "/block"
+	errorObject            checkSpecAPI = "error object"
+	modes                  checkSpecAPI = "modes"
+	constructionPreprocess checkSpecAPI = "/construction/preprocess"
+	constructionMetadata   checkSpecAPI = "/construction/metadata"
+	constructionParse      checkSpecAPI = "/construction/parse"
+	constructionPayloads   checkSpecAPI = "/construction/payloads"
+	constructionCombine    checkSpecAPI = "/construction/combine"
+	constructionHash       checkSpecAPI = "/construction/hash"
+	constructionSubmit     checkSpecAPI = "/construction/submit"
 
 	networkIDs      checkSpecRequirement = "network_identifiers is required"
 	offlineMode     checkSpecRequirement = "endpoint should work in offline mode"
@@ -90,8 +149,16 @@ const (
 	errorMessage checkSpecRequirement = "error message is required"
 	diffURLs     checkSpecRequirement = "offline_url should be different from offline_url and not empty"
 
+	metedata        checkSpecRequirement = "metadata is required"
+	operations      checkSpecRequirement = "operations is required"
+	unsignedTx      checkSpecRequirement = "unsigned transaction is required."
+	signingPayloads checkSpecRequirement = "signingPayloads are required"
+	signedTx        checkSpecRequirement = "signed_transaction is required."
+	txID            checkSpecRequirement = "transaction_identifier is required."
+
 	checkSpecSuccess checkSpecStatus = "Success"
 	checkSpecFailure checkSpecStatus = "Failure"
+	checkSpecPending checkSpecStatus = "Pending"
 )
 
 type checkSpecOutput struct {
@@ -269,9 +336,9 @@ func twoModes() checkSpecOutput {
 	return output
 }
 
-func markAllValidationsFailed(output checkSpecOutput) {
+func markAllValidationsStatus(output checkSpecOutput, status checkSpecStatus) {
 	for k := range output.validation {
-		output.validation[k] = checkSpecFailure
+		output.validation[k] = status
 	}
 }
 
@@ -305,11 +372,17 @@ func printSuccess(format string, a ...interface{}) {
 	fmt.Print(color.GreenString(format, a...))
 }
 
+func printPending(format string, a ...interface{}) {
+	fmt.Print(color.YellowString(format, a...))
+}
+
 func printValidationResult(format string, status checkSpecStatus, a ...interface{}) {
 	if status == checkSpecFailure {
 		printError(format, a...)
-	} else {
+	} else if status == checkSpecSuccess {
 		printSuccess(format, a...)
+	} else {
+		printPending(format, a...)
 	}
 }
 
@@ -345,4 +418,27 @@ func printCheckSpecOutputBody(output checkSpecOutput) {
 		printInfo("%v\n", "|")
 		printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+")
 	}
+}
+
+func sign(payloads []*types.SigningPayload, keyPair *keys.KeyPair) ([]*types.Signature, error) {
+	signatures := make([]*types.Signature, len(payloads))
+	for i, payload := range payloads {
+		signer, err := keyPair.Signer()
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", storageErrs.ErrSignerCreateFailed, err)
+		}
+
+		if len(payload.SignatureType) == 0 {
+			return nil, fmt.Errorf("%w %d", storageErrs.ErrDetermineSigTypeFailed, i)
+		}
+
+		signature, err := signer.Sign(payload, payload.SignatureType)
+		if err != nil {
+			return nil, fmt.Errorf("%w for %d: %v", storageErrs.ErrSignPayloadFailed, i, err)
+		}
+
+		signatures[i] = signature
+	}
+
+	return signatures, nil
 }
