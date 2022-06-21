@@ -57,6 +57,12 @@ var (
 	errBlockTip                    = errors.New("unspecified block_identifier doesn't give the tip block")
 	errRosettaConfigNoConstruction = errors.New("no construction element in Rosetta config")
 
+	errMetadataNullPointer      = errors.New("null pointer to metadata object")
+	errUnsignedTransactionEmpty = errors.New("unsigned transaction can't be empty")
+	errPayloadEmpty             = errors.New("payloads can't be empty")
+	errSignedTransactionEmpty   = errors.New("signed transaction can't be empty")
+	errTransactionNullPointer   = errors.New("null pointer to transaction identifier")
+
 	checkSpecConstructionOutput = map[checkSpecAPI]checkSpecOutput{
 		constructionPreprocess: {
 			api: constructionPreprocess,
@@ -441,4 +447,16 @@ func sign(payloads []*types.SigningPayload, keyPair *keys.KeyPair) ([]*types.Sig
 	}
 
 	return signatures, nil
+}
+
+func sortConstructionOutput() []checkSpecOutput {
+	var output []checkSpecOutput
+	output = append(output, checkSpecConstructionOutput[constructionPreprocess])
+	output = append(output, checkSpecConstructionOutput[constructionMetadata])
+	output = append(output, checkSpecConstructionOutput[constructionParse])
+	output = append(output, checkSpecConstructionOutput[constructionPayloads])
+	output = append(output, checkSpecConstructionOutput[constructionCombine])
+	output = append(output, checkSpecConstructionOutput[constructionHash])
+	output = append(output, checkSpecConstructionOutput[constructionSubmit])
+	return output
 }

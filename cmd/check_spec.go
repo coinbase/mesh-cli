@@ -565,7 +565,7 @@ func (cs *checkSpec) ConstructionMetadata(
 	}
 	if metadata == nil {
 		markAllValidationsStatus(output, checkSpecFailure)
-		return nil, fmt.Errorf("metadata is required \n")
+		return nil, errMetadataNullPointer
 	}
 	markAllValidationsStatus(output, checkSpecSuccess)
 	return metadata, nil
@@ -589,11 +589,11 @@ func (cs *checkSpec) ConstructionPayloads(ctx context.Context, broadcast *job.Br
 	}
 	var requirementErr error
 	if len(unsignedTransaction) == 0 {
-		requirementErr = fmt.Errorf("unsigned transaction is required \n")
+		requirementErr = errUnsignedTransactionEmpty
 		setValidationStatus(output, unsignedTx, checkSpecFailure)
 	}
 	if len(payloads) == 0 {
-		requirementErr = fmt.Errorf("payloads is required")
+		requirementErr = errPayloadEmpty
 		setValidationStatus(output, signingPayloads, checkSpecFailure)
 	}
 	if requirementErr != nil {
@@ -629,7 +629,7 @@ func (cs *checkSpec) ConstructionCombine(ctx context.Context, broadcast *job.Bro
 	}
 	if len(networkTransaction) == 0 {
 		markAllValidationsStatus(output, checkSpecFailure)
-		return "", fmt.Errorf("%w: signed_transaction is required \n", err)
+		return "", errSignedTransactionEmpty
 	}
 	markAllValidationsStatus(output, checkSpecSuccess)
 	return networkTransaction, err
@@ -647,16 +647,41 @@ func (cs *checkSpec) ConstructionHash(ctx context.Context, broadcast *job.Broadc
 	}
 	if res == nil {
 		markAllValidationsStatus(output, checkSpecFailure)
-		return nil, fmt.Errorf("%w: transaction_identifier is required", err)
+		return nil, errTransactionNullPointer
 	}
 	markAllValidationsStatus(output, checkSpecSuccess)
 	return res, err
 }
 
-func (cs *checkSpec) checkConstruction(ctx context.Context) map[checkSpecAPI]checkSpecOutput {
+func (cs *checkSpec) ConstructionSubmit(ctx context.Context, networkTransaction string) error {
+	printInfo("validating /construction/submit ...\n")
+	output := checkSpecConstructionOutput[constructionSubmit]
+	defer printInfo("/construction/submit validated\n")
+
+	transactionIdentifier, _, fetchErr := cs.onlineFetcher.ConstructionSubmit(
+		ctx,
+		Config.Network,
+		networkTransaction,
+	)
+	if fetchErr != nil {
+		markAllValidationsStatus(output, checkSpecFailure)
+		return fmt.Errorf("%w: unable to broadcast transaction \n", fetchErr.Err)
+	}
+
+	if transactionIdentifier == nil {
+		markAllValidationsStatus(output, checkSpecFailure)
+		return errTransactionNullPointer
+	}
+	markAllValidationsStatus(output, checkSpecSuccess)
+	printInfo("successfully submitted the transaction, transaction id: +%v \n", transactionIdentifier)
+	return nil
+}
+
+func (cs *checkSpec) checkConstruction(ctx context.Context) []checkSpecOutput {
+	defer sortConstructionOutput()
+
 	if len(Config.Construction.PrefundedAccounts) == 0 {
 		printError("no prefunded account provided")
-		return checkSpecConstructionOutput
 	}
 
 	// Get keypair from prefunded account
@@ -665,7 +690,6 @@ func (cs *checkSpec) checkConstruction(ctx context.Context) map[checkSpecAPI]che
 	senderKeypair, err := keys.ImportPrivateKey(prefundedAccount.PrivateKeyHex, curveType)
 	if err != nil {
 		printError("%v: failed to generate key pair from prefunded account: %v", err, prefundedAccount.AccountIdentifier)
-		return checkSpecConstructionOutput
 	}
 
 	// Generate broadcast from transfer workflow in DSL file
@@ -676,7 +700,6 @@ func (cs *checkSpec) checkConstruction(ctx context.Context) map[checkSpecAPI]che
 			broadcast, err = cs.parseTransferFromDSL(ctx, workflow)
 			if err != nil {
 				printError("%w: failed to parse transfer workflow from DSL file", err)
-				return checkSpecConstructionOutput
 			}
 		}
 	}
@@ -685,48 +708,44 @@ func (cs *checkSpec) checkConstruction(ctx context.Context) map[checkSpecAPI]che
 	metadata, err := cs.ConstructionPreprocess(ctx, broadcast)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	metadata, err = cs.ConstructionMetadata(ctx, broadcast, metadata, nil)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	unsignedTransaction, payloads, err := cs.ConstructionPayloads(ctx, broadcast, metadata)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	err = cs.ConstructionParse(ctx, broadcast, unsignedTransaction)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	signatures, err := sign(payloads, senderKeypair)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	networkTransaction, err := cs.ConstructionCombine(ctx, broadcast, unsignedTransaction, signatures)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 
 	signedTxID, err := cs.ConstructionHash(ctx, broadcast, networkTransaction)
 	if err != nil {
 		printError(err.Error())
-		return checkSpecConstructionOutput
 	}
 	fmt.Printf("+%v \n", signedTxID)
 
-	// TODO: constructionSubmit
-	return checkSpecConstructionOutput
+	err = cs.ConstructionSubmit(ctx, networkTransaction)
+	if err != nil {
+		printError(err.Error())
+	}
+	return sortConstructionOutput()
 }
 
 func (cs *checkSpec) parseTransferFromDSL(ctx context.Context, workflow *job.Workflow) (*job.Broadcast, error) {
@@ -872,41 +891,42 @@ func (cs *checkSpec) checkAccountBalance(
 	input *job.FindBalanceInput,
 	currentPartialBlockID types.PartialBlockIdentifier,
 ) (string, error) {
-	for _, account := range Config.Construction.PrefundedAccounts {
-		currencies := []*types.Currency{account.Currency}
-		_, amounts, _, err := cs.onlineFetcher.AccountBalanceRetry(ctx, Config.Network, account.AccountIdentifier, &currentPartialBlockID, currencies)
-		if err != nil {
-			return "", err.Err
-		}
+	account := Config.Construction.PrefundedAccounts[0]
 
-		for _, amount := range amounts {
-			// look for amounts > min
-			diff, err := types.SubtractValues(amount.Value, input.MinimumBalance.Value)
-			if err != nil {
-				return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
-			}
-
-			bigIntDiff, err := types.BigInt(diff)
-			if err != nil {
-				return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
-			}
-
-			if bigIntDiff.Sign() < 0 {
-				log.Printf(
-					"checkAccountBalance: Account (%s) has balance (%s), less than the minimum balance (%s)",
-					account.AccountIdentifier.Address,
-					amount.Value,
-					input.MinimumBalance.Value,
-				)
-				return "", nil
-			}
-
-			return types.PrintStruct(&job.FindBalanceOutput{
-				AccountIdentifier: account.AccountIdentifier,
-				Balance:           amount,
-			}), nil
-		}
+	currencies := []*types.Currency{account.Currency}
+	_, amounts, _, err := cs.onlineFetcher.AccountBalanceRetry(ctx, Config.Network, account.AccountIdentifier, &currentPartialBlockID, currencies)
+	if err != nil {
+		return "", err.Err
 	}
+
+	for _, amount := range amounts {
+		// look for amounts > min
+		diff, err := types.SubtractValues(amount.Value, input.MinimumBalance.Value)
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
+		}
+
+		bigIntDiff, err := types.BigInt(diff)
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
+		}
+
+		if bigIntDiff.Sign() < 0 {
+			log.Printf(
+				"checkAccountBalance: Account (%s) has balance (%s), less than the minimum balance (%s)",
+				account.AccountIdentifier.Address,
+				amount.Value,
+				input.MinimumBalance.Value,
+			)
+			continue
+		}
+
+		return types.PrintStruct(&job.FindBalanceOutput{
+			AccountIdentifier: account.AccountIdentifier,
+			Balance:           amount,
+		}), nil
+	}
+
 	return "", fmt.Errorf("no prefunded accounts have enough fund")
 }
 
@@ -914,44 +934,45 @@ func (cs *checkSpec) checkAccountCoins(
 	ctx context.Context,
 	input *job.FindBalanceInput,
 ) (string, error) {
-	for _, account := range Config.Construction.PrefundedAccounts {
-		currencies := []*types.Currency{account.Currency}
-		_, coins, _, err := cs.onlineFetcher.AccountCoinsRetry(ctx, Config.Network, account.AccountIdentifier, false, currencies)
-		if err != nil {
-			return "", err.Err
-		}
-		var disallowedCoins []string
-		for _, coinIdentifier := range input.NotCoins {
-			disallowedCoins = append(disallowedCoins, types.Hash(coinIdentifier))
-		}
-		for _, coin := range coins {
-			if utils.ContainsString(disallowedCoins, types.Hash(coin.CoinIdentifier)) {
-				continue
-			}
-			if coin.Amount.Value < input.MinimumBalance.Value || coin.Amount.Currency != input.MinimumBalance.Currency {
-				continue
-			}
-			diff, err := types.SubtractValues(coin.Amount.Value, input.MinimumBalance.Value)
-			if err != nil {
-				return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
-			}
+	account := Config.Construction.PrefundedAccounts[0]
 
-			bigIntDiff, err := types.BigInt(diff)
-			if err != nil {
-				return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
-			}
-
-			if bigIntDiff.Sign() < 0 {
-				continue
-			}
-
-			return types.PrintStruct(&job.FindBalanceOutput{
-				AccountIdentifier: account.AccountIdentifier,
-				Balance:           coin.Amount,
-				Coin:              coin.CoinIdentifier,
-			}), nil
-		}
+	currencies := []*types.Currency{account.Currency}
+	_, coins, _, err := cs.onlineFetcher.AccountCoinsRetry(ctx, Config.Network, account.AccountIdentifier, false, currencies)
+	if err != nil {
+		return "", err.Err
 	}
+	var disallowedCoins []string
+	for _, coinIdentifier := range input.NotCoins {
+		disallowedCoins = append(disallowedCoins, types.Hash(coinIdentifier))
+	}
+	for _, coin := range coins {
+		if utils.ContainsString(disallowedCoins, types.Hash(coin.CoinIdentifier)) {
+			continue
+		}
+		if coin.Amount.Value < input.MinimumBalance.Value || coin.Amount.Currency != input.MinimumBalance.Currency {
+			continue
+		}
+		diff, err := types.SubtractValues(coin.Amount.Value, input.MinimumBalance.Value)
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
+		}
+
+		bigIntDiff, err := types.BigInt(diff)
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", worker.ErrActionFailed, err.Error())
+		}
+
+		if bigIntDiff.Sign() < 0 {
+			continue
+		}
+
+		return types.PrintStruct(&job.FindBalanceOutput{
+			AccountIdentifier: account.AccountIdentifier,
+			Balance:           coin.Amount,
+			Coin:              coin.CoinIdentifier,
+		}), nil
+	}
+
 	return "", fmt.Errorf("no prefunded accounts have enough fund")
 }
 
@@ -973,10 +994,8 @@ func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 	output = append(output, cs.errorObject(ctx))
 	output = append(output, twoModes())
 
-	cs.checkConstruction(ctx)
-	for _, o := range checkSpecConstructionOutput {
-		printCheckSpecOutputBody(o)
-	}
+	constructionOutputs := cs.checkConstruction(ctx)
+	output = append(output, constructionOutputs...)
 
 	printInfo("check:spec is complete\n")
 	printCheckSpecOutputHeader()
