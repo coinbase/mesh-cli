@@ -266,10 +266,12 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 			return fmt.Errorf("Account.Address is missing for prefunded account")
 		}
 
-		// Check if valid Currency
-		err = asserter.Currency(account.Currency)
-		if err != nil {
-			return fmt.Errorf("%w: invalid currency for prefunded account", err)
+		// Check if valid Currency when Currency is specified
+		if account.Currency != nil {
+			err = asserter.Currency(account.Currency)
+			if err != nil {
+				return fmt.Errorf("%w: invalid currency for prefunded account", err)
+			}
 		}
 	}
 

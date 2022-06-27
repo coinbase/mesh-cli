@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
@@ -67,6 +68,7 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 	blockIdentifier *types.BlockIdentifier,
 	transaction *types.Transaction,
 	intent []*types.Operation,
+	intentMetadata map[string]interface{},
 ) error {
 	_, _, relatedTransactions, err := h.blockStorage.FindRelatedTransactions(ctx, transaction.TransactionIdentifier, dbTx)
 	if err != nil {
@@ -80,6 +82,14 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 
 	if err := h.parser.ExpectedOperations(intent, observed, false, true); err != nil {
 		return fmt.Errorf("%w: confirmed transaction did not match intent", err)
+	}
+
+	// Validate destination memo if it's needed
+	if intentMemo, found := intentMetadata["memo"]; found {
+		observedMemo := transaction.Metadata["memo"]
+		if !reflect.DeepEqual(intentMemo, observedMemo) {
+			return fmt.Errorf("observed destination memo did not match intent destination memo, observed destination memo: %v, intent destination memo: %v", observedMemo, intentMemo)
+		}
 	}
 
 	_, _ = h.counterStorage.UpdateTransactional(

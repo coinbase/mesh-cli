@@ -6,3 +6,6 @@ bin/
 
 # Mac files
 .DS_Store
+
+# VS Code setting 
+.vscode
