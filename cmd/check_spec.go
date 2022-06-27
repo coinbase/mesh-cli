@@ -104,98 +104,13 @@ func (cs *checkSpec) networkOptions(ctx context.Context) checkSpecOutput {
 	}
 	defer printInfo("/network/options validated\n")
 
-	res, err := cs.offlineFetcher.NetworkOptionsRetry(ctx, Config.Network, nil)
+	// NetworkOptionsRetry handles validation of /network/options response
+	// This is an endpoint for offline mode
+	_, err := cs.offlineFetcher.NetworkOptionsRetry(ctx, Config.Network, nil)
 	if err != nil {
 		printError("%v: unable to fetch network options\n", err.Err)
 		markAllValidationsFailed(output)
 		return output
-	}
-
-	// version is required
-	if res.Version == nil {
-		setValidationStatus(output, version, checkSpecFailure)
-		printError("%v: unable to find version in /network/options response\n", errVersionNullPointer)
-	}
-
-	if err := validateVersion(res.Version.RosettaVersion); err != nil {
-		setValidationStatus(output, version, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	if err := validateVersion(res.Version.NodeVersion); err != nil {
-		setValidationStatus(output, version, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	// allow is required
-	if res.Allow == nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v: unable to find allow in /network/options response\n", errAllowNullPointer)
-	}
-
-	if err := validateOperationStatuses(res.Allow.OperationStatuses); err != nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	if err := validateOperationTypes(res.Allow.OperationTypes); err != nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	if err := validateErrors(res.Allow.Errors); err != nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	if err := validateCallMethods(res.Allow.CallMethods); err != nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	if err := validateBalanceExemptions(res.Allow.BalanceExemptions); err != nil {
-		setValidationStatus(output, allow, checkSpecFailure)
-		printError("%v\n", err)
-	}
-
-	return output
-}
-
-func (cs *checkSpec) networkStatus(ctx context.Context) checkSpecOutput {
-	printInfo("validating /network/status ...\n")
-	output := checkSpecOutput{
-		api: networkStatus,
-		validation: map[checkSpecRequirement]checkSpecStatus{
-			currentBlockID:   checkSpecSuccess,
-			currentBlockTime: checkSpecSuccess,
-			genesisBlockID:   checkSpecSuccess,
-		},
-	}
-	defer printInfo("/network/status validated\n")
-
-	res, err := cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
-	if err != nil {
-		printError("%v: unable to fetch network status\n", err.Err)
-		markAllValidationsFailed(output)
-		return output
-	}
-
-	// current_block_identifier is required
-	if err := validateBlockIdentifier(res.CurrentBlockIdentifier); err != nil {
-		printError("%v\n", err)
-		setValidationStatus(output, currentBlockID, checkSpecFailure)
-	}
-
-	// current_block_timestamp is required
-	if err := validateTimestamp(res.CurrentBlockTimestamp); err != nil {
-		printError("%v\n", err)
-		setValidationStatus(output, currentBlockTime, checkSpecFailure)
-	}
-
-	// genesis_block_identifier is required
-	if err := validateBlockIdentifier(res.GenesisBlockIdentifier); err != nil {
-		printError("%v\n", err)
-		setValidationStatus(output, genesisBlockID, checkSpecFailure)
 	}
 
 	return output
@@ -213,7 +128,8 @@ func (cs *checkSpec) networkList(ctx context.Context) checkSpecOutput {
 	}
 	defer printInfo("/network/list validated\n")
 
-	networks, err := cs.offlineFetcher.NetworkList(ctx, nil)
+	// endpoint for offline mode
+	networks, err := cs.offlineFetcher.NetworkListRetry(ctx, nil)
 	if err != nil {
 		printError("%v: unable to fetch network list", err.Err)
 		markAllValidationsFailed(output)
@@ -222,7 +138,7 @@ func (cs *checkSpec) networkList(ctx context.Context) checkSpecOutput {
 
 	if len(networks.NetworkIdentifiers) == 0 {
 		printError("network_identifiers is required")
-		setValidationStatus(output, networkIDs, checkSpecFailure)
+		setValidationStatusFailed(output, networkIDs)
 	}
 
 	for _, network := range networks.NetworkIdentifiers {
@@ -232,59 +148,9 @@ func (cs *checkSpec) networkList(ctx context.Context) checkSpecOutput {
 		}
 	}
 
+	// static network ID
 	printError("network_identifier in configuration file is not returned by /network/list")
-	setValidationStatus(output, staticNetworkID, checkSpecFailure)
-	return output
-}
-
-func (cs *checkSpec) accountBalance(ctx context.Context) checkSpecOutput {
-	printInfo("validating /account/balance ...\n")
-	output := checkSpecOutput{
-		api: accountBalance,
-		validation: map[checkSpecRequirement]checkSpecStatus{
-			blockID:  checkSpecSuccess,
-			balances: checkSpecSuccess,
-		},
-	}
-	defer printInfo("/account/balance validated\n")
-
-	acct, partBlockID, currencies, err := cs.getAccount(ctx)
-	if err != nil {
-		markAllValidationsFailed(output)
-		printError("%v: unable to get an account\n", err)
-		return output
-	}
-	if acct == nil {
-		markAllValidationsFailed(output)
-		printError("%v\n", errAccountNullPointer)
-		return output
-	}
-
-	// fetch account balance
-	block, amt, _, fetchErr := cs.onlineFetcher.AccountBalanceRetry(
-		ctx,
-		Config.Network,
-		acct,
-		partBlockID,
-		currencies)
-	if err != nil {
-		markAllValidationsFailed(output)
-		printError("%v: unable to fetch balance for account: %v\n", fetchErr.Err, *acct)
-		return output
-	}
-
-	// block_identifier is required
-	if err := validateBlockIdentifier(block); err != nil {
-		printError("%v\n", err)
-		setValidationStatus(output, blockID, checkSpecFailure)
-	}
-
-	// balances is required
-	if err := validateBalances(amt); err != nil {
-		printError("%v\n", err)
-		setValidationStatus(output, balances, checkSpecFailure)
-	}
-
+	setValidationStatusFailed(output, staticNetworkID)
 	return output
 }
 
@@ -312,7 +178,7 @@ func (cs *checkSpec) accountCoins(ctx context.Context) checkSpecOutput {
 			return output
 		}
 
-		block, cs, _, fetchErr := cs.onlineFetcher.AccountCoinsRetry(
+		_, _, _, fetchErr := cs.onlineFetcher.AccountCoinsRetry(
 			ctx,
 			Config.Network,
 			acct,
@@ -322,20 +188,6 @@ func (cs *checkSpec) accountCoins(ctx context.Context) checkSpecOutput {
 			printError("%v: unable to get coins for account: %v\n", fetchErr.Err, *acct)
 			markAllValidationsFailed(output)
 			return output
-		}
-
-		// block_identifier is required
-		err = validateBlockIdentifier(block)
-		if err != nil {
-			printError("%v\n", err)
-			setValidationStatus(output, blockID, checkSpecFailure)
-		}
-
-		// coins is required
-		err = validateCoins(cs)
-		if err != nil {
-			printError("%v\n", err)
-			setValidationStatus(output, coins, checkSpecFailure)
 		}
 	}
 
@@ -380,7 +232,7 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 			block = b
 		} else if !isEqual(types.Hash(*block), types.Hash(*b)) {
 			printError("%v\n", errBlockNotIdempotent)
-			setValidationStatus(output, idempotent, checkSpecFailure)
+			setValidationStatusFailed(output, idempotent)
 		}
 	}
 
@@ -388,7 +240,7 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 	res, fetchErr = cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if fetchErr != nil {
 		printError("%v: unable to get network status\n", fetchErr.Err)
-		setValidationStatus(output, defaultTip, checkSpecFailure)
+		setValidationStatusFailed(output, defaultTip)
 		return output
 	}
 	tip = res.CurrentBlockIdentifier
@@ -398,14 +250,14 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 	block, fetchErr = cs.onlineFetcher.BlockRetry(ctx, Config.Network, emptyBlockID)
 	if fetchErr != nil {
 		printError("%v: unable to fetch tip block\n", fetchErr.Err)
-		setValidationStatus(output, defaultTip, checkSpecFailure)
+		setValidationStatusFailed(output, defaultTip)
 		return output
 	}
 
 	// block index returned from /block should be >= the index returned by /network/status
 	if isNegative(block.BlockIdentifier.Index - tip.Index) {
 		printError("%v\n", errBlockTip)
-		setValidationStatus(output, defaultTip, checkSpecFailure)
+		setValidationStatusFailed(output, defaultTip)
 	}
 
 	return output
@@ -514,10 +366,8 @@ func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 
 	output := []checkSpecOutput{}
 	// validate api endpoints
-	output = append(output, cs.networkStatus(ctx))
 	output = append(output, cs.networkList(ctx))
 	output = append(output, cs.networkOptions(ctx))
-	output = append(output, cs.accountBalance(ctx))
 	output = append(output, cs.accountCoins(ctx))
 	output = append(output, cs.block(ctx))
 	output = append(output, cs.errorObject(ctx))
