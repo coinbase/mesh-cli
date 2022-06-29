@@ -473,12 +473,14 @@ func (c *CoordinatorHelper) Broadcast(
 	transactionIdentifier *types.TransactionIdentifier,
 	payload string,
 	confirmationDepth int64,
+	transactionMetadata map[string]interface{},
 ) error {
 	c.verboseLog(queue, constructionSubmit,
 		arg{argNetwork, network},
 		arg{argIntent, intent},
 		arg{argTransactionIdentifier, transactionIdentifier},
 		arg{argNetworkTransaction, payload},
+		arg{argMetadata, transactionMetadata},
 	)
 	return c.broadcastStorage.Broadcast(
 		ctx,
@@ -489,6 +491,7 @@ func (c *CoordinatorHelper) Broadcast(
 		transactionIdentifier,
 		payload,
 		confirmationDepth,
+		transactionMetadata,
 	)
 }
 

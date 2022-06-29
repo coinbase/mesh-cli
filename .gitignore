@@ -1,8 +1,2 @@
 rosetta-cli
 bin/
-
-# Intellij setting
-.idea/
-
-# Mac files
-.DS_Store
