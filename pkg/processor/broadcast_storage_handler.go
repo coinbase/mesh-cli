@@ -86,9 +86,12 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 
 	// Validate destination memo if it's needed
 	if intentMemo, found := intentMetadata["memo"]; found {
-		observedMemo := transaction.Metadata["memo"]
-		if !reflect.DeepEqual(intentMemo, observedMemo) {
-			return fmt.Errorf("observed destination memo did not match intent destination memo, observed destination memo: %v, intent destination memo: %v", observedMemo, intentMemo)
+		if observedMemo, found := transaction.Metadata["memo"]; found {
+			if !reflect.DeepEqual(intentMemo, observedMemo) {
+				return fmt.Errorf("observed destination memo did not match intent destination memo, observed destination memo: %v, intent destination memo: %v", observedMemo, intentMemo)
+			}
+		} else {
+			return fmt.Errorf("observed destination memo did not found, observed destination memo: %v, intent destination memo: %v", observedMemo, intentMemo)
 		}
 	}
 

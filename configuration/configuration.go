@@ -267,6 +267,8 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		}
 
 		// Check if valid Currency when Currency is specified
+		// If Currency is not specified, the balances of all available currencies
+		// for the specific pre-funded account will be stored in the balance storage
 		if account.Currency != nil {
 			err = asserter.Currency(account.Currency)
 			if err != nil {
