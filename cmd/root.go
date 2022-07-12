@@ -80,6 +80,10 @@ var (
 	// logged to the console.
 	OnlyChanges bool
 
+	// allSpecs is a boolean indicating whether check:spec should verify only Coinbase
+	// spec requirements, or the minimum requirements as well.
+	checkAllSpecs bool
+
 	// If non-empty, used to validate that /network/options matches the contents of the file
 	// located at this path. The intended use case is someone previously ran
 	// utils:asserter-configuration `asserterConfigurationFile`, so the validation is being done
@@ -308,6 +312,12 @@ default values.`,
 	rootCmd.AddCommand(checkPerfCmd)
 
 	// check:spec
+	checkSpecCmd.Flags().BoolVar(
+		&checkAllSpecs,
+		"all",
+		false,
+		`Verify both minimum and Coinbase spec requirements`,
+	)
 	rootCmd.AddCommand(checkSpecCmd)
 }
 
@@ -397,6 +407,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.7.9")
+		fmt.Println("v0.8.0")
 	},
 }

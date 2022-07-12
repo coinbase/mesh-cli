@@ -17,6 +17,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/fatih/color"
@@ -33,7 +34,6 @@ var (
 
 type checkSpecAPI string
 type checkSpecRequirement string
-type checkSpecStatus string
 
 const (
 	networkList    checkSpecAPI = "/network/list"
@@ -58,9 +58,15 @@ const (
 	errorMessage checkSpecRequirement = "error message is required"
 	diffURLs     checkSpecRequirement = "offline_url should be different from offline_url and not empty"
 
-	checkSpecSuccess checkSpecStatus = "Success"
-	checkSpecFailure checkSpecStatus = "Failure"
+	checkSpecSuccess string = "Success"
+	checkSpecFailure string = "Failure"
+	cbSpec           bool   = true
 )
+
+type checkSpecStatus struct {
+	status       string
+	coinbaseSpec bool
+}
 
 type checkSpecOutput struct {
 	api        checkSpecAPI
@@ -71,7 +77,10 @@ func twoModes() checkSpecOutput {
 	output := checkSpecOutput{
 		api: modes,
 		validation: map[checkSpecRequirement]checkSpecStatus{
-			diffURLs: checkSpecSuccess,
+			diffURLs: {
+				status:       checkSpecSuccess,
+				coinbaseSpec: cbSpec,
+			},
 		},
 	}
 
@@ -85,13 +94,19 @@ func twoModes() checkSpecOutput {
 }
 
 func markAllValidationsFailed(output checkSpecOutput) {
-	for k := range output.validation {
-		output.validation[k] = checkSpecFailure
+	for k, v := range output.validation {
+		output.validation[k] = checkSpecStatus{
+			status:       checkSpecFailure,
+			coinbaseSpec: v.coinbaseSpec,
+		}
 	}
 }
 
 func setValidationStatusFailed(output checkSpecOutput, req checkSpecRequirement) {
-	output.validation[req] = checkSpecFailure
+	output.validation[req] = checkSpecStatus{
+		status:       checkSpecFailure,
+		coinbaseSpec: output.validation[req].coinbaseSpec,
+	}
 }
 
 func validateErrorObject(err *fetcher.Error, output checkSpecOutput) {
@@ -120,8 +135,8 @@ func printSuccess(format string, a ...interface{}) {
 	fmt.Print(color.GreenString(format, a...))
 }
 
-func printValidationResult(format string, status checkSpecStatus, a ...interface{}) {
-	if status == checkSpecFailure {
+func printValidationResult(format string, css checkSpecStatus, a ...interface{}) {
+	if css.status == checkSpecFailure {
 		printError(format, a...)
 	} else {
 		printSuccess(format, a...)
@@ -129,9 +144,9 @@ func printValidationResult(format string, status checkSpecStatus, a ...interface
 }
 
 func printCheckSpecOutputHeader() {
-	printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+")
-	printInfo("%v\n", "|           API            |                              Requirement                          |   Status  |")
-	printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+")
+	printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+-----------------+")
+	printInfo("%v\n", "|           API            |                              Requirement                          |   Status  |  Coinbase Spec  |")
+	printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+-----------------+")
 }
 
 func printCheckSpecOutputBody(output checkSpecOutput) {
@@ -152,12 +167,19 @@ func printCheckSpecOutputBody(output checkSpecOutput) {
 
 		// print validation status
 		printInfo("%v", "|  ")
-		printValidationResult("%v", v, v)
-		for j := 0; j < 9-len(v); j++ {
+		printValidationResult("%v", v, v.status)
+		for j := 0; j < 9-len(v.status); j++ {
+			printInfo("%v", " ")
+		}
+
+		// print coinbase spec flag
+		printInfo("%v", "|      ")
+		printValidationResult("%v", v, v.coinbaseSpec)
+		for j := 0; j < 11-len(strconv.FormatBool(v.coinbaseSpec)); j++ {
 			printInfo("%v", " ")
 		}
 
 		printInfo("%v\n", "|")
-		printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+")
+		printInfo("%v\n", "+--------------------------+-------------------------------------------------------------------+-----------+-----------------+")
 	}
 }
