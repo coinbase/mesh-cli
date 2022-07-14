@@ -16,7 +16,7 @@
 
 VERSION=$1;
 
-go get github.com/crazy-max/xgo
+go install github.com/crazy-max/xgo@latest
 
 MAC_TARGETS="darwin/amd64,darwin/arm64"
 LINUX_TARGETS="linux/amd64,linux/arm64,linux/mips64,linux/mips64le,linux/ppc64le,linux/s390x"

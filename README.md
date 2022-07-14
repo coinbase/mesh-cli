@@ -89,14 +89,15 @@ While working on improvements to this repository, we recommend that you use thes
 * `make release` to run one last check before opening a PR
 * `make compile version=RELEASE_TAG` to generate binaries
 
-If you are developing on both the `rosetta-cli` and `rosetta-sdk-go` repositories, use [go.mod replace](https://golang.org/ref/mod#go-mod-file-replace) to reference local changes: 
+If you are developing on both the `rosetta-cli` and `rosetta-sdk-go` repositories, use [go.mod replace](https://golang.org/ref/mod#go-mod-file-replace) to reference local changes:
 ```
-replace "github.com/coinbase/rosetta-sdk-go" v0.6.8 => "../rosetta-sdk-go"
+replace "github.com/coinbase/rosetta-sdk-go" v0.6.8 => "<PATH TO LOCAL rosetta-sdk-go>"
 ```
-## Release
-* When we release a new rosetta-cli version, please update the [version number](https://github.com/coinbase/rosetta-cli/blob/master/cmd/root.go#L297) so that `rosetta-cli version` command can print the correct value.
-* Create binaries and upload all the binaries in the new release tag (Eg: https://github.com/coinbase/rosetta-cli/releases/tag/v0.7.7)
-    * `make compile version=<New Version>`
+### Release
+* When we release a new rosetta-cli version, please update the version number to follow [PR](https://github.com/coinbase/rosetta-cli/pull/334) so that `rosetta-cli version` command can print the correct value.
+* Create binaries and upload all the binaries in the new release tag (e.g. https://github.com/coinbase/rosetta-cli/releases/tag/v0.7.7)
+    * Ensure `$GOPATH/bin` is added to `$PATH`
+    * Run `make compile version=<New Version>`
     * All the binaries will be created in the `bin` folder and should have extension as `tar.gz` and new version number
 
 ### Helper/Handler
