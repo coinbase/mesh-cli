@@ -19,13 +19,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"log"
 	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/processor"
 	"github.com/coinbase/rosetta-cli/pkg/results"
@@ -218,6 +218,17 @@ func InitializeData(
 		return nil, fmt.Errorf("%s: unable to get previously seen accounts", err.Error())
 	}
 
+	// We need to mark the bootstrapped accounts as "seen",
+	// otherwise they won't be reconciled until rosetta-cli restart.
+	if len(config.Data.BootstrapBalances) > 0 {
+		bootstrappedAccounts, err := loadBootstrappedAccounts(config.Data.BootstrapBalances)
+		if err != nil {
+			return nil, fmt.Errorf("%s: unable to load bootstrapped accounts", err.Error())
+		}
+
+		seenAccounts = append(seenAccounts, bootstrappedAccounts...)
+	}
+
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
 	if fetchErr != nil {
 		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
@@ -291,9 +302,7 @@ func InitializeData(
 
 		blockWorkers = append(blockWorkers, balanceStorage)
 
-		// Bootstrap balances, if provided. We need to do before initializing
-		// the reconciler otherwise we won't reconcile bootstrapped accounts
-		// until rosetta-cli restart.
+		// Bootstrap balances, if provided.
 		//
 		// We need to do this after instantiating the balance storage handler
 		// because it is invoked within BootstrapBalances.
@@ -368,6 +377,26 @@ func InitializeData(
 		parser:                      parser,
 		forceInactiveReconciliation: &forceInactiveReconciliation,
 	}, nil
+}
+
+func loadBootstrappedAccounts(bootstrapBalancesFile string) ([]*types.AccountCurrency, error) {
+	balances := []*modules.BootstrapBalance{}
+
+	err := utils.LoadAndParse(bootstrapBalancesFile, &balances)
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := make([]*types.AccountCurrency, 0, len(balances))
+
+	for _, balance := range balances {
+		accounts = append(accounts, &types.AccountCurrency{
+			Account:  balance.Account,
+			Currency: balance.Currency,
+		})
+	}
+
+	return accounts, nil
 }
 
 // StartSyncing syncs from startIndex to endIndex.
