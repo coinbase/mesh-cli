@@ -414,6 +414,21 @@ type Configuration struct {
 	// but can use 10s of GBs of RAM, even with pruning enabled.
 	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
 
+	// AllInMemoryDisabled configures storage to increase memory
+	// usage. Enabling this massively increases performance
+	// but can use 20s of GBs of RAM, even with pruning enabled.
+	AllInMemoryEnabled bool `json:"all_in_memory_enabled"`
+
+	// TableSize unit is GB, enable users to define MaxTableSize
+	// when AllInMemoryEnabled == true, Cli will look up this config
+	// default value is 6, modification range is [3, 100]
+	TableSize *int64 `json:"table_size,omitempty"`
+
+	// TableSize unit is MB, enable users to define ValueLogFileSize
+	// when AllInMemoryEnabled == true, Cli will look up this config
+	// default value is 512, modification range is [256, 2048]
+	ValueLogFileSize *int64 `json:"value_log_file_size,omitempty"`
+
 	// SeenBlockWorkers is the number of goroutines spawned to store
 	// seen blocks in storage before we attempt to sequence. If not populated,
 	// this value defaults to runtime.NumCPU().

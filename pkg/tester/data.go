@@ -65,6 +65,18 @@ const (
 	// EndAtTipCheckInterval is the frequency that EndAtTip condition
 	// is evaludated
 	EndAtTipCheckInterval = 10 * time.Second
+	
+	//MinTableSize unit is GB
+	MinTableSize = int64(3)
+	
+	//MaxTableSize unit is GB
+	MaxTableSize = int64(100)
+
+	//MinTableSize unit is MB
+	MinValueLogFileSize = int64(256)
+	
+	//MaxTableSize unit is MB
+	MaxValueLogFileSize = int64(2048)
 )
 
 var _ http.Handler = (*DataTester)(nil)
@@ -152,17 +164,44 @@ func InitializeData(
 	}
 
 	opts := []database.BadgerOption{}
-	if config.CompressionDisabled {
-		opts = append(opts, database.WithoutCompression())
-	}
-	if config.MemoryLimitDisabled {
+	dataPathBackup := dataPath
+
+	if config.AllInMemoryEnabled{
 		opts = append(
 			opts,
-			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			database.WithCustomSettings(database.AllInMemoryBadgerOptions(dataPath)),
+			database.WithoutCompression(),
 		)
+		if(config.TableSize != nil) {
+			if(*config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize) {
+				opts = append(
+					opts,
+					database.WithTableSize(*config.TableSize),
+				)
+			}
+		}
+		if(config.ValueLogFileSize != nil) {
+			if(*config.TableSize >= MinValueLogFileSize && *config.TableSize <= MinValueLogFileSize) {
+				opts = append(
+					opts,
+					database.WithValueLogFileSize(*config.TableSize),
+				)
+			}
+		}
+		dataPathBackup = ""
+	} else {
+		if config.CompressionDisabled {
+			opts = append(opts, database.WithoutCompression())
+		}
+		if config.MemoryLimitDisabled {
+			opts = append(
+				opts,
+				database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			)
+		}
 	}
 
-	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
+	localStore, err := database.NewBadgerDatabase(ctx, dataPathBackup, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("%s: unable to initialize database", err.Error())
 	}
