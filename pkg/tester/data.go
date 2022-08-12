@@ -172,6 +172,7 @@ func InitializeData(
 			database.WithCustomSettings(database.AllInMemoryBadgerOptions(dataPath)),
 			database.WithoutCompression(),
 		)
+		// for all in memory mode, the path need to be "", as badgerDB will not write to disk
 		dataPathBackup = ""
 	} else {
 		if config.CompressionDisabled {
@@ -185,6 +186,10 @@ func InitializeData(
 		}
 	}
 
+	// If we enable all-in-memory or L0-in-memory mode, badger DB's TableSize and ValueLogFileSize will change
+	// according to users config. tableSize means the LSM table size, when the table more than the tableSize, 
+	// will trigger a compact. 
+	// In default mode, we will not change the badger DB's TableSize and ValueLogFileSize for limiting memory usage
 	if config.AllInMemoryEnabled || config.MemoryLimitDisabled {
 		if(config.TableSize != nil) {
 			if(*config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize) {
