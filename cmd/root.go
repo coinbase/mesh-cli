@@ -55,7 +55,8 @@ var (
 	dataResultFile         string
 	constructionResultFile string
 	dataDirectory          string
-
+	allInMemory            bool
+	tableSize              int64
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
 	// to the default settings.
@@ -263,6 +264,21 @@ default values.`,
 		"",
 		"Data-dir configures the location of logs and data for validation. This will override the data_directory from configuration file",
 	)
+
+	checkDataCmd.Flags().Int64Var(
+		&tableSize,
+		"table_size",
+		0,
+		`Table_size configures the TableSize for badger DB. If tableSize != 0, this will override the table_size from configuration file`,
+	)
+
+	checkDataCmd.Flags().BoolVar(
+		&allInMemory,
+		"all_in_memory",
+		false,
+		"All_in_memory configures badger DB inMeomry option. This will override the all_in_memory_enabled to true from configuration file",
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -371,6 +387,14 @@ func initConfig() {
 
 	if len(dataDirectory) != 0 {
 		Config.DataDirectory = dataDirectory
+	}
+
+	if allInMemory {
+		Config.AllInMemoryEnabled = allInMemory
+	}
+
+	if tableSize != 0 {
+		Config.TableSize = &tableSize
 	}
 }
 

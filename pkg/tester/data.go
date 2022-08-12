@@ -67,13 +67,13 @@ const (
 	EndAtTipCheckInterval = 10 * time.Second
 	
 	//MinTableSize unit is GB
-	MinTableSize = int64(3)
+	MinTableSize = int64(2)
 	
 	//MaxTableSize unit is GB
 	MaxTableSize = int64(100)
 
 	//MinTableSize unit is MB
-	MinValueLogFileSize = int64(256)
+	MinValueLogFileSize = int64(128)
 	
 	//MaxTableSize unit is MB
 	MaxValueLogFileSize = int64(2048)
@@ -172,6 +172,20 @@ func InitializeData(
 			database.WithCustomSettings(database.AllInMemoryBadgerOptions(dataPath)),
 			database.WithoutCompression(),
 		)
+		dataPathBackup = ""
+	} else {
+		if config.CompressionDisabled {
+			opts = append(opts, database.WithoutCompression())
+		}
+		if config.MemoryLimitDisabled {
+			opts = append(
+				opts,
+				database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			)
+		}
+	}
+
+	if config.AllInMemoryEnabled || config.MemoryLimitDisabled {
 		if(config.TableSize != nil) {
 			if(*config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize) {
 				opts = append(
@@ -187,17 +201,6 @@ func InitializeData(
 					database.WithValueLogFileSize(*config.TableSize),
 				)
 			}
-		}
-		dataPathBackup = ""
-	} else {
-		if config.CompressionDisabled {
-			opts = append(opts, database.WithoutCompression())
-		}
-		if config.MemoryLimitDisabled {
-			opts = append(
-				opts,
-				database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
-			)
 		}
 	}
 

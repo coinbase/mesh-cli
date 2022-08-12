@@ -421,12 +421,12 @@ type Configuration struct {
 
 	// TableSize unit is GB, enable users to define MaxTableSize
 	// when AllInMemoryEnabled == true, Cli will look up this config
-	// default value is 6, modification range is [3, 100]
+	// default value is 6, modification range is [2, 100]
 	TableSize *int64 `json:"table_size,omitempty"`
 
 	// TableSize unit is MB, enable users to define ValueLogFileSize
 	// when AllInMemoryEnabled == true, Cli will look up this config
-	// default value is 512, modification range is [256, 2048]
+	// default value is 512, modification range is [128, 2048]
 	ValueLogFileSize *int64 `json:"value_log_file_size,omitempty"`
 
 	// SeenBlockWorkers is the number of goroutines spawned to store
