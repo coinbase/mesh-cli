@@ -416,16 +416,16 @@ type Configuration struct {
 
 	// AllInMemoryDisabled configures storage to increase memory
 	// usage. Enabling this massively increases performance
-	// but can use 20s of GBs of RAM, even with pruning enabled.
+	// but can use >20s of GBs of RAM, even with pruning enabled.
 	AllInMemoryEnabled bool `json:"all_in_memory_enabled"`
 
 	// TableSize unit is GB, enable users to define MaxTableSize
-	// when AllInMemoryEnabled == true, Cli will look up this config
+	// when AllInMemoryEnabled == true or MemoryLimitDisabled== true, Cli will look up this config
 	// default value is 6, modification range is [2, 100]
 	TableSize *int64 `json:"table_size,omitempty"`
 
 	// TableSize unit is MB, enable users to define ValueLogFileSize
-	// when AllInMemoryEnabled == true, Cli will look up this config
+	// when AllInMemoryEnabled == true or MemoryLimitDisabled== true, Cli will look up this config
 	// default value is 512, modification range is [128, 2048]
 	ValueLogFileSize *int64 `json:"value_log_file_size,omitempty"`
 

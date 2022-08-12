@@ -57,6 +57,7 @@ var (
 	dataDirectory          string
 	allInMemory            bool
 	tableSize              int64
+
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
 	// to the default settings.
