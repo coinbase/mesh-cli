@@ -55,7 +55,7 @@ var (
 	dataResultFile         string
 	constructionResultFile string
 	dataDirectory          string
-	allInMemory            bool
+	turnOnMemoryMode       bool
 	tableSize              int64
 
 	// Config is the populated *configuration.Configuration from
@@ -270,14 +270,14 @@ default values.`,
 		&tableSize,
 		"table-size",
 		0,
-		`Table-size configures the TableSize for badger DB. If tableSize != 0, this will override the table_size from configuration file`,
+		`Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file`,
 	)
 
 	checkDataCmd.Flags().BoolVar(
-		&allInMemory,
-		"all-in-memory",
+		&turnOnMemoryMode,
+		"turn-on-memory-mode",
 		false,
-		"All-in-memory configures badger DB inMeomry option. This will override the all_in_memory_enabled to true from configuration file",
+		"turn-on-memory-mode configures badger DB inMeomry option. if turn-on-memory-mode=true This will override the all_in_memory_enabled",
 	)
 
 	rootCmd.AddCommand(checkDataCmd)
@@ -390,8 +390,8 @@ func initConfig() {
 		Config.DataDirectory = dataDirectory
 	}
 
-	if allInMemory {
-		Config.AllInMemoryEnabled = allInMemory
+	if turnOnMemoryMode {
+		Config.AllInMemoryEnabled = turnOnMemoryMode
 	}
 
 	if tableSize != 0 {
