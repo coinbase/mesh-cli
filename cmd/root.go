@@ -270,14 +270,14 @@ default values.`,
 		&tableSize,
 		"table-size",
 		0,
-		`Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file`,
+		"Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file",
 	)
 
 	checkDataCmd.Flags().BoolVar(
 		&inMemoryMode,
 		"in-memory-mode",
 		false,
-		"in-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true This will override the all_in_memory_enabled",
+		"in-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
 	)
 
 	rootCmd.AddCommand(checkDataCmd)
