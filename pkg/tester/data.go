@@ -65,6 +65,18 @@ const (
 	// EndAtTipCheckInterval is the frequency that EndAtTip condition
 	// is evaludated
 	EndAtTipCheckInterval = 10 * time.Second
+	
+	//MinTableSize unit is GB
+	MinTableSize = int64(2)
+	
+	//MaxTableSize unit is GB
+	MaxTableSize = int64(100)
+
+	//MinTableSize unit is MB
+	MinValueLogFileSize = int64(128)
+	
+	//MaxTableSize unit is MB
+	MaxValueLogFileSize = int64(2048)
 )
 
 var _ http.Handler = (*DataTester)(nil)
@@ -152,17 +164,52 @@ func InitializeData(
 	}
 
 	opts := []database.BadgerOption{}
-	if config.CompressionDisabled {
-		opts = append(opts, database.WithoutCompression())
-	}
-	if config.MemoryLimitDisabled {
+	dataPathBackup := dataPath
+
+	if config.AllInMemoryEnabled{
 		opts = append(
 			opts,
-			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			database.WithCustomSettings(database.AllInMemoryBadgerOptions(dataPath)),
+			database.WithoutCompression(),
 		)
+		// for all in memory mode, the path need to be "", as badgerDB will not write to disk
+		dataPathBackup = ""
+	} else {
+		if config.CompressionDisabled {
+			opts = append(opts, database.WithoutCompression())
+		}
+		if config.MemoryLimitDisabled {
+			opts = append(
+				opts,
+				database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
+			)
+		}
 	}
 
-	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
+	// If we enable all-in-memory or L0-in-memory mode, badger DB's TableSize and ValueLogFileSize will change
+	// according to users config. tableSize means the LSM table size, when the table more than the tableSize, 
+	// will trigger a compact. 
+	// In default mode, we will not change the badger DB's TableSize and ValueLogFileSize for limiting memory usage
+	if config.AllInMemoryEnabled || config.MemoryLimitDisabled {
+		if(config.TableSize != nil) {
+			if(*config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize) {
+				opts = append(
+					opts,
+					database.WithTableSize(*config.TableSize),
+				)
+			}
+		}
+		if(config.ValueLogFileSize != nil) {
+			if(*config.TableSize >= MinValueLogFileSize && *config.TableSize <= MinValueLogFileSize) {
+				opts = append(
+					opts,
+					database.WithValueLogFileSize(*config.TableSize),
+				)
+			}
+		}
+	}
+
+	localStore, err := database.NewBadgerDatabase(ctx, dataPathBackup, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("%s: unable to initialize database", err.Error())
 	}
