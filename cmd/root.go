@@ -242,7 +242,7 @@ default values.`,
 		&startIndex,
 		"start-block",
 		-1,
-		`start-block is the block height to start syncing from. This will override the start_index from configuration file`,
+		`Start-block is the block height to start syncing from. This will override the start_index from configuration file`,
 	)
 
 	checkDataCmd.Flags().Int64Var(
@@ -269,15 +269,15 @@ default values.`,
 	checkDataCmd.Flags().Int64Var(
 		&tableSize,
 		"table-size",
-		0,
-		"Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file",
+		-1,
+		"Table-size configures the TableSize for badger DB. If table-size != -1, this will override the table_size from configuration file",
 	)
 
 	checkDataCmd.Flags().BoolVar(
 		&inMemoryMode,
 		"in-memory-mode",
 		false,
-		"in-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
+		"In-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
 	)
 
 	rootCmd.AddCommand(checkDataCmd)
@@ -394,8 +394,10 @@ func initConfig() {
 		Config.AllInMemoryEnabled = inMemoryMode
 	}
 
-	if tableSize != 0 {
+	if tableSize >= 2 && tableSize <= 100 {
 		Config.TableSize = &tableSize
+	} else if tableSize != -1 {
+		log.Fatalf("table-size %d is not in the range [2, 100], please check your input", tableSize)
 	}
 }
 
