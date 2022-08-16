@@ -242,7 +242,7 @@ default values.`,
 		&startIndex,
 		"start-block",
 		-1,
-		`start-block is the block height to start syncing from. This will override the start_index from configuration file`,
+		`Start-block is the block height to start syncing from. This will override the start_index from configuration file`,
 	)
 
 	checkDataCmd.Flags().Int64Var(
@@ -277,7 +277,7 @@ default values.`,
 		&inMemoryMode,
 		"in-memory-mode",
 		false,
-		"in-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
+		"In-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
 	)
 
 	rootCmd.AddCommand(checkDataCmd)

@@ -353,6 +353,14 @@ func assertConfiguration(ctx context.Context, config *Configuration) error {
 		return errors.New("serial_block_workers must be > 0")
 	}
 
+	if config.TableSize != nil && (*config.TableSize < 2 || *config.TableSize > 100) {
+		return fmt.Errorf("table_size %d range is [2, 100], please check your input", *config.TableSize)
+	}
+
+	if config.ValueLogFileSize != nil && (*config.ValueLogFileSize < 128 || *config.ValueLogFileSize > 2048) {
+		return fmt.Errorf("value_log_file_size %d range is [128, 2048], please check your input", *config.ValueLogFileSize)
+	}
+
 	if err := assertDataConfiguration(config.Data); err != nil {
 		return fmt.Errorf("%w: invalid data configuration", err)
 	}
