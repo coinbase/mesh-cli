@@ -270,7 +270,7 @@ default values.`,
 		&tableSize,
 		"table-size",
 		-1,
-		"Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file",
+		"Table-size configures the TableSize for badger DB. If table-size != -1, this will override the table_size from configuration file",
 	)
 
 	checkDataCmd.Flags().BoolVar(
