@@ -394,8 +394,10 @@ func initConfig() {
 		Config.AllInMemoryEnabled = inMemoryMode
 	}
 
-	if tableSize != 0 {
+	if tableSize >= 2 && tableSize <= 100 {
 		Config.TableSize = &tableSize
+	} else {
+		log.Fatalf("table_size %d is not in the range [2, 100], please check your input", tableSize)
 	}
 }
 
