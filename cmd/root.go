@@ -269,7 +269,7 @@ default values.`,
 	checkDataCmd.Flags().Int64Var(
 		&tableSize,
 		"table-size",
-		0,
+		-1,
 		"Table-size configures the TableSize for badger DB. If table-size != 0, this will override the table_size from configuration file",
 	)
 
@@ -396,7 +396,7 @@ func initConfig() {
 
 	if tableSize >= 2 && tableSize <= 100 {
 		Config.TableSize = &tableSize
-	} else {
+	} else if tableSize != -1 {
 		log.Fatalf("table-size %d is not in the range [2, 100], please check your input", tableSize)
 	}
 }
