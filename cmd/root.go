@@ -397,7 +397,7 @@ func initConfig() {
 	if tableSize >= 2 && tableSize <= 100 {
 		Config.TableSize = &tableSize
 	} else {
-		log.Fatalf("table_size %d is not in the range [2, 100], please check your input", tableSize)
+		log.Fatalf("table-size %d is not in the range [2, 100], please check your input", tableSize)
 	}
 }
 
