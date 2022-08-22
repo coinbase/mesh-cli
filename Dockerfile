@@ -31,7 +31,7 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
 WORKDIR /go/src
 
-ARG VERSION=v0.8.0
+ARG VERSION=v0.9.0
 RUN git clone https://github.com/coinbase/rosetta-cli.git && \
 	cd rosetta-cli && \
 	git fetch --all --tags && \
