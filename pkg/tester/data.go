@@ -68,8 +68,8 @@ const (
 	EndAtTipCheckInterval = 10 * time.Second
 
 	//MinTableSize unit is GB
-	MinTableSize = int64(2)
-
+	MinTableSize = int64(1)
+	
 	//MaxTableSize unit is GB
 	MaxTableSize = int64(100)
 

@@ -347,8 +347,8 @@ func assertConfiguration(ctx context.Context, config *Configuration) error {
 		return fmt.Errorf("the number of serial block workers %d is invalid: %w", config.SerialBlockWorkers, cliErrs.ErrNegativeSerialBlockWorkers)
 	}
 
-	if config.TableSize != nil && (*config.TableSize < 2 || *config.TableSize > 100) {
-		return fmt.Errorf("table size %d is invalid: %w", *config.TableSize, cliErrs.ErrTableSizeIsOutOfRange)
+	if config.TableSize != nil && (*config.TableSize < 1 || *config.TableSize > 100) {
+		return fmt.Errorf("table_size %d is not in the range [1, 100], please check your input", *config.TableSize)
 	}
 
 	if config.ValueLogFileSize != nil && (*config.ValueLogFileSize < 128 || *config.ValueLogFileSize > 2048) {
