@@ -17,14 +17,13 @@ package configuration
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
 	"path"
 	"runtime"
 	"strings"
 
-	customerrors "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -213,11 +212,11 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 	}
 
 	if len(config.Workflows) > 0 && len(config.ConstructorDSLFile) > 0 {
-		return fmt.Errorf("%w: cannot populate both workflows and DSL file path", customerrors.ErrParseFileFailed)
+		return cliErrs.ErrMultipleDSLFiles
 	}
 
 	if len(config.Workflows) == 0 && len(config.ConstructorDSLFile) == 0 {
-		return fmt.Errorf("%w: both workflows and DSL file path are empty", customerrors.ErrParseFileFailed)
+		return cliErrs.ErrNoDSLFile
 	}
 
 	// Compile ConstructorDSLFile and save to Workflows
@@ -225,7 +224,7 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		compiledWorkflows, err := dsl.Parse(ctx, config.ConstructorDSLFile)
 		if err != nil {
 			err.Log()
-			return fmt.Errorf("%w: compilation failed", err.Err)
+			return fmt.Errorf("DSL file is invalid, line %d, line contents %s: %w", err.Line, err.LineContents, err.Err)
 		}
 
 		config.Workflows = compiledWorkflows
@@ -236,10 +235,10 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		if workflow.Name == string(job.CreateAccount) || workflow.Name == string(job.RequestFunds) {
 			if workflow.Concurrency != job.ReservedWorkflowConcurrency {
 				return fmt.Errorf(
-					"%w: reserved workflow %s must have concurrency %d",
-					customerrors.ErrParseWorkflowFailed,
+					"DSL file is invalid, reserved workflow %s must have concurrency %d: %w",
 					workflow.Name,
 					job.ReservedWorkflowConcurrency,
+					cliErrs.ErrWrongWorkflowConcurrency,
 				)
 			}
 		}
@@ -250,20 +249,20 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		_, err := hex.DecodeString(account.PrivateKeyHex)
 		if err != nil {
 			return fmt.Errorf(
-				"%w: private key %s is not hex encoded for prefunded account",
-				err,
+				"private key %s is not hex encoded for prefunded account: %w",
 				account.PrivateKeyHex,
+				err,
 			)
 		}
 
 		// Checks if valid CurveType
 		if err := asserter.CurveType(account.CurveType); err != nil {
-			return fmt.Errorf("%w: invalid CurveType for prefunded account", err)
+			return fmt.Errorf("prefunded account curve type %s is invalid: %w", types.PrintStruct(account.CurveType), err)
 		}
 
 		// Checks if valid AccountIdentifier
 		if err := asserter.AccountIdentifier(account.AccountIdentifier); err != nil {
-			return fmt.Errorf("Account.Address is missing for prefunded account")
+			return fmt.Errorf("prefunded account identifier %s is invalid: %w", types.PrintStruct(account.AccountIdentifier), err)
 		}
 
 		// Check if valid Currency when Currency is specified
@@ -272,7 +271,7 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 		if account.Currency != nil {
 			err = asserter.Currency(account.Currency)
 			if err != nil {
-				return fmt.Errorf("%w: invalid currency for prefunded account", err)
+				return fmt.Errorf("prefunded account currency %s is invalid: %w", types.PrintStruct(account.Currency), err)
 			}
 		}
 	}
@@ -282,11 +281,11 @@ func assertConstructionConfiguration(ctx context.Context, config *ConstructionCo
 
 func assertDataConfiguration(config *DataConfiguration) error { // nolint:gocognit
 	if config.StartIndex != nil && *config.StartIndex < 0 {
-		return fmt.Errorf("start index %d cannot be negative", *config.StartIndex)
+		return fmt.Errorf("start index %d is invalid: %w", *config.StartIndex, cliErrs.ErrNegativeStartIndex)
 	}
 
 	if !config.ReconciliationDisabled && config.BalanceTrackingDisabled {
-		return errors.New("balance tracking must be enabled to perform reconciliation")
+		return cliErrs.ErrBalanceTrackingIsDisabledForReconciliation
 	}
 
 	if config.EndConditions == nil {
@@ -295,45 +294,40 @@ func assertDataConfiguration(config *DataConfiguration) error { // nolint:gocogn
 
 	if config.EndConditions.Index != nil {
 		if *config.EndConditions.Index < 0 {
-			return fmt.Errorf("end index %d cannot be negative", *config.EndConditions.Index)
+			return fmt.Errorf("end index %d is invalid: %w", *config.EndConditions.Index, cliErrs.ErrNegativeEndIndex)
 		}
 	}
 
 	if config.EndConditions.ReconciliationCoverage != nil {
 		coverage := config.EndConditions.ReconciliationCoverage.Coverage
 		if coverage < 0 || coverage > 1 {
-			return fmt.Errorf("reconciliation coverage %f must be [0.0,1.0]", coverage)
+			return fmt.Errorf("reconciliation coverage %f is invalid: %w", coverage, cliErrs.ErrReconciliationOutOfRange)
 		}
 
 		index := config.EndConditions.ReconciliationCoverage.Index
 		if index != nil && *index < 0 {
-			return fmt.Errorf("reconciliation coverage height %d must be >= 0", *index)
+			return fmt.Errorf("reconciliation coverage index %d is invalid: %w", *index, cliErrs.ErrNegativeReconciliationCoverageIndex)
 		}
 
 		accountCount := config.EndConditions.ReconciliationCoverage.AccountCount
 		if accountCount != nil && *accountCount < 0 {
 			return fmt.Errorf(
-				"reconciliation coverage account count %d must be >= 0",
+				"reconciliation coverage account count %d is invalid: %w",
 				*accountCount,
+				cliErrs.ErrNegativeReconciliationCoverageAccountCount,
 			)
 		}
 
 		if config.BalanceTrackingDisabled {
-			return errors.New(
-				"balance tracking must be enabled for reconciliation coverage end condition",
-			)
+			return cliErrs.ErrBalanceTrackingIsDisabledForReconciliationCoverageEndCondition
 		}
 
 		if config.IgnoreReconciliationError {
-			return errors.New(
-				"reconciliation errors cannot be ignored for reconciliation coverage end condition",
-			)
+			return cliErrs.ErrReconciliationErrorIsIgnoredForReconciliationCoverageEndCondition
 		}
 
 		if config.ReconciliationDisabled {
-			return errors.New(
-				"reconciliation cannot be disabled for reconciliation coverage end condition",
-			)
+			return cliErrs.ErrReconciliationIsDisabledForReconciliationCoverageEndCondition
 		}
 	}
 
@@ -342,31 +336,31 @@ func assertDataConfiguration(config *DataConfiguration) error { // nolint:gocogn
 
 func assertConfiguration(ctx context.Context, config *Configuration) error {
 	if err := asserter.NetworkIdentifier(config.Network); err != nil {
-		return fmt.Errorf("%w: invalid network identifier", err)
+		return fmt.Errorf("invalid network identifier %s: %w", types.PrintStruct(config.Network), err)
 	}
 
 	if config.SeenBlockWorkers <= 0 {
-		return errors.New("seen_block_workers must be > 0")
+		return fmt.Errorf("the number of seen block workers %d is invalid: %w", config.SeenBlockWorkers, cliErrs.ErrNegativeSeenBlockWorkers)
 	}
 
 	if config.SerialBlockWorkers <= 0 {
-		return errors.New("serial_block_workers must be > 0")
+		return fmt.Errorf("the number of serial block workers %d is invalid: %w", config.SerialBlockWorkers, cliErrs.ErrNegativeSerialBlockWorkers)
 	}
 
 	if config.TableSize != nil && (*config.TableSize < 2 || *config.TableSize > 100) {
-		return fmt.Errorf("table_size %d is not in the range [2, 100], please check your input", *config.TableSize)
+		return fmt.Errorf("table size %d is invalid: %w", *config.TableSize, cliErrs.ErrTableSizeIsOutOfRange)
 	}
 
 	if config.ValueLogFileSize != nil && (*config.ValueLogFileSize < 128 || *config.ValueLogFileSize > 2048) {
-		return fmt.Errorf("value_log_file_size %d is not in the range [128, 2048], please check your input", *config.ValueLogFileSize)
+		return fmt.Errorf("value log file size %d is invalid: %w", *config.ValueLogFileSize, cliErrs.ErrValueLogFileSizeIsOutOfRange)
 	}
 
 	if err := assertDataConfiguration(config.Data); err != nil {
-		return fmt.Errorf("%w: invalid data configuration", err)
+		return fmt.Errorf("data configuration is invalid: %w", err)
 	}
 
 	if err := assertConstructionConfiguration(ctx, config.Construction); err != nil {
-		return fmt.Errorf("%w: invalid construction configuration", err)
+		return fmt.Errorf("construction configuration is invalid: %w", err)
 	}
 
 	return nil
@@ -410,7 +404,7 @@ func modifyFilePaths(config *Configuration, fileDir string) {
 func LoadConfiguration(ctx context.Context, filePath string) (*Configuration, error) {
 	var configRaw Configuration
 	if err := utils.LoadAndParse(filePath, &configRaw); err != nil {
-		return nil, fmt.Errorf("%w: unable to open configuration file", err)
+		return nil, fmt.Errorf("unable to load and parse configuration file: %w", err)
 	}
 
 	config := populateMissingFields(&configRaw)
@@ -421,7 +415,7 @@ func LoadConfiguration(ctx context.Context, filePath string) (*Configuration, er
 	modifyFilePaths(config, fileDir)
 
 	if err := assertConfiguration(ctx, config); err != nil {
-		return nil, fmt.Errorf("%w: invalid configuration", err)
+		return nil, fmt.Errorf("configuration is invalid: %w", err)
 	}
 
 	color.Cyan(

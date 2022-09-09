@@ -21,26 +21,26 @@ import (
 	"net/http"
 )
 
-// JSONFetch makes a GET request to the URL and marshals
+// JSONFetch makes a GET request to the URL and unmarshal
 // the response into output.
 func JSONFetch(url string, output interface{}) error {
 	resp, err := http.Get(url) // #nosec
 	if err != nil {
-		return fmt.Errorf("%w: unable to fetch GET %s", err, url)
+		return fmt.Errorf("unable to fetch url %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("%w: unable to read body", err)
+		return fmt.Errorf("unable to read body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received %d status with body %s", resp.StatusCode, body)
+		return fmt.Errorf("received %d status with body %s", resp.StatusCode, string(body))
 	}
 
 	if err := json.Unmarshal(body, output); err != nil {
-		return fmt.Errorf("%w: unable to unmarshal JSON", err)
+		return fmt.Errorf("unable to unmarshal: %w", err)
 	}
 
 	return nil

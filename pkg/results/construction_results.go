@@ -287,7 +287,7 @@ func ComputeCheckConstructionStatus(
 func FetchCheckConstructionStatus(url string) (*CheckConstructionStatus, error) {
 	var status CheckConstructionStatus
 	if err := JSONFetch(url, &status); err != nil {
-		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+		return nil, fmt.Errorf("unable to fetch check construction status: %w", err)
 	}
 
 	return &status, nil

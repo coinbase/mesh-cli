@@ -46,7 +46,7 @@ func TestJSONFetch(t *testing.T) {
 		"not JSON": {
 			status:        http.StatusOK,
 			body:          `hello`,
-			expectedError: "invalid character 'h' looking for beginning of value: unable to unmarshal JSON",
+			expectedError: "unable to unmarshal: invalid character 'h' looking for beginning of value",
 		},
 	}
 

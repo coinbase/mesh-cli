@@ -24,6 +24,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	sdkMocks "github.com/coinbase/rosetta-sdk-go/mocks/storage/modules"
@@ -120,20 +121,6 @@ func TestComputeCheckDataResults(t *testing.T) {
 				Tests: &CheckDataTests{
 					RequestResponse:   false,
 					ResponseAssertion: true,
-				},
-			},
-		},
-		"default configuration, no storage, syncer and fetch errors": {
-			cfg: configuration.DefaultConfiguration(),
-			err: []error{
-				syncer.ErrGetNetworkStatusFailed,
-				syncer.ErrFetchBlockFailed,
-			},
-			result: &CheckDataResults{
-				Tests: &CheckDataTests{
-					RequestResponse:   false,
-					ResponseAssertion: true,
-					BlockSyncing:      &f,
 				},
 			},
 		},
@@ -327,7 +314,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, no storage, reconciliation errors": {
 			cfg: configuration.DefaultConfiguration(),
-			err: []error{ErrReconciliationFailure},
+			err: []error{cliErrs.ErrReconciliationFailure},
 			result: &CheckDataResults{
 				Tests: &CheckDataTests{
 					RequestResponse:   true,
@@ -338,7 +325,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 		},
 		"default configuration, counter storage, reconciliation errors": {
 			cfg:                    configuration.DefaultConfiguration(),
-			err:                    []error{ErrReconciliationFailure},
+			err:                    []error{cliErrs.ErrReconciliationFailure},
 			provideCounterStorage:  true,
 			activeReconciliations:  10,
 			reconciliationFailures: 19,
@@ -387,7 +374,7 @@ func TestComputeCheckDataResults(t *testing.T) {
 				var testErr error
 				if err != nil {
 					testName = err.Error()
-					testErr = fmt.Errorf("%w: test wrapping", err)
+					testErr = fmt.Errorf("test wrapping: %w", err)
 					test.result.Error = testErr.Error()
 				}
 
