@@ -14,18 +14,7 @@
 
 package results
 
-import (
-	"errors"
-)
-
 const (
 	// TimeElapsedCounter tracks the total time elapsed in seconds.
 	TimeElapsedCounter = "time_elapsed"
-)
-
-var (
-	// ErrReconciliationFailure is returned if reconciliation fails.
-	// TODO: Move to reconciler package (had to remove from processor
-	// to prevent circular dependency)
-	ErrReconciliationFailure = errors.New("reconciliation failure")
 )

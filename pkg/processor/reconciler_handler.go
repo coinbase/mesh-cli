@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
-	"github.com/coinbase/rosetta-cli/pkg/results"
 
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -162,7 +162,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			h.InactiveFailureBlock = block
 			return fmt.Errorf(
 				"%w: inactive reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-				results.ErrReconciliationFailure,
+				cliErrs.ErrReconciliationFailure,
 				account.Address,
 				block.Index,
 				computedBalance,
@@ -176,7 +176,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		h.ActiveFailureBlock = block
 		return fmt.Errorf(
 			"%w: active reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-			results.ErrReconciliationFailure,
+			cliErrs.ErrReconciliationFailure,
 			account.Address,
 			block.Index,
 			computedBalance,

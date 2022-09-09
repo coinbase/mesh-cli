@@ -27,6 +27,7 @@ import (
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -429,7 +430,7 @@ func ComputeCheckDataStatus(
 func FetchCheckDataStatus(url string) (*CheckDataStatus, error) {
 	var status CheckDataStatus
 	if err := JSONFetch(url, &status); err != nil {
-		return nil, fmt.Errorf("%w: unable to fetch construction status", err)
+		return nil, fmt.Errorf("unable to fetch check data status: %w", err)
 	}
 
 	return &status, nil
@@ -511,9 +512,7 @@ func (c *CheckDataTests) Print() {
 // a non-500 response.
 func RequestResponseTest(err error) bool {
 	return !(fetcher.Err(err) ||
-		errors.Is(err, utils.ErrNetworkNotSupported) ||
-		errors.Is(err, syncer.ErrGetNetworkStatusFailed) ||
-		errors.Is(err, syncer.ErrFetchBlockFailed))
+		errors.Is(err, utils.ErrNetworkNotSupported))
 }
 
 // ResponseAssertionTest returns a boolean
@@ -569,7 +568,7 @@ func ReconciliationTest(
 	reconciliationsPerformed bool,
 	reconciliationsFailed bool,
 ) *bool {
-	if errors.Is(err, ErrReconciliationFailure) {
+	if errors.Is(err, cliErrs.ErrReconciliationFailure) {
 		return &f
 	}
 
