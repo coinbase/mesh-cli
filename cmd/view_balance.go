@@ -48,11 +48,11 @@ address to specified as JSON allows for querying by SubAccountIdentifier.`,
 func runViewBalanceCmd(cmd *cobra.Command, args []string) error {
 	account := &types.AccountIdentifier{}
 	if err := json.Unmarshal([]byte(args[0]), account); err != nil {
-		return fmt.Errorf("%w: unable to unmarshal account %s", err, args[0])
+		return fmt.Errorf("unable to unmarshal account %s: %w", args[0], err)
 	}
 
 	if err := asserter.AccountIdentifier(account); err != nil {
-		return fmt.Errorf("%w: invalid account identifier %s", err, types.PrintStruct(account))
+		return fmt.Errorf("invalid account identifier %s: %w", types.PrintStruct(account), err)
 	}
 
 	// Create a new fetcher
@@ -74,19 +74,19 @@ func runViewBalanceCmd(cmd *cobra.Command, args []string) error {
 	// Initialize the fetcher's asserter
 	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
+		return fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err)
 	}
 
 	_, err := utils.CheckNetworkSupported(Context, Config.Network, newFetcher)
 	if err != nil {
-		return fmt.Errorf("%w: unable to confirm network is supported", err)
+		return fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err)
 	}
 
 	var lookupBlock *types.PartialBlockIdentifier
 	if len(args) > 1 {
 		index, err := strconv.ParseInt(args[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("%w: unable to parse index %s", err, args[0])
+			return fmt.Errorf("unable to parse index %s: %w", args[0], err)
 		}
 
 		lookupBlock = &types.PartialBlockIdentifier{Index: &index}
@@ -100,7 +100,7 @@ func runViewBalanceCmd(cmd *cobra.Command, args []string) error {
 		nil,
 	)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: unable to fetch account %+v", fetchErr.Err, account)
+		return fmt.Errorf("unable to fetch account balance for account %s: %w", types.PrintStruct(account), fetchErr.Err)
 	}
 
 	log.Printf("Amounts: %s\n", types.PrettyPrintStruct(amounts))

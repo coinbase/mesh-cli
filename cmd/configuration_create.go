@@ -34,7 +34,7 @@ var (
 
 func runConfigurationCreateCmd(cmd *cobra.Command, args []string) error {
 	if err := utils.SerializeAndWrite(args[0], configuration.DefaultConfiguration()); err != nil {
-		return fmt.Errorf("%w: unable to save configuration file to %s", err, args[0])
+		return fmt.Errorf("unable to save configuration file to %s: %w", args[0], err)
 	}
 
 	return nil

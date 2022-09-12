@@ -56,7 +56,7 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
 	dictionaryPath := path.Clean(args[2])
 	maxItems, err := strconv.Atoi(args[3])
 	if err != nil {
-		return fmt.Errorf("%w: unable to convert max items to integer", err)
+		return fmt.Errorf("unable to convert max items to integer: %w", err)
 	}
 
 	compressorEntries := []*encoder.CompressorEntry{}
@@ -80,7 +80,7 @@ func runTrainZstdCmd(cmd *cobra.Command, args []string) error {
 		compressorEntries,
 	)
 	if err != nil {
-		return fmt.Errorf("%w: badger training failed", err)
+		return fmt.Errorf("badger training failed: %w", err)
 	}
 
 	color.Green("Training successful!")

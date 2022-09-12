@@ -55,18 +55,18 @@ func runCreateConfigurationCmd(cmd *cobra.Command, args []string) error {
 	// Initialize the fetcher's asserter
 	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: failed to initialize asserter", fetchErr.Err)
+		return fmt.Errorf("failed to initialize asserter for fetcher: %w", fetchErr.Err)
 	}
 
 	configuration, err := newFetcher.Asserter.ClientConfiguration()
 	if err != nil {
-		return fmt.Errorf("%w: unable to generate spec", err)
+		return fmt.Errorf("unable to generate asserter configuration: %w", err)
 	}
 
 	sortArrayFieldsOnConfiguration(configuration)
 
 	if err := utils.SerializeAndWrite(args[0], configuration); err != nil {
-		return fmt.Errorf("%w: unable to serialize asserter configuration", err)
+		return fmt.Errorf("unable to serialize asserter configuration: %w", err)
 	}
 
 	color.Green("Configuration file saved!")

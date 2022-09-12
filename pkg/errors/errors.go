@@ -40,14 +40,28 @@ var (
 
 	// Data check errors
 	ErrDataCheckHalt         = errors.New("data check halted")
-	ErrInitDataTester        = errors.New("unexpected error occurred while trying to initialize data tester")
 	ErrReconciliationFailure = errors.New("reconciliation failure")
+
+	// Spec check errors
+	ErrErrorEmptyMessage  = errors.New("error object can't have empty message")
+	ErrErrorNegativeCode  = errors.New("error object can't have negative code")
+	ErrAccountNullPointer = errors.New("account is nil")
+	ErrBlockNotIdempotent = errors.New("multiple calls with the same hash don't return the same block")
+	ErrBlockTip           = errors.New("unspecified block_identifier doesn't give the tip block")
 
 	// Construction check errors
 	ErrConstructionCheckHalt = errors.New("construction check halted")
 
 	// Command errors
-	ErrBlockNotFound       = errors.New("block not found")
-	ErrNoAvailableNetwork  = errors.New("no networks available")
-	ErrAsserterConfigError = errors.New("asserter configuration validation failed")
+	ErrBlockNotFound                 = errors.New("block not found")
+	ErrNoAvailableNetwork            = errors.New("no networks available")
+	ErrNetworkOptionsAllowlistIsNil  = errors.New("network options allowlist is nil")
+	ErrAsserterConfigurationIsNil    = errors.New("asserter configuration is nil")
+	ErrTimestampStartIndexMismatch   = errors.New("timestamp start index mismatch")
+	ErrOperationTypeLengthMismatch   = errors.New("operation type length mismatch")
+	ErrOperationTypeMismatch         = errors.New("operation type mismatch")
+	ErrOperationStatusLengthMismatch = errors.New("operation status length mismatch")
+	ErrOperationStatusMismatch       = errors.New("operation status mismatch")
+	ErrErrorLengthMismatch           = errors.New("error length mismatch")
+	ErrErrorMismatch                 = errors.New("error mismatch")
 )

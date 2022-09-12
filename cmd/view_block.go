@@ -16,9 +16,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"strconv"
 	"time"
+
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
@@ -50,7 +51,7 @@ func printChanges(balanceChanges []*parser.BalanceChange) error {
 	for _, balanceChange := range balanceChanges {
 		parsedDiff, err := types.BigInt(balanceChange.Difference)
 		if err != nil {
-			return fmt.Errorf("%w: unable to parse Difference", err)
+			return fmt.Errorf("unable to parse balance change difference: %w", err)
 		}
 
 		if parsedDiff.Sign() == 0 {
@@ -70,7 +71,7 @@ func printChanges(balanceChanges []*parser.BalanceChange) error {
 func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	index, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
-		return fmt.Errorf("%w: unable to parse index %s", err, args[0])
+		return fmt.Errorf("unable to parse index %s: %w", args[0], err)
 	}
 
 	// Create a new fetcher
@@ -96,12 +97,12 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	// the asserter what are valid responses.
 	_, _, fetchErr := newFetcher.InitializeAsserter(Context, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err)
+		return fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err)
 	}
 
 	_, err = utils.CheckNetworkSupported(Context, Config.Network, newFetcher)
 	if err != nil {
-		return fmt.Errorf("%w: unable to confirm network is supported", err)
+		return fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err)
 	}
 
 	// Fetch the specified block with retries (automatically
@@ -121,11 +122,11 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 		},
 	)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: unable to fetch block", fetchErr.Err)
+		return fmt.Errorf("unable to fetch block %d: %w", index, fetchErr.Err)
 	}
 	// It's valid for a block to be omitted without triggering an error
 	if block == nil {
-		return fmt.Errorf("%w: block not found, it might be omitted", errors.ErrBlockNotFound)
+		return cliErrs.ErrBlockNotFound
 	}
 
 	fmt.Printf("\n")
@@ -140,10 +141,10 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 	p := parser.New(newFetcher.Asserter, func(*types.Operation) bool { return false }, nil)
 	balanceChanges, err := p.BalanceChanges(Context, block, false)
 	if err != nil {
-		return fmt.Errorf("%w: unable to calculate balance changes", err)
+		return fmt.Errorf("unable to calculate balance changes: %w", err)
 	}
 
-	fmt.Println("Cummulative:", block.BlockIdentifier.Hash)
+	fmt.Println("Cumulative:", block.BlockIdentifier.Hash)
 
 	if err := printChanges(balanceChanges); err != nil {
 		return err
@@ -162,7 +163,7 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 			},
 		}, false)
 		if err != nil {
-			return fmt.Errorf("%w: unable to calculate balance changes", err)
+			return fmt.Errorf("unable to calculate balance changes: %w", err)
 		}
 
 		fmt.Println("Transaction:", tx.TransactionIdentifier.Hash)
