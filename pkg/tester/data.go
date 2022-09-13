@@ -19,11 +19,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	customErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"log"
 	"math/big"
 	"net/http"
 	"time"
+
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
@@ -63,18 +64,18 @@ const (
 	PeriodicLoggingFrequency = periodicLoggingSeconds * time.Second
 
 	// EndAtTipCheckInterval is the frequency that EndAtTip condition
-	// is evaludated
+	// is evaluated
 	EndAtTipCheckInterval = 10 * time.Second
-	
+
 	//MinTableSize unit is GB
 	MinTableSize = int64(2)
-	
+
 	//MaxTableSize unit is GB
 	MaxTableSize = int64(100)
 
 	//MinTableSize unit is MB
 	MinValueLogFileSize = int64(128)
-	
+
 	//MaxTableSize unit is MB
 	MaxValueLogFileSize = int64(2048)
 )
@@ -127,7 +128,7 @@ func loadAccounts(filePath string) ([]*types.AccountCurrency, error) {
 
 	accounts := []*types.AccountCurrency{}
 	if err := utils.LoadAndParse(filePath, &accounts); err != nil {
-		return nil, fmt.Errorf("%w: unable to open account file", err)
+		return nil, fmt.Errorf("unable to load and parse %s: %w", filePath, err)
 	}
 
 	log.Printf(
@@ -143,7 +144,7 @@ func loadAccounts(filePath string) ([]*types.AccountCurrency, error) {
 // CloseDatabase closes the database used by DataTester.
 func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
-		log.Fatalf("%s: error closing database", err.Error())
+		log.Fatalf("error closing database: %s", err.Error())
 	}
 }
 
@@ -160,13 +161,13 @@ func InitializeData(
 ) (*DataTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
 	if err != nil {
-		return nil, fmt.Errorf("%s: cannot create command path", err.Error())
+		return nil, fmt.Errorf("failed to create command path: %w", err)
 	}
 
 	opts := []database.BadgerOption{}
 	dataPathBackup := dataPath
 
-	if config.AllInMemoryEnabled{
+	if config.AllInMemoryEnabled {
 		opts = append(
 			opts,
 			database.WithCustomSettings(database.AllInMemoryBadgerOptions(dataPath)),
@@ -187,20 +188,20 @@ func InitializeData(
 	}
 
 	// If we enable all-in-memory or L0-in-memory mode, badger DB's TableSize and ValueLogFileSize will change
-	// according to users config. tableSize means the LSM table size, when the table more than the tableSize, 
-	// will trigger a compact. 
+	// according to users config. tableSize means the LSM table size, when the table more than the tableSize,
+	// will trigger a compact.
 	// In default mode, we will not change the badger DB's TableSize and ValueLogFileSize for limiting memory usage
 	if config.AllInMemoryEnabled || config.MemoryLimitDisabled {
-		if(config.TableSize != nil) {
-			if(*config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize) {
+		if config.TableSize != nil {
+			if *config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize {
 				opts = append(
 					opts,
 					database.WithTableSize(*config.TableSize),
 				)
 			}
 		}
-		if(config.ValueLogFileSize != nil) {
-			if(*config.TableSize >= MinValueLogFileSize && *config.TableSize <= MinValueLogFileSize) {
+		if config.ValueLogFileSize != nil {
+			if *config.TableSize >= MinValueLogFileSize && *config.TableSize <= MinValueLogFileSize {
 				opts = append(
 					opts,
 					database.WithValueLogFileSize(*config.TableSize),
@@ -211,17 +212,17 @@ func InitializeData(
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPathBackup, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("%s: unable to initialize database", err.Error())
+		return nil, fmt.Errorf("unable to initialize database: %w", err)
 	}
 
 	exemptAccounts, err := loadAccounts(config.Data.ExemptAccounts)
 	if err != nil {
-		return nil, fmt.Errorf("%s: unable to load exempt accounts", err.Error())
+		return nil, fmt.Errorf("unable to load exempt accounts: %w", err)
 	}
 
 	interestingAccounts, err := loadAccounts(config.Data.InterestingAccounts)
 	if err != nil {
-		return nil, fmt.Errorf("%s: unable to load interesting accounts", err.Error())
+		return nil, fmt.Errorf("unable to load interesting accounts: %w", err)
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
@@ -238,7 +239,7 @@ func InitializeData(
 		network,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize logger with error: %s", err.Error())
+		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
 	}
 
 	var forceInactiveReconciliation bool
@@ -262,12 +263,12 @@ func InitializeData(
 	// Get all previously seen accounts
 	seenAccounts, err := balanceStorage.GetAllAccountCurrency(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: unable to get previously seen accounts", err.Error())
+		return nil, fmt.Errorf("unable to get previously seen accounts: %w", err)
 	}
 
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
 	if fetchErr != nil {
-		log.Fatalf("%s: unable to get network options", fetchErr.Err.Error())
+		log.Fatalf("unable to get network options: %s", fetchErr.Err.Error())
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
@@ -354,10 +355,10 @@ func InitializeData(
 					genesisBlock,
 				)
 				if err != nil {
-					return nil, fmt.Errorf("%s: unable to bootstrap balances", err.Error())
+					return nil, fmt.Errorf("unable to bootstrap balances: %w", err)
 				}
 			case err != nil:
-				return nil, fmt.Errorf("%s: unable to get head block identifier", err.Error())
+				return nil, fmt.Errorf("unable to get head block identifier: %w", err)
 			default:
 				log.Println("Skipping balance bootstrapping because already started syncing")
 			}
@@ -548,7 +549,7 @@ func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
 		t.blockStorage,
 	)
 	if err != nil {
-		return false, -1, err
+		return false, -1, fmt.Errorf("failed to check storage tip: %w", err)
 	}
 
 	var blockIndex int64 = -1
@@ -576,7 +577,7 @@ func (t *DataTester) EndAtTipLoop(
 			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
 				log.Printf(
-					"%s: unable to evaluate if syncer is at tip",
+					"unable to evaluate if syncer is at tip: %s",
 					err.Error(),
 				)
 				continue
@@ -614,7 +615,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
 				log.Printf(
-					"%s: unable to evaluate syncer height or if at tip",
+					"unable to evaluate syncer height or if at tip: %s",
 					err.Error(),
 				)
 				continue
@@ -675,7 +676,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 				allAccounts, err := t.balanceStorage.GetAllAccountCurrency(ctx)
 				if err != nil {
 					log.Printf(
-						"%s: unable to get account count",
+						"unable to get account count: %s",
 						err.Error(),
 					)
 					continue
@@ -694,7 +695,7 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, coverageIndex)
 			if err != nil {
 				log.Printf(
-					"%s: unable to get reconciliation coverage",
+					"unable to get reconciliation coverage: %s",
 					err.Error(),
 				)
 				continue
@@ -776,22 +777,22 @@ func (t *DataTester) WatchEndConditions(
 func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error) {
 	activeReconciliations, err := t.counterStorage.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("%w: cannot get active reconciliations counter", err)
+		return -1, fmt.Errorf("failed to get active reconciliations counter: %w", err)
 	}
 
 	exemptReconciliations, err := t.counterStorage.Get(ctx, modules.ExemptReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("%w: cannot get exempt reconciliations counter", err)
+		return -1, fmt.Errorf("failed to get exempt reconciliations counter: %w", err)
 	}
 
 	failedReconciliations, err := t.counterStorage.Get(ctx, modules.FailedReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("%w: cannot get failed reconciliations counter", err)
+		return -1, fmt.Errorf("failed to get failed reconciliations counter: %w", err)
 	}
 
 	skippedReconciliations, err := t.counterStorage.Get(ctx, modules.SkippedReconciliationsCounter)
 	if err != nil {
-		return -1, fmt.Errorf("%w: cannot get skipped reconciliations counter", err)
+		return -1, fmt.Errorf("failed to get skipped reconciliations counter: %w", err)
 	}
 
 	return activeReconciliations.Int64() +
@@ -811,7 +812,7 @@ func (t *DataTester) WaitForEmptyQueue(
 	// and only exit when that many reconciliations have been performed.
 	startingComplete, err := t.CompleteReconciliations(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to complete reconciliations: %w", err)
 	}
 	startingRemaining := t.reconciler.QueueSize()
 
@@ -832,12 +833,12 @@ func (t *DataTester) WaitForEmptyQueue(
 			// We force cached counts to be written before
 			// determining if we should exit.
 			if err := t.reconcilerHandler.UpdateCounts(ctx); err != nil {
-				return err
+				return fmt.Errorf("failed to update count: %w", err)
 			}
 
 			nowComplete, err := t.CompleteReconciliations(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to complete reconciliations: %w", err)
 			}
 
 			completed := nowComplete - startingComplete
@@ -882,7 +883,7 @@ func (t *DataTester) DrainReconcilerQueue(
 	err := g.Wait()
 
 	if *t.signalReceived {
-		return errors.New("reconcilier queue drain halted")
+		return cliErrs.ErrReconcilerDrainHalt
 	}
 
 	if errors.Is(err, context.Canceled) {
@@ -906,7 +907,7 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
-			fmt.Errorf("%w: %v", customErrs.ErrDataCheckHalt, err.Error()),
+			fmt.Errorf("%v: %w", err.Error(), cliErrs.ErrDataCheckHalt),
 			"",
 			"",
 		)
@@ -1015,7 +1016,7 @@ func (t *DataTester) FindMissingOps(
 		t.reconcilerHandler.InactiveFailureBlock.Index,
 	)
 	if err != nil {
-		color.Yellow("%s: could not find block with missing ops", err.Error())
+		color.Yellow("could not find block with missing ops: %s", err.Error())
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -1057,13 +1058,13 @@ func (t *DataTester) recursiveOpSearch(
 	// Always use a temporary directory to find missing ops
 	tmpDir, err := utils.CreateTempDir()
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to create temporary directory", err)
+		return nil, fmt.Errorf("unable to create temporary directory: %w", err)
 	}
 	defer utils.RemoveTempDir(tmpDir)
 
 	localStore, err := database.NewBadgerDatabase(ctx, tmpDir)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to initialize database", err)
+		return nil, fmt.Errorf("unable to initialize database: %w", err)
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
@@ -1081,7 +1082,7 @@ func (t *DataTester) recursiveOpSearch(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize logger with error: %s", err.Error())
+		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
 	}
 
 	t.forceInactiveReconciliation = types.Bool(false)
@@ -1173,16 +1174,16 @@ func (t *DataTester) recursiveOpSearch(
 	// Close database before starting another search, otherwise we will
 	// have n databases open when we find the offending block.
 	if storageErr := localStore.Close(ctx); storageErr != nil {
-		return nil, fmt.Errorf("%w: unable to close database", storageErr)
+		return nil, fmt.Errorf("unable to close database: %w", storageErr)
 	}
 
 	if *t.signalReceived {
-		return nil, errors.New("search for block with missing ops halted")
+		return nil, cliErrs.ErrMissingOps
 	}
 
 	if err == nil || errors.Is(err, context.Canceled) {
 		if startIndex <= t.genesisBlock.Index {
-			return nil, errors.New("unable to find missing ops")
+			return nil, cliErrs.ErrUnableToFindMissingOps
 		}
 
 		newStart := startIndex - InactiveFailureLookbackWindow
@@ -1193,7 +1194,7 @@ func (t *DataTester) recursiveOpSearch(
 		newEnd := endIndex - InactiveFailureLookbackWindow
 		if newEnd <= newStart {
 			return nil, fmt.Errorf(
-				"Next window to check has start index %d <= end index %d",
+				"next window to check has start index %d <= end index %d",
 				newStart,
 				newEnd,
 			)
@@ -1219,7 +1220,7 @@ func (t *DataTester) recursiveOpSearch(
 	}
 
 	if reconcilerHandler.ActiveFailureBlock == nil {
-		return nil, errors.New("unable to find missing ops")
+		return nil, cliErrs.ErrUnableToFindMissingOps
 	}
 
 	return reconcilerHandler.ActiveFailureBlock, nil

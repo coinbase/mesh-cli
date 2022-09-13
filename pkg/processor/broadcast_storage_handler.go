@@ -72,7 +72,7 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 ) error {
 	_, _, relatedTransactions, err := h.blockStorage.FindRelatedTransactions(ctx, transaction.TransactionIdentifier, dbTx)
 	if err != nil {
-		return fmt.Errorf("%w: could not find related transactions", err)
+		return fmt.Errorf("failed to find related transactions %s: %w", types.PrintStruct(transaction.TransactionIdentifier), err)
 	}
 
 	observed := transaction.Operations
@@ -81,7 +81,7 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 	}
 
 	if err := h.parser.ExpectedOperations(intent, observed, false, true); err != nil {
-		return fmt.Errorf("%w: confirmed transaction did not match intent", err)
+		return fmt.Errorf("confirmed transaction did not match intent: %w", err)
 	}
 
 	// Validate destination memo if it's needed
@@ -108,7 +108,7 @@ func (h *BroadcastStorageHandler) TransactionConfirmed(
 		identifier,
 		transaction,
 	); err != nil {
-		return fmt.Errorf("%w: coordinator could not handle transaction", err)
+		return fmt.Errorf("coordinator could not handle transaction: %w", err)
 	}
 
 	return nil
@@ -155,7 +155,7 @@ func (h *BroadcastStorageHandler) BroadcastFailed(
 		identifier,
 		nil,
 	); err != nil {
-		return fmt.Errorf("%w: coordinator could not handle transaction", err)
+		return fmt.Errorf("coordinator could not handle transaction: %w", err)
 	}
 
 	if h.config.Construction.IgnoreBroadcastFailures {

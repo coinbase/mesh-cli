@@ -39,8 +39,12 @@ var (
 	ErrConstructionConfigMissing                                         = errors.New("construction configuration is missing")
 
 	// Data check errors
-	ErrDataCheckHalt         = errors.New("data check halted")
-	ErrReconciliationFailure = errors.New("reconciliation failure")
+	ErrDataCheckHalt          = errors.New("data check halted")
+	ErrReconciliationFailure  = errors.New("reconciliation failure")
+	ErrInitDataTester         = errors.New("unexpected error occurred while trying to initialize data tester")
+	ErrReconcilerDrainHalt    = errors.New("reconciler queue drain halted")
+	ErrMissingOps             = errors.New("search for block with missing ops halted")
+	ErrUnableToFindMissingOps = errors.New("unable to find missing ops")
 
 	// Spec check errors
 	ErrErrorEmptyMessage  = errors.New("error object can't have empty message")
@@ -50,18 +54,23 @@ var (
 	ErrBlockTip           = errors.New("unspecified block_identifier doesn't give the tip block")
 
 	// Construction check errors
-	ErrConstructionCheckHalt = errors.New("construction check halted")
+	ErrConstructionCheckHalt                            = errors.New("construction check halted")
+	ErrBalanceExemptionsWithInitialBalanceFetchDisabled = errors.New("found balance exemptions but initial balance fetch disabled")
 
 	// Command errors
-	ErrBlockNotFound                 = errors.New("block not found")
-	ErrNoAvailableNetwork            = errors.New("no networks available")
-	ErrNetworkOptionsAllowlistIsNil  = errors.New("network options allowlist is nil")
-	ErrAsserterConfigurationIsNil    = errors.New("asserter configuration is nil")
-	ErrTimestampStartIndexMismatch   = errors.New("timestamp start index mismatch")
-	ErrOperationTypeLengthMismatch   = errors.New("operation type length mismatch")
-	ErrOperationTypeMismatch         = errors.New("operation type mismatch")
-	ErrOperationStatusLengthMismatch = errors.New("operation status length mismatch")
-	ErrOperationStatusMismatch       = errors.New("operation status mismatch")
-	ErrErrorLengthMismatch           = errors.New("error length mismatch")
-	ErrErrorMismatch                 = errors.New("error mismatch")
+	ErrBlockNotFound                  = errors.New("block not found")
+	ErrNoAvailableNetwork             = errors.New("no networks available")
+	ErrNetworkOptionsAllowlistIsNil   = errors.New("network options allowlist is nil")
+	ErrAsserterConfigurationIsNil     = errors.New("asserter configuration is nil")
+	ErrTimestampStartIndexMismatch    = errors.New("timestamp start index mismatch")
+	ErrOperationTypeLengthMismatch    = errors.New("operation type length mismatch")
+	ErrOperationTypeMismatch          = errors.New("operation type mismatch")
+	ErrOperationStatusLengthMismatch  = errors.New("operation status length mismatch")
+	ErrOperationStatusMismatch        = errors.New("operation status mismatch")
+	ErrErrorLengthMismatch            = errors.New("error length mismatch")
+	ErrErrorMismatch                  = errors.New("error mismatch")
+	ErrAsserterConfigError            = errors.New("asserter configuration validation failed")
+	ErrNoHeadBlock                    = errors.New("no head block")
+	ErrBlockBenchmarkTimeout          = errors.New("/block endpoint benchmarking timed out")
+	ErrAccountBalanceBenchmarkTimeout = errors.New("/account/balance endpoint benchmarking timed out")
 )

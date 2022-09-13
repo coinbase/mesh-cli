@@ -112,7 +112,7 @@ func (h *ReconcilerHandler) UpdateCounts(ctx context.Context) error {
 		}
 
 		if _, err := h.counterStorage.Update(ctx, key, big.NewInt(count)); err != nil {
-			return err
+			return fmt.Errorf("failed to key %s in counter storage: %w", key, err)
 		}
 	}
 
@@ -145,7 +145,7 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 		block,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to log reconciliation checks when reconciliation is failed: %w", err)
 	}
 
 	if h.haltOnReconciliationError {
@@ -161,28 +161,28 @@ func (h *ReconcilerHandler) ReconciliationFailed(
 			}
 			h.InactiveFailureBlock = block
 			return fmt.Errorf(
-				"%w: inactive reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-				cliErrs.ErrReconciliationFailure,
+				"inactive reconciliation error for account address %s at block index %d (computed: %s%s, live: %s%s): %w",
 				account.Address,
 				block.Index,
 				computedBalance,
 				currency.Symbol,
 				liveBalance,
 				currency.Symbol,
+				cliErrs.ErrReconciliationFailure,
 			)
 		}
 
 		// If we halt on an active reconciliation error, store in the handler.
 		h.ActiveFailureBlock = block
 		return fmt.Errorf(
-			"%w: active reconciliation error for %s at %d (computed: %s%s, live: %s%s)",
-			cliErrs.ErrReconciliationFailure,
+			"active reconciliation error for account address %s at block index %d (computed: %s%s, live: %s%s): %w",
 			account.Address,
 			block.Index,
 			computedBalance,
 			currency.Symbol,
 			liveBalance,
 			currency.Symbol,
+			cliErrs.ErrReconciliationFailure,
 		)
 	}
 
@@ -209,7 +209,7 @@ func (h *ReconcilerHandler) ReconciliationExempt(
 	// we still mark the account as being reconciled because the balance was in the range
 	// specified by exemption.
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
-		return fmt.Errorf("%w: unable to store updated reconciliation", err)
+		return fmt.Errorf("unable to store updated reconciliation currency %s of account %s at block %s: %w", types.PrintStruct(currency), types.PrintStruct(account), types.PrintStruct(block), err)
 	}
 
 	return nil
@@ -250,7 +250,7 @@ func (h *ReconcilerHandler) ReconciliationSucceeded(
 	h.counterLock.Unlock()
 
 	if err := h.balanceStorage.Reconciled(ctx, account, currency, block); err != nil {
-		return fmt.Errorf("%w: unable to store updated reconciliation", err)
+		return fmt.Errorf("unable to store updated reconciliation currency %s of account %s at block %s: %w", types.PrintStruct(currency), types.PrintStruct(account), types.PrintStruct(block), err)
 	}
 
 	return h.logger.ReconcileSuccessStream(

@@ -65,7 +65,7 @@ func (c *CheckConstructionResults) Output(path string) {
 	if len(path) > 0 {
 		writeErr := utils.SerializeAndWrite(path, c)
 		if writeErr != nil {
-			log.Printf("%s: unable to save results\n", writeErr.Error())
+			log.Printf("unable to save results: %s\n", writeErr.Error())
 		}
 	}
 }
