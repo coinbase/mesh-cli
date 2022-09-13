@@ -17,13 +17,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"time"
+
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -59,7 +61,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			errors.ErrConstructionConfigMissing,
+			cliErrs.ErrConstructionConfigMissing,
 		)
 	}
 
@@ -88,7 +90,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
+			fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err),
 		)
 	}
 
@@ -99,7 +101,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to confirm network is supported", err),
+			fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err),
 		)
 	}
 
@@ -112,7 +114,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 				Config,
 				nil,
 				nil,
-				err,
+				fmt.Errorf("network options don't match asserter configuration file %s: %w", asserterConfigurationFile, err),
 			)
 		}
 	}
@@ -130,10 +132,9 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to initialize construction tester", err),
+			fmt.Errorf("unable to initialize construction tester: %w", err),
 		)
 	}
-
 	defer constructionTester.CloseDatabase(ctx)
 
 	if err := constructionTester.PerformBroadcasts(ctx); err != nil {
@@ -141,7 +142,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to perform broadcasts", err),
+			fmt.Errorf("unable to perform broadcasts: %w", err),
 		)
 	}
 

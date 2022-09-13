@@ -23,6 +23,8 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
+
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 )
 
 var (
@@ -32,7 +34,7 @@ var (
 		Long: `Check:spec checks whether a Rosetta implementation satisfies either Coinbase-specific requirements or
 minimum requirements specified in rosetta-api.org.
 
-By default, check:spec will verify only Coinbase spec requirements. To verifiy the minimum requirements as well,
+By default, check:spec will verify only Coinbase spec requirements. To verify the minimum requirements as well,
 add the --all flag to the check:spec command:
 
 rosetta-cli check:spec --all --configuration-file [filepath]
@@ -60,7 +62,7 @@ type checkSpec struct {
 
 func newCheckSpec(ctx context.Context) (*checkSpec, error) {
 	if Config.Construction == nil {
-		return nil, fmt.Errorf("%v", errRosettaConfigNoConstruction)
+		return nil, cliErrs.ErrConstructionConfigMissing
 	}
 
 	onlineFetcherOpts := []fetcher.Option{
@@ -97,7 +99,7 @@ func newCheckSpec(ctx context.Context) (*checkSpec, error) {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%v: unable to initialize asserter for online node fetcher", fetchErr.Err),
+			fmt.Errorf("unable to initialize asserter for online fetcher: %w", fetchErr.Err),
 			"",
 			"",
 		)
@@ -132,7 +134,7 @@ func (cs *checkSpec) networkOptions(ctx context.Context) checkSpecOutput {
 		// This is an endpoint for offline mode
 		_, err := cs.offlineFetcher.NetworkOptionsRetry(ctx, Config.Network, nil)
 		if err != nil {
-			printError("%v: unable to fetch network options\n", err.Err)
+			printError("unable to fetch network options: %v\n", err.Err)
 			markAllValidationsFailed(output)
 			return output
 		}
@@ -169,7 +171,7 @@ func (cs *checkSpec) networkList(ctx context.Context) checkSpecOutput {
 
 	// endpoint for offline mode
 	if err != nil {
-		printError("%v: unable to fetch network list", err.Err)
+		printError("unable to fetch network list: %v\n", err.Err)
 		markAllValidationsFailed(output)
 		return output
 	}
@@ -211,12 +213,12 @@ func (cs *checkSpec) accountCoins(ctx context.Context) checkSpecOutput {
 		if isUTXO() {
 			acct, _, currencies, err := cs.getAccount(ctx)
 			if err != nil {
-				printError("%v: unable to get an account\n", err)
+				printError("unable to get an account: %v\n", err)
 				markAllValidationsFailed(output)
 				return output
 			}
-			if err != nil {
-				printError("%v\n", errAccountNullPointer)
+			if acct == nil {
+				printError("%v\n", cliErrs.ErrAccountNullPointer)
 				markAllValidationsFailed(output)
 				return output
 			}
@@ -228,7 +230,7 @@ func (cs *checkSpec) accountCoins(ctx context.Context) checkSpecOutput {
 				false,
 				currencies)
 			if fetchErr != nil {
-				printError("%v: unable to get coins for account: %v\n", fetchErr.Err, *acct)
+				printError("unable to get coins for account %s: %v\n", types.PrintStruct(acct), fetchErr.Err)
 				markAllValidationsFailed(output)
 				return output
 			}
@@ -261,7 +263,7 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 
 	res, fetchErr := cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if fetchErr != nil {
-		printError("%v: unable to get network status\n", fetchErr.Err)
+		printError("unable to get network status: %v\n", fetchErr.Err)
 		markAllValidationsFailed(output)
 		return output
 	}
@@ -278,7 +280,7 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 			}
 			b, fetchErr := cs.onlineFetcher.BlockRetry(ctx, Config.Network, &blockID)
 			if fetchErr != nil {
-				printError("%v: unable to fetch block %v\n", fetchErr.Err, blockID)
+				printError("unable to fetch block %s: %v\n", types.PrintStruct(blockID), fetchErr.Err)
 				markAllValidationsFailed(output)
 				return output
 			}
@@ -286,7 +288,7 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 			if block == nil {
 				block = b
 			} else if !isEqual(types.Hash(*block), types.Hash(*b)) {
-				printError("%v\n", errBlockNotIdempotent)
+				printError("%v\n", cliErrs.ErrBlockNotIdempotent)
 				setValidationStatusFailed(output, idempotent)
 			}
 		}
@@ -295,24 +297,24 @@ func (cs *checkSpec) block(ctx context.Context) checkSpecOutput {
 	// fetch the tip block again
 	res, fetchErr = cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if fetchErr != nil {
-		printError("%v: unable to get network status\n", fetchErr.Err)
+		printError("unable to get network status: %v\n", fetchErr.Err)
 		setValidationStatusFailed(output, defaultTip)
 		return output
 	}
 	tip := res.CurrentBlockIdentifier
 
-	// tip shoud be returned if block_identifier is not specified
+	// tip should be returned if block_identifier is not specified
 	emptyBlockID := &types.PartialBlockIdentifier{}
 	block, fetchErr := cs.onlineFetcher.BlockRetry(ctx, Config.Network, emptyBlockID)
 	if fetchErr != nil {
-		printError("%v: unable to fetch tip block\n", fetchErr.Err)
+		printError("unable to fetch tip block: %v\n", fetchErr.Err)
 		setValidationStatusFailed(output, defaultTip)
 		return output
 	}
 
 	// block index returned from /block should be >= the index returned by /network/status
 	if isNegative(block.BlockIdentifier.Index - tip.Index) {
-		printError("%v\n", errBlockTip)
+		printError("%v\n", cliErrs.ErrBlockTip)
 		setValidationStatusFailed(output, defaultTip)
 	}
 
@@ -383,7 +385,7 @@ func (cs *checkSpec) getAccount(ctx context.Context) (
 	error) {
 	res, err := cs.onlineFetcher.NetworkStatusRetry(ctx, Config.Network, nil)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("%v: unable to get network status", err.Err)
+		return nil, nil, nil, fmt.Errorf("unable to get network status of network %s: %w", types.PrintStruct(Config.Network), err.Err)
 	}
 
 	var acct *types.AccountIdentifier
@@ -399,7 +401,7 @@ func (cs *checkSpec) getAccount(ctx context.Context) (
 
 		block, err := cs.onlineFetcher.BlockRetry(ctx, Config.Network, blockID)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("%v: unable to fetch block at index: %v", err.Err, i)
+			return nil, nil, nil, fmt.Errorf("unable to fetch block at index %d: %w", i, err.Err)
 		}
 
 		// looking for an account in block transactions
@@ -425,7 +427,7 @@ func runCheckSpecCmd(_ *cobra.Command, _ []string) error {
 	ctx := context.Background()
 	cs, err := newCheckSpec(ctx)
 	if err != nil {
-		return fmt.Errorf("%v: unable to create checkSpec object with online URL", err)
+		return fmt.Errorf("unable to create checkSpec object with online URL: %w", err)
 	}
 
 	output := []checkSpecOutput{}

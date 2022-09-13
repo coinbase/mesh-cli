@@ -15,21 +15,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/fatih/color"
-)
 
-var (
-	errErrorEmptyMessage           = errors.New("Error object can't have empty message")
-	errErrorNegativeCode           = errors.New("Error object can't have negative code")
-	errAccountNullPointer          = errors.New("Null pointer to Account object")
-	errBlockNotIdempotent          = errors.New("Multiple calls with the same hash don't return the same block")
-	errBlockTip                    = errors.New("Unspecified block_identifier doesn't give the tip block")
-	errRosettaConfigNoConstruction = errors.New("No construction element in Rosetta config")
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 )
 
 type checkSpecAPI string
@@ -112,12 +104,12 @@ func setValidationStatusFailed(output checkSpecOutput, req checkSpecRequirement)
 func validateErrorObject(err *fetcher.Error, output checkSpecOutput) {
 	if err != nil {
 		if err.ClientErr != nil && isNegative(int64(err.ClientErr.Code)) {
-			printError("%v\n", errErrorNegativeCode)
+			printError("%v\n", cliErrs.ErrErrorNegativeCode)
 			setValidationStatusFailed(output, errorCode)
 		}
 
 		if err.ClientErr != nil && isEmpty(err.ClientErr.Message) {
-			printError("%v\n", errErrorEmptyMessage)
+			printError("%v\n", cliErrs.ErrErrorEmptyMessage)
 			setValidationStatusFailed(output, errorMessage)
 		}
 	}

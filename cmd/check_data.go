@@ -17,12 +17,12 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/coinbase/rosetta-cli/pkg/errors"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -96,7 +96,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to initialize asserter", fetchErr.Err),
+			fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err),
 			"",
 			"",
 		)
@@ -109,7 +109,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("%w: unable to confirm network", err),
+			fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err),
 			"",
 			"",
 		)
@@ -124,7 +124,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 				Config,
 				nil,
 				nil,
-				err,
+				fmt.Errorf("network options don't match asserter configuration file %s: %w", asserterConfigurationFile, err),
 				"",
 				"",
 			)
@@ -141,9 +141,15 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		nil, // only populated when doing recursive search
 		&SignalReceived,
 	)
-
 	if err != nil {
-		return fmt.Errorf("%s:%s", errors.ErrInitDataTester, err)
+		return results.ExitData(
+			Config,
+			nil,
+			nil,
+			fmt.Errorf("unable to initialize data tester: %w", err),
+			"",
+			"",
+		)
 	}
 	defer dataTester.CloseDatabase(ctx)
 

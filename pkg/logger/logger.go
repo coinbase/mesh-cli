@@ -98,7 +98,7 @@ func NewLogger(
 ) (*Logger, error) {
 	zapLogger, err := buildZapLogger(checkType, network, fields...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build zap logger: %w", err)
 	}
 	return &Logger{
 		logDir:            logDir,
@@ -118,7 +118,7 @@ func buildZapLogger(
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	baseSlice := []zap.Field {
+	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
 		zap.String("network", network.Network),
 		zap.String("check_type", string(checkType)),
@@ -236,7 +236,7 @@ func (l *Logger) AddBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
 	}
 
 	defer closeFile(f)
@@ -251,7 +251,7 @@ func (l *Logger) AddBlockStream(
 	)
 	fmt.Print(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
-		return err
+		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
 	}
 
 	return l.TransactionStream(ctx, block)
@@ -273,7 +273,7 @@ func (l *Logger) RemoveBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
 	}
 
 	defer closeFile(f)
@@ -286,7 +286,7 @@ func (l *Logger) RemoveBlockStream(
 	)
 	fmt.Print(blockString)
 	_, err = f.WriteString(blockString)
-	return err
+	return fmt.Errorf("failed to write block string %s: %w", blockString, err)
 }
 
 // TransactionStream writes the next processed block's transactions
@@ -305,7 +305,7 @@ func (l *Logger) TransactionStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
 	}
 
 	defer closeFile(f)
@@ -317,12 +317,10 @@ func (l *Logger) TransactionStream(
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
 		)
-
 		fmt.Print(transactionString)
 		_, err = f.WriteString(transactionString)
-
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
 		}
 
 		for _, op := range tx.Operations {
@@ -342,7 +340,7 @@ func (l *Logger) TransactionStream(
 				networkIndex = *op.OperationIdentifier.NetworkIndex
 			}
 
-			_, err = f.WriteString(fmt.Sprintf(
+			transactionOperationString := fmt.Sprintf(
 				"TxOp %d(%d) %s %s %s %s %s\n",
 				op.OperationIdentifier.Index,
 				networkIndex,
@@ -351,9 +349,10 @@ func (l *Logger) TransactionStream(
 				amount,
 				symbol,
 				*op.Status,
-			))
+			)
+			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
 			}
 		}
 	}
@@ -377,7 +376,7 @@ func (l *Logger) BalanceStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
 	}
 
 	defer closeFile(f)
@@ -393,7 +392,7 @@ func (l *Logger) BalanceStream(
 		)
 
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
-			return err
+			return fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
 		}
 	}
 	return nil
@@ -419,7 +418,7 @@ func (l *Logger) ReconcileSuccessStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
 	}
 
 	defer closeFile(f)
@@ -431,7 +430,7 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Index,
 	)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	reconciliationSuccessString := fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
 		reconciliationType,
 		types.AccountString(account),
@@ -439,9 +438,10 @@ func (l *Logger) ReconcileSuccessStream(
 		balance,
 		block.Index,
 		block.Hash,
-	))
+	)
+	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
 	}
 
 	return nil
@@ -490,12 +490,12 @@ func (l *Logger) ReconcileFailureStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
 	}
 
 	defer closeFile(f)
 
-	_, err = f.WriteString(fmt.Sprintf(
+	reconciliationFailureString := fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s\n",
 		reconciliationType,
 		types.AccountString(account),
@@ -504,9 +504,10 @@ func (l *Logger) ReconcileFailureStream(
 		block.Index,
 		computedBalance,
 		liveBalance,
-	))
+	)
+	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
 	}
 
 	return nil
@@ -546,7 +547,7 @@ func (l *Logger) Fatal(msg string, fields ...zap.Field) {
 func closeFile(f *os.File) {
 	err := f.Close()
 	if err != nil {
-		log.Fatal(fmt.Errorf("%w: unable to close file", err))
+		log.Fatal(fmt.Errorf("unable to close file: %w", err))
 	}
 }
 

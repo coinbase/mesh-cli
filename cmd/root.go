@@ -103,12 +103,12 @@ var (
 // rootPreRun is executed before the root command runs and sets up cpu
 // profiling.
 //
-// Bassed on https://golang.org/pkg/runtime/pprof/#hdr-Profiling_a_Go_program
+// Based on https://golang.org/pkg/runtime/pprof/#hdr-Profiling_a_Go_program
 func rootPreRun(*cobra.Command, []string) error {
 	if cpuProfile != "" {
 		f, err := os.Create(path.Clean(cpuProfile))
 		if err != nil {
-			return fmt.Errorf("%w: unable to create CPU profile file", err)
+			return fmt.Errorf("unable to create CPU profile file: %w", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
 			if err := f.Close(); err != nil {
@@ -129,7 +129,7 @@ func rootPreRun(*cobra.Command, []string) error {
 		runtime.SetBlockProfileRate(1)
 		f, err := os.Create(path.Clean(blockProfile))
 		if err != nil {
-			return fmt.Errorf("%w: unable to create block profile file", err)
+			return fmt.Errorf("unable to create block profile file: %w", err)
 		}
 
 		p := pprof.Lookup("block")
@@ -355,7 +355,7 @@ func initConfig() {
 	}
 
 	if err != nil {
-		log.Fatalf("%s: unable to load configuration", err.Error())
+		log.Fatalf("unable to load configuration: %s", err.Error())
 	}
 
 	// Override node url in configuration file when it's explicitly set via CLI
@@ -407,7 +407,7 @@ func ensureDataDirectoryExists() {
 	if len(Config.DataDirectory) == 0 {
 		tmpDir, err := utils.CreateTempDir()
 		if err != nil {
-			log.Fatalf("%s: unable to create temporary directory", err.Error())
+			log.Fatalf("unable to create temporary directory: %s", err.Error())
 		}
 
 		Config.DataDirectory = tmpDir

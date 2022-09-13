@@ -17,14 +17,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/coinbase/rosetta-cli/pkg/errors"
+	"reflect"
+	"sort"
+	"strings"
+
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
-	"reflect"
-	"sort"
-	"strings"
 )
 
 // Common helper across Construction and Data
@@ -37,46 +38,57 @@ func validateNetworkOptionsMatchesAsserterConfiguration(
 ) error {
 	var asserterConfiguration asserter.Configuration
 	if err := utils.LoadAndParse(asserterConfigurationFile, &asserterConfiguration); err != nil {
-		return fmt.Errorf("%w: failure loading / parsing asserter-configuration-file", err)
+		return fmt.Errorf("failed to load and parse asserter configuration file %s: %w", asserterConfigurationFile, err)
 	}
 
 	resp, fetchErr := f.NetworkOptions(ctx, network, nil)
 	if fetchErr != nil {
-		return fmt.Errorf("%w: failure getting /network/options", fetchErr.Err)
+		return fmt.Errorf("failed to get network options: %w", fetchErr.Err)
 	}
 
-	return validateNetworkAndAsserterAllowMatch(resp.Allow, &asserterConfiguration)
+	err := validateNetworkAndAsserterAllowMatch(resp.Allow, &asserterConfiguration)
+	if err != nil {
+		return fmt.Errorf("failed to validate network options allowlist with asserter configuration: %w", err)
+	}
+
+	return nil
 }
 
 func validateNetworkAndAsserterAllowMatch(
 	networkAllow *types.Allow, asserterConfiguration *asserter.Configuration,
 ) error {
 	if networkAllow == nil {
-		return fmt.Errorf("%w: /network/options object's Allow is nil", errors.ErrAsserterConfigError)
+		return cliErrs.ErrNetworkOptionsAllowlistIsNil
 	}
 	if asserterConfiguration == nil {
-		return fmt.Errorf("%w: asserter-configuration-file object is nil", errors.ErrAsserterConfigError)
+		return cliErrs.ErrAsserterConfigurationIsNil
 	}
 
 	if err := verifyTimestampStartIndex(
 		networkAllow.TimestampStartIndex, asserterConfiguration.AllowedTimestampStartIndex,
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to verify timestamp start index: %w", err)
 	}
 
 	if err := verifyOperationTypes(
 		networkAllow.OperationTypes, asserterConfiguration.AllowedOperationTypes,
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to verify operation types: %w", err)
 	}
 
 	if err := verifyOperationStatuses(
 		networkAllow.OperationStatuses, asserterConfiguration.AllowedOperationStatuses,
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to verify operation statuses: %w", err)
 	}
 
-	return verifyErrors(networkAllow.Errors, asserterConfiguration.AllowedErrors)
+	if err := verifyErrors(
+		networkAllow.Errors, asserterConfiguration.AllowedErrors,
+	); err != nil {
+		return fmt.Errorf("failed to verify errors: %w", err)
+	}
+
+	return nil
 }
 
 func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
@@ -85,10 +97,7 @@ func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
 		networkTsiVal = *networkTsi
 	}
 	if networkTsiVal != assertTsi {
-		return fmt.Errorf(
-			"/network/options / asserter-configuration-file timestamp start index mismatch. %d %d",
-			networkTsiVal, assertTsi,
-		)
+		return fmt.Errorf("network options timestamp start index %d, asserter configuration timestamp start index %d: %w", networkTsiVal, assertTsi, cliErrs.ErrTimestampStartIndexMismatch)
 	}
 
 	return nil
@@ -96,11 +105,7 @@ func verifyTimestampStartIndex(networkTsi *int64, assertTsi int64) error {
 
 func verifyOperationTypes(networkOt, asserterOt []string) error {
 	if len(networkOt) != len(asserterOt) {
-		return fmt.Errorf(
-			"/network/options / asserter-configuration-file operation types length mismatch %+v "+
-				"%+v",
-			networkOt, asserterOt,
-		)
+		return fmt.Errorf("network options operation type length %d, asserter configuration operation type length %d: %w", len(networkOt), len(asserterOt), cliErrs.ErrOperationTypeLengthMismatch)
 	}
 
 	sort.Strings(networkOt)
@@ -109,11 +114,7 @@ func verifyOperationTypes(networkOt, asserterOt []string) error {
 	for i, networkOperationType := range networkOt {
 		asserterOperationType := asserterOt[i]
 		if networkOperationType != asserterOperationType {
-			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation type mismatch %+v "+
-					"%+v\nnetwork operation types: %+v\nasserter operation types: %+v",
-				networkOperationType, asserterOperationType, networkOt, asserterOt,
-			)
+			return fmt.Errorf("network options operation type %s, asserter configuration operation type %s: %w", networkOperationType, asserterOperationType, cliErrs.ErrOperationTypeMismatch)
 		}
 	}
 
@@ -122,11 +123,7 @@ func verifyOperationTypes(networkOt, asserterOt []string) error {
 
 func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) error {
 	if len(networkOs) != len(asserterOs) {
-		return fmt.Errorf(
-			"/network/options / asserter-configuration-file operation statuses length mismatch "+
-				"%+v %+v",
-			networkOs, asserterOs,
-		)
+		return fmt.Errorf("network options operation status length %d, asserter configuration operation status length %d: %w", len(networkOs), len(asserterOs), cliErrs.ErrOperationStatusLengthMismatch)
 	}
 
 	sort.Slice(networkOs, func(i, j int) bool {
@@ -139,11 +136,7 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 	for i, networkOperationStatus := range networkOs {
 		asserterOperationStatus := asserterOs[i]
 		if !reflect.DeepEqual(networkOperationStatus, asserterOperationStatus) {
-			return fmt.Errorf(
-				"/network/options / asserter-configuration-file operation status mismatch %+v "+
-					"%+v\nnetwork operation statuses: %+v\nasserter operation statuses: %+v",
-				networkOperationStatus, asserterOperationStatus, networkOs, asserterOs,
-			)
+			return fmt.Errorf("network options operation type %s, asserter configuration operation type %s: %w", types.PrintStruct(networkOperationStatus), types.PrintStruct(asserterOperationStatus), cliErrs.ErrOperationStatusMismatch)
 		}
 	}
 
@@ -152,10 +145,7 @@ func verifyOperationStatuses(networkOs, asserterOs []*types.OperationStatus) err
 
 func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 	if len(networkErrors) != len(asserterErrors) {
-		return fmt.Errorf(
-			"/network/options / asserter-configuration-file errors length mismatch %+v %+v",
-			networkErrors, asserterErrors,
-		)
+		return fmt.Errorf("network options error length %d, asserter configuration error length %d: %w", len(networkErrors), len(asserterErrors), cliErrs.ErrErrorLengthMismatch)
 	}
 
 	sort.Slice(networkErrors, func(i, j int) bool {
@@ -168,11 +158,7 @@ func verifyErrors(networkErrors, asserterErrors []*types.Error) error {
 	for i, networkError := range networkErrors {
 		asserterError := asserterErrors[i]
 		if !reflect.DeepEqual(networkError, asserterError) {
-			return fmt.Errorf(
-				"/network/options / asserter-configuration-file error mismatch %+v %+v\n"+
-					"network errors: %+v\nasserter errors: %+v",
-				networkError, asserterError, networkErrors, asserterErrors,
-			)
+			return fmt.Errorf("network options error %s, asserter configuration error %s: %w", types.PrintStruct(networkError), types.PrintStruct(asserterError), cliErrs.ErrErrorMismatch)
 		}
 	}
 
