@@ -16,6 +16,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/coinbase/rosetta-cli/configuration"
 
@@ -138,7 +139,7 @@ func (h *ReconcilerHelper) LiveBalance(
 		index,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get current balance of currency %s of account %s: %w", types.PrintStruct(currency), types.PrintStruct(account), err)
 	}
 	return amt, block, nil
 }

@@ -110,7 +110,7 @@ func (h *BalanceStorageHelper) AccountBalance(
 		lookupBlock.Index,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get currency balance", err)
+		return nil, fmt.Errorf("unable to get balance of currency %s for account %s: %w", types.PrintStruct(currency), types.PrintStruct(account), err)
 	}
 
 	// If the returned balance block does not match the intended

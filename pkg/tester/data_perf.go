@@ -16,10 +16,10 @@ package tester
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/configuration"
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -56,7 +56,7 @@ func BmarkBlock(ctx context.Context, config *configuration.Configuration, fetche
 	}()
 	select {
 	case <-ctx.Done():
-		return errors.New("/block endpoint benchmarking timed out")
+		return cliErrs.ErrBlockBenchmarkTimeout
 	case timeTaken := <-elapsed:
 		rawStats.BlockEndpointTotalTime = timeTaken
 		rawStats.BlockEndpointNumErrors = int64(total_errors)
@@ -87,7 +87,7 @@ func BmarkAccountBalance(ctx context.Context, config *configuration.Configuratio
 	}()
 	select {
 	case <-ctx.Done():
-		return errors.New("/account/balance endpoint benchmarking timed out")
+		return cliErrs.ErrAccountBalanceBenchmarkTimeout
 	case timeTaken := <-elapsed:
 		rawStats.AccountBalanceEndpointTotalTime = timeTaken
 		rawStats.AccountBalanceNumErrors = int64(total_errors)

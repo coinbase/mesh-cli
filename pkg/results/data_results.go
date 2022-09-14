@@ -92,7 +92,7 @@ func (c *CheckDataResults) Output(path string) {
 	if len(path) > 0 {
 		writeErr := utils.SerializeAndWrite(path, c)
 		if writeErr != nil {
-			log.Printf("%s: unable to save results\n", writeErr.Error())
+			log.Printf("unable to save results: %s\n", writeErr.Error())
 		}
 	}
 }
@@ -192,61 +192,61 @@ func ComputeCheckDataStats(
 
 	blocks, err := counters.Get(ctx, modules.BlockCounter)
 	if err != nil {
-		log.Printf("%s: cannot get block counter", err.Error())
+		log.Printf("cannot get block counter: %s", err.Error())
 		return nil
 	}
 
 	orphans, err := counters.Get(ctx, modules.OrphanCounter)
 	if err != nil {
-		log.Printf("%s: cannot get orphan counter", err.Error())
+		log.Printf("cannot get orphan counter: %s", err.Error())
 		return nil
 	}
 
 	txs, err := counters.Get(ctx, modules.TransactionCounter)
 	if err != nil {
-		log.Printf("%s: cannot get transaction counter", err.Error())
+		log.Printf("cannot get transaction counter: %s", err.Error())
 		return nil
 	}
 
 	ops, err := counters.Get(ctx, modules.OperationCounter)
 	if err != nil {
-		log.Printf("%s: cannot get operations counter", err.Error())
+		log.Printf("cannot get operations counter: %s", err.Error())
 		return nil
 	}
 
 	accounts, err := counters.Get(ctx, modules.SeenAccounts)
 	if err != nil {
-		log.Printf("%s: cannot get accounts counter", err.Error())
+		log.Printf("cannot get accounts counter: %s", err.Error())
 		return nil
 	}
 
 	activeReconciliations, err := counters.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
-		log.Printf("%s: cannot get active reconciliations counter", err.Error())
+		log.Printf("cannot get active reconciliations counter: %s", err.Error())
 		return nil
 	}
 
 	inactiveReconciliations, err := counters.Get(ctx, modules.InactiveReconciliationCounter)
 	if err != nil {
-		log.Printf("%s: cannot get inactive reconciliations counter", err.Error())
+		log.Printf("cannot get inactive reconciliations counter: %s", err.Error())
 		return nil
 	}
 
 	exemptReconciliations, err := counters.Get(ctx, modules.ExemptReconciliationCounter)
 	if err != nil {
-		log.Printf("%s: cannot get exempt reconciliations counter", err.Error())
+		log.Printf("cannot get exempt reconciliations counter: %s", err.Error())
 		return nil
 	}
 
 	failedReconciliations, err := counters.Get(ctx, modules.FailedReconciliationCounter)
 	if err != nil {
-		log.Printf("%s: cannot get failed reconciliations counter", err.Error())
+		log.Printf("cannot get failed reconciliations counter: %s", err.Error())
 		return nil
 	}
 
 	skippedReconciliations, err := counters.Get(ctx, modules.SkippedReconciliationsCounter)
 	if err != nil {
-		log.Printf("%s: cannot get skipped reconciliations counter", err.Error())
+		log.Printf("cannot get skipped reconciliations counter: %s", err.Error())
 		return nil
 	}
 
@@ -272,7 +272,7 @@ func ComputeCheckDataStats(
 			// In this case, we use the default 0 value for the reconciliation
 			// coverage in stats.
 		case err != nil:
-			log.Printf("%s: cannot get reconciliation coverage", err.Error())
+			log.Printf("cannot get reconciliation coverage: %s", err.Error())
 			return nil
 		}
 	}
@@ -304,7 +304,7 @@ func ComputeCheckDataProgress(
 ) *CheckDataProgress {
 	networkStatus, fetchErr := fetcher.NetworkStatusRetry(ctx, network, nil)
 	if fetchErr != nil {
-		fmt.Printf("%s: cannot get network status", fetchErr.Err.Error())
+		fmt.Printf("cannot get network status: %s", fetchErr.Err.Error())
 		return nil
 	}
 	tipIndex := networkStatus.CurrentBlockIdentifier.Index
@@ -315,19 +315,19 @@ func ComputeCheckDataProgress(
 	}
 
 	// Get current tip in the case that re-orgs occurred
-	// or a custom start index was provied.
+	// or a custom start index was provided.
 	headBlock, err := blockStorage.GetHeadBlockIdentifier(ctx)
 	if errors.Is(err, storageErrs.ErrHeadBlockNotFound) {
 		return nil
 	}
 	if err != nil {
-		fmt.Printf("%s: cannot get head block", err.Error())
+		fmt.Printf("cannot get head block: %s", err.Error())
 		return nil
 	}
 
 	blocks, err := counters.Get(ctx, modules.BlockCounter)
 	if err != nil {
-		fmt.Printf("%s: cannot get block counter", err.Error())
+		fmt.Printf("cannot get block counter: %s", err.Error())
 		return nil
 	}
 
@@ -337,7 +337,7 @@ func ComputeCheckDataProgress(
 
 	orphans, err := counters.Get(ctx, modules.OrphanCounter)
 	if err != nil {
-		fmt.Printf("%s: cannot get orphan counter", err.Error())
+		fmt.Printf("cannot get orphan counter: %s", err.Error())
 		return nil
 	}
 
@@ -350,7 +350,7 @@ func ComputeCheckDataProgress(
 
 	elapsedTime, err := counters.Get(ctx, TimeElapsedCounter)
 	if err != nil {
-		fmt.Printf("%s: cannot get elapsed time", err.Error())
+		fmt.Printf("cannot get elapsed time: %s", err.Error())
 		return nil
 	}
 

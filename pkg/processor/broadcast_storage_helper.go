@@ -17,6 +17,7 @@ package processor
 import (
 	"context"
 	"fmt"
+
 	"github.com/coinbase/rosetta-sdk-go/utils"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -55,7 +56,7 @@ func (h *BroadcastStorageHelper) AtTip(
 ) (bool, error) {
 	atTip, _, err := utils.CheckStorageTip(ctx, h.network, tipDelay, h.fetcher, h.blockStorage)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check storage tip: %w", err)
 	}
 
 	return atTip, nil
@@ -68,7 +69,7 @@ func (h *BroadcastStorageHelper) CurrentBlockIdentifier(
 ) (*types.BlockIdentifier, error) {
 	blockIdentifier, err := h.blockStorage.GetHeadBlockIdentifier(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get head block identifier", err)
+		return nil, fmt.Errorf("unable to get head block identifier: %w", err)
 	}
 
 	return blockIdentifier, nil
@@ -84,7 +85,7 @@ func (h *BroadcastStorageHelper) FindTransaction(
 ) (*types.BlockIdentifier, *types.Transaction, error) {
 	newestBlock, transaction, err := h.blockStorage.FindTransaction(ctx, transactionIdentifier, txn)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: unable to perform transaction search", err)
+		return nil, nil, fmt.Errorf("unable to perform transaction search for transaction %s: %w", types.PrintStruct(transactionIdentifier), err)
 	}
 
 	return newestBlock, transaction, nil
@@ -103,7 +104,7 @@ func (h *BroadcastStorageHelper) BroadcastTransaction(
 		networkTransaction,
 	)
 	if fetchErr != nil {
-		return nil, fmt.Errorf("%w: unable to broadcast transaction", fetchErr.Err)
+		return nil, fmt.Errorf("unable to broadcast transaction %s: %w", networkTransaction, fetchErr.Err)
 	}
 
 	return transactionIdentifier, nil

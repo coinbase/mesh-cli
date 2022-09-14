@@ -16,11 +16,11 @@ package processor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
 
+	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"
@@ -153,7 +153,7 @@ func (c *CoordinatorHelper) Derive(
 	)
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionDerive, arg{argError, fetchErr})
-		return nil, nil, fetchErr.Err
+		return nil, nil, fmt.Errorf("/construction/derive call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionDerive,
@@ -185,7 +185,7 @@ func (c *CoordinatorHelper) Preprocess(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionPreprocess, arg{argError, fetchErr})
-		return nil, nil, fetchErr.Err
+		return nil, nil, fmt.Errorf("/construction/preprocess call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionPreprocess,
@@ -217,7 +217,7 @@ func (c *CoordinatorHelper) Metadata(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionMetadata, arg{argError, fetchErr})
-		return nil, nil, fetchErr.Err
+		return nil, nil, fmt.Errorf("/construction/metadata call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionMetadata,
@@ -251,7 +251,7 @@ func (c *CoordinatorHelper) Payloads(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionPayloads, arg{argError, fetchErr})
-		return "", nil, fetchErr.Err
+		return "", nil, fmt.Errorf("/construction/payloads call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionPayloads,
@@ -283,7 +283,7 @@ func (c *CoordinatorHelper) Parse(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionParse, arg{argError, fetchErr})
-		return nil, nil, nil, fetchErr.Err
+		return nil, nil, nil, fmt.Errorf("/construction/parse call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionParse,
@@ -316,7 +316,7 @@ func (c *CoordinatorHelper) Combine(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionCombine, arg{argError, fetchErr})
-		return "", fetchErr.Err
+		return "", fmt.Errorf("/construction/combine call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionCombine, arg{argNetworkTransaction, res})
@@ -342,7 +342,7 @@ func (c *CoordinatorHelper) Hash(
 
 	if fetchErr != nil {
 		c.verboseLog(reqerror, constructionHash, arg{argError, fetchErr})
-		return nil, fetchErr.Err
+		return nil, fmt.Errorf("/construction/hash call is failed: %w", fetchErr.Err)
 	}
 
 	c.verboseLog(response, constructionHash, arg{argTransactionIdentifier, res})
@@ -400,10 +400,10 @@ func (c *CoordinatorHelper) Balance(
 ) (*types.Amount, error) {
 	headBlock, err := c.blockStorage.GetHeadBlockIdentifier(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get head block identifier: %w", err)
 	}
 	if headBlock == nil {
-		return nil, errors.New("no blocks synced")
+		return nil, cliErrs.ErrNoHeadBlock
 	}
 
 	return c.balanceStorage.GetOrSetBalanceTransactional(
@@ -429,7 +429,7 @@ func (c *CoordinatorHelper) Coins(
 		accountIdentifier,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: unable to get coins", err)
+		return nil, fmt.Errorf("unable to get coins for account %s: %w", types.PrintStruct(accountIdentifier), err)
 	}
 
 	coinsToReturn := []*types.Coin{}
