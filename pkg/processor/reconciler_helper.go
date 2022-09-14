@@ -153,7 +153,7 @@ func (h *ReconcilerHelper) PruneBalances(
 	currency *types.Currency,
 	index int64,
 ) error {
-	if h.config.Data.PruningDisabled {
+	if h.config.Data.PruningDisabled || h.config.Data.PruningBalanceDisabled {
 		return nil
 	}
 

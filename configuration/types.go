@@ -321,11 +321,15 @@ type DataConfiguration struct {
 	// the results of a check:data run.
 	ResultsOutputFile string `json:"results_output_file"`
 
-	// PruningDisabled is a bolean that indicates storage pruning should
+	// PruningDisabled is a boolean that indicates storage pruning should
 	// not be attempted. This should really only ever be set to true if you
 	// wish to use `start_index` at a later point to restart from some
 	// previously synced block.
 	PruningDisabled bool `json:"pruning_disabled"`
+
+	// PruningBalanceDisabled is a boolean that indicates balance pruning
+	// should not be attempted.
+	PruningBalanceDisabled bool `json:"pruning_balance_disabled"`
 
 	// PruningFrequency is the frequency (in seconds) that we attempt
 	// to prune blocks. If not populated, we use the default value
