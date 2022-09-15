@@ -39,6 +39,7 @@
   "status_port": 9090,
   "results_output_file": "",
   "pruning_disabled": false,
+  "pruning_balance_disabled": false,
   "initial_balance_fetch_disabled": false
  },
  "perf": null
