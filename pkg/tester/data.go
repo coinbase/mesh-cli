@@ -443,7 +443,7 @@ func (t *DataTester) StartSyncing(
 func (t *DataTester) StartPruning(
 	ctx context.Context,
 ) error {
-	if t.config.Data.PruningDisabled {
+	if t.config.Data.PruningBlockDisabled {
 		return nil
 	}
 
