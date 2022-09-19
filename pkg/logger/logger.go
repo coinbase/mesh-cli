@@ -286,7 +286,11 @@ func (l *Logger) RemoveBlockStream(
 	)
 	fmt.Print(blockString)
 	_, err = f.WriteString(blockString)
-	return fmt.Errorf("failed to write block string %s: %w", blockString, err)
+	if err != nil {
+		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
+	}
+
+	return nil
 }
 
 // TransactionStream writes the next processed block's transactions

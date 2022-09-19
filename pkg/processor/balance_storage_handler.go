@@ -125,7 +125,10 @@ func (h *BalanceStorageHandler) AccountsReconciled(
 		modules.ReconciledAccounts,
 		big.NewInt(int64(count)),
 	)
-	return fmt.Errorf("failed to update the total accounts reconciled by count: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to update the total accounts reconciled by count: %w", err)
+	}
+	return nil
 }
 
 // AccountsSeen updates the total accounts seen by count.
@@ -140,5 +143,8 @@ func (h *BalanceStorageHandler) AccountsSeen(
 		modules.SeenAccounts,
 		big.NewInt(int64(count)),
 	)
-	return fmt.Errorf("failed to update the total accounts seen by count: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to update the total accounts seen by count: %w", err)
+	}
+	return nil
 }
