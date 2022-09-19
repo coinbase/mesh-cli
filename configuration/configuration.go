@@ -348,7 +348,7 @@ func assertConfiguration(ctx context.Context, config *Configuration) error {
 	}
 
 	if config.TableSize != nil && (*config.TableSize < 1 || *config.TableSize > 100) {
-		return fmt.Errorf("table_size %d is not in the range [1, 100], please check your input", *config.TableSize)
+		return fmt.Errorf("table size %d is invalid: %w", *config.TableSize, cliErrs.ErrTableSizeIsOutOfRange)
 	}
 
 	if config.ValueLogFileSize != nil && (*config.ValueLogFileSize < 128 || *config.ValueLogFileSize > 2048) {
