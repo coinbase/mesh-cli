@@ -69,7 +69,7 @@ const (
 
 	//MinTableSize unit is GB
 	MinTableSize = int64(1)
-	
+
 	//MaxTableSize unit is GB
 	MaxTableSize = int64(100)
 
@@ -179,7 +179,7 @@ func InitializeData(
 		if config.CompressionDisabled {
 			opts = append(opts, database.WithoutCompression())
 		}
-		if config.MemoryLimitDisabled {
+		if config.L0InMemoryEnabled {
 			opts = append(
 				opts,
 				database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),
@@ -191,7 +191,7 @@ func InitializeData(
 	// according to users config. tableSize means the LSM table size, when the table more than the tableSize,
 	// will trigger a compact.
 	// In default mode, we will not change the badger DB's TableSize and ValueLogFileSize for limiting memory usage
-	if config.AllInMemoryEnabled || config.MemoryLimitDisabled {
+	if config.AllInMemoryEnabled || config.L0InMemoryEnabled {
 		if config.TableSize != nil {
 			if *config.TableSize >= MinTableSize && *config.TableSize <= MaxTableSize {
 				opts = append(
