@@ -425,7 +425,7 @@ type Configuration struct {
 
 	// TableSize unit is GB, enable users to define MaxTableSize
 	// when AllInMemoryEnabled == true or L0InMemoryEnabled== true, Cli will look up this config
-	// default value is 3, modification range is [1, 100]
+	// default value is 2, modification range is [1, 100]
 	TableSize *int64 `json:"table_size,omitempty"`
 
 	// ValueLogFileSize unit is MB, enable users to define ValueLogFileSize
