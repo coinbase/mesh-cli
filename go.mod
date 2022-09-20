@@ -3,7 +3,7 @@ module github.com/coinbase/rosetta-cli
 go 1.16
 
 require (
-	github.com/coinbase/rosetta-sdk-go v0.8.0
+	github.com/coinbase/rosetta-sdk-go v0.8.1
 	github.com/fatih/color v1.13.0
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
