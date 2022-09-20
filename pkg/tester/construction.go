@@ -92,7 +92,7 @@ func InitializeConstruction(
 	if config.CompressionDisabled {
 		opts = append(opts, database.WithoutCompression())
 	}
-	if config.MemoryLimitDisabled {
+	if config.L0InMemoryEnabled {
 		opts = append(
 			opts,
 			database.WithCustomSettings(database.PerformanceBadgerOptions(dataPath)),

@@ -413,10 +413,10 @@ type Configuration struct {
 	// to performance gains.
 	CompressionDisabled bool `json:"compression_disabled"`
 
-	// MemoryLimitDisabled configures storage to increase memory
+	// L0InMemoryEnabled configures storage to increase memory
 	// usage. Enabling this massively increases performance
 	// but can use 10s of GBs of RAM, even with pruning enabled.
-	MemoryLimitDisabled bool `json:"memory_limit_disabled"`
+	L0InMemoryEnabled bool `json:"l0_in_memory_enabled"`
 
 	// AllInMemoryDisabled configures storage to increase memory
 	// usage. Enabling this massively increases performance
@@ -424,12 +424,12 @@ type Configuration struct {
 	AllInMemoryEnabled bool `json:"all_in_memory_enabled"`
 
 	// TableSize unit is GB, enable users to define MaxTableSize
-	// when AllInMemoryEnabled == true or MemoryLimitDisabled== true, Cli will look up this config
-	// default value is 3, modification range is [2, 100]
+	// when AllInMemoryEnabled == true or L0InMemoryEnabled== true, Cli will look up this config
+	// default value is 2, modification range is [1, 100]
 	TableSize *int64 `json:"table_size,omitempty"`
 
-	// TableSize unit is MB, enable users to define ValueLogFileSize
-	// when AllInMemoryEnabled == true or MemoryLimitDisabled== true, Cli will look up this config
+	// ValueLogFileSize unit is MB, enable users to define ValueLogFileSize
+	// when AllInMemoryEnabled == true or L0InMemoryEnabled== true, Cli will look up this config
 	// default value is 512, modification range is [128, 2048]
 	ValueLogFileSize *int64 `json:"value_log_file_size,omitempty"`
 

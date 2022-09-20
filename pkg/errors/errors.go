@@ -30,7 +30,7 @@ var (
 	ErrNegativeSeenBlockWorkers                                          = errors.New("the number of seen block workers is negative")
 	ErrNegativeSerialBlockWorkers                                        = errors.New("the number of serial block workers is negative")
 	ErrReconciliationOutOfRange                                          = errors.New("reconciliation is out of range, it must be in the range [0, 1]")
-	ErrTableSizeIsOutOfRange                                             = errors.New("table size is out of range, it must be in the range [2, 100]")
+	ErrTableSizeIsOutOfRange                                             = errors.New("table size is out of range, it must be in the range [1, 100]")
 	ErrValueLogFileSizeIsOutOfRange                                      = errors.New("value log file size is out of range, it must be in the range [128, 2048]")
 	ErrBalanceTrackingIsDisabledForReconciliation                        = errors.New("balance tracking cannot be disabled for reconciliation")
 	ErrBalanceTrackingIsDisabledForReconciliationCoverageEndCondition    = errors.New("balance tracking cannot be disabled for reconciliation coverage end condition")
