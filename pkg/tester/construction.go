@@ -380,7 +380,7 @@ func (t *ConstructionTester) checkTip(ctx context.Context) (int64, int64, error)
 	}
 
 	if atTip {
-		return blockIdentifier.Index, 0, nil
+		return blockIdentifier.Index, blockIdentifier.Index, nil
 	}
 
 	return -1, blockIdentifier.Index, nil
