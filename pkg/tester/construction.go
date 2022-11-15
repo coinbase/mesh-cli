@@ -368,7 +368,7 @@ func (t *ConstructionTester) StartPeriodicLogger(
 	}
 }
 
-func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
+func (t *ConstructionTester) checkTip(ctx context.Context) (int64, int64, error) {
 	atTip, blockIdentifier, err := utils.CheckNetworkTip(
 		ctx,
 		t.network,
@@ -376,14 +376,14 @@ func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
 		t.onlineFetcher,
 	)
 	if err != nil {
-		return -1, fmt.Errorf("failed to check network tip: %w", err)
+		return -1, 0, fmt.Errorf("failed to check network tip: %w", err)
 	}
 
 	if atTip {
-		return blockIdentifier.Index, nil
+		return blockIdentifier.Index, blockIdentifier.Index, nil
 	}
 
-	return -1, nil
+	return -1, blockIdentifier.Index, nil
 }
 
 // waitForTip loops until the Rosetta implementation is at tip.
@@ -393,7 +393,7 @@ func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
 
 	for {
 		// Don't wait any time before first tick if at tip.
-		tipIndex, err := t.checkTip(ctx)
+		tipIndex, currentIndex, err := t.checkTip(ctx)
 		if err != nil {
 			return -1, fmt.Errorf("failed to check tip: %w", err)
 		}
@@ -402,7 +402,7 @@ func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
 			return tipIndex, nil
 		}
 
-		log.Println("waiting for implementation to reach tip before testing...")
+		log.Printf("waiting for implementation to reach tip before testing... (current index: %d, tip delay: %d)\n", currentIndex, t.config.TipDelay)
 
 		select {
 		case <-ctx.Done():
