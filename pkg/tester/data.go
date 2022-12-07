@@ -345,7 +345,12 @@ func InitializeData(
 		//
 		// We need to do this after instantiating the balance storage handler
 		// because it is invoked within BootstrapBalances.
-		if len(config.Data.BootstrapBalances) > 0 {
+		//
+		// We only need to bootstrap balances when we run this test from
+		// genesis block. If it is not genesis block, we use the balances from
+		// previous block
+		if (config.Data.StartIndex == nil || *config.Data.StartIndex == genesisBlock.Index) &&
+			len(config.Data.BootstrapBalances) > 0 {
 			_, err := blockStorage.GetHeadBlockIdentifier(ctx)
 			switch {
 			case err == storageErrs.ErrHeadBlockNotFound:
