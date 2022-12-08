@@ -57,6 +57,7 @@ var (
 	dataDirectory          string
 	inMemoryMode           bool
 	tableSize              int64
+	requestUUID            string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -280,6 +281,13 @@ default values.`,
 		"In-memory-mode configures badger DB inMeomry option. Only when in-memory-mode=true, this will override the all_in_memory_enabled",
 	)
 
+	checkDataCmd.Flags().StringVar(
+		&requestUUID,
+		"requestUUID",
+		"",
+		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -308,6 +316,14 @@ default values.`,
 		"",
 		"Result-file configures the location of validation result. This will override the results_output_file from configuration file",
 	)
+
+	checkConstructionCmd.Flags().StringVar(
+		&requestUUID,
+		"requestUUID",
+		"",
+		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
+	)
+
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
@@ -398,6 +414,10 @@ func initConfig() {
 		Config.TableSize = &tableSize
 	} else if tableSize != -1 {
 		log.Fatalf("table-size %d is not in the range [2, 100], please check your input", tableSize)
+	}
+
+	if len(requestUUID) != 0 {
+		Config.RequestUUID = requestUUID
 	}
 }
 

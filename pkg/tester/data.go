@@ -78,6 +78,9 @@ const (
 
 	//MaxTableSize unit is MB
 	MaxValueLogFileSize = int64(2048)
+	
+	// empty requestUUID
+	EmptyRequestUUID = ""
 )
 
 var _ http.Handler = (*DataTester)(nil)
@@ -237,6 +240,7 @@ func InitializeData(
 		config.Data.LogReconciliations,
 		logger.Data,
 		network,
+		config.RequestUUID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
@@ -1084,6 +1088,7 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 		logger.Data,
 		t.network,
+		EmptyRequestUUID,
 	)
 
 	if err != nil {

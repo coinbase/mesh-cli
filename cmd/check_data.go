@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -154,6 +155,8 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
+	ctx = logger.AddRequestUUIDToContext(ctx, Config.RequestUUID)
+	
 	g.Go(func() error {
 		return dataTester.StartPeriodicLogger(ctx)
 	})

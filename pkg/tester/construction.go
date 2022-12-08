@@ -123,6 +123,7 @@ func InitializeConstruction(
 		false,
 		logger.Construction,
 		network,
+		config.RequestUUID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)

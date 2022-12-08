@@ -38,7 +38,11 @@ var _ statefulsyncer.Logger = (*Logger)(nil)
 
 type CheckType string
 
+type contextKey int
+
 const (
+	RequestUUID contextKey = iota
+
 	// blockStreamFile contains the stream of processed
 	// blocks and whether they were added or removed.
 	blockStreamFile = "blocks.txt"
@@ -78,6 +82,7 @@ type Logger struct {
 	logTransactions   bool
 	logBalanceChanges bool
 	logReconciliation bool
+	logRequestUUID    string
 
 	lastStatsMessage    string
 	lastProgressMessage string
@@ -94,9 +99,10 @@ func NewLogger(
 	logReconciliation bool,
 	checkType CheckType,
 	network *types.NetworkIdentifier,
+	logRequestUUID string,
 	fields ...zap.Field,
 ) (*Logger, error) {
-	zapLogger, err := buildZapLogger(checkType, network, fields...)
+	zapLogger, err := buildZapLogger(checkType, network, logRequestUUID, fields...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build zap logger: %w", err)
 	}
@@ -106,6 +112,7 @@ func NewLogger(
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
+		logRequestUUID:    logRequestUUID,
 		zapLogger:         zapLogger,
 	}, nil
 }
@@ -113,14 +120,16 @@ func NewLogger(
 func buildZapLogger(
 	checkType CheckType,
 	network *types.NetworkIdentifier,
+	requestUUID string,
 	fields ...zap.Field,
 ) (*zap.Logger, error) {
-	config := zap.NewDevelopmentConfig()
+	config := zap.NewProductionConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
 	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
 		zap.String("network", network.Network),
+		zap.String("requestUUID", requestUUID),
 		zap.String("check_type", string(checkType)),
 	}
 	mergedSlice := append(baseSlice, fields...)
@@ -151,6 +160,8 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 		status.Stats.ReconciliationCoverage*utils.OneHundred,
 	)
 
+	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
+
 	// Don't print out the same stats message twice.
 	if statsMessage == l.lastStatsMessage {
 		return
@@ -174,6 +185,8 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 		status.Progress.ReconcilerQueueSize,
 		status.Progress.ReconcilerLastIndex,
 	)
+
+	progressMessage = AddRequestUUID(progressMessage, l.logRequestUUID)
 
 	// Don't print out the same progress message twice.
 	if progressMessage == l.lastProgressMessage {
@@ -202,6 +215,8 @@ func (l *Logger) LogConstructionStatus(
 		return
 	}
 
+	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
+
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
 }
@@ -216,7 +231,7 @@ func LogMemoryStats(ctx context.Context) {
 		memUsage.System,
 		memUsage.GarbageCollections,
 	)
-
+	statsMessage = AddRequestUUIDFromContext(ctx, statsMessage)
 	color.Cyan(statsMessage)
 }
 
@@ -242,12 +257,13 @@ func (l *Logger) AddBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s with Parent Block %d:%s\n",
+		"%s Block %d:%s with Parent Block %d:%s, RequestUUID: %s\n",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
+		l.logRequestUUID,
 	)
 	fmt.Print(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
@@ -279,10 +295,11 @@ func (l *Logger) RemoveBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s\n",
+		"%s Block %d:%s, RequestUUID: %s\n",
 		removeEvent,
 		block.Index,
 		block.Hash,
+		l.logRequestUUID,
 	)
 	fmt.Print(blockString)
 	_, err = f.WriteString(blockString)
@@ -316,10 +333,11 @@ func (l *Logger) TransactionStream(
 
 	for _, tx := range block.Transactions {
 		transactionString := fmt.Sprintf(
-			"Transaction %s at Block %d:%s\n",
+			"Transaction %s at Block %d:%s, RequestUUID: %s\n",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
+			l.logRequestUUID,
 		)
 		fmt.Print(transactionString)
 		_, err = f.WriteString(transactionString)
@@ -394,7 +412,7 @@ func (l *Logger) BalanceStream(
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
-
+		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			return fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
 		}
@@ -435,13 +453,14 @@ func (l *Logger) ReconcileSuccessStream(
 	)
 
 	reconciliationSuccessString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s, RequestUUID: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
 		balance,
 		block.Index,
 		block.Hash,
+		l.logRequestUUID,
 	)
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
@@ -500,7 +519,7 @@ func (l *Logger) ReconcileFailureStream(
 	defer closeFile(f)
 
 	reconciliationFailureString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s, RequestUUID: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -508,6 +527,7 @@ func (l *Logger) ReconcileFailureStream(
 		block.Index,
 		computedBalance,
 		liveBalance,
+		l.logRequestUUID,
 	)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
@@ -564,4 +584,36 @@ func LogTransactionCreated(
 		"Transaction Created: %s\n",
 		transactionIdentifier.Hash,
 	)
+}
+
+// Add requestUUID to the tip
+func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
+	requestUUID := requestUUIDFromContext(ctx)
+	if requestUUID != "" {
+		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+	}
+	return msg
+}
+
+// Add requestUUID to the tip
+func AddRequestUUID(msg string, requestUUID string) string {
+	if requestUUID != "" {
+		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+	}
+	return msg
+}
+
+// AddRequestUUIDToContext will add a requestUUIDto the context, and return the new context
+func AddRequestUUIDToContext(ctx context.Context, uuid string) context.Context {
+	return context.WithValue(ctx, RequestUUID, uuid)
+}
+
+// requestUUIDFromContext is used to extract a request UUID from a context
+func requestUUIDFromContext(ctx context.Context) string {
+	switch v := ctx.Value(RequestUUID).(type) {
+	case string:
+		return v
+	default:
+		return ""
+	}
 }

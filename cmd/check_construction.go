@@ -20,6 +20,7 @@ import (
 	"time"
 
 	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	"github.com/coinbase/rosetta-cli/pkg/logger"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
@@ -147,6 +148,8 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	ctx = logger.AddRequestUUIDToContext(ctx, Config.RequestUUID)
+
 	g.Go(func() error {
 		return constructionTester.StartPeriodicLogger(ctx)
 	})
