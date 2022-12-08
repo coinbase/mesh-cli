@@ -28,6 +28,9 @@ const (
 	// MemoryLoggingFrequency is the frequency that memory
 	// usage stats are logged to the terminal.
 	MemoryLoggingFrequency = 10 * time.Second
+
+	// ReadHeaderTimeout is the header timeout for server
+	ReadHeaderTimeout = 5 * time.Second
 )
 
 // LogMemoryLoop runs a loop that logs memory usage.
@@ -57,8 +60,9 @@ func StartServer(
 	port uint,
 ) error {
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: handler,
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           handler,
+		ReadHeaderTimeout: ReadHeaderTimeout,
 	}
 
 	go func() {
