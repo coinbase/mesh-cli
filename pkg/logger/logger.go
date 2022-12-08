@@ -168,7 +168,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastStatsMessage = statsMessage
-	color.Cyan(statsMessage)
+	l.zapLogger.Info(statsMessage)
 
 	// If Progress is nil, it means we're already done.
 	if status.Progress == nil {
@@ -194,7 +194,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastProgressMessage = progressMessage
-	color.Cyan(progressMessage)
+	l.zapLogger.Info(progressMessage)
 }
 
 // LogConstructionStatus logs results.CheckConstructionStatus.
@@ -218,7 +218,7 @@ func (l *Logger) LogConstructionStatus(
 	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
 
 	l.lastStatsMessage = statsMessage
-	color.Cyan(statsMessage)
+	l.zapLogger.Info(statsMessage)
 }
 
 // LogMemoryStats logs memory usage information.
@@ -257,7 +257,7 @@ func (l *Logger) AddBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s with Parent Block %d:%s, RequestUUID: %s\n",
+		"%s Block %d:%s with Parent Block %d:%s, RequestUUID: %s",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
@@ -265,7 +265,7 @@ func (l *Logger) AddBlockStream(
 		block.ParentBlockIdentifier.Hash,
 		l.logRequestUUID,
 	)
-	fmt.Print(blockString)
+	l.zapLogger.Info(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
 	}
@@ -295,13 +295,13 @@ func (l *Logger) RemoveBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s, RequestUUID: %s\n",
+		"%s Block %d:%s, RequestUUID: %s",
 		removeEvent,
 		block.Index,
 		block.Hash,
 		l.logRequestUUID,
 	)
-	fmt.Print(blockString)
+	l.zapLogger.Info(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
@@ -333,13 +333,13 @@ func (l *Logger) TransactionStream(
 
 	for _, tx := range block.Transactions {
 		transactionString := fmt.Sprintf(
-			"Transaction %s at Block %d:%s, RequestUUID: %s\n",
+			"Transaction %s at Block %d:%s, RequestUUID: %s",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
 			l.logRequestUUID,
 		)
-		fmt.Print(transactionString)
+		l.zapLogger.Info(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
 			return fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
@@ -363,7 +363,7 @@ func (l *Logger) TransactionStream(
 			}
 
 			transactionOperationString := fmt.Sprintf(
-				"TxOp %d(%d) %s %s %s %s %s\n",
+				"TxOp %d(%d) %s %s %s %s %s, RequestUUID: %s",
 				op.OperationIdentifier.Index,
 				networkIndex,
 				op.Type,
@@ -371,7 +371,9 @@ func (l *Logger) TransactionStream(
 				amount,
 				symbol,
 				*op.Status,
+				l.logRequestUUID,
 			)
+			l.zapLogger.Info(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
 				return fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
@@ -405,14 +407,16 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s:%s Block: %d:%s",
+			"Account: %s Change: %s:%s Block: %d:%s, RequestUUID: %s",
 			balanceChange.Account.Address,
 			balanceChange.Difference,
 			types.CurrencyString(balanceChange.Currency),
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
+			l.logRequestUUID,
 		)
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
+		l.zapLogger.Info(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			return fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
 		}
@@ -446,14 +450,15 @@ func (l *Logger) ReconcileSuccessStream(
 	defer closeFile(f)
 
 	log.Printf(
-		"%s Reconciled %s at %d\n",
+		"%s Reconciled %s at %d, RequestUUID: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		block.Index,
+		l.logRequestUUID,
 	)
 
 	reconciliationSuccessString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s, RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s, RequestUUID: %s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -462,6 +467,8 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Hash,
 		l.logRequestUUID,
 	)
+	l.zapLogger.Info(reconciliationSuccessString)
+	
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
 		return fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
@@ -519,7 +526,7 @@ func (l *Logger) ReconcileFailureStream(
 	defer closeFile(f)
 
 	reconciliationFailureString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s, RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s, RequestUUID: %s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -529,6 +536,7 @@ func (l *Logger) ReconcileFailureStream(
 		liveBalance,
 		l.logRequestUUID,
 	)
+	l.zapLogger.Info(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
 		return fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
@@ -590,7 +598,7 @@ func LogTransactionCreated(
 func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	requestUUID := requestUUIDFromContext(ctx)
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s,RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
@@ -598,7 +606,7 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s,RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
