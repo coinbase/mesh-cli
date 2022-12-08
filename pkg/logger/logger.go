@@ -112,7 +112,7 @@ func NewLogger(
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
-		logRequestUUID: logRequestUUID,
+		logRequestUUID:    logRequestUUID,
 		zapLogger:         zapLogger,
 	}, nil
 }
@@ -594,7 +594,6 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	}
 	return msg
 }
-
 
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
