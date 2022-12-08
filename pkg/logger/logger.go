@@ -257,7 +257,7 @@ func (l *Logger) AddBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s with Parent Block %d:%s , RequestUUID: %s\n",
+		"%s Block %d:%s with Parent Block %d:%s ,RequestUUID: %s\n",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
@@ -295,7 +295,7 @@ func (l *Logger) RemoveBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s , RequestUUID: %s\n",
+		"%s Block %d:%s ,RequestUUID: %s\n",
 		removeEvent,
 		block.Index,
 		block.Hash,
@@ -333,7 +333,7 @@ func (l *Logger) TransactionStream(
 
 	for _, tx := range block.Transactions {
 		transactionString := fmt.Sprintf(
-			"Transaction %s at Block %d:%s  , RequestUUID: %s\n",
+			"Transaction %s at Block %d:%s  ,RequestUUID: %s\n",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
@@ -453,7 +453,7 @@ func (l *Logger) ReconcileSuccessStream(
 	)
 
 	reconciliationSuccessString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s , RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s ,RequestUUID: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -519,7 +519,7 @@ func (l *Logger) ReconcileFailureStream(
 	defer closeFile(f)
 
 	reconciliationFailureString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s , RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s ,RequestUUID: %s\n",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -590,7 +590,7 @@ func LogTransactionCreated(
 func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	requestUUID := requestUUIDFromContext(ctx)
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
 	}
 	return msg
 }
@@ -598,7 +598,7 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
 	}
 	return msg
 }
