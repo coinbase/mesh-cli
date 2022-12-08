@@ -123,7 +123,7 @@ func buildZapLogger(
 	requestUUID string,
 	fields ...zap.Field,
 ) (*zap.Logger, error) {
-	config := zap.NewDevelopmentConfig()
+	config := zap.NewProductionConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
 	baseSlice := []zap.Field{
