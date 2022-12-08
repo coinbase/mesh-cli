@@ -251,7 +251,9 @@ func (l *Logger) AddBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -289,7 +291,9 @@ func (l *Logger) RemoveBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -304,7 +308,9 @@ func (l *Logger) RemoveBlockStream(
 	l.zapLogger.Info(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
-		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
+		err = fmt.Errorf("failed to write block string %s: %w", blockString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
@@ -326,7 +332,9 @@ func (l *Logger) TransactionStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -342,7 +350,9 @@ func (l *Logger) TransactionStream(
 		l.zapLogger.Info(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
-			return fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
+			err = fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
+			l.zapLogger.Error(err.Error())
+			return err
 		}
 
 		for _, op := range tx.Operations {
@@ -376,7 +386,9 @@ func (l *Logger) TransactionStream(
 			l.zapLogger.Info(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
-				return fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
+				err = fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
+				l.zapLogger.Error(err.Error())
+				return err
 			}
 		}
 	}
@@ -400,7 +412,9 @@ func (l *Logger) BalanceStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -418,7 +432,9 @@ func (l *Logger) BalanceStream(
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
 		l.zapLogger.Info(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
-			return fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
+			err = fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
+			l.zapLogger.Error(err.Error())
+			return err
 		}
 	}
 	return nil
@@ -444,7 +460,9 @@ func (l *Logger) ReconcileSuccessStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -471,7 +489,9 @@ func (l *Logger) ReconcileSuccessStream(
 	
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
-		return fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
+		err = fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
@@ -520,7 +540,9 @@ func (l *Logger) ReconcileFailureStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -539,7 +561,9 @@ func (l *Logger) ReconcileFailureStream(
 	l.zapLogger.Info(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
-		return fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
+		err = fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
