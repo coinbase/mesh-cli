@@ -367,6 +367,9 @@ type Configuration struct {
 	// binary is being executed.
 	DataDirectory string `json:"data_directory"`
 
+	// Make search log easier when validation pool is working on different request
+	RequestUUID string `json:"requestUUID,omitempty"`
+
 	// HTTPTimeout is the timeout for a HTTP request in seconds.
 	HTTPTimeout uint64 `json:"http_timeout"`
 
