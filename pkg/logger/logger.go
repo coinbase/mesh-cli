@@ -598,7 +598,7 @@ func LogTransactionCreated(
 func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	requestUUID := requestUUIDFromContext(ctx)
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
@@ -606,7 +606,7 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
