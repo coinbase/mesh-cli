@@ -259,14 +259,14 @@ func (l *Logger) AddBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s with Parent Block %d:%s, RequestUUID: %s",
+		"%s Block %d:%s with Parent Block %d:%s",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
-		l.logRequestUUID,
 	)
+	blockString = AddRequestUUID(blockString, l.logRequestUUID)
 	l.zapLogger.Info(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
@@ -299,12 +299,12 @@ func (l *Logger) RemoveBlockStream(
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s, RequestUUID: %s",
+		"%s Block %d:%s",
 		removeEvent,
 		block.Index,
 		block.Hash,
-		l.logRequestUUID,
 	)
+	blockString = AddRequestUUID(blockString, l.logRequestUUID)
 	l.zapLogger.Info(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
@@ -341,12 +341,12 @@ func (l *Logger) TransactionStream(
 
 	for _, tx := range block.Transactions {
 		transactionString := fmt.Sprintf(
-			"Transaction %s at Block %d:%s, RequestUUID: %s",
+			"Transaction %s at Block %d:%s",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
-			l.logRequestUUID,
 		)
+		transactionString = AddRequestUUID(transactionString, l.logRequestUUID)
 		l.zapLogger.Info(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
@@ -373,7 +373,7 @@ func (l *Logger) TransactionStream(
 			}
 
 			transactionOperationString := fmt.Sprintf(
-				"TxOp %d(%d) %s %s %s %s %s, RequestUUID: %s",
+				"TxOp %d(%d) %s %s %s %s %s",
 				op.OperationIdentifier.Index,
 				networkIndex,
 				op.Type,
@@ -381,8 +381,8 @@ func (l *Logger) TransactionStream(
 				amount,
 				symbol,
 				*op.Status,
-				l.logRequestUUID,
 			)
+			transactionOperationString = AddRequestUUID(transactionOperationString, l.logRequestUUID)
 			l.zapLogger.Info(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
@@ -421,13 +421,12 @@ func (l *Logger) BalanceStream(
 
 	for _, balanceChange := range balanceChanges {
 		balanceLog := fmt.Sprintf(
-			"Account: %s Change: %s:%s Block: %d:%s, RequestUUID: %s",
+			"Account: %s Change: %s:%s Block: %d:%s",
 			balanceChange.Account.Address,
 			balanceChange.Difference,
 			types.CurrencyString(balanceChange.Currency),
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
-			l.logRequestUUID,
 		)
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
 		l.zapLogger.Info(balanceLog)
@@ -467,24 +466,25 @@ func (l *Logger) ReconcileSuccessStream(
 
 	defer closeFile(f)
 
-	log.Printf(
-		"%s Reconciled %s at %d, RequestUUID: %s\n",
+	reconciledLog := fmt.Sprintf(
+		"%s Reconciled %s at %d",
 		reconciliationType,
 		types.AccountString(account),
 		block.Index,
-		l.logRequestUUID,
 	)
+	reconciledLog = AddRequestUUID(reconciledLog, l.logRequestUUID)
+	l.zapLogger.Info(reconciledLog)
 
 	reconciliationSuccessString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s, RequestUUID: %s",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
 		balance,
 		block.Index,
 		block.Hash,
-		l.logRequestUUID,
 	)
+	reconciliationSuccessString = AddRequestUUID(reconciliationSuccessString, l.logRequestUUID)
 	l.zapLogger.Info(reconciliationSuccessString)
 	
 	_, err = f.WriteString(reconciliationSuccessString)
@@ -548,7 +548,7 @@ func (l *Logger) ReconcileFailureStream(
 	defer closeFile(f)
 
 	reconciliationFailureString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s, RequestUUID: %s",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -556,8 +556,8 @@ func (l *Logger) ReconcileFailureStream(
 		block.Index,
 		computedBalance,
 		liveBalance,
-		l.logRequestUUID,
 	)
+	reconciliationFailureString = AddRequestUUID(reconciliationFailureString, l.logRequestUUID)
 	l.zapLogger.Info(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
