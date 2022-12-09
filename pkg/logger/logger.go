@@ -124,7 +124,7 @@ func buildZapLogger(
 	fields ...zap.Field,
 ) (*zap.Logger, error) {
 	config := zap.NewProductionConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
