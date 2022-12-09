@@ -168,7 +168,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastStatsMessage = statsMessage
-	l.zapLogger.Info(statsMessage)
+	color.Cyan(statsMessage)
 
 	// If Progress is nil, it means we're already done.
 	if status.Progress == nil {
@@ -194,7 +194,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastProgressMessage = progressMessage
-	l.zapLogger.Info(progressMessage)
+	color.Cyan(progressMessage)
 }
 
 // LogConstructionStatus logs results.CheckConstructionStatus.
@@ -218,7 +218,7 @@ func (l *Logger) LogConstructionStatus(
 	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
 
 	l.lastStatsMessage = statsMessage
-	l.zapLogger.Info(statsMessage)
+	color.Cyan(statsMessage)
 }
 
 // LogMemoryStats logs memory usage information.
@@ -252,7 +252,7 @@ func (l *Logger) AddBlockStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -267,7 +267,7 @@ func (l *Logger) AddBlockStream(
 		block.ParentBlockIdentifier.Hash,
 	)
 	blockString = AddRequestUUID(blockString, l.logRequestUUID)
-	l.zapLogger.Info(blockString)
+	color.Cyan(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
 	}
@@ -292,7 +292,7 @@ func (l *Logger) RemoveBlockStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -305,11 +305,11 @@ func (l *Logger) RemoveBlockStream(
 		block.Hash,
 	)
 	blockString = AddRequestUUID(blockString, l.logRequestUUID)
-	l.zapLogger.Info(blockString)
+	color.Cyan(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
 		err = fmt.Errorf("failed to write block string %s: %w", blockString, err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -333,7 +333,7 @@ func (l *Logger) TransactionStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -347,11 +347,11 @@ func (l *Logger) TransactionStream(
 			block.BlockIdentifier.Hash,
 		)
 		transactionString = AddRequestUUID(transactionString, l.logRequestUUID)
-		l.zapLogger.Info(transactionString)
+		color.Cyan(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
 			err = fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
-			l.zapLogger.Error(err.Error())
+			color.Red(err.Error())
 			return err
 		}
 
@@ -383,11 +383,11 @@ func (l *Logger) TransactionStream(
 				*op.Status,
 			)
 			transactionOperationString = AddRequestUUID(transactionOperationString, l.logRequestUUID)
-			l.zapLogger.Info(transactionOperationString)
+			color.Cyan(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
 				err = fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
-				l.zapLogger.Error(err.Error())
+				color.Red(err.Error())
 				return err
 			}
 		}
@@ -413,7 +413,7 @@ func (l *Logger) BalanceStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -429,10 +429,10 @@ func (l *Logger) BalanceStream(
 			balanceChange.Block.Hash,
 		)
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
-		l.zapLogger.Info(balanceLog)
+		color.Cyan(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			err = fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
-			l.zapLogger.Error(err.Error())
+			color.Red(err.Error())
 			return err
 		}
 	}
@@ -460,7 +460,7 @@ func (l *Logger) ReconcileSuccessStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -473,7 +473,7 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Index,
 	)
 	reconciledLog = AddRequestUUID(reconciledLog, l.logRequestUUID)
-	l.zapLogger.Info(reconciledLog)
+	color.Cyan(reconciledLog)
 
 	reconciliationSuccessString := fmt.Sprintf(
 		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s",
@@ -485,12 +485,12 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Hash,
 	)
 	reconciliationSuccessString = AddRequestUUID(reconciliationSuccessString, l.logRequestUUID)
-	l.zapLogger.Info(reconciliationSuccessString)
+	color.Cyan(reconciliationSuccessString)
 	
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
 		err = fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -541,7 +541,7 @@ func (l *Logger) ReconcileFailureStream(
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -558,11 +558,11 @@ func (l *Logger) ReconcileFailureStream(
 		liveBalance,
 	)
 	reconciliationFailureString = AddRequestUUID(reconciliationFailureString, l.logRequestUUID)
-	l.zapLogger.Info(reconciliationFailureString)
+	color.Cyan(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
 		err = fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
-		l.zapLogger.Error(err.Error())
+		color.Red(err.Error())
 		return err
 	}
 
@@ -622,7 +622,7 @@ func LogTransactionCreated(
 func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	requestUUID := requestUUIDFromContext(ctx)
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestID: %s", msg, requestUUID)
 	}
 	return msg
 }
@@ -630,7 +630,7 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestID: %s", msg, requestUUID)
 	}
 	return msg
 }
