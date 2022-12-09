@@ -124,7 +124,7 @@ func buildZapLogger(
 	fields ...zap.Field,
 ) (*zap.Logger, error) {
 	config := zap.NewProductionConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
@@ -168,7 +168,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastStatsMessage = statsMessage
-	color.Cyan(statsMessage)
+	l.zapLogger.Info(statsMessage)
 
 	// If Progress is nil, it means we're already done.
 	if status.Progress == nil {
@@ -194,7 +194,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	}
 
 	l.lastProgressMessage = progressMessage
-	color.Cyan(progressMessage)
+	l.zapLogger.Info(progressMessage)
 }
 
 // LogConstructionStatus logs results.CheckConstructionStatus.
@@ -218,7 +218,7 @@ func (l *Logger) LogConstructionStatus(
 	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
 
 	l.lastStatsMessage = statsMessage
-	color.Cyan(statsMessage)
+	l.zapLogger.Info(statsMessage)
 }
 
 // LogMemoryStats logs memory usage information.
@@ -251,21 +251,23 @@ func (l *Logger) AddBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s with Parent Block %d:%s, RequestUUID: %s\n",
+		"%s Block %d:%s with Parent Block %d:%s",
 		addEvent,
 		block.BlockIdentifier.Index,
 		block.BlockIdentifier.Hash,
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
-		l.logRequestUUID,
 	)
-	fmt.Print(blockString)
+	blockString = AddRequestUUID(blockString, l.logRequestUUID)
+	l.zapLogger.Info(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
 	}
@@ -289,22 +291,26 @@ func (l *Logger) RemoveBlockStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, blockStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
 
 	blockString := fmt.Sprintf(
-		"%s Block %d:%s, RequestUUID: %s\n",
+		"%s Block %d:%s",
 		removeEvent,
 		block.Index,
 		block.Hash,
-		l.logRequestUUID,
 	)
-	fmt.Print(blockString)
+	blockString = AddRequestUUID(blockString, l.logRequestUUID)
+	l.zapLogger.Info(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
-		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
+		err = fmt.Errorf("failed to write block string %s: %w", blockString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
@@ -326,23 +332,27 @@ func (l *Logger) TransactionStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, transactionStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
 
 	for _, tx := range block.Transactions {
 		transactionString := fmt.Sprintf(
-			"Transaction %s at Block %d:%s, RequestUUID: %s\n",
+			"Transaction %s at Block %d:%s",
 			tx.TransactionIdentifier.Hash,
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
-			l.logRequestUUID,
 		)
-		fmt.Print(transactionString)
+		transactionString = AddRequestUUID(transactionString, l.logRequestUUID)
+		l.zapLogger.Info(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
-			return fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
+			err = fmt.Errorf("failed to write transaction string %s: %w", transactionString, err)
+			l.zapLogger.Error(err.Error())
+			return err
 		}
 
 		for _, op := range tx.Operations {
@@ -363,7 +373,7 @@ func (l *Logger) TransactionStream(
 			}
 
 			transactionOperationString := fmt.Sprintf(
-				"TxOp %d(%d) %s %s %s %s %s\n",
+				"TxOp %d(%d) %s %s %s %s %s",
 				op.OperationIdentifier.Index,
 				networkIndex,
 				op.Type,
@@ -372,9 +382,13 @@ func (l *Logger) TransactionStream(
 				symbol,
 				*op.Status,
 			)
+			transactionOperationString = AddRequestUUID(transactionOperationString, l.logRequestUUID)
+			l.zapLogger.Info(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
-				return fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
+				err = fmt.Errorf("failed to write transaction operation string %s: %w", transactionOperationString, err)
+				l.zapLogger.Error(err.Error())
+				return err
 			}
 		}
 	}
@@ -398,7 +412,9 @@ func (l *Logger) BalanceStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, balanceStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
@@ -413,8 +429,11 @@ func (l *Logger) BalanceStream(
 			balanceChange.Block.Hash,
 		)
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
+		l.zapLogger.Info(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
-			return fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
+			err = fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
+			l.zapLogger.Error(err.Error())
+			return err
 		}
 	}
 	return nil
@@ -440,31 +459,39 @@ func (l *Logger) ReconcileSuccessStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileSuccessStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
 
-	log.Printf(
-		"%s Reconciled %s at %d\n",
+	reconciledLog := fmt.Sprintf(
+		"%s Reconciled %s at %d",
 		reconciliationType,
 		types.AccountString(account),
 		block.Index,
 	)
+	reconciledLog = AddRequestUUID(reconciledLog, l.logRequestUUID)
+	l.zapLogger.Info(reconciledLog)
 
 	reconciliationSuccessString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s, RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Balance: %s Block: %d:%s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
 		balance,
 		block.Index,
 		block.Hash,
-		l.logRequestUUID,
 	)
+	reconciliationSuccessString = AddRequestUUID(reconciliationSuccessString, l.logRequestUUID)
+	l.zapLogger.Info(reconciliationSuccessString)
+	
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
-		return fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
+		err = fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
@@ -513,13 +540,15 @@ func (l *Logger) ReconcileFailureStream(
 		os.FileMode(utils.DefaultFilePermissions),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
+		err = fmt.Errorf("failed to open file %s: %w", path.Join(l.logDir, reconcileFailureStreamFile), err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	defer closeFile(f)
 
 	reconciliationFailureString := fmt.Sprintf(
-		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s, RequestUUID: %s\n",
+		"Type:%s Account: %s Currency: %s Block: %s:%d computed: %s live: %s",
 		reconciliationType,
 		types.AccountString(account),
 		types.CurrencyString(currency),
@@ -527,11 +556,14 @@ func (l *Logger) ReconcileFailureStream(
 		block.Index,
 		computedBalance,
 		liveBalance,
-		l.logRequestUUID,
 	)
+	reconciliationFailureString = AddRequestUUID(reconciliationFailureString, l.logRequestUUID)
+	l.zapLogger.Info(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
-		return fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
+		err = fmt.Errorf("failed to write reconciliation failure string %s: %w", reconciliationFailureString, err)
+		l.zapLogger.Error(err.Error())
+		return err
 	}
 
 	return nil
@@ -590,7 +622,7 @@ func LogTransactionCreated(
 func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 	requestUUID := requestUUIDFromContext(ctx)
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
@@ -598,7 +630,7 @@ func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
 // Add requestUUID to the tip
 func AddRequestUUID(msg string, requestUUID string) string {
 	if requestUUID != "" {
-		msg = fmt.Sprintf("%s,RequestUUID: %s\n", msg, requestUUID)
+		msg = fmt.Sprintf("%s, RequestUUID: %s", msg, requestUUID)
 	}
 	return msg
 }
