@@ -437,6 +437,9 @@ func initConfig() {
 
 	if statusPort > 0 {
 		Config.Data.StatusPort = statusPort
+		if Config.Construction != nil {
+			Config.Construction.StatusPort = statusPort
+		}
 	}
 }
 

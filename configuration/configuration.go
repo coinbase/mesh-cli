@@ -57,8 +57,7 @@ func DefaultPerfConfiguration() *CheckPerfConfiguration {
 }
 
 // DefaultConfiguration returns a *Configuration with the
-// EthereumNetwork, DefaultURL, DefaultTimeout,
-// DefaultConstructionConfiguration and DefaultDataConfiguration.
+// EthereumNetwork, DefaultURL, DefaultTimeout, and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
 		Network:              EthereumNetwork,
