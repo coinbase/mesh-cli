@@ -332,6 +332,13 @@ default values.`,
 		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
 	)
 
+	checkConstructionCmd.Flags().UintVar(
+		&statusPort,
+		"status-port",
+		0,
+		"status-port configures the status query port, this will override the status_port",
+	)
+
 	rootCmd.AddCommand(checkConstructionCmd)
 
 	// View Commands
