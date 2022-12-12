@@ -58,7 +58,7 @@ var (
 	inMemoryMode           bool
 	tableSize              int64
 	requestUUID            string
-	statusPort			   uint
+	statusPort             uint
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
