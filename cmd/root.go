@@ -58,6 +58,7 @@ var (
 	inMemoryMode           bool
 	tableSize              int64
 	requestUUID            string
+	statusPort             uint
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -288,6 +289,13 @@ default values.`,
 		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
 	)
 
+	checkDataCmd.Flags().UintVar(
+		&statusPort,
+		"status-port",
+		0,
+		"status-port configures the status query port, this will override the status_port",
+	)
+
 	rootCmd.AddCommand(checkDataCmd)
 	checkConstructionCmd.Flags().StringVar(
 		&asserterConfigurationFile,
@@ -322,6 +330,13 @@ default values.`,
 		"requestUUID",
 		"",
 		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
+	)
+
+	checkConstructionCmd.Flags().UintVar(
+		&statusPort,
+		"status-port",
+		0,
+		"status-port configures the status query port, this will override the status_port",
 	)
 
 	rootCmd.AddCommand(checkConstructionCmd)
@@ -418,6 +433,13 @@ func initConfig() {
 
 	if len(requestUUID) != 0 {
 		Config.RequestUUID = requestUUID
+	}
+
+	if statusPort > 0 {
+		Config.Data.StatusPort = statusPort
+		if Config.Construction != nil {
+			Config.Construction.StatusPort = statusPort
+		}
 	}
 }
 
