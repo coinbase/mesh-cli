@@ -59,6 +59,7 @@ var (
 	tableSize              int64
 	requestUUID            string
 	statusPort             uint
+	InfoMetaData           string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -289,6 +290,13 @@ default values.`,
 		"requestUUID configures the requestUUID in logs, which aims to enable search logs by requestUUID",
 	)
 
+	checkDataCmd.Flags().StringVar(
+		&InfoMetaData,
+		"info-metadata",
+		"",
+		"metadata configures the metadata which aims to show in logs",
+	)
+
 	checkDataCmd.Flags().UintVar(
 		&statusPort,
 		"status-port",
@@ -440,6 +448,10 @@ func initConfig() {
 		if Config.Construction != nil {
 			Config.Construction.StatusPort = statusPort
 		}
+	}
+
+	if len(InfoMetaData) != 0 {
+		Config.InfoMetaData = InfoMetaData	
 	}
 }
 

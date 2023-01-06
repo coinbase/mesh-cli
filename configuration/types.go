@@ -461,6 +461,10 @@ type Configuration struct {
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
 
+	// InfoMetaData is a map of key:value
+	// which aims to show in the log for search
+	InfoMetaData string `json:"info_metadata,omitempty"`
+
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 	Perf         *CheckPerfConfiguration    `json:"perf"`

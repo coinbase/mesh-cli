@@ -115,6 +115,7 @@ func InitializeConstruction(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
+	logInfoMetaData := logger.ConvertStringToMap(config.InfoMetaData)
 	logger, err := logger.NewLogger(
 		dataPath,
 		false,
@@ -124,6 +125,7 @@ func InitializeConstruction(
 		logger.Construction,
 		network,
 		config.RequestUUID,
+		logInfoMetaData,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)

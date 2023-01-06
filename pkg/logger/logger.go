@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -42,6 +43,8 @@ type contextKey int
 
 const (
 	RequestUUID contextKey = iota
+
+	InfoMetaDataKey contextKey = iota
 
 	// blockStreamFile contains the stream of processed
 	// blocks and whether they were added or removed.
@@ -83,6 +86,7 @@ type Logger struct {
 	logBalanceChanges bool
 	logReconciliation bool
 	logRequestUUID    string
+	logInfoMetaData   map[string]string
 
 	lastStatsMessage    string
 	lastProgressMessage string
@@ -100,6 +104,7 @@ func NewLogger(
 	checkType CheckType,
 	network *types.NetworkIdentifier,
 	logRequestUUID string,
+	logInfoMetaData   map[string]string,
 	fields ...zap.Field,
 ) (*Logger, error) {
 	zapLogger, err := buildZapLogger(checkType, network, logRequestUUID, fields...)
@@ -113,6 +118,7 @@ func NewLogger(
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
 		logRequestUUID:    logRequestUUID,
+		logInfoMetaData:   logInfoMetaData,
 		zapLogger:         zapLogger,
 	}, nil
 }
@@ -161,6 +167,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	)
 
 	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
+	statsMessage = AddInfoMetaData(statsMessage, l.logInfoMetaData)
 
 	// Don't print out the same stats message twice.
 	if statsMessage == l.lastStatsMessage {
@@ -187,6 +194,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 	)
 
 	progressMessage = AddRequestUUID(progressMessage, l.logRequestUUID)
+	progressMessage = AddInfoMetaData(progressMessage, l.logInfoMetaData)
 
 	// Don't print out the same progress message twice.
 	if progressMessage == l.lastProgressMessage {
@@ -216,7 +224,8 @@ func (l *Logger) LogConstructionStatus(
 	}
 
 	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
-
+	statsMessage = AddInfoMetaData(statsMessage, l.logInfoMetaData)
+	
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
 }
@@ -232,6 +241,7 @@ func LogMemoryStats(ctx context.Context) {
 		memUsage.GarbageCollections,
 	)
 	statsMessage = AddRequestUUIDFromContext(ctx, statsMessage)
+	statsMessage = AddInfoMetaDataFromContext(ctx, statsMessage)
 	color.Cyan(statsMessage)
 }
 
@@ -267,6 +277,7 @@ func (l *Logger) AddBlockStream(
 		block.ParentBlockIdentifier.Hash,
 	)
 	blockString = AddRequestUUID(blockString, l.logRequestUUID)
+	blockString = AddInfoMetaData(blockString, l.logInfoMetaData)
 	color.Cyan(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
@@ -305,6 +316,7 @@ func (l *Logger) RemoveBlockStream(
 		block.Hash,
 	)
 	blockString = AddRequestUUID(blockString, l.logRequestUUID)
+	blockString = AddInfoMetaData(blockString, l.logInfoMetaData)
 	color.Cyan(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
@@ -347,6 +359,7 @@ func (l *Logger) TransactionStream(
 			block.BlockIdentifier.Hash,
 		)
 		transactionString = AddRequestUUID(transactionString, l.logRequestUUID)
+		transactionString = AddInfoMetaData(transactionString, l.logInfoMetaData)
 		color.Cyan(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
@@ -383,6 +396,7 @@ func (l *Logger) TransactionStream(
 				*op.Status,
 			)
 			transactionOperationString = AddRequestUUID(transactionOperationString, l.logRequestUUID)
+			transactionOperationString = AddInfoMetaData(transactionOperationString, l.logInfoMetaData)
 			color.Cyan(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
@@ -429,6 +443,7 @@ func (l *Logger) BalanceStream(
 			balanceChange.Block.Hash,
 		)
 		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
+		balanceLog = AddInfoMetaData(balanceLog, l.logInfoMetaData)
 		color.Cyan(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			err = fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
@@ -473,6 +488,7 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Index,
 	)
 	reconciledLog = AddRequestUUID(reconciledLog, l.logRequestUUID)
+	reconciledLog = AddInfoMetaData(reconciledLog, l.logInfoMetaData)
 	color.Cyan(reconciledLog)
 
 	reconciliationSuccessString := fmt.Sprintf(
@@ -485,6 +501,7 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Hash,
 	)
 	reconciliationSuccessString = AddRequestUUID(reconciliationSuccessString, l.logRequestUUID)
+	reconciliationSuccessString = AddInfoMetaData(reconciliationSuccessString, l.logInfoMetaData)
 	color.Cyan(reconciliationSuccessString)
 	
 	_, err = f.WriteString(reconciliationSuccessString)
@@ -558,6 +575,7 @@ func (l *Logger) ReconcileFailureStream(
 		liveBalance,
 	)
 	reconciliationFailureString = AddRequestUUID(reconciliationFailureString, l.logRequestUUID)
+	reconciliationFailureString = AddInfoMetaData(reconciliationFailureString, l.logInfoMetaData)
 	color.Cyan(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
@@ -648,4 +666,61 @@ func requestUUIDFromContext(ctx context.Context) string {
 	default:
 		return ""
 	}
+}
+
+// Add InfoMetaData k-v pairs to the tip
+func AddInfoMetaDataFromContext(ctx context.Context, msg string) string {
+	logInfoMetaData := InfoMetaDataFromContext(ctx)
+	if len(logInfoMetaData) != 0 {
+		for k, v := range logInfoMetaData {
+			msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+		}
+	}
+	return msg
+}
+
+// Add InfoMetaData k-v pairs to the tip
+func AddInfoMetaData(msg string, logInfoMetaData map[string]string) string {
+	if len(logInfoMetaData) != 0 {
+		for k, v := range logInfoMetaData {
+			msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+		}
+	}
+	return msg
+}
+
+// AddInfoMetaDataToContext will add InfoMetaData to the context, and return the new context
+func AddInfoMetaDataToContext(ctx context.Context, InfoMetaData string) context.Context {
+	return context.WithValue(ctx, InfoMetaDataKey, InfoMetaData)
+}
+
+// InfoMetaDataFromContext is used to extract InfoMetaData from a context
+func InfoMetaDataFromContext(ctx context.Context) map[string]string {
+	var metadata string
+	switch v := ctx.Value(InfoMetaDataKey).(type) {
+	case string:
+		metadata = v
+	default:
+		metadata = ""
+	}
+	return ConvertStringToMap(metadata)
+}
+
+// ConvertStringToMap is used to convert a string to map by split , and ;
+func ConvertStringToMap(metadata string) map[string]string {
+	InfoMetaDataMap := make(map[string]string)
+	if len(metadata) == 0 {
+		return InfoMetaDataMap
+	}
+	pairs := strings.Split(metadata, ",")
+	for _, pair := range pairs {
+		kv := strings.Split(pair, ":")
+		if(len(kv) != 2) {
+			log := fmt.Sprintf("the %s from %s could be transfer to key value pair", pair, metadata)
+			color.Yellow(log)
+		} else {
+			InfoMetaDataMap[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return InfoMetaDataMap
 }
