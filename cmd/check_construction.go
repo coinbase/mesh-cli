@@ -149,6 +149,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	ctx = logger.AddRequestUUIDToContext(ctx, Config.RequestUUID)
+	ctx = logger.AddInfoMetaDataToContext(ctx, Config.InfoMetaData)
 
 	g.Go(func() error {
 		return constructionTester.StartPeriodicLogger(ctx)

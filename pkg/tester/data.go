@@ -232,6 +232,7 @@ func InitializeData(
 	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
 
+	logInfoMetaData := logger.ConvertStringToMap(config.InfoMetaData)
 	logger, err := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
@@ -241,6 +242,7 @@ func InitializeData(
 		logger.Data,
 		network,
 		config.RequestUUID,
+		logInfoMetaData,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
@@ -1089,6 +1091,7 @@ func (t *DataTester) recursiveOpSearch(
 		logger.Data,
 		t.network,
 		EmptyRequestUUID,
+		nil,
 	)
 
 	if err != nil {
