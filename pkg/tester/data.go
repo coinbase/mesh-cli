@@ -180,7 +180,7 @@ func InitializeData(
 		return nil, err
 	}
 
-	//add constructionMetadata into localStore
+	//add metadata into localStore
 	opts := []database.BadgerOption{}
 	opts = append(opts, database.WithMetaData(metadata))
 	dataPathBackup := dataPath
@@ -228,7 +228,7 @@ func InitializeData(
 		}
 	}
 
-	//add constructionMetadata into localStore
+	//add metadata into localStore
 	localStore, err := database.NewBadgerDatabase(ctx, dataPathBackup, opts...)
 	if err != nil {
 		err = fmt.Errorf("unable to initialize database: %w%s", err, metadata)
@@ -321,7 +321,7 @@ func InitializeData(
 		historicalBalanceEnabled = networkOptions.Allow.HistoricalBalanceLookup
 	}
 
-	//add constructionMetadata into reconciler
+	//add metadata into reconciler
 	rOpts := []reconciler.Option{
 		reconciler.WithActiveConcurrency(int(config.Data.ActiveReconciliationConcurrency)),
 		reconciler.WithInactiveConcurrency(int(config.Data.InactiveReconciliationConcurrency)),
@@ -341,7 +341,7 @@ func InitializeData(
 		rOpts = append(rOpts, reconciler.WithDebugLogging())
 	}
 
-	//add constructionMetadata into reconciler
+	//add metadata into reconciler
 	r := reconciler.New(
 		reconcilerHelper,
 		reconcilerHandler,
@@ -416,7 +416,7 @@ func InitializeData(
 		blockWorkers = append(blockWorkers, coinStorage)
 	}
 
-	//add constructionMetadata into statefulsyncer
+	//add metadata into statefulsyncer
 	statefulSyncerOptions := []statefulsyncer.Option{
 		statefulsyncer.WithCacheSize(syncer.DefaultCacheSize),
 		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
@@ -431,7 +431,7 @@ func InitializeData(
 		)
 	}
 
-	//add constructionMetadata into syncer
+	//add metadata into syncer
 	syncer := statefulsyncer.New(
 		ctx,
 		network,
