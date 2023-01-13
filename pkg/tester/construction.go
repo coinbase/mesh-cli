@@ -107,7 +107,7 @@ func InitializeConstruction(
 		)
 	}
 
-	// localStore 
+	// add constructionMetadata into localStore
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
 		err = fmt.Errorf("unable to initialize database: %w%s", err, constructionMetadata)
@@ -128,6 +128,7 @@ func InitializeConstruction(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
+	//add constructionMetadata into logger
 	logger, err := logger.NewLogger(
 		dataPath,
 		false,
@@ -186,7 +187,7 @@ func InitializeConstruction(
 		blockStorage,
 		onlineFetcher,
 	)
-
+	//add constructionMetadata into fetcher
 	fetcherOpts := []fetcher.Option{
 		fetcher.WithMaxConnections(config.Construction.MaxOfflineConnections),
 		fetcher.WithAsserter(onlineFetcher.Asserter),
@@ -335,6 +336,7 @@ func InitializeConstruction(
 
 	broadcastStorage.Initialize(broadcastHelper, broadcastHandler)
 
+	//add constructionMetadata into syncer
 	syncer := statefulsyncer.New(
 		ctx,
 		network,
@@ -348,6 +350,7 @@ func InitializeConstruction(
 		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
 		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
+		statefulsyncer.WithMetaData(constructionMetadata),
 	)
 
 	return &ConstructionTester{
