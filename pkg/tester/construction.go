@@ -54,6 +54,7 @@ const (
 )
 
 var _ http.Handler = (*ConstructionTester)(nil)
+var constructionMetadata string
 
 // ConstructionTester coordinates the `check:construction` test.
 type ConstructionTester struct {
@@ -84,11 +85,18 @@ func InitializeConstruction(
 	signalReceived *bool,
 ) (*ConstructionTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, constructionCmdName, network)
+	metadataMap := logger.ConvertStringToMap(config.InfoMetaData)
+	metadataMap = logger.AddRequestUUIDToMap(metadataMap, config.RequestUUID)
+	constructionMetadata = logger.ConvertMapToString(metadataMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create command path: %w", err)
+		err = fmt.Errorf("failed to create command path: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	opts := []database.BadgerOption{}
+	// add constructionMetadata into localStore
+	opts = append(opts, database.WithMetaData(constructionMetadata))
 	if config.CompressionDisabled {
 		opts = append(opts, database.WithoutCompression())
 	}
@@ -99,14 +107,19 @@ func InitializeConstruction(
 		)
 	}
 
+	// localStore 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPath, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize database: %w", err)
+		err = fmt.Errorf("unable to initialize database: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	networkOptions, fetchErr := onlineFetcher.NetworkOptionsRetry(ctx, network, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get network options: %w", fetchErr.Err)
+	if fetchErr != nil {
+		err := fmt.Errorf("unable to get network options: %w%s", fetchErr.Err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 &&
@@ -115,7 +128,6 @@ func InitializeConstruction(
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
-	logInfoMetaData := logger.ConvertStringToMap(config.InfoMetaData)
 	logger, err := logger.NewLogger(
 		dataPath,
 		false,
@@ -124,11 +136,12 @@ func InitializeConstruction(
 		false,
 		logger.Construction,
 		network,
-		config.RequestUUID,
-		logInfoMetaData,
+		metadataMap,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
+		err = fmt.Errorf("unable to initialize logger with error: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
@@ -179,6 +192,7 @@ func InitializeConstruction(
 		fetcher.WithAsserter(onlineFetcher.Asserter),
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(config.MaxRetries),
+		fetcher.WithMetaData(constructionMetadata),
 	}
 	if config.Construction.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
@@ -192,13 +206,17 @@ func InitializeConstruction(
 	// Import prefunded account and save to database
 	err = keyStorage.ImportAccounts(ctx, config.Construction.PrefundedAccounts)
 	if err != nil {
+		err = fmt.Errorf("%w%s", err, constructionMetadata)
+		color.Red(err.Error())
 		return nil, err
 	}
 
 	// Load all accounts for network
 	accounts, err := keyStorage.GetAllAccounts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load addresses: %w", err)
+		err = fmt.Errorf("unable to load addresses: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	// Track balances on all addresses
@@ -206,7 +224,7 @@ func InitializeConstruction(
 		balanceStorageHelper.AddInterestingAddress(account.Address)
 	}
 
-	log.Printf("construction tester initialized with %d accounts\n", len(accounts))
+	color.Cyan("construction tester initialized with %d accounts%s\n", len(accounts), constructionMetadata)
 
 	// Load prefunded accounts
 	var accountBalanceRequests []*utils.AccountBalanceRequest
@@ -234,12 +252,16 @@ func InitializeConstruction(
 
 	accBalances, err := utils.GetAccountBalances(ctx, onlineFetcher, accountBalanceRequests)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get account balances: %w", err)
+		err = fmt.Errorf("unable to get account balances: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	err = balanceStorage.SetBalanceImported(ctx, nil, accBalances)
 	if err != nil {
-		return nil, fmt.Errorf("unable to set balances: %w", err)
+		err = fmt.Errorf("unable to set balances: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	// -------------------------------------------------------------------------
@@ -249,7 +271,9 @@ func InitializeConstruction(
 	if config.CoinSupported {
 		acctCoins, errAccCoins := utils.GetAccountCoins(ctx, onlineFetcher, acctCoinsReqs)
 		if errAccCoins != nil {
-			return nil, fmt.Errorf("unable to get account coins: %w", errAccCoins)
+			err = fmt.Errorf("unable to get account coins: %w%s", errAccCoins, constructionMetadata)
+			color.Red(err.Error())
+			return nil, err
 		}
 
 		// Extract accounts from account coins requests
@@ -260,7 +284,9 @@ func InitializeConstruction(
 
 		err = coinStorage.SetCoinsImported(ctx, accts, acctCoins)
 		if err != nil {
-			return nil, fmt.Errorf("unable to set coin balances: %w", err)
+			err = fmt.Errorf("unable to set coin balances: %w%s", err, constructionMetadata)
+			color.Red(err.Error())
+			return nil, err
 		}
 	}
 
@@ -294,7 +320,9 @@ func InitializeConstruction(
 		config.Construction.Workflows,
 	)
 	if err != nil {
-		log.Fatalf("unable to create coordinator: %s", err.Error())
+		msg := fmt.Sprintf("unable to create coordinator: %s%s", err.Error(), constructionMetadata)
+		color.Red(msg)
+		log.Fatalf(msg)
 	}
 
 	broadcastHandler := processor.NewBroadcastStorageHandler(
@@ -342,7 +370,9 @@ func InitializeConstruction(
 // CloseDatabase closes the database used by ConstructionTester.
 func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
-		log.Fatalf("error closing database: %s", err.Error())
+		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), constructionMetadata)
+		color.Red(msg)
+		log.Fatalf(msg)
 	}
 }
 
@@ -379,7 +409,9 @@ func (t *ConstructionTester) checkTip(ctx context.Context) (int64, error) {
 		t.onlineFetcher,
 	)
 	if err != nil {
-		return -1, fmt.Errorf("failed to check network tip: %w", err)
+		err = fmt.Errorf("failed to check network tip: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return -1, err
 	}
 
 	if atTip {
@@ -398,14 +430,16 @@ func (t *ConstructionTester) waitForTip(ctx context.Context) (int64, error) {
 		// Don't wait any time before first tick if at tip.
 		tipIndex, err := t.checkTip(ctx)
 		if err != nil {
-			return -1, fmt.Errorf("failed to check tip: %w", err)
+			err = fmt.Errorf("failed to check tip: %w%s", err, constructionMetadata)
+			color.Red(err.Error())
+			return -1, err
 		}
 
 		if tipIndex != -1 {
 			return tipIndex, nil
 		}
 
-		log.Println("waiting for implementation to reach tip before testing...")
+		color.Cyan("waiting for implementation to reach tip before testing...%s", constructionMetadata)
 
 		select {
 		case <-ctx.Done():
@@ -430,10 +464,14 @@ func (t *ConstructionTester) StartSyncer(
 		// we will unnecessarily sync tons of blocks before reaching any that matter.
 		startIndex, err = t.waitForTip(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to wait for tip: %w", err)
+			err = fmt.Errorf("unable to wait for tip: %w%s", err, constructionMetadata)
+			color.Red(err.Error())
+			return err
 		}
 	} else if err != nil {
-		return fmt.Errorf("unable to get last block synced: %w", err)
+		err = fmt.Errorf("unable to get last block synced: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return err
 	}
 
 	return t.syncer.Sync(ctx, startIndex, -1)
@@ -448,10 +486,12 @@ func (t *ConstructionTester) StartConstructor(
 	if t.config.Construction.ClearBroadcasts {
 		broadcasts, err := t.broadcastStorage.ClearBroadcasts(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to clear broadcasts: %w", err)
+			err = fmt.Errorf("unable to clear broadcasts: %w%s", err, constructionMetadata)
+			color.Red(err.Error())
+			return err
 		}
 
-		log.Printf("cleared %d broadcasts\n", len(broadcasts))
+		color.Cyan("cleared %d broadcasts%s\n", len(broadcasts), constructionMetadata)
 	}
 
 	return t.coordinator.Process(ctx)
@@ -482,10 +522,12 @@ func (t *ConstructionTester) PerformBroadcasts(ctx context.Context) error {
 		return nil
 	}
 
-	color.Magenta("Rebroadcasting all transactions...")
+	color.Magenta("Rebroadcasting all transactions...%s", constructionMetadata)
 
 	if err := t.broadcastStorage.BroadcastAll(ctx, false); err != nil {
-		return fmt.Errorf("unable to broadcast all transactions: %w", err)
+		err = fmt.Errorf("unable to broadcast all transactions: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
+		return err
 	}
 
 	return nil
@@ -514,7 +556,9 @@ func (t *ConstructionTester) WatchEndConditions(
 			for workflow, minOccurences := range endConditions {
 				completed, err := t.jobStorage.Completed(ctx, workflow)
 				if err != nil {
-					return fmt.Errorf("unable to fetch completed %s: %w", workflow, err)
+					err = fmt.Errorf("unable to fetch completed %s: %w%s", workflow, err, constructionMetadata)
+					color.Red(err.Error())
+					return err
 				}
 
 				if len(completed) < minOccurences {
@@ -564,12 +608,12 @@ func (t *ConstructionTester) returnFunds(
 
 	err := g.Wait()
 	if *t.signalReceived {
-		color.Red("Fund return halted")
+		color.Red("Fund return halted%s", constructionMetadata)
 		return
 	}
 
 	if !returnFundsSuccess {
-		log.Printf("unable to return funds %v\n", err)
+		color.Cyan("unable to return funds %v%s\n", err, constructionMetadata)
 	}
 }
 
@@ -579,15 +623,18 @@ func (t *ConstructionTester) HandleErr(
 	sigListeners *[]context.CancelFunc,
 ) error {
 	if *t.signalReceived {
+		err = fmt.Errorf("%v: %w%s", err.Error(), cliErrs.ErrConstructionCheckHalt, constructionMetadata)
+		color.Red(err.Error())
 		return results.ExitConstruction(
 			t.config,
 			t.counterStorage,
 			t.jobStorage,
-			fmt.Errorf("%v: %w", err.Error(), cliErrs.ErrConstructionCheckHalt),
+			err,
 		)
 	}
 
 	if !t.reachedEndConditions {
+		color.Red("%v%s", err, constructionMetadata)
 		return results.ExitConstruction(t.config, t.counterStorage, t.jobStorage, err)
 	}
 

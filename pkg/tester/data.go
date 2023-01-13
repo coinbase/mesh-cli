@@ -85,6 +85,7 @@ const (
 
 var _ http.Handler = (*DataTester)(nil)
 var _ statefulsyncer.PruneHelper = (*DataTester)(nil)
+var metadata string
 
 // DataTester coordinates the `check:data` test.
 type DataTester struct {
@@ -131,15 +132,19 @@ func loadAccounts(filePath string) ([]*types.AccountCurrency, error) {
 
 	accounts := []*types.AccountCurrency{}
 	if err := utils.LoadAndParse(filePath, &accounts); err != nil {
-		return nil, fmt.Errorf("unable to load and parse %s: %w", filePath, err)
+		err = fmt.Errorf("unable to load and parse %s: %w%s", filePath, err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
-	log.Printf(
-		"Found %d accounts at %s: %s\n",
+	msg := fmt.Sprintf(
+		"Found %d accounts at %s: %s%s\n",
 		len(accounts),
 		filePath,
 		types.PrettyPrintStruct(accounts),
+		metadata,
 	)
+	color.Cyan(msg)
 
 	return accounts, nil
 }
@@ -147,7 +152,9 @@ func loadAccounts(filePath string) ([]*types.AccountCurrency, error) {
 // CloseDatabase closes the database used by DataTester.
 func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
-		log.Fatalf("error closing database: %s", err.Error())
+		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), metadata)
+		color.Red(msg)
+		log.Fatalf(msg)
 	}
 }
 
@@ -163,11 +170,18 @@ func InitializeData(
 	signalReceived *bool,
 ) (*DataTester, error) {
 	dataPath, err := utils.CreateCommandPath(config.DataDirectory, dataCmdName, network)
+	metadataMap := logger.ConvertStringToMap(config.InfoMetaData)
+	metadataMap = logger.AddRequestUUIDToMap(metadataMap, config.RequestUUID)
+	metadata = logger.ConvertMapToString(metadataMap)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to create command path: %w", err)
+		err = fmt.Errorf("failed to create command path: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	opts := []database.BadgerOption{}
+	opts = append(opts, database.WithMetaData(metadata))
 	dataPathBackup := dataPath
 
 	if config.AllInMemoryEnabled {
@@ -215,24 +229,28 @@ func InitializeData(
 
 	localStore, err := database.NewBadgerDatabase(ctx, dataPathBackup, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize database: %w", err)
+		err = fmt.Errorf("unable to initialize database: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	exemptAccounts, err := loadAccounts(config.Data.ExemptAccounts)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load exempt accounts: %w", err)
+		err = fmt.Errorf("unable to load exempt accounts: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	interestingAccounts, err := loadAccounts(config.Data.InterestingAccounts)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load interesting accounts: %w", err)
+		err = fmt.Errorf("unable to load interesting accounts: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
 	blockStorage := modules.NewBlockStorage(localStore, config.SerialBlockWorkers)
 	balanceStorage := modules.NewBalanceStorage(localStore)
-
-	logInfoMetaData := logger.ConvertStringToMap(config.InfoMetaData)
 	logger, err := logger.NewLogger(
 		dataPath,
 		config.Data.LogBlocks,
@@ -241,11 +259,12 @@ func InitializeData(
 		config.Data.LogReconciliations,
 		logger.Data,
 		network,
-		config.RequestUUID,
-		logInfoMetaData,
+		metadataMap,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
+		err = fmt.Errorf("unable to initialize logger with error: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	var forceInactiveReconciliation bool
@@ -258,7 +277,6 @@ func InitializeData(
 		balanceStorage,
 		&forceInactiveReconciliation,
 	)
-
 	reconcilerHandler := processor.NewReconcilerHandler(
 		logger,
 		counterStorage,
@@ -269,16 +287,22 @@ func InitializeData(
 	// Get all previously seen accounts
 	seenAccounts, err := balanceStorage.GetAllAccountCurrency(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get previously seen accounts: %w", err)
+		err = fmt.Errorf("unable to get previously seen accounts: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	networkOptions, fetchErr := fetcher.NetworkOptionsRetry(ctx, network, nil)
 	if fetchErr != nil {
-		log.Fatalf("unable to get network options: %s", fetchErr.Err.Error())
+		msg := fmt.Sprintf("unable to get network options: %s%s", fetchErr.Err.Error(), metadata)
+		color.Red(msg)
+		log.Fatalf(msg)
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
-		return nil, fmt.Errorf("found balance exemptions but initial balance fetch disabled")
+		err = fmt.Errorf("found balance exemptions but initial balance fetch disabled%s", metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	parser := parser.New(
@@ -302,6 +326,7 @@ func InitializeData(
 		reconciler.WithSeenAccounts(seenAccounts),
 		reconciler.WithInactiveFrequency(int64(config.Data.InactiveReconciliationFrequency)),
 		reconciler.WithBalancePruning(),
+		reconciler.WithMetaData(metadata),
 	}
 	if config.Data.ReconcilerActiveBacklog != nil {
 		rOpts = append(rOpts, reconciler.WithBacklogSize(*config.Data.ReconcilerActiveBacklog))
@@ -366,12 +391,16 @@ func InitializeData(
 					genesisBlock,
 				)
 				if err != nil {
-					return nil, fmt.Errorf("unable to bootstrap balances: %w", err)
+					err = fmt.Errorf("unable to bootstrap balances: %w%s", err, metadata)
+					color.Red(err.Error())
+					return nil, err
 				}
 			case err != nil:
-				return nil, fmt.Errorf("unable to get head block identifier: %w", err)
+				err = fmt.Errorf("unable to get head block identifier: %w%s", err, metadata)
+				color.Red(err.Error())
+				return nil, err
 			default:
-				log.Println("Skipping balance bootstrapping because already started syncing")
+				color.Cyan("Skipping balance bootstrapping because already started syncing%s", metadata)
 			}
 		}
 	}
@@ -388,6 +417,7 @@ func InitializeData(
 		statefulsyncer.WithMaxConcurrency(config.MaxSyncConcurrency),
 		statefulsyncer.WithPastBlockLimit(config.MaxReorgDepth),
 		statefulsyncer.WithSeenConcurrency(int64(config.SeenBlockWorkers)),
+		statefulsyncer.WithMetaData(metadata),
 	}
 	if config.Data.PruningFrequency != nil {
 		statefulSyncerOptions = append(
@@ -545,7 +575,10 @@ func (t *DataTester) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err := json.NewEncoder(w).Encode(status); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		msg := err.Error()
+		msg = fmt.Sprintf("%s%s", msg, metadata)
+		color.Red(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
 	}
 }
 
@@ -560,7 +593,9 @@ func (t *DataTester) syncedStatus(ctx context.Context) (bool, int64, error) {
 		t.blockStorage,
 	)
 	if err != nil {
-		return false, -1, fmt.Errorf("failed to check storage tip: %w", err)
+		err = fmt.Errorf("failed to check storage tip: %w%s", err, metadata)
+		color.Red(err.Error())
+		return false, -1, err
 	}
 
 	var blockIndex int64 = -1
@@ -587,9 +622,10 @@ func (t *DataTester) EndAtTipLoop(
 		case <-tc.C:
 			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
-				log.Printf(
-					"unable to evaluate if syncer is at tip: %s",
+				color.Red(
+					"unable to evaluate if syncer is at tip: %s%s",
 					err.Error(),
+					metadata,
 				)
 				continue
 			}
@@ -600,6 +636,12 @@ func (t *DataTester) EndAtTipLoop(
 					"Tip: %d",
 					blockIndex,
 				)
+				msg := fmt.Sprintf(
+					"%s%s",
+					t.endConditionDetail,
+					metadata,
+				)
+				color.Cyan(msg)
 				t.cancel()
 				return
 			}
@@ -625,9 +667,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 		case <-tc.C:
 			atTip, blockIndex, err := t.syncedStatus(ctx)
 			if err != nil {
-				log.Printf(
-					"unable to evaluate syncer height or if at tip: %s",
+				color.Red(
+					"unable to evaluate syncer height or if at tip: %s%s",
 					err.Error(),
+					metadata,
 				)
 				continue
 			}
@@ -686,9 +729,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			if reconciliationCoverage.AccountCount != nil {
 				allAccounts, err := t.balanceStorage.GetAllAccountCurrency(ctx)
 				if err != nil {
-					log.Printf(
-						"unable to get account count: %s",
+					color.Red(
+						"unable to get account count: %s%s",
 						err.Error(),
+						metadata,
 					)
 					continue
 				}
@@ -705,9 +749,10 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 
 			coverage, err := t.balanceStorage.ReconciliationCoverage(ctx, coverageIndex)
 			if err != nil {
-				log.Printf(
-					"unable to get reconciliation coverage: %s",
+				color.Red(
+					"unable to get reconciliation coverage: %s%s",
 					err.Error(),
+					metadata,
 				)
 				continue
 			}
@@ -715,18 +760,25 @@ func (t *DataTester) EndReconciliationCoverage( // nolint:gocognit
 			if coverage >= reconciliationCoverage.Coverage {
 				t.endCondition = configuration.ReconciliationCoverageEndCondition
 				t.endConditionDetail = fmt.Sprintf(
-					"Coverage: %f%%",
+					"Coverage: %f",
 					coverage*utils.OneHundred,
 				)
+				msg := fmt.Sprintf(
+					"%s%s",
+					t.endConditionDetail,
+					metadata,
+				)
+				color.Cyan(msg)
 				t.cancel()
 				return
 			}
-
+			
 			color.Cyan(fmt.Sprintf(
-				"[END CONDITIONS] Waiting for reconciliation coverage after block %d (%f%%) to surpass requirement (%f%%)",
+				"[END CONDITIONS] Waiting for reconciliation coverage after block %d (%f%%) to surpass requirement (%f%%)%s",
 				firstTipIndex,
 				coverage*utils.OneHundred,
 				reconciliationCoverage.Coverage*utils.OneHundred,
+				metadata,
 			))
 		}
 	}
@@ -751,6 +803,12 @@ func (t *DataTester) EndDurationLoop(
 				"Seconds: %d",
 				int(duration.Seconds()),
 			)
+			msg := fmt.Sprintf(
+				"%s%s",
+				t.endConditionDetail,
+				metadata,
+			)
+			color.Cyan(msg)
 			t.cancel()
 			return
 		}
@@ -788,22 +846,30 @@ func (t *DataTester) WatchEndConditions(
 func (t *DataTester) CompleteReconciliations(ctx context.Context) (int64, error) {
 	activeReconciliations, err := t.counterStorage.Get(ctx, modules.ActiveReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get active reconciliations counter: %w", err)
+		err = fmt.Errorf("failed to get active reconciliations counter: %w%s", err, metadata)
+		color.Red(err.Error())
+		return -1, fmt.Errorf("failed to get active reconciliations counter: %w%s", err, metadata)
 	}
 
 	exemptReconciliations, err := t.counterStorage.Get(ctx, modules.ExemptReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get exempt reconciliations counter: %w", err)
+		err = fmt.Errorf("failed to get exempt reconciliations counter: %w%s", err, metadata)
+		color.Red(err.Error())
+		return -1, err
 	}
 
 	failedReconciliations, err := t.counterStorage.Get(ctx, modules.FailedReconciliationCounter)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get failed reconciliations counter: %w", err)
+		err = fmt.Errorf("failed to get failed reconciliations counter: %w%s", err, metadata)
+		color.Red(err.Error())
+		return -1, err
 	}
 
 	skippedReconciliations, err := t.counterStorage.Get(ctx, modules.SkippedReconciliationsCounter)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get skipped reconciliations counter: %w", err)
+		err = fmt.Errorf("failed to get skipped reconciliations counter: %w%s", err, metadata)
+		color.Red(err.Error())
+		return -1, err
 	}
 
 	return activeReconciliations.Int64() +
@@ -823,7 +889,9 @@ func (t *DataTester) WaitForEmptyQueue(
 	// and only exit when that many reconciliations have been performed.
 	startingComplete, err := t.CompleteReconciliations(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to complete reconciliations: %w", err)
+		err = fmt.Errorf("failed to complete reconciliations: %w%s", err, metadata)
+		color.Red(err.Error())
+		return err
 	}
 	startingRemaining := t.reconciler.QueueSize()
 
@@ -831,8 +899,9 @@ func (t *DataTester) WaitForEmptyQueue(
 	defer tc.Stop()
 
 	color.Cyan(
-		"[PROGRESS] remaining reconciliations: %d",
+		"[PROGRESS] remaining reconciliations: %d%s",
 		startingRemaining,
+		metadata,
 	)
 
 	for {
@@ -844,12 +913,16 @@ func (t *DataTester) WaitForEmptyQueue(
 			// We force cached counts to be written before
 			// determining if we should exit.
 			if err := t.reconcilerHandler.UpdateCounts(ctx); err != nil {
-				return fmt.Errorf("failed to update count: %w", err)
+				err = fmt.Errorf("failed to update count: %w%s", err, metadata)
+				color.Red(err.Error())
+				return err
 			}
 
 			nowComplete, err := t.CompleteReconciliations(ctx)
 			if err != nil {
-				return fmt.Errorf("failed to complete reconciliations: %w", err)
+				err = fmt.Errorf("failed to complete reconciliations: %w%s", err, metadata)
+				color.Red(err.Error())
+				return err
 			}
 
 			completed := nowComplete - startingComplete
@@ -860,8 +933,9 @@ func (t *DataTester) WaitForEmptyQueue(
 			}
 
 			color.Cyan(
-				"[PROGRESS] remaining reconciliations: %d",
+				"[PROGRESS] remaining reconciliations: %d%s",
 				remaining,
+				metadata,
 			)
 		}
 	}
@@ -873,7 +947,7 @@ func (t *DataTester) DrainReconcilerQueue(
 	ctx context.Context,
 	sigListeners *[]context.CancelFunc,
 ) error {
-	color.Cyan("draining reconciler backlog (you can disable this in your configuration file)")
+	color.Cyan("draining reconciler backlog (you can disable this in your configuration file)%s", metadata)
 
 	// To cancel all execution, need to call multiple cancel functions.
 	ctx, cancel := context.WithCancel(ctx)
@@ -898,7 +972,7 @@ func (t *DataTester) DrainReconcilerQueue(
 	}
 
 	if errors.Is(err, context.Canceled) {
-		color.Cyan("drained reconciler backlog")
+		color.Cyan("drained reconciler backlog%s", metadata)
 		return nil
 	}
 
@@ -914,11 +988,13 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 	ctx := context.Background()
 
 	if *t.signalReceived {
+		err = fmt.Errorf("%v: %w%s", err.Error(), cliErrs.ErrDataCheckHalt, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
 			t.balanceStorage,
-			fmt.Errorf("%v: %w", err.Error(), cliErrs.ErrDataCheckHalt),
+			err,
 			"",
 			"",
 		)
@@ -932,6 +1008,12 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 			"Index: %d",
 			*t.config.Data.EndConditions.Index,
 		)
+		msg := fmt.Sprintf(
+			"%s%s",
+			t.endConditionDetail,
+			metadata,
+		)
+		color.Cyan(msg)
 	}
 
 	// End condition will only be populated if there is
@@ -942,16 +1024,19 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 			t.reconciler.QueueSize() > 0 {
 			if t.config.Data.ReconciliationDrainDisabled {
 				color.Cyan(
-					"skipping reconciler backlog drain (you can enable this in your configuration file)",
+					"skipping reconciler backlog drain (you can enable this in your configuration file)%s",
+					metadata,
 				)
 			} else {
 				drainErr := t.DrainReconcilerQueue(ctx, sigListeners)
 				if drainErr != nil {
+					err = fmt.Errorf("%w%s", drainErr, metadata)
+					color.Red(err.Error())
 					return results.ExitData(
 						t.config,
 						t.counterStorage,
 						t.balanceStorage,
-						drainErr,
+						err,
 						"",
 						"",
 					)
@@ -971,6 +1056,8 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 
 	fmt.Printf("\n")
 	if t.reconcilerHandler.InactiveFailure == nil {
+		err = fmt.Errorf("%w%s", err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -983,8 +1070,11 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 
 	if !t.historicalBalanceEnabled {
 		color.Yellow(
-			"Can't find the block missing operations automatically, please enable historical balance lookup",
+			"Can't find the block missing operations automatically, please enable historical balance lookup%s",
+			metadata,
 		)
+		err = fmt.Errorf("%w%s", err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -996,7 +1086,9 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 	}
 
 	if t.config.Data.InactiveDiscrepancySearchDisabled {
-		color.Yellow("Search for inactive reconciliation discrepancy is disabled")
+		color.Yellow("Search for inactive reconciliation discrepancy is disabled%s", metadata)
+		err = fmt.Errorf("%w%s", err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -1007,7 +1099,11 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 		)
 	}
 
-	return t.FindMissingOps(ctx, err, sigListeners)
+	return t.FindMissingOps(
+		ctx, 
+		err,
+		sigListeners,
+	)
 }
 
 // FindMissingOps logs the types.BlockIdentifier of a block
@@ -1018,7 +1114,7 @@ func (t *DataTester) FindMissingOps(
 	originalErr error,
 	sigListeners *[]context.CancelFunc,
 ) error {
-	color.Cyan("Searching for block with missing operations...hold tight")
+	color.Cyan("Searching for block with missing operations...hold tight%s", metadata)
 	badBlock, err := t.recursiveOpSearch(
 		ctx,
 		sigListeners,
@@ -1027,7 +1123,7 @@ func (t *DataTester) FindMissingOps(
 		t.reconcilerHandler.InactiveFailureBlock.Index,
 	)
 	if err != nil {
-		color.Yellow("could not find block with missing ops: %s", err.Error())
+		color.Yellow("could not find block with missing ops: %s%s", err.Error(), metadata)
 		return results.ExitData(
 			t.config,
 			t.counterStorage,
@@ -1039,10 +1135,11 @@ func (t *DataTester) FindMissingOps(
 	}
 
 	color.Yellow(
-		"Missing ops for %s in block %d:%s",
+		"Missing ops for %s in block %d:%s%s",
 		types.AccountString(t.reconcilerHandler.InactiveFailure.Account),
 		badBlock.Index,
 		badBlock.Hash,
+		metadata,
 	)
 
 	return results.ExitData(
@@ -1069,13 +1166,17 @@ func (t *DataTester) recursiveOpSearch(
 	// Always use a temporary directory to find missing ops
 	tmpDir, err := utils.CreateTempDir()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create temporary directory: %w", err)
+		err = fmt.Errorf("unable to create temporary directory: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 	defer utils.RemoveTempDir(tmpDir)
 
 	localStore, err := database.NewBadgerDatabase(ctx, tmpDir)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize database: %w", err)
+		err = fmt.Errorf("unable to initialize database: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	counterStorage := modules.NewCounterStorage(localStore)
@@ -1090,12 +1191,13 @@ func (t *DataTester) recursiveOpSearch(
 		false,
 		logger.Data,
 		t.network,
-		EmptyRequestUUID,
-		nil,
+		t.logger.GetMetadataMap(),
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize logger with error: %w", err)
+		err = fmt.Errorf("unable to initialize logger with error: %w%s", err, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	t.forceInactiveReconciliation = types.Bool(false)
@@ -1187,7 +1289,9 @@ func (t *DataTester) recursiveOpSearch(
 	// Close database before starting another search, otherwise we will
 	// have n databases open when we find the offending block.
 	if storageErr := localStore.Close(ctx); storageErr != nil {
-		return nil, fmt.Errorf("unable to close database: %w", storageErr)
+		err = fmt.Errorf("unable to close database: %w%s", storageErr, metadata)
+		color.Red(err.Error())
+		return nil, err
 	}
 
 	if *t.signalReceived {
@@ -1206,18 +1310,22 @@ func (t *DataTester) recursiveOpSearch(
 
 		newEnd := endIndex - InactiveFailureLookbackWindow
 		if newEnd <= newStart {
-			return nil, fmt.Errorf(
-				"next window to check has start index %d <= end index %d",
+			err = fmt.Errorf(
+				"next window to check has start index %d <= end index %d%s",
 				newStart,
 				newEnd,
+				metadata,
 			)
+			color.Red(err.Error())
+			return nil, err
 		}
 
 		color.Cyan(
-			"Unable to find missing ops in block range %d-%d, now searching %d-%d",
+			"Unable to find missing ops in block range %d-%d, now searching %d-%d%s",
 			startIndex, endIndex,
 			newStart,
 			newEnd,
+			metadata,
 		)
 
 		return t.recursiveOpSearch(

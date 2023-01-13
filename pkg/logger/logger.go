@@ -44,7 +44,7 @@ type contextKey int
 const (
 	RequestUUID contextKey = iota
 
-	InfoMetaDataKey contextKey = iota
+	MetadataMapKey contextKey = iota
 
 	// blockStreamFile contains the stream of processed
 	// blocks and whether they were added or removed.
@@ -85,8 +85,7 @@ type Logger struct {
 	logTransactions   bool
 	logBalanceChanges bool
 	logReconciliation bool
-	logRequestUUID    string
-	logInfoMetaData   map[string]string
+	logMetadataMap    map[string]string
 
 	lastStatsMessage    string
 	lastProgressMessage string
@@ -103,11 +102,10 @@ func NewLogger(
 	logReconciliation bool,
 	checkType CheckType,
 	network *types.NetworkIdentifier,
-	logRequestUUID string,
-	logInfoMetaData   map[string]string,
+	logMetadataMap   map[string]string,
 	fields ...zap.Field,
 ) (*Logger, error) {
-	zapLogger, err := buildZapLogger(checkType, network, logRequestUUID, fields...)
+	zapLogger, err := buildZapLogger(checkType, network, fields...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build zap logger: %w", err)
 	}
@@ -117,8 +115,7 @@ func NewLogger(
 		logTransactions:   logTransactions,
 		logBalanceChanges: logBalanceChanges,
 		logReconciliation: logReconciliation,
-		logRequestUUID:    logRequestUUID,
-		logInfoMetaData:   logInfoMetaData,
+		logMetadataMap:    logMetadataMap,
 		zapLogger:         zapLogger,
 	}, nil
 }
@@ -126,7 +123,6 @@ func NewLogger(
 func buildZapLogger(
 	checkType CheckType,
 	network *types.NetworkIdentifier,
-	requestUUID string,
 	fields ...zap.Field,
 ) (*zap.Logger, error) {
 	config := zap.NewProductionConfig()
@@ -135,7 +131,6 @@ func buildZapLogger(
 	baseSlice := []zap.Field{
 		zap.String("blockchain", network.Blockchain),
 		zap.String("network", network.Network),
-		zap.String("requestUUID", requestUUID),
 		zap.String("check_type", string(checkType)),
 	}
 	mergedSlice := append(baseSlice, fields...)
@@ -166,8 +161,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 		status.Stats.ReconciliationCoverage*utils.OneHundred,
 	)
 
-	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
-	statsMessage = AddInfoMetaData(statsMessage, l.logInfoMetaData)
+	statsMessage = AddMetadata(statsMessage, l.logMetadataMap)
 
 	// Don't print out the same stats message twice.
 	if statsMessage == l.lastStatsMessage {
@@ -193,8 +187,7 @@ func (l *Logger) LogDataStatus(ctx context.Context, status *results.CheckDataSta
 		status.Progress.ReconcilerLastIndex,
 	)
 
-	progressMessage = AddRequestUUID(progressMessage, l.logRequestUUID)
-	progressMessage = AddInfoMetaData(progressMessage, l.logInfoMetaData)
+	progressMessage = AddMetadata(progressMessage, l.logMetadataMap)
 
 	// Don't print out the same progress message twice.
 	if progressMessage == l.lastProgressMessage {
@@ -223,8 +216,7 @@ func (l *Logger) LogConstructionStatus(
 		return
 	}
 
-	statsMessage = AddRequestUUID(statsMessage, l.logRequestUUID)
-	statsMessage = AddInfoMetaData(statsMessage, l.logInfoMetaData)
+	statsMessage = AddMetadata(statsMessage, l.logMetadataMap)
 	
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
@@ -240,8 +232,7 @@ func LogMemoryStats(ctx context.Context) {
 		memUsage.System,
 		memUsage.GarbageCollections,
 	)
-	statsMessage = AddRequestUUIDFromContext(ctx, statsMessage)
-	statsMessage = AddInfoMetaDataFromContext(ctx, statsMessage)
+	statsMessage = AddMetadataMapFromContext(ctx, statsMessage)
 	color.Cyan(statsMessage)
 }
 
@@ -276,8 +267,7 @@ func (l *Logger) AddBlockStream(
 		block.ParentBlockIdentifier.Index,
 		block.ParentBlockIdentifier.Hash,
 	)
-	blockString = AddRequestUUID(blockString, l.logRequestUUID)
-	blockString = AddInfoMetaData(blockString, l.logInfoMetaData)
+	blockString = AddMetadata(blockString, l.logMetadataMap)
 	color.Cyan(blockString)
 	if _, err := f.WriteString(blockString); err != nil {
 		return fmt.Errorf("failed to write block string %s: %w", blockString, err)
@@ -315,8 +305,7 @@ func (l *Logger) RemoveBlockStream(
 		block.Index,
 		block.Hash,
 	)
-	blockString = AddRequestUUID(blockString, l.logRequestUUID)
-	blockString = AddInfoMetaData(blockString, l.logInfoMetaData)
+	blockString = AddMetadata(blockString, l.logMetadataMap)
 	color.Cyan(blockString)
 	_, err = f.WriteString(blockString)
 	if err != nil {
@@ -358,8 +347,7 @@ func (l *Logger) TransactionStream(
 			block.BlockIdentifier.Index,
 			block.BlockIdentifier.Hash,
 		)
-		transactionString = AddRequestUUID(transactionString, l.logRequestUUID)
-		transactionString = AddInfoMetaData(transactionString, l.logInfoMetaData)
+		transactionString = AddMetadata(transactionString, l.logMetadataMap)
 		color.Cyan(transactionString)
 		_, err = f.WriteString(transactionString)
 		if err != nil {
@@ -395,8 +383,7 @@ func (l *Logger) TransactionStream(
 				symbol,
 				*op.Status,
 			)
-			transactionOperationString = AddRequestUUID(transactionOperationString, l.logRequestUUID)
-			transactionOperationString = AddInfoMetaData(transactionOperationString, l.logInfoMetaData)
+			transactionOperationString = AddMetadata(transactionOperationString, l.logMetadataMap)
 			color.Cyan(transactionOperationString)
 			_, err = f.WriteString(transactionOperationString)
 			if err != nil {
@@ -442,8 +429,7 @@ func (l *Logger) BalanceStream(
 			balanceChange.Block.Index,
 			balanceChange.Block.Hash,
 		)
-		balanceLog = AddRequestUUID(balanceLog, l.logRequestUUID)
-		balanceLog = AddInfoMetaData(balanceLog, l.logInfoMetaData)
+		balanceLog = AddMetadata(balanceLog, l.logMetadataMap)
 		color.Cyan(balanceLog)
 		if _, err := f.WriteString(fmt.Sprintf("%s\n", balanceLog)); err != nil {
 			err = fmt.Errorf("failed to write balance log %s: %w", balanceLog, err)
@@ -487,8 +473,7 @@ func (l *Logger) ReconcileSuccessStream(
 		types.AccountString(account),
 		block.Index,
 	)
-	reconciledLog = AddRequestUUID(reconciledLog, l.logRequestUUID)
-	reconciledLog = AddInfoMetaData(reconciledLog, l.logInfoMetaData)
+	reconciledLog = AddMetadata(reconciledLog, l.logMetadataMap)
 	color.Cyan(reconciledLog)
 
 	reconciliationSuccessString := fmt.Sprintf(
@@ -500,8 +485,7 @@ func (l *Logger) ReconcileSuccessStream(
 		block.Index,
 		block.Hash,
 	)
-	reconciliationSuccessString = AddRequestUUID(reconciliationSuccessString, l.logRequestUUID)
-	reconciliationSuccessString = AddInfoMetaData(reconciliationSuccessString, l.logInfoMetaData)
+	reconciliationSuccessString = AddMetadata(reconciliationSuccessString, l.logMetadataMap)
 	color.Cyan(reconciliationSuccessString)
 	
 	_, err = f.WriteString(reconciliationSuccessString)
@@ -574,8 +558,7 @@ func (l *Logger) ReconcileFailureStream(
 		computedBalance,
 		liveBalance,
 	)
-	reconciliationFailureString = AddRequestUUID(reconciliationFailureString, l.logRequestUUID)
-	reconciliationFailureString = AddInfoMetaData(reconciliationFailureString, l.logInfoMetaData)
+	reconciliationFailureString = AddMetadata(reconciliationFailureString, l.logMetadataMap)
 	color.Cyan(reconciliationFailureString)
 	_, err = f.WriteString(reconciliationFailureString)
 	if err != nil {
@@ -617,6 +600,19 @@ func (l *Logger) Fatal(msg string, fields ...zap.Field) {
 	l.zapLogger.Fatal(msg, fields...)
 }
 
+// return a string of metadata
+func (l *Logger) GetMetadata() string{
+	metadatMap := l.logMetadataMap
+	metadata := ConvertMapToString(metadatMap)
+	return metadata
+}
+
+// return a map of metadatMap
+func (l *Logger) GetMetadataMap() map[string]string{
+	metadatMap := l.logMetadataMap
+	return metadatMap
+}
+
 // Helper function to close log file
 func closeFile(f *os.File) {
 	err := f.Close()
@@ -636,81 +632,53 @@ func LogTransactionCreated(
 	)
 }
 
-// Add requestUUID to the tip
-func AddRequestUUIDFromContext(ctx context.Context, msg string) string {
-	requestUUID := requestUUIDFromContext(ctx)
-	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestID: %s", msg, requestUUID)
-	}
-	return msg
-}
-
-// Add requestUUID to the tip
-func AddRequestUUID(msg string, requestUUID string) string {
-	if requestUUID != "" {
-		msg = fmt.Sprintf("%s, RequestID: %s", msg, requestUUID)
-	}
-	return msg
-}
-
-// AddRequestUUIDToContext will add a requestUUIDto the context, and return the new context
-func AddRequestUUIDToContext(ctx context.Context, uuid string) context.Context {
-	return context.WithValue(ctx, RequestUUID, uuid)
-}
-
-// requestUUIDFromContext is used to extract a request UUID from a context
-func requestUUIDFromContext(ctx context.Context) string {
-	switch v := ctx.Value(RequestUUID).(type) {
-	case string:
-		return v
-	default:
-		return ""
-	}
-}
-
 // Add InfoMetaData k-v pairs to the tip
-func AddInfoMetaDataFromContext(ctx context.Context, msg string) string {
-	logInfoMetaData := InfoMetaDataFromContext(ctx)
-	if len(logInfoMetaData) != 0 {
-		for k, v := range logInfoMetaData {
-			msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+func AddMetadataMapFromContext(ctx context.Context, msg string) string {
+	metadataMap := metadataMapFromContext(ctx)
+	if len(metadataMap) != 0 {
+		for k, v := range metadataMap {
+			if len(k) != 0 && len(v) != 0 {
+				msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+			}
 		}
 	}
 	return msg
 }
 
-// Add InfoMetaData k-v pairs to the tip
-func AddInfoMetaData(msg string, logInfoMetaData map[string]string) string {
-	if len(logInfoMetaData) != 0 {
-		for k, v := range logInfoMetaData {
-			msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+// AddMetadataMapToContext will add InfoMetaData to the context, and return the new context
+func AddMetadataMapToContext(ctx context.Context, metadataMap map[string]string) context.Context {
+	return context.WithValue(ctx, MetadataMapKey, metadataMap)
+}
+
+// AddMetadata k-v pairs to the tip
+func AddMetadata(msg string, metadataMap map[string]string) string {
+	if len(metadataMap) != 0 {
+		for k, v := range metadataMap {
+			if len(k) != 0 && len(v) != 0 {
+				msg = fmt.Sprintf("%s, %s: %s", msg, k, v)
+			}
 		}
 	}
 	return msg
 }
 
-// AddInfoMetaDataToContext will add InfoMetaData to the context, and return the new context
-func AddInfoMetaDataToContext(ctx context.Context, InfoMetaData string) context.Context {
-	return context.WithValue(ctx, InfoMetaDataKey, InfoMetaData)
-}
-
-// InfoMetaDataFromContext is used to extract InfoMetaData from a context
-func InfoMetaDataFromContext(ctx context.Context) map[string]string {
-	var metadata string
-	switch v := ctx.Value(InfoMetaDataKey).(type) {
-	case string:
-		metadata = v
+// metadataMapFromContext is used to extract metadataMap from a context
+func metadataMapFromContext(ctx context.Context) map[string]string {
+	var metadataMap map[string]string
+	switch v := ctx.Value(MetadataMapKey).(type) {
+	case map[string]string:
+		metadataMap = v
 	default:
-		metadata = ""
+		metadataMap = nil
 	}
-	return ConvertStringToMap(metadata)
+	return metadataMap
 }
 
 // ConvertStringToMap is used to convert a string to map by split , and ;
 func ConvertStringToMap(metadata string) map[string]string {
-	InfoMetaDataMap := make(map[string]string)
+	metadataMap := make(map[string]string)
 	if len(metadata) == 0 {
-		return InfoMetaDataMap
+		return metadataMap
 	}
 	pairs := strings.Split(metadata, ",")
 	for _, pair := range pairs {
@@ -719,8 +687,29 @@ func ConvertStringToMap(metadata string) map[string]string {
 			log := fmt.Sprintf("the %s from %s could be transfer to key value pair", pair, metadata)
 			color.Yellow(log)
 		} else {
-			InfoMetaDataMap[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+			metadataMap[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
 		}
 	}
-	return InfoMetaDataMap
+	return metadataMap
+}
+
+// add requesrUUID to metadataMap
+func AddRequestUUIDToMap(metadataMap map[string]string, requestUUID string) map[string]string{
+	if len(requestUUID) > 0 {
+		metadataMap["RequestID"] = requestUUID
+	}
+	return metadataMap
+}
+
+// convert metadataMap to a string, aims to support fmt.Errorf
+func ConvertMapToString(metadataMap map[string]string) string {
+	metadata := ""
+	if len(metadataMap) != 0 {
+		for k, v := range metadataMap {
+			if len(k) != 0 && len(v) != 0 {
+				metadata = fmt.Sprintf("%s, %s: %s", metadata, k, v)
+			}
+		}
+	}
+	return metadata;
 }
