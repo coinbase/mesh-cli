@@ -469,7 +469,7 @@ type Configuration struct {
 	// "instance:instances{X},blockchain:bc{Y}"
 	// after this, you could search by blockchain name to get the logs for this blockchain
 	// or search by the instance name to get logs from a particular instance
-	// it would be very useful if only one instances failed and 
+	// it would be very useful if only one instance failed
 	InfoMetaData string `json:"info_metadata,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
