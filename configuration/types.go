@@ -461,15 +461,14 @@ type Configuration struct {
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
 
-	// InfoMetaData is a map of key:value,  which aims to easy log search
-	// an example: if you have 4 instances(instance1, instance2, instance3, instance4) 
-	// checking 2 blockchain (bc1, bc2)
-	// and instance1, instance2 are checking bc1, and other two are checking bc2
-	// you could use this field to simplify the search by pass this string to the field:
-	// "instance:instances{X},blockchain:bc{Y}"
-	// after this, you could search by blockchain name to get the logs for this blockchain
-	// or search by the instance name to get logs from a particular instance
-	// it would be very useful if only one instance failed
+	// InfoMetaData is string,  rosetta-cli will convert it into a map
+	// key value are separated by ":"
+	// different key-value pairs will separated by ","
+	// an example : if users want to record "instance name" and "blockchain name", this field would be
+	// "instance name:1234,blockchain name:5678"
+	// you could add space before and after ":" and ",", it will be trimmed when building map
+	//  " instance name : xxxx , blockchain name : xxxx " will be recorded same as
+	// "instance name:xxxx,blockchain name:xxxx"
 	InfoMetaData string `json:"info_metadata,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
