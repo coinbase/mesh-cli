@@ -465,10 +465,10 @@ type Configuration struct {
 	// key-value are separated by ":"
 	// different key-value pairs are separated by ","
 	// an example: if users want to record "instance name" as "1234", and "blockchain name" as "Bitcoin", 
-	// this field would be "instance name:1234,blockchain name:Bitcoin"
+	// this field would be "instance_name:1234,blockchain_name:Bitcoin"
 	// if adding spaces before and after ":" and ",", it will be trimmed when building map
-	// " instance name : xxxx , blockchain name : xxxx " will be recorded same as
-	// "instance name:xxxx,blockchain name:xxxx"
+	// " instance_name : xxxx , blockchain_name : xxxx " will be recorded same as
+	// "instance_name:xxxx,blockchain_name:xxxx"
 	InfoMetaData string `json:"info_metadata,omitempty"`
 
 	Construction *ConstructionConfiguration `json:"construction"`
