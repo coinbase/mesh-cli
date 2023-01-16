@@ -461,7 +461,7 @@ type Configuration struct {
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
 
-	// InfoMetaData is string, rosetta-cli will convert it into a map
+	// InfoMetaData is string, rosetta-cli will convert it into a map[string]string
 	// key-value are separated by ":"
 	// different key-value pairs are separated by ","
 	// an example: if users want to record "instance name" as "1234", and "blockchain name" as "Bitcoin", 
