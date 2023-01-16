@@ -25,6 +25,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
+	"github.com/fatih/color" 
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -69,17 +70,23 @@ bootstrap balance config. You can look at the examples folder for an example
 of what one of these files looks like.`,
 		RunE: runCheckDataCmd,
 	}
+	metadata string
 )
 
 func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(Context)
 
+	metadataMap := logger.ConvertStringToMap(Config.InfoMetaData)
+	metadataMap = logger.AddRequestUUIDToMap(metadataMap, Config.RequestUUID)
+	metadata = logger.ConvertMapToString(metadataMap)
+
 	fetcherOpts := []fetcher.Option{
 		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcher.WithMetaData(metadata),
 	}
 	if Config.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
@@ -93,11 +100,13 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
 		cancel()
+		err := fmt.Errorf("unable to initialize asserter for fetcher: %w%s", fetchErr.Err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err),
+			err,
 			"",
 			"",
 		)
@@ -106,11 +115,13 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	networkStatus, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
 		cancel()
+		err = fmt.Errorf("unable to confirm network %s is supported: %w%s", types.PrintStruct(Config.Network), err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err),
+			err,
 			"",
 			"",
 		)
@@ -121,11 +132,13 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 			ctx, fetcher, Config.Network, asserterConfigurationFile,
 		); err != nil {
 			cancel()
+			err = fmt.Errorf("network options don't match asserter configuration file %s: %w%s", asserterConfigurationFile, err, metadata)
+			color.Red(err.Error())
 			return results.ExitData(
 				Config,
 				nil,
 				nil,
-				fmt.Errorf("network options don't match asserter configuration file %s: %w", asserterConfigurationFile, err),
+				err,
 				"",
 				"",
 			)
@@ -143,11 +156,13 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		&SignalReceived,
 	)
 	if err != nil {
+		err = fmt.Errorf("unable to initialize data tester: %w%s", err, metadata)
+		color.Red(err.Error())
 		return results.ExitData(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to initialize data tester: %w", err),
+			err,
 			"",
 			"",
 		)
@@ -155,8 +170,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	defer dataTester.CloseDatabase(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
-	ctx = logger.AddRequestUUIDToContext(ctx, Config.RequestUUID)
-	ctx = logger.AddInfoMetaDataToContext(ctx, Config.InfoMetaData)
+	ctx = logger.AddMetadataMapToContext(ctx, metadataMap)
 	
 	g.Go(func() error {
 		return dataTester.StartPeriodicLogger(ctx)

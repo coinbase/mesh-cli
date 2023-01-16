@@ -21,6 +21,7 @@ import (
 
 	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
 	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/fatih/color"
 
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
@@ -54,6 +55,7 @@ and UTXO-based blockchains). However, we plan to add support for testing
 arbitrary scenarios (for example, staking and governance).`,
 		RunE: runCheckConstructionCmd,
 	}
+	constructionMetadata string
 )
 
 func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
@@ -66,6 +68,10 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 		)
 	}
 
+	metadataMap := logger.ConvertStringToMap(Config.InfoMetaData)
+	metadataMap = logger.AddRequestUUIDToMap(metadataMap, Config.RequestUUID)
+	constructionMetadata = logger.ConvertMapToString(metadataMap)
+
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(Context)
 
@@ -74,6 +80,7 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcher.WithMetaData(metadata),
 	}
 	if Config.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
@@ -87,22 +94,26 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 	_, _, fetchErr := fetcher.InitializeAsserter(ctx, Config.Network, Config.ValidationFile)
 	if fetchErr != nil {
 		cancel()
+		err := fmt.Errorf("unable to initialize asserter for fetcher: %w%s", fetchErr.Err, constructionMetadata)
+		color.Red(err.Error())
 		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to initialize asserter for fetcher: %w", fetchErr.Err),
+			err,
 		)
 	}
 
 	_, err := utils.CheckNetworkSupported(ctx, Config.Network, fetcher)
 	if err != nil {
 		cancel()
+		err = fmt.Errorf("unable to confirm network %s is supported: %w%s", types.PrintStruct(Config.Network), err, constructionMetadata)
+		color.Red(err.Error())
 		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to confirm network %s is supported: %w", types.PrintStruct(Config.Network), err),
+			err,
 		)
 	}
 
@@ -111,11 +122,13 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 			ctx, fetcher, Config.Network, asserterConfigurationFile,
 		); err != nil {
 			cancel()
+			err = fmt.Errorf("network options don't match asserter configuration file %s: %w%s", asserterConfigurationFile, err, constructionMetadata)
+			color.Red(err.Error())
 			return results.ExitConstruction(
 				Config,
 				nil,
 				nil,
-				fmt.Errorf("network options don't match asserter configuration file %s: %w", asserterConfigurationFile, err),
+				err,
 			)
 		}
 	}
@@ -129,27 +142,30 @@ func runCheckConstructionCmd(_ *cobra.Command, _ []string) error {
 		&SignalReceived,
 	)
 	if err != nil {
+		err = fmt.Errorf("unable to initialize construction tester: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
 		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to initialize construction tester: %w", err),
+			err,
 		)
 	}
 	defer constructionTester.CloseDatabase(ctx)
 
 	if err := constructionTester.PerformBroadcasts(ctx); err != nil {
+		err = fmt.Errorf("unable to perform broadcasts: %w%s", err, constructionMetadata)
+		color.Red(err.Error())
 		return results.ExitConstruction(
 			Config,
 			nil,
 			nil,
-			fmt.Errorf("unable to perform broadcasts: %w", err),
+			err,
 		)
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	ctx = logger.AddRequestUUIDToContext(ctx, Config.RequestUUID)
-	ctx = logger.AddInfoMetaDataToContext(ctx, Config.InfoMetaData)
+	ctx = logger.AddMetadataMapToContext(ctx, metadataMap)
 
 	g.Go(func() error {
 		return constructionTester.StartPeriodicLogger(ctx)
