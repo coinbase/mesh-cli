@@ -65,7 +65,13 @@ func NewBalanceStorageHelper(
 	// Pre-process exemptAccounts on initialization
 	// to provide fast lookup while syncing.
 	for _, account := range exemptAccounts {
-		exemptMap[types.Hash(account)] = struct{}{}
+		// if users do not specify Currency, we add the address 
+		// by this, all the Currencies in this address will be skipped
+		if account.Currency == nil {
+			exemptMap[account.Account.Address] = struct{}{}
+		} else {
+			exemptMap[types.Hash(account)] = struct{}{}
+		}
 	}
 
 	return &BalanceStorageHelper{
@@ -144,6 +150,12 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 				return true
 			}
 		}
+		// if exemptAccounts have the Account address means all the 
+		// currencies in this Account address need to be skipped
+		_, existsAddress := h.exemptAccounts[op.Account.Address]
+		if existsAddress {
+			return existsAddress
+		} 
 
 		thisAcct := types.Hash(&types.AccountCurrency{
 			Account:  op.Account,
