@@ -69,8 +69,9 @@ func NewBalanceStorageHelper(
 		// by this, all the Currencies in this address will be skipped
 		if account.Currency == nil {
 			exemptMap[account.Account.Address] = struct{}{}
+		} else {
+			exemptMap[types.Hash(account)] = struct{}{}
 		}
-		exemptMap[types.Hash(account)] = struct{}{}
 	}
 
 	return &BalanceStorageHelper{
