@@ -150,18 +150,20 @@ func (h *BalanceStorageHelper) ExemptFunc() parser.ExemptOperation {
 				return true
 			}
 		}
+		// if exemptAccounts have the Account address means all the 
+		// currencies in this Account address need to be skipped
+		_, existsAddress := h.exemptAccounts[op.Account.Address]
+		if existsAddress {
+			return existsAddress
+		} 
 
 		thisAcct := types.Hash(&types.AccountCurrency{
 			Account:  op.Account,
 			Currency: op.Amount.Currency,
 		})
 
-		// if exemptAccounts have the hash of AccountCurrency or the Account address
-		// return true, as if exemptAccounts have the Account address means all the 
-		// currencies in this Account address need to be skipped
 		_, exists := h.exemptAccounts[thisAcct]
-		_, existsAddress := h.exemptAccounts[op.Account.Address]
-		return exists || existsAddress
+		return exists
 	}
 }
 
