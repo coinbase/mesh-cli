@@ -78,7 +78,7 @@ const (
 
 	//MaxTableSize unit is MB
 	MaxValueLogFileSize = int64(2048)
-	
+
 	// empty requestUUID
 	EmptyRequestUUID = ""
 )
@@ -1106,7 +1106,7 @@ func (t *DataTester) HandleErr(err error, sigListeners *[]context.CancelFunc) er
 	}
 
 	return t.FindMissingOps(
-		ctx, 
+		ctx,
 		err,
 		sigListeners,
 	)

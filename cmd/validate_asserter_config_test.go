@@ -17,8 +17,8 @@ package cmd
 import (
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestMatch(t *testing.T) {
@@ -104,10 +104,10 @@ func generateNetworkAllowAndAsserterConfiguration() (
 ) {
 	var tsi int64 = 5
 	allow := &types.Allow{
-		OperationStatuses:       generateOperationStatuses(),
-		OperationTypes:          generateOperationTypes(),
-		Errors:                  generateErrors(),
-		TimestampStartIndex:     &tsi,
+		OperationStatuses:   generateOperationStatuses(),
+		OperationTypes:      generateOperationTypes(),
+		Errors:              generateErrors(),
+		TimestampStartIndex: &tsi,
 	}
 	config := &asserter.Configuration{
 		AllowedOperationStatuses:   generateOperationStatuses(),
@@ -127,7 +127,7 @@ func generateOperationStatuses() []*types.OperationStatus {
 	return []*types.OperationStatus{
 		{
 			Successful: true,
-			Status: "status0",
+			Status:     "status0",
 		},
 		{
 			// Successful: false
@@ -139,11 +139,11 @@ func generateOperationStatuses() []*types.OperationStatus {
 func generateErrors() []*types.Error {
 	return []*types.Error{
 		{
-			Code: 1,
+			Code:    1,
 			Message: "message1",
 		},
 		{
-			Code: 2,
+			Code:    2,
 			Message: "message2",
 		},
 	}

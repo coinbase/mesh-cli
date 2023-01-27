@@ -102,7 +102,7 @@ func NewLogger(
 	logReconciliation bool,
 	checkType CheckType,
 	network *types.NetworkIdentifier,
-	logMetadataMap   map[string]string,
+	logMetadataMap map[string]string,
 	fields ...zap.Field,
 ) (*Logger, error) {
 	zapLogger, err := buildZapLogger(checkType, network, fields...)
@@ -217,7 +217,7 @@ func (l *Logger) LogConstructionStatus(
 	}
 
 	statsMessage = AddMetadata(statsMessage, l.logMetadataMap)
-	
+
 	l.lastStatsMessage = statsMessage
 	color.Cyan(statsMessage)
 }
@@ -487,7 +487,7 @@ func (l *Logger) ReconcileSuccessStream(
 	)
 	reconciliationSuccessString = AddMetadata(reconciliationSuccessString, l.logMetadataMap)
 	color.Cyan(reconciliationSuccessString)
-	
+
 	_, err = f.WriteString(reconciliationSuccessString)
 	if err != nil {
 		err = fmt.Errorf("failed to write reconciliation success string %s: %w", reconciliationSuccessString, err)
@@ -601,14 +601,14 @@ func (l *Logger) Fatal(msg string, fields ...zap.Field) {
 }
 
 // return a string of metadata
-func (l *Logger) GetMetadata() string{
+func (l *Logger) GetMetadata() string {
 	metadatMap := l.logMetadataMap
 	metadata := ConvertMapToString(metadatMap)
 	return metadata
 }
 
 // return a map of metadatMap
-func (l *Logger) GetMetadataMap() map[string]string{
+func (l *Logger) GetMetadataMap() map[string]string {
 	metadatMap := l.logMetadataMap
 	return metadatMap
 }
@@ -683,7 +683,7 @@ func ConvertStringToMap(metadata string) map[string]string {
 	pairs := strings.Split(metadata, ",")
 	for _, pair := range pairs {
 		kv := strings.Split(pair, ":")
-		if(len(kv) != 2) {
+		if len(kv) != 2 {
 			log := fmt.Sprintf("the %s from %s could be transfer to key value pair", pair, metadata)
 			color.Yellow(log)
 		} else {
@@ -694,7 +694,7 @@ func ConvertStringToMap(metadata string) map[string]string {
 }
 
 // add requesrUUID to metadataMap
-func AddRequestUUIDToMap(metadataMap map[string]string, requestUUID string) map[string]string{
+func AddRequestUUIDToMap(metadataMap map[string]string, requestUUID string) map[string]string {
 	if len(requestUUID) > 0 {
 		metadataMap["RequestID"] = requestUUID
 	}
@@ -711,5 +711,5 @@ func ConvertMapToString(metadataMap map[string]string) string {
 			}
 		}
 	}
-	return metadata;
+	return metadata
 }

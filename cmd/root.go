@@ -454,7 +454,7 @@ func initConfig() {
 	}
 
 	if len(InfoMetaData) != 0 {
-		Config.InfoMetaData = InfoMetaData	
+		Config.InfoMetaData = InfoMetaData
 	}
 }
 
