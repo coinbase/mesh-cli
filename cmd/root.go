@@ -375,6 +375,9 @@ default values.`,
 		`Verify both minimum and Coinbase spec requirements`,
 	)
 	rootCmd.AddCommand(checkSpecCmd)
+
+	// Sign command
+	rootCmd.AddCommand(signCmd)
 }
 
 func initConfig() {
