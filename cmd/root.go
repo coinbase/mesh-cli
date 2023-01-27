@@ -375,6 +375,9 @@ default values.`,
 		`Verify both minimum and Coinbase spec requirements`,
 	)
 	rootCmd.AddCommand(checkSpecCmd)
+
+	// Sign command
+	rootCmd.AddCommand(signCmd)
 }
 
 func initConfig() {
@@ -451,7 +454,7 @@ func initConfig() {
 	}
 
 	if len(InfoMetaData) != 0 {
-		Config.InfoMetaData = InfoMetaData	
+		Config.InfoMetaData = InfoMetaData
 	}
 }
 

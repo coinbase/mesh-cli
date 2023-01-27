@@ -42,5 +42,6 @@
   "pruning_balance_disabled": false,
   "initial_balance_fetch_disabled": false
  },
- "perf": null
+ "perf": null,
+ "sign": null
 }

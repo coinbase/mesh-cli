@@ -464,7 +464,7 @@ type Configuration struct {
 	// InfoMetaData is a string, rosetta-cli will convert it into a map[string]string
 	// key-value are separated by ":"
 	// different key-value pairs are separated by ","
-	// an example: if users want to record "instance_name" as "1234", and "blockchain_name" as "Bitcoin", 
+	// an example: if users want to record "instance_name" as "1234", and "blockchain_name" as "Bitcoin",
 	// this field would be "instance_name:1234,blockchain_name:Bitcoin"
 	// if adding spaces before and after ":" and ",", it will be trimmed when building map
 	// " instance_name : xxxx , blockchain_name : xxxx " will be recorded same as
@@ -474,11 +474,17 @@ type Configuration struct {
 	Construction *ConstructionConfiguration `json:"construction"`
 	Data         *DataConfiguration         `json:"data"`
 	Perf         *CheckPerfConfiguration    `json:"perf"`
+	Sign         *SignConfiguration         `json:"sign"`
 }
 
-//********************//
-// Check Perf configs //
-//********************//
+// SignConfiguration configuration for signing
+type SignConfiguration struct {
+	PubKey         *types.PublicKey      `json:"pub_key"`
+	PrivateKey     string                `json:"private_key"`
+	SigningPayload *types.SigningPayload `json:"signing_payload"`
+}
+
+// CheckPerfConfiguration configuration for check perf
 type CheckPerfConfiguration struct {
 
 	// StartBlock is the starting block for running check:perf.

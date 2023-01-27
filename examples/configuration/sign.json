@@ -1,0 +1,13 @@
+{
+  "sign": {
+    "pub_key": {
+      "curve_type": "secp256k1",
+      "hex_bytes": "03c7e625aa08cad8f257d9ee2b9b7a0214f19f981afd5b498c728ad7ed6c0c3df6"
+    },
+    "private_key": "",
+    "signing_payload": {
+      "hex_bytes": "370e74254e8cbaa343af3564901456082ec7af967e45ff24ba061233b1a1b04f",
+      "signature_type": "ecdsa"
+    }
+  }
+}

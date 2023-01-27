@@ -25,7 +25,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
-	"github.com/fatih/color" 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -171,7 +171,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	ctx = logger.AddMetadataMapToContext(ctx, metadataMap)
-	
+
 	g.Go(func() error {
 		return dataTester.StartPeriodicLogger(ctx)
 	})

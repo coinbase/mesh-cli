@@ -50,18 +50,18 @@ var (
 
 	allowedErrors = []*types.Error{
 		{
-			Code: 4,
-			Message: "Block not found",
+			Code:      4,
+			Message:   "Block not found",
 			Retriable: false,
 		},
 		{
-			Code: 0,
-			Message: "Endpoint not implemented",
+			Code:      0,
+			Message:   "Endpoint not implemented",
 			Retriable: false,
 		},
 		{
-			Code: 3,
-			Message: "Bitcoind error",
+			Code:      3,
+			Message:   "Bitcoind error",
 			Retriable: false,
 		},
 	}
@@ -93,18 +93,18 @@ func TestSortArrayFields(t *testing.T) {
 	}, clientConfiguration.AllowedOperationStatuses)
 	assert.Equal([]*types.Error{
 		{
-			Code: 0,
-			Message: "Endpoint not implemented",
+			Code:      0,
+			Message:   "Endpoint not implemented",
 			Retriable: false,
 		},
 		{
-			Code: 3,
-			Message: "Bitcoind error",
+			Code:      3,
+			Message:   "Bitcoind error",
 			Retriable: false,
 		},
 		{
-			Code: 4,
-			Message: "Block not found",
+			Code:      4,
+			Message:   "Block not found",
 			Retriable: false,
 		},
 	}, clientConfiguration.AllowedErrors)
