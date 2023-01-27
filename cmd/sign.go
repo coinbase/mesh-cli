@@ -40,6 +40,10 @@ func runSignCmd(_ *cobra.Command, _ []string) error {
 	}
 
 	keyPair, err := keys.ImportPrivateKey(Config.Sign.PrivateKey, Config.Sign.PubKey.CurveType)
+	if err != nil {
+		fmt.Println(fmt.Errorf("unable to import private keys %#v", err))
+		return err
+	}
 
 	err = keyPair.IsValid()
 	if err != nil {
