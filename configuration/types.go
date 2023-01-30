@@ -482,6 +482,7 @@ type SignConfiguration struct {
 	PubKey         *types.PublicKey      `json:"pub_key"`
 	PrivateKey     string                `json:"private_key"`
 	SigningPayload *types.SigningPayload `json:"signing_payload"`
+	Signature      *types.Signature      `json:"signature,omitempty"`
 }
 
 // CheckPerfConfiguration configuration for check perf

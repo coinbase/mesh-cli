@@ -4,13 +4,15 @@
       "curve_type": "secp256k1",
       "hex_bytes": "03c7e625aa08cad8f257d9ee2b9b7a0214f19f981afd5b498c728ad7ed6c0c3df6"
     },
-    "private_key": "",
     "signing_payload": {
       "hex_bytes": "370e74254e8cbaa343af3564901456082ec7af967e45ff24ba061233b1a1b04f",
       "signature_type": "ecdsa",
       "account_identifier": {
         "address": "dummy"
       }
+    },
+    "signature": {
+      "hex_bytes": "c80547470b7e4d3fc17c988b2244dfebc909b3e9f7fd0c1387763263cc70d16d24f326b9c12ba2ea278164c0b30f128a809585fc503eda43de429aadb9f893ef"
     }
   }
 }
