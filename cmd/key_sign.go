@@ -17,7 +17,6 @@ package cmd
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/fatih/color"
@@ -25,35 +24,43 @@ import (
 )
 
 var (
-	signCmd = &cobra.Command{
-		Use:   "sign",
+	keySignCmd = &cobra.Command{
+		Use:   "key:sign",
 		Short: "Sign an unsigned payload with given private key",
 		Long: `Sign an unsigned payload with given private key
-				It supports Keypair specified by https://github.com/coinbase/rosetta-specifications`,
-		RunE: runSignCmd,
+				It supports Keypair specified by https://github.com/coinbase/rosetta-specifications
+				Please provide valid PrivateKey, CurveType, SignaturePayload`,
+		RunE: runKeySignCmd,
 	}
 )
 
-func runSignCmd(_ *cobra.Command, _ []string) error {
+func runKeySignCmd(_ *cobra.Command, _ []string) error {
 	if Config.Sign == nil {
 		return errors.New("sign configuration is missing")
 	}
 
+	if len(Config.Sign.PrivateKey) == 0 ||
+		Config.Sign.PubKey.CurveType == "" ||
+		Config.Sign.SigningPayload == nil ||
+		Config.Sign.SigningPayload.SignatureType == "" {
+		color.Red("invalid sign input")
+	}
+
 	keyPair, err := keys.ImportPrivateKey(Config.Sign.PrivateKey, Config.Sign.PubKey.CurveType)
 	if err != nil {
-		fmt.Println(fmt.Errorf("unable to import private keys %#v", err))
+		color.Red("unable to import private keys %#v", err)
 		return err
 	}
 
 	err = keyPair.IsValid()
 	if err != nil {
-		fmt.Println(fmt.Errorf("keypair invalid with err %#v", err))
+		color.Red("keypair invalid with err %#v", err)
 		return err
 	}
 
 	signer, err := keyPair.Signer()
 	if err != nil {
-		fmt.Println(fmt.Errorf("signer invalid with err %#v", err))
+		color.Red("signer invalid with err %#v", err)
 		return err
 	}
 
@@ -62,11 +69,11 @@ func runSignCmd(_ *cobra.Command, _ []string) error {
 
 	sign, err := signer.Sign(signingPayload, signatureType)
 	if err != nil {
-		fmt.Println(fmt.Errorf("unable to sign with err %#v", err))
+		color.Red("unable to sign with err %#v", err)
 		return err
 	}
 
 	hexSig := hex.EncodeToString(sign.Bytes)
-	color.Blue(hexSig)
+	color.Green("Signature: %s", hexSig)
 	return nil
 }

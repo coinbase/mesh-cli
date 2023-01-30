@@ -46,6 +46,9 @@ Example: To validate that the Data API implementation is correct, running the fo
 docker run -v "$(pwd):/data" -it [image-name] check:data --configuration-file /data/config.json
 ```
 
+## Key Sign Tool
+Rosetta CLI comes with a handy key sign tool for local testing. Please refer to this [README](./cmd/README.md) on how to use it.
+
 ## Updates and Releases
 
 We recommend that you continually update your installation to the latest release as soon as possible. The latest release notes are available in our [Community](https://community.rosetta-api.org) board under the [Release](https://community.rosetta-api.org/c/releases/13) category.

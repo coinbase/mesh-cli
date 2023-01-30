@@ -376,8 +376,11 @@ default values.`,
 	)
 	rootCmd.AddCommand(checkSpecCmd)
 
-	// Sign command
-	rootCmd.AddCommand(signCmd)
+	// Key Sign command
+	rootCmd.AddCommand(keySignCmd)
+
+	// Key Verify command
+	rootCmd.AddCommand(keyVerifyCmd)
 }
 
 func initConfig() {
