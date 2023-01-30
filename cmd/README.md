@@ -19,9 +19,9 @@ Required fields includes
 
 #### Verify
 ```
-rosetta-cli key:verify --configuration-file config.json
+rosetta-cli key:verify --configuration-file verify.json
 ```
-A sample config file is located [here](../examples/configuration/sign.json)
+A sample config file is located [here](../examples/configuration/verify.json)
 
 Required fields includes
 - `pub_key`
