@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/coinbase/rosetta-sdk-go/types"
 	"log"
 	"os"
 	"os/signal"
@@ -101,6 +102,10 @@ var (
 	// which has caused production incidents in the past. This can be used for both check:data
 	// and check:construction.
 	asserterConfigurationFile string
+
+	// curveType is used to specify curve type to generate a keypair using rosetta-cli key:gen
+	// command
+	curveType string
 )
 
 // rootPreRun is executed before the root command runs and sets up cpu
@@ -381,6 +386,15 @@ default values.`,
 
 	// Key Verify command
 	rootCmd.AddCommand(keyVerifyCmd)
+
+	keyGenCmd.Flags().StringVar(
+		&curveType,
+		"curve-type",
+		string(types.Secp256k1),
+		"curve type used to generate the public/private keypair",
+	)
+	// Key Gen command
+	rootCmd.AddCommand(keyGenCmd)
 }
 
 func initConfig() {
@@ -494,6 +508,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print rosetta-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.10.2")
+		fmt.Println("v0.10.3")
 	},
 }
