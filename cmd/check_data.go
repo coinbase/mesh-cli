@@ -86,7 +86,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		{
 			shutdown, err := tracer.InitProvider(Config)
 			if err != nil {
-				log.Fatal(err)
+				color.Yellow("Warning: %w ", err)
 			}
 			defer func() {
 				if err := shutdown(ctx); err != nil {

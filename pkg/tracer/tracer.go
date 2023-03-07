@@ -43,7 +43,7 @@ func InitProvider(config *configuration.Configuration) (func(context.Context) er
 			semconv.ServiceName("checkdata-service"),
 		))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
+		return nil, fmt.Errorf("tracing error: failed to create resource: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -55,13 +55,13 @@ func InitProvider(config *configuration.Configuration) (func(context.Context) er
 		grpc.WithBlock(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection: %w", err)
+		return nil, fmt.Errorf("tracing error: failed to create connection with exporter: %w", err)
 	}
 
 	// setup trace exporter
 	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		return nil, fmt.Errorf("tracing error: failed to create trace exporter: %w", err)
 	}
 
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
