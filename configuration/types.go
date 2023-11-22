@@ -362,6 +362,9 @@ type Configuration struct {
 	// OnlineURL is the URL of a Rosetta API implementation in "online mode".
 	OnlineURL string `json:"online_url"`
 
+	// TargetAccount will be the only interest account
+	TargetAccount string `json:"target_account,omitempty"`
+
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
 	// The path can be absolute, or it can be relative to where rosetta-cli
 	// binary is being executed.
