@@ -61,6 +61,7 @@ var (
 	requestUUID            string
 	statusPort             uint
 	InfoMetaData           string
+	targetAccount          string
 
 	// Config is the populated *configuration.Configuration from
 	// the configurationFile. If none is provided, this is set
@@ -246,6 +247,13 @@ default values.`,
 		"Override online node url in configuration file",
 	)
 
+	checkDataCmd.Flags().StringVar(
+		&targetAccount,
+		"target-account",
+		"",
+		"Override target account in configuration file",
+	)
+
 	checkDataCmd.Flags().Int64Var(
 		&startIndex,
 		"start-block",
@@ -423,6 +431,10 @@ func initConfig() {
 	}
 	if len(offlineURL) != 0 {
 		Config.Construction.OfflineURL = offlineURL
+	}
+
+	if len(targetAccount) != 0 {
+		Config.TargetAccount = targetAccount
 	}
 
 	// Override start and end syncing index in configuration file when it's explicitly set via CLI
