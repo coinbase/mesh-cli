@@ -80,6 +80,7 @@ func runViewBlockCmd(_ *cobra.Command, args []string) error {
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(Config.MaxRetries),
+		fetcher.WithInsecureTLS(),
 	}
 	if Config.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())

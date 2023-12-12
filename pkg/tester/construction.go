@@ -194,6 +194,7 @@ func InitializeConstruction(
 		fetcher.WithTimeout(time.Duration(config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(config.MaxRetries),
 		fetcher.WithMetaData(constructionMetadata),
+		fetcher.WithInsecureTLS(),
 	}
 	if config.Construction.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
