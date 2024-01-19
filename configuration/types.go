@@ -72,6 +72,9 @@ const (
 	// ETH Defaults
 	EthereumIDBlockchain = "Ethereum"
 	EthereumIDNetwork    = "Ropsten"
+	// Tracing Default
+	DefaultEnableRequestInstrumentation = false
+	DefaultOtelCollectorURL             = "localhost:4317"
 )
 
 // Default Configuration Values
@@ -391,6 +394,11 @@ type Configuration struct {
 	// on all non-200 responses.
 	ForceRetry bool `json:"force_retry,omitempty"`
 
+	// Turn client tracing on-off for outbound requests.
+	EnableRequestInstrumentation bool `json:"enable_request_instrumentation"`
+
+	// OtelCollectorUrl is URL at which the traces are exported to otel collector".
+	OtelCollectorURL string `json:"otel_collector_url"`
 	// MaxSyncConcurrency is the maximum sync concurrency to use while syncing blocks.
 	// Sync concurrency is managed automatically by the `syncer` package.
 	MaxSyncConcurrency int64 `json:"max_sync_concurrency"`
