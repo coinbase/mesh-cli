@@ -1,2 +1,4 @@
 rosetta-cli
 bin/
+/.vscode
+/cli-data
