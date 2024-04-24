@@ -31,8 +31,6 @@ import (
 
 var _ modules.BroadcastStorageHandler = (*BroadcastStorageHandler)(nil)
 
-var stakingOpsTypes = []string{"stake", "unstake", "withdraw", "restake"}
-
 // BroadcastStorageHandler is invoked whenever a block is added
 // or removed from block storage so that balance changes
 // can be sent to other functions (ex: reconciler).
