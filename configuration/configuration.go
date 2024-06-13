@@ -60,15 +60,17 @@ func DefaultPerfConfiguration() *CheckPerfConfiguration {
 // EthereumNetwork, DefaultURL, DefaultTimeout, and DefaultDataConfiguration.
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
-		Network:              EthereumNetwork,
-		OnlineURL:            DefaultURL,
-		MaxOnlineConnections: DefaultMaxOnlineConnections,
-		HTTPTimeout:          DefaultTimeout,
-		MaxRetries:           DefaultMaxRetries,
-		MaxSyncConcurrency:   DefaultMaxSyncConcurrency,
-		TipDelay:             DefaultTipDelay,
-		MaxReorgDepth:        DefaultMaxReorgDepth,
-		Data:                 DefaultDataConfiguration(),
+		Network:                      EthereumNetwork,
+		OnlineURL:                    DefaultURL,
+		MaxOnlineConnections:         DefaultMaxOnlineConnections,
+		HTTPTimeout:                  DefaultTimeout,
+		MaxRetries:                   DefaultMaxRetries,
+		MaxSyncConcurrency:           DefaultMaxSyncConcurrency,
+		TipDelay:                     DefaultTipDelay,
+		MaxReorgDepth:                DefaultMaxReorgDepth,
+		EnableRequestInstrumentation: DefaultEnableRequestInstrumentation,
+		OtelCollectorURL:             DefaultOtelCollectorURL,
+		Data:                         DefaultDataConfiguration(),
 	}
 }
 
@@ -159,6 +161,10 @@ func populateMissingFields(config *Configuration) *Configuration {
 
 	if len(config.OnlineURL) == 0 {
 		config.OnlineURL = DefaultURL
+	}
+
+	if len(config.OtelCollectorURL) == 0 {
+		config.OtelCollectorURL = DefaultOtelCollectorURL
 	}
 
 	if config.HTTPTimeout == 0 {
