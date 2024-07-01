@@ -11,8 +11,8 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
-	github.com/stretchr/testify v1.7.2
-	go.uber.org/zap v1.21.0
+	github.com/stretchr/testify v1.8.1
+	go.uber.org/zap v1.25.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/protobuf v1.27.1 // indirect
 )
