@@ -87,6 +87,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
 		fetcher.WithMaxRetries(Config.MaxRetries),
 		fetcher.WithMetaData(metadata),
+		fetcher.WithInsecureTLS(),
 	}
 	if Config.ForceRetry {
 		fetcherOpts = append(fetcherOpts, fetcher.WithForceRetry())
