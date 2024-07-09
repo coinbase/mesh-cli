@@ -1,8 +1,3 @@
-<p align="center">
-  <a href="https://www.mesh-api.org">
-    <img width="90%" alt="Mesh" src="https://www.mesh-api.org/img/mesh_header.png">
-  </a>
-</p>
 <h3 align="center">
    Mesh CLI
 </h3>
@@ -51,26 +46,17 @@ Mesh CLI comes with a handy key sign tool for local testing. Please refer to thi
 
 ## Updates and Releases
 
-We recommend that you continually update your installation to the latest release as soon as possible. The latest release notes are available in our [Community](https://community.mesh-api.org) board under the [Release](https://community.mesh-api.org/c/releases/13) category.
+We recommend that you continually update your installation to the latest release as soon as possible.
 
 You can also view releases and change log information in the [Releases](https://github.com/coinbase/mesh-cli/releases) section of this repository.
 
 ## Documentation
 
-You can find the Mesh API documentation at [mesh-api.org](https://www.mesh-api.org/docs/welcome.html)
+You can find the Mesh API documentation [here](https://docs.cdp.coinbase.com/mesh/docs/welcome/)
 
-For more information on the mesh-cli tool, read our [The mesh-cli tool](https://www.mesh-api.org/docs/mesh_cli.html) documentation.
+For more information on the mesh-cli tool, read our [The mesh-cli tool](https://docs.cdp.coinbase.com/mesh/docs/mesh-cli/) documentation.
 
-For more information on how to test your implementation file with the `mesh-cli` tool, read our [How to Test Your Mesh Implementation](https://www.mesh-api.org/docs/mesh_test.html) documentation.
-
-Our documentation is divided into the following sections:
-
-* [Product Overview](https://www.mesh-api.org/docs/welcome.html)
-* [Getting Started](https://www.mesh-api.org/docs/getting_started.html)
-* [Mesh API Spec](https://www.mesh-api.org/docs/Reference.html)
-* [Testing](https://www.mesh-api.org/docs/mesh_cli.html)
-* [Best Practices](https://www.mesh-api.org/docs/node_deployment.html)
-* [Repositories](https://www.mesh-api.org/docs/mesh_specifications.html)
+For more information on how to test your implementation file with the `mesh-cli` tool, read our [How to Test Your Mesh Implementation](https://docs.cdp.coinbase.com/mesh/docs/mesh-test/) documentation.
 
 ## Contributing
 
@@ -135,8 +121,7 @@ _Note: MacOS users, if you face  `ulimit: setrlimit failed: invalid argument` er
 
 To help you with examples, we developed complete Mesh API reference implementations for [Bitcoin](https://github.com/coinbase/mesh-bitcoin) and [Ethereum](https://github.com/coinbase/mesh-ethereum). Developers of Bitcoin-like or Ethereum-like blockchains may find it easier to fork these reference implementations than to write an implementation from scratch.
 
-You can also find community implementations for a variety of blockchains in the [mesh-ecosystem](https://github.com/coinbase/mesh-ecosystem) repository, and in the [ecosystem category](https://community.mesh-api.org/c/ecosystem) of our community site. 
-
+You can also find community implementations for a variety of blockchains in the [mesh-ecosystem](https://github.com/coinbase/mesh-ecosystem) repository.
 
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
