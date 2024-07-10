@@ -17,11 +17,16 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/coinbase/rosetta-cli/pkg/logger"
 	"github.com/coinbase/rosetta-cli/pkg/results"
 	"github.com/coinbase/rosetta-cli/pkg/tester"
+	"github.com/coinbase/rosetta-cli/pkg/tracer"
+	"github.com/coinbase/rosetta-sdk-go/client"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/coinbase/rosetta-sdk-go/utils"
@@ -74,6 +79,23 @@ of what one of these files looks like.`,
 )
 
 func runCheckDataCmd(_ *cobra.Command, _ []string) error {
+	var client *client.APIClient
+	if Config.EnableRequestInstrumentation == true {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		{
+			shutdown, err := tracer.InitProvider(Config)
+			if err != nil {
+				color.Yellow("Warning: %w ", err)
+			}
+			defer func() {
+				if err := shutdown(ctx); err != nil {
+					log.Fatal("failed to shutdown TracerProvider: %w", err)
+				}
+			}()
+		}
+		client = tracer.NewTracedClient(Config)
+	}
 	ensureDataDirectoryExists()
 	ctx, cancel := context.WithCancel(Context)
 
@@ -82,6 +104,7 @@ func runCheckDataCmd(_ *cobra.Command, _ []string) error {
 	metadata = logger.ConvertMapToString(metadataMap)
 
 	fetcherOpts := []fetcher.Option{
+		fetcher.WithClient(client),
 		fetcher.WithMaxConnections(Config.MaxOnlineConnections),
 		fetcher.WithRetryElapsedTime(time.Duration(Config.RetryElapsedTime) * time.Second),
 		fetcher.WithTimeout(time.Duration(Config.HTTPTimeout) * time.Second),
