@@ -66,7 +66,7 @@ You may contribute to the `mesh-cli` project in various ways:
 * [Providing Feedback](CONTRIBUTING.md/#providing-feedback)
 * [Reporting Issues](CONTRIBUTING.md/#reporting-issues)
 
-Read our [Contributing](CONTRIBUTING.MD) documentation for more information.
+Read our [Contributing](CONTRIBUTING.md) documentation for more information.
 
 ## mesh-cli Tool Development
 
