@@ -178,7 +178,7 @@ func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), metadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 }
 
@@ -330,7 +330,7 @@ func InitializeData(
 	if fetchErr != nil {
 		msg := fmt.Sprintf("unable to get network options: %s%s", fetchErr.Err.Error(), metadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
