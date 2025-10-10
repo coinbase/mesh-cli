@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"time"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 
-	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
-	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/configuration"
+	"github.com/coinbase/mesh-cli/pkg/logger"
+	"github.com/coinbase/mesh-cli/pkg/processor"
+	"github.com/coinbase/mesh-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"

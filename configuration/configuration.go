@@ -23,7 +23,7 @@ import (
 	"runtime"
 	"strings"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/constructor/dsl"
 	"github.com/coinbase/rosetta-sdk-go/constructor/job"
@@ -367,7 +367,7 @@ func assertConfiguration(ctx context.Context, config *Configuration) error {
 
 // modifyFilePaths modifies a collection of filepaths in a *Configuration
 // file to make them relative to the configuration file (this makes it a lot easier
-// to store all config-related files in the same directory and to run the rosetta-cli
+// to store all config-related files in the same directory and to run the mesh-cli
 // from a different directory).
 func modifyFilePaths(config *Configuration, fileDir string) {
 	if config.Data != nil {

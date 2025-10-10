@@ -23,9 +23,16 @@ LINUX_TARGETS="linux/amd64,linux/arm64,linux/mips64,linux/mips64le,linux/ppc64le
 WINDOWS_TARGET="windows/amd64"
 TARGETS="${MAC_TARGETS},${LINUX_TARGETS},${WINDOWS_TARGET}"
 
-xgo -go 1.16.3 --targets=${TARGETS} -out "bin/rosetta-cli-${VERSION}" .;
+# Build mesh-cli binaries
+# Just compile twice in case it's still referred to by its old name.
+xgo -go 1.24.8 --targets=${TARGETS} -out "bin/mesh-cli-${VERSION}" .;
+xgo -go 1.24.8 --targets=${TARGETS} -out "bin/rosetta-cli-${VERSION}" .;
 
-# Rename some files
+# Rename xgo output files to standard naming
+mv "bin/mesh-cli-${VERSION}-darwin-10.16-amd64" "bin/mesh-cli-${VERSION}-darwin-amd64"
+mv "bin/mesh-cli-${VERSION}-darwin-10.16-arm64" "bin/mesh-cli-${VERSION}-darwin-arm64"
+mv "bin/mesh-cli-${VERSION}-windows-4.0-amd64.exe" "bin/mesh-cli-${VERSION}-windows-amd64"
+
 mv "bin/rosetta-cli-${VERSION}-darwin-10.16-amd64" "bin/rosetta-cli-${VERSION}-darwin-amd64"
 mv "bin/rosetta-cli-${VERSION}-darwin-10.16-arm64" "bin/rosetta-cli-${VERSION}-darwin-arm64"
 mv "bin/rosetta-cli-${VERSION}-windows-4.0-amd64.exe" "bin/rosetta-cli-${VERSION}-windows-amd64"

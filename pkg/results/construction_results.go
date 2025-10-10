@@ -23,7 +23,7 @@ import (
 
 	pkgError "github.com/pkg/errors"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/mesh-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"

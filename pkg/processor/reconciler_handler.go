@@ -21,9 +21,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/pkg/logger"
+	"github.com/coinbase/mesh-cli/pkg/logger"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
 	"github.com/coinbase/rosetta-sdk-go/storage/modules"
 	"github.com/coinbase/rosetta-sdk-go/types"

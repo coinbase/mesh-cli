@@ -20,13 +20,13 @@ set -e
 usage() {
   this=$1
   cat <<EOF
-$this: download go binaries for coinbase/rosetta-cli
+$this: download go binaries for coinbase/mesh-cli
 
 Usage: $this [-b] bindir [-d] [tag]
   -b sets bindir or installation directory, Defaults to ./bin
   -d turns on debug logging
    [tag] is a tag from
-   https://github.com/coinbase/rosetta-cli/releases
+   https://github.com/coinbase/mesh-cli/releases
    If tag is missing, then the latest will be used.
 
 EOF
@@ -62,19 +62,22 @@ execute() {
   mv "${tmpdir}/${NAME}" "${tmpdir}/${BINARY}"
   install "${tmpdir}/${BINARY}" "${BINDIR}/"
   log_info "installed ${BINDIR}/${BINARY}"
+  # Create rosetta-cli symlink for backward compatibility
+  (cd "${BINDIR}" && ln -sf "${BINARY}" "rosetta-cli")
+  log_info "created symlink ${BINDIR}/rosetta-cli -> ${BINARY}"
   rm -rf "${tmpdir}"
 }
 get_binaries() {
   case "$PLATFORM" in
-    darwin/amd64) BINARY="rosetta-cli" ;;
-    darwin/arm64) BINARY="rosetta-cli" ;;
-    linux/amd64) BINARY="rosetta-cli" ;;
-    linux/arm64) BINARY="rosetta-cli" ;;
-    linux/mips64) BINARY="rosetta-cli" ;;
-    linux/mips64le) BINARY="rosetta-cli" ;;
-    linux/ppc64le) BINARY="rosetta-cli" ;;
-    linux/s390x) BINARY="rosetta-cli" ;;
-    windows/amd64) BINARY="rosetta-cli.exe" ;;
+    darwin/amd64) BINARY="mesh-cli" ;;
+    darwin/arm64) BINARY="mesh-cli" ;;
+    linux/amd64) BINARY="mesh-cli" ;;
+    linux/arm64) BINARY="mesh-cli" ;;
+    linux/mips64) BINARY="mesh-cli" ;;
+    linux/mips64le) BINARY="mesh-cli" ;;
+    linux/ppc64le) BINARY="mesh-cli" ;;
+    linux/s390x) BINARY="mesh-cli" ;;
+    windows/amd64) BINARY="mesh-cli.exe" ;;
     *)
       log_crit "platform $PLATFORM is not supported.  Make sure this script is up-to-date and file request at https://github.com/${PREFIX}/issues/new"
       exit 1
@@ -297,10 +300,10 @@ End of functions from https://github.com/client9/shlib
 ------------------------------------------------------------------------
 EOF
 
-BINARY=rosetta-cli
+BINARY=mesh-cli
 FORMAT=tar.gz
 OWNER=coinbase
-REPO="rosetta-cli"
+REPO="mesh-cli"
 OS=$(uname_os)
 ARCH=$(uname_arch)
 PREFIX="$OWNER/$REPO"
