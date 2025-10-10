@@ -129,7 +129,7 @@ type ConstructionConfiguration struct {
 	// to use while testing.
 	PrefundedAccounts []*modules.PrefundedAccount `json:"prefunded_accounts,omitempty"`
 
-	// Workflows are executed by the rosetta-cli to test
+	// Workflows are executed by the mesh-cli to test
 	// certain construction flows.
 	Workflows []*job.Workflow `json:"workflows"`
 
@@ -160,7 +160,7 @@ type ConstructionConfiguration struct {
 	// logging should be silenced.
 	Quiet bool `json:"quiet,omitempty"`
 
-	// InitialBalanceFetchDisabled configures rosetta-cli
+	// InitialBalanceFetchDisabled configures mesh-cli
 	// not to lookup the balance of newly seen accounts at the
 	// parent block before applying operations. Disabling this
 	// is only a good idea if you create multiple new accounts each block
@@ -281,7 +281,7 @@ type DataConfiguration struct {
 	// some of the more advanced checks to confirm syncing is working as expected.
 	ReconciliationDisabled bool `json:"reconciliation_disabled"`
 
-	// ReconciliationDrainDisabled is a boolean that configures the rosetta-cli
+	// ReconciliationDrainDisabled is a boolean that configures the mesh-cli
 	// to exit check:data before the entire active reconciliation queue has
 	// been drained (if reconciliation is enabled).
 	ReconciliationDrainDisabled bool `json:"reconciliation_drain_disabled"`
@@ -336,7 +336,7 @@ type DataConfiguration struct {
 	// provided in the `statefulsyncer` package.
 	PruningFrequency *int `json:"pruning_frequency,omitempty"`
 
-	// InitialBalanceFetchDisabled configures rosetta-cli
+	// InitialBalanceFetchDisabled configures mesh-cli
 	// not to lookup the balance of newly seen accounts at the
 	// parent block before applying operations. Disabling
 	// this step can significantly speed up performance
@@ -366,7 +366,7 @@ type Configuration struct {
 	TargetAccount string `json:"target_account,omitempty"`
 
 	// DataDirectory is a folder used to store logs and any data used to perform validation.
-	// The path can be absolute, or it can be relative to where rosetta-cli
+	// The path can be absolute, or it can be relative to where mesh-cli
 	// binary is being executed.
 	DataDirectory string `json:"data_directory"`
 
@@ -464,7 +464,7 @@ type Configuration struct {
 	// then this value must be true.
 	CoinSupported bool `json:"coin_supported"`
 
-	// InfoMetaData is a string, rosetta-cli will convert it into a map[string]string
+	// InfoMetaData is a string, mesh-cli will convert it into a map[string]string
 	// key-value are separated by ":"
 	// different key-value pairs are separated by ","
 	// an example: if users want to record "instance_name" as "1234", and "blockchain_name" as "Bitcoin",

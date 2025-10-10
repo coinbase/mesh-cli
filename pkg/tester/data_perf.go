@@ -18,9 +18,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/configuration"
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
-	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/configuration"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
+	"github.com/coinbase/mesh-cli/pkg/results"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )

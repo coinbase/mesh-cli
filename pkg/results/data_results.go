@@ -25,9 +25,9 @@ import (
 
 	pkgError "github.com/pkg/errors"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/mesh-cli/configuration"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"

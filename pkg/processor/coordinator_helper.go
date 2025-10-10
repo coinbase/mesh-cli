@@ -20,7 +20,7 @@ import (
 	"log"
 	"math/big"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/keys"

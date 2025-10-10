@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/pkg/results"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/spf13/cobra"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 )
 
 var (
@@ -37,7 +37,7 @@ minimum requirements specified in rosetta-api.org.
 By default, check:spec will verify only Coinbase spec requirements. To verify the minimum requirements as well,
 add the --all flag to the check:spec command:
 
-rosetta-cli check:spec --all --configuration-file [filepath]
+mesh-cli check:spec --all --configuration-file [filepath]
 		
 The minimum requirements verify whether an API response contains the required fields, and that the fields are 
 correctly formatted with proper values. For example, it would check whether the response of /network/list

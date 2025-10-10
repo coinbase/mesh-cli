@@ -1,4 +1,5 @@
 rosetta-cli
+mesh-cli
 bin/
 /.vscode
 /cli-data

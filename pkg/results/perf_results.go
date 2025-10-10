@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/mesh-cli/configuration"
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/olekukonko/tablewriter"
 )

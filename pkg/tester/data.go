@@ -24,12 +24,12 @@ import (
 	"net/http"
 	"time"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 
-	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
-	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/configuration"
+	"github.com/coinbase/mesh-cli/pkg/logger"
+	"github.com/coinbase/mesh-cli/pkg/processor"
+	"github.com/coinbase/mesh-cli/pkg/results"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"
@@ -178,7 +178,7 @@ func (t *DataTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), metadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 }
 
@@ -330,7 +330,7 @@ func InitializeData(
 	if fetchErr != nil {
 		msg := fmt.Sprintf("unable to get network options: %s%s", fetchErr.Err.Error(), metadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 
 	if len(networkOptions.Allow.BalanceExemptions) > 0 && config.Data.InitialBalanceFetchDisabled {
@@ -414,7 +414,7 @@ func InitializeData(
 
 		// Bootstrap balances, if provided. We need to do before initializing
 		// the reconciler otherwise we won't reconcile bootstrapped accounts
-		// until rosetta-cli restart.
+		// until mesh-cli restart.
 		//
 		// We need to do this after instantiating the balance storage handler
 		// because it is invoked within BootstrapBalances.

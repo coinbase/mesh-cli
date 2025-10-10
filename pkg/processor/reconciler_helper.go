@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/mesh-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/reconciler"

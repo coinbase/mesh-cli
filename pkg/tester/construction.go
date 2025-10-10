@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"time"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 
-	"github.com/coinbase/rosetta-cli/configuration"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
-	"github.com/coinbase/rosetta-cli/pkg/processor"
-	"github.com/coinbase/rosetta-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/configuration"
+	"github.com/coinbase/mesh-cli/pkg/logger"
+	"github.com/coinbase/mesh-cli/pkg/processor"
+	"github.com/coinbase/mesh-cli/pkg/results"
 
 	"github.com/coinbase/rosetta-sdk-go/constructor/coordinator"
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
@@ -323,7 +323,7 @@ func InitializeConstruction(
 	if err != nil {
 		msg := fmt.Sprintf("unable to create coordinator: %s%s", err.Error(), constructionMetadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 
 	broadcastHandler := processor.NewBroadcastStorageHandler(
@@ -375,7 +375,7 @@ func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), constructionMetadata)
 		color.Red(msg)
-		log.Fatalf(msg)
+		log.Fatal(msg)
 	}
 }
 

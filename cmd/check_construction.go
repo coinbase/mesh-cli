@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"time"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
-	"github.com/coinbase/rosetta-cli/pkg/logger"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
+	"github.com/coinbase/mesh-cli/pkg/logger"
 	"github.com/fatih/color"
 
-	"github.com/coinbase/rosetta-cli/pkg/results"
-	"github.com/coinbase/rosetta-cli/pkg/tester"
+	"github.com/coinbase/mesh-cli/pkg/results"
+	"github.com/coinbase/mesh-cli/pkg/tester"
 
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -46,7 +46,7 @@ are run to ensure that intermediate representations are correct (for example, do
 an unsigned transaction return a superset of operations provided during
 construction?).
 
-Check out the https://github.com/coinbase/rosetta-cli/tree/master/examples
+Check out the https://github.com/coinbase/mesh-cli/tree/master/examples
 directory for examples of how to configure this test for Bitcoin and
 Ethereum.
 

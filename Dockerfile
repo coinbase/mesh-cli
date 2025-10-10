@@ -13,12 +13,12 @@
 # limitations under the License.
 
 # Compile golang
-FROM ubuntu:20.04 as cli
+FROM ubuntu:24.04 as cli
 
 RUN apt-get update && apt-get install -y curl make gcc g++ git
-ENV GOLANG_VERSION 1.17.9
+ENV GOLANG_VERSION 1.24.8
 ENV GOLANG_DOWNLOAD_URL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 9dacf782028fdfc79120576c872dee488b81257b1c48e9032d122cfdb379cca6
+ENV GOLANG_DOWNLOAD_SHA256 6842c516ca66c89d648a7f1dbe28e28c47b61b59f8f06633eb2ceb1188e9251d
 
 RUN curl -fsSL "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
   && echo "$GOLANG_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
@@ -31,14 +31,15 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
 WORKDIR /go/src
 
-ARG VERSION=v0.10.4
-RUN git clone https://github.com/coinbase/rosetta-cli.git && \
-	cd rosetta-cli && \
+ARG VERSION=v0.11.0
+RUN git clone https://github.com/coinbase/mesh-cli.git && \
+	cd mesh-cli && \
 	git fetch --all --tags && \
 	git checkout $VERSION && \
-	make install
+	make install && \
+	cp /go/bin/mesh-cli /go/bin/rosetta-cli
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 RUN apt-get update -y && apt-get install -y \
 	curl
@@ -47,4 +48,4 @@ RUN apt-get update -y && apt-get install -y \
 COPY --from=cli /go/bin/ /usr/local/bin/
 
 WORKDIR /app
-ENTRYPOINT ["rosetta-cli"]
+ENTRYPOINT ["mesh-cli"]

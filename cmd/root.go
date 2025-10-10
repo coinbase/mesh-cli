@@ -17,7 +17,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/coinbase/rosetta-sdk-go/types"
 	"log"
 	"os"
 	"os/signal"
@@ -26,7 +25,9 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"github.com/coinbase/rosetta-cli/configuration"
+	"github.com/coinbase/rosetta-sdk-go/types"
+
+	"github.com/coinbase/mesh-cli/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/fatih/color"
@@ -40,7 +41,7 @@ const (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:               "rosetta-cli",
+		Use:               "mesh-cli",
 		Short:             "CLI for the Rosetta API",
 		PersistentPreRunE: rootPreRun,
 	}
@@ -104,7 +105,7 @@ var (
 	// and check:construction.
 	asserterConfigurationFile string
 
-	// curveType is used to specify curve type to generate a keypair using rosetta-cli key:gen
+	// curveType is used to specify curve type to generate a keypair using mesh-cli key:gen
 	// command
 	curveType string
 )
@@ -187,7 +188,7 @@ func rootPostRun() {
 }
 
 // Execute handles all invocations of the
-// rosetta-cli cmd.
+// mesh-cli cmd.
 func Execute() error {
 	defer rootPostRun()
 	return rootCmd.Execute()
@@ -203,7 +204,7 @@ func init() {
 		"",
 		`Configuration file that provides connection and test settings.
 If you would like to generate a starter configuration file (populated
-with the defaults), run rosetta-cli configuration:create.
+with the defaults), run mesh-cli configuration:create.
 
 Any fields not populated in the configuration file will be populated with
 default values.`,
@@ -440,7 +441,7 @@ func initConfig() {
 	// Override start and end syncing index in configuration file when it's explicitly set via CLI
 	if startIndex != -1 {
 		Config.Data.StartIndex = &startIndex
-		// Configures rosetta-cli to lookup the balance of newly seen accounts at the
+		// Configures mesh-cli to lookup the balance of newly seen accounts at the
 		// parent block before applying operations. Otherwise the balance will be 0.
 		Config.Data.InitialBalanceFetchDisabled = false
 	}
@@ -518,8 +519,8 @@ func handleSignals(listeners *[]context.CancelFunc) {
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print rosetta-cli version",
+	Short: "Print mesh-cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("v0.10.4")
+		fmt.Println("v0.11.0")
 	},
 }

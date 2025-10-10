@@ -21,7 +21,7 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/fetcher"
 	"github.com/fatih/color"
 
-	cliErrs "github.com/coinbase/rosetta-cli/pkg/errors"
+	cliErrs "github.com/coinbase/mesh-cli/pkg/errors"
 )
 
 type checkSpecAPI string
