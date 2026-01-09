@@ -78,17 +78,81 @@ func (h *BroadcastStorageHelper) CurrentBlockIdentifier(
 // FindTransaction looks for the provided TransactionIdentifier in processed
 // blocks and returns the block identifier containing the most recent sighting
 // and the transaction seen in that block.
+//
+// HOTFIX: For TON, also checks metadata.in_message_hash to match transactions
+// since TON's on-chain tx hash differs from the submitted message hash.
 func (h *BroadcastStorageHelper) FindTransaction(
 	ctx context.Context,
 	transactionIdentifier *types.TransactionIdentifier,
 	txn database.Transaction,
 ) (*types.BlockIdentifier, *types.Transaction, error) {
+	// First, try normal lookup by transaction hash
 	newestBlock, transaction, err := h.blockStorage.FindTransaction(ctx, transactionIdentifier, txn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to perform transaction search for transaction %s: %w", types.PrintStruct(transactionIdentifier), err)
 	}
 
-	return newestBlock, transaction, nil
+	// If found via normal lookup, return it
+	if newestBlock != nil {
+		return newestBlock, transaction, nil
+	}
+
+	// HOTFIX: If not found, search recent blocks for a transaction where
+	// metadata.in_message_hash matches the hash we're looking for (TON specific)
+	targetHash := transactionIdentifier.Hash
+	foundBlock, foundTx := h.findTransactionByInMessageHash(ctx, targetHash)
+	if foundBlock != nil && foundTx != nil {
+		fmt.Printf("HOTFIX: Found transaction via in_message_hash match: target=%s, actual_tx_hash=%s\n",
+			targetHash, foundTx.TransactionIdentifier.Hash)
+		return foundBlock, foundTx, nil
+	}
+
+	return nil, nil, nil
+}
+
+// findTransactionByInMessageHash searches recent blocks for a transaction
+// where metadata.in_message_hash matches the target hash.
+// This is a HOTFIX for TON where on-chain tx hash differs from submitted message hash.
+func (h *BroadcastStorageHelper) findTransactionByInMessageHash(
+	ctx context.Context,
+	targetHash string,
+) (*types.BlockIdentifier, *types.Transaction) {
+	// Get current head block
+	headBlock, err := h.blockStorage.GetHeadBlockIdentifier(ctx)
+	if err != nil || headBlock == nil {
+		return nil, nil
+	}
+
+	// Search the last N blocks (configurable depth for hotfix)
+	const searchDepth = 100
+
+	for i := int64(0); i < searchDepth; i++ {
+		blockIndex := headBlock.Index - i
+		if blockIndex < 0 {
+			break
+		}
+
+		block, err := h.blockStorage.GetBlock(ctx, &types.PartialBlockIdentifier{Index: &blockIndex})
+		if err != nil || block == nil {
+			continue
+		}
+
+		// Check each transaction in the block
+		for _, tx := range block.Transactions {
+			if tx.Metadata == nil {
+				continue
+			}
+
+			// Check if in_message_hash matches our target
+			if inMsgHash, ok := tx.Metadata["in_message_hash"]; ok {
+				if hashStr, ok := inMsgHash.(string); ok && hashStr == targetHash {
+					return block.BlockIdentifier, tx
+				}
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // BroadcastTransaction broadcasts a transaction to a Rosetta implementation
