@@ -322,8 +322,8 @@ func InitializeConstruction(
 	)
 	if err != nil {
 		msg := fmt.Sprintf("unable to create coordinator: %s%s", err.Error(), constructionMetadata)
-		color.Red(msg)
-		log.Fatalf(msg)
+		color.Red("%s", msg)
+		log.Fatal(msg)
 	}
 
 	broadcastHandler := processor.NewBroadcastStorageHandler(
@@ -374,8 +374,8 @@ func InitializeConstruction(
 func (t *ConstructionTester) CloseDatabase(ctx context.Context) {
 	if err := t.database.Close(ctx); err != nil {
 		msg := fmt.Sprintf("error closing database: %s%s", err.Error(), constructionMetadata)
-		color.Red(msg)
-		log.Fatalf(msg)
+		color.Red("%s", msg)
+		log.Fatal(msg)
 	}
 }
 
