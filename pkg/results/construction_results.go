@@ -44,18 +44,34 @@ type CheckConstructionResults struct {
 
 // Print logs CheckConstructionResults to the console.
 func (c *CheckConstructionResults) Print() {
+	fmt.Println()
+	fmt.Println("========================================")
+	
 	if len(c.Error) > 0 {
-		fmt.Printf("\n")
-		color.Red("Error: %s", c.Error)
+		color.Red("STATUS: FAILED")
+		fmt.Println()
+		color.Yellow("Error Details:")
+		fmt.Printf("  %s\n", c.Error)
+		fmt.Println()
+		color.Cyan("Suggested Actions:")
+		fmt.Println("  1. Review the error message above")
+		fmt.Println("  2. Check your construction configuration")
+		fmt.Println("  3. Verify the Rosetta server is accessible")
+		fmt.Println("  4. Run with --help for more options")
 	} else {
-		fmt.Printf("\n")
-		color.Green("Success: %s", types.PrintStruct(c.EndConditions))
+		color.Green("STATUS: SUCCESS")
+		fmt.Println()
+		color.Cyan("Construction check completed successfully!")
+		fmt.Printf("End Conditions: %s\n", types.PrintStruct(c.EndConditions))
 	}
+	
+	fmt.Println()
+	fmt.Println("========================================")
+	fmt.Println()
 
-	fmt.Printf("\n")
 	if c.Stats != nil {
 		c.Stats.Print()
-		fmt.Printf("\n")
+		fmt.Println()
 	}
 }
 
