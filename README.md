@@ -52,11 +52,11 @@ You can also view releases and change log information in the [Releases](https://
 
 ## Documentation
 
-You can find the Mesh API documentation [here](https://docs.cdp.coinbase.com/mesh/docs/welcome/)
+You can find the Mesh API documentation [here](https://github.com/coinbase/mesh-specifications)
 
-For more information on the mesh-cli tool, read our [The mesh-cli tool](https://docs.cdp.coinbase.com/mesh/docs/mesh-cli/) documentation.
+For more information on the mesh-cli tool, read our [The mesh-cli tool](https://github.com/coinbase/mesh-cli#readme) documentation.
 
-For more information on how to test your implementation file with the `mesh-cli` tool, read our [How to Test Your Mesh Implementation](https://docs.cdp.coinbase.com/mesh/docs/mesh-test/) documentation.
+For more information on how to test your implementation file with the `mesh-cli` tool, read our [How to Test Your Mesh Implementation](https://github.com/coinbase/mesh-cli#checkdata) documentation.
 
 ## Contributing
 
