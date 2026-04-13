@@ -20,13 +20,13 @@ set -e
 usage() {
   this=$1
   cat <<EOF
-$this: download go binaries for coinbase/rosetta-cli
+$this: download go binaries for coinbase/mesh-cli
 
 Usage: $this [-b] bindir [-d] [tag]
   -b sets bindir or installation directory, Defaults to ./bin
   -d turns on debug logging
    [tag] is a tag from
-   https://github.com/coinbase/rosetta-cli/releases
+   https://github.com/coinbase/mesh-cli/releases
    If tag is missing, then the latest will be used.
 
 EOF
@@ -300,7 +300,7 @@ EOF
 BINARY=rosetta-cli
 FORMAT=tar.gz
 OWNER=coinbase
-REPO="rosetta-cli"
+REPO="mesh-cli"
 OS=$(uname_os)
 ARCH=$(uname_arch)
 PREFIX="$OWNER/$REPO"
